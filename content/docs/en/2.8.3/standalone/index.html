@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Set up a standalone Pulsar locally · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Set up a standalone Pulsar locally · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/en/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/2.8.3/standalone">日本語</a></li><li><a href="/docs/fr/2.8.3/standalone">Français</a></li><li><a href="/docs/ko/2.8.3/standalone">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/standalone">中文</a></li><li><a href="/docs/zh-TW/2.8.3/standalone">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Get Started</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/en/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/getting-started-standalone.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Set up a standalone Pulsar locally</h1></header><article><div><span><p>For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-in-production"></a><a href="#pulsar-in-production" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar in production?</h4>
+<p>If you're looking to run a full production Pulsar installation, see the <a href="/docs/en/2.8.3/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="install-pulsar-standalone"></a><a href="#install-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar standalone</h2>
+<p>This tutorial guides you through every step of the installation process.</p>
+<h3><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h3>
+<p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
+</blockquote>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Broker is only supported on 64-bit JVM.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="install-pulsar-using-binary-release"></a><a href="#install-pulsar-using-binary-release" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar using binary release</h3>
+<p>To get started with Pulsar, download a binary tarball release in one of the following ways:</p>
+<ul>
+<li><p>download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.3/apache-pulsar-2.8.3-bin.tar.gz" download>Pulsar 2.8.3 binary release</a>)</p></li>
+<li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
+<li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.3/apache-pulsar-2.8.3-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>After you download the tarball, untar it and use the <code>cd</code> command to navigate to the resulting directory:</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.8.3-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.3
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="what-your-package-contains"></a><a href="#what-your-package-contains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What your package contains</h4>
+<p>The Pulsar binary package initially contains the following directories:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/docs/en/2.8.3/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a>.</td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Configuration files for Pulsar, including <a href="/docs/en/2.8.3/reference-configuration#broker">broker configuration</a>, <a href="/docs/en/2.8.3/reference-configuration#zookeeper">ZooKeeper configuration</a>, and more.</td></tr>
+<tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">A Java JAR file containing <a href="/docs/en/2.8.3/functions-overview">Pulsar Functions</a> example.</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">License files, in the<code>.txt</code> form, for various components of the Pulsar <a href="https://github.com/apache/pulsar">codebase</a>.</td></tr>
+</tbody>
+</table>
+<p>These directories are created once you begin running Pulsar.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">The data storage directory used by ZooKeeper and BookKeeper.</td></tr>
+<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">Artifacts created for <a href="/docs/en/2.8.3/functions-overview">Pulsar Functions</a>.</td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">Logs created by the installation.</td></tr>
+</tbody>
+</table>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
+<ul>
+<li><a href="#install-builtin-connectors-optional">Install builtin connectors (optional)</a></li>
+<li><a href="#install-tiered-storage-offloaders-optional">Install tiered storage offloaders (optional)</a></li>
+</ul>
+<p>Otherwise, skip this step and perform the next step <a href="#start-pulsar-standalone">Start Pulsar standalone</a>. Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="install-builtin-connectors-optional"></a><a href="#install-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install builtin connectors (optional)</h3>
+<p>Since <code>2.1.0-incubating</code> release, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors.
+To enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
+<ul>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.3/connectors" download>Pulsar IO Connectors 2.8.3 release</a></p></li>
+<li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
+<li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.3/connectors/{connector}-2.8.3.nar</span>
+</code></pre></li>
+</ul>
+<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory.
+For example, if you download the <code>pulsar-io-aerospike-2.8.3.nar</code> connector file, enter the following commands:</p>
+<pre><code class="hljs css language-bash">$ mkdir connectors
+$ mv pulsar-io-aerospike-2.8.3.nar connectors
+
+$ ls connectors
+pulsar-io-aerospike-2.8.3.nar
+...
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<ul>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure <code>connectors</code> tarball is unzipped in every pulsar directory of the broker
+(or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).</p></li>
+<li><p>If you are <a href="/docs/en/2.8.3/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/en/2.8.3/deploy-kubernetes">K8S</a> or <a href="https://dcos.io/">DC/OS</a>),
+you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/en/2.8.3/io-overview#working-with-connectors">all builtin connectors</a>.</p></li>
+</ul>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="install-tiered-storage-offloaders-optional"></a><a href="#install-tiered-storage-offloaders-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install tiered storage offloaders (optional)</h3>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
+To enable tiered storage feature, follow the instructions below; otherwise skip this section.</p>
+</blockquote>
+<p>To get started with <a href="/docs/en/2.8.3/concepts-tiered-storage">tiered storage offloaders</a>, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
+<ul>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.3/apache-pulsar-offloaders-2.8.3-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.8.3 release</a></p></li>
+<li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
+<li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.3/apache-pulsar-offloaders-2.8.3-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>After you download the tarball, untar the offloaders package and copy the offloaders as <code>offloaders</code>
+in the pulsar directory:</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.8.3-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-offloaders-2.8.3` <span class="hljs-keyword">in</span> the pulsar directory
+// <span class="hljs-keyword">then</span> copy the offloaders
+
+$ mv apache-pulsar-offloaders-2.8.3/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-2.8.3.nar
+</code></pre>
+<p>For more information on how to configure tiered storage, see <a href="/docs/en/2.8.3/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<ul>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's pulsar directory.</p></li>
+<li><p>If you are <a href="/docs/en/2.8.3/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/en/2.8.3/deploy-kubernetes">K8S</a> or <a href="https://dcos.io/">DC/OS</a>),
+you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
+</ul>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="start-pulsar-standalone"></a><a href="#start-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Pulsar standalone</h2>
+<p>Once you have an up-to-date local copy of the release, you can start a local cluster using the <a href="/docs/en/2.8.3/reference-cli-tools#pulsar"><code>pulsar</code></a> command, which is stored in the <code>bin</code> directory, and specifying that you want to start Pulsar in standalone mode.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar standalone
+</code></pre>
+<p>If you have started Pulsar successfully, you will see <code>INFO</code>-level log messages like this:</p>
+<pre><code class="hljs css language-bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
+2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
+2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<ul>
+<li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
+You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
+<li><p>By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check <a href="/docs/en/2.8.3/security-overview">Security Overview</a> document to secure your deployment.</p></li>
+<li><p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/en/2.8.3/concepts-messaging#namespaces">namespace</a> is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see <a href="/docs/en/2.8.3/concepts-messaging#topics">Topics</a>.</p></li>
+</ul>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="use-pulsar-standalone"></a><a href="#use-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use Pulsar standalone</h2>
+<p>Pulsar provides a CLI tool called <a href="/docs/en/2.8.3/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>. The pulsar-client tool enables you to consume and produce messages to a Pulsar topic in a running cluster.</p>
+<h3><a class="anchor" aria-hidden="true" id="consume-a-message"></a><a href="#consume-a-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consume a message</h3>
+<p>The following command consumes a message with the subscription name <code>first-subscription</code> to the <code>my-topic</code> topic:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client consume my-topic -s <span class="hljs-string">"first-subscription"</span>
+</code></pre>
+<p>If the message has been successfully consumed, you will see a confirmation like the following in the <code>pulsar-client</code> logs:</p>
+<pre><code class="hljs">09<span class="hljs-selector-pseudo">:56</span><span class="hljs-selector-pseudo">:55.566</span> <span class="hljs-selector-attr">[pulsar-client-io-1-1]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.impl</span><span class="hljs-selector-class">.MultiTopicsConsumerImpl</span> <span class="hljs-selector-tag">-</span> <span class="hljs-selector-attr">[TopicsConsumerFakeTopicNamee2df9]</span> <span class="hljs-selector-attr">[first-subscription]</span> <span class="hljs-selector-tag">Success</span> <span class="hljs-selector-tag">subscribe</span> <span class="hljs-selector-tag">new</span> <span class="hljs-selector-tag">topic</span> <span class="hljs-selector-tag">my-topic</span> <span class="hljs-selector-tag">in</span> <span class="hljs-selector-tag">topics</span> <span class="hljs-selector-tag">consumer</span>, <span class="hljs-selector-tag">partitions</span>: 4, <span class="hljs-selector-tag">allTopicPartitionsNumber</span>: 4
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-4"></a><a href="#tip-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="produce-a-message"></a><a href="#produce-a-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce a message</h3>
+<p>The following command produces a message saying <code>hello-pulsar</code> to the <code>my-topic</code> topic:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
+</code></pre>
+<p>If the message has been successfully published to the topic, you will see a confirmation like the following in the <code>pulsar-client</code> logs:</p>
+<pre><code class="hljs">13<span class="hljs-selector-pseudo">:09</span><span class="hljs-selector-pseudo">:39.356</span> <span class="hljs-selector-attr">[main]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.cli</span><span class="hljs-selector-class">.PulsarClientTool</span> <span class="hljs-selector-tag">-</span> 1 <span class="hljs-selector-tag">messages</span> <span class="hljs-selector-tag">successfully</span> <span class="hljs-selector-tag">produced</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="stop-pulsar-standalone"></a><a href="#stop-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop Pulsar standalone</h2>
+<p>Press <code>Ctrl+C</code> to stop a local standalone Pulsar.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-5"></a><a href="#tip-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code>  command to stop the service.</p>
+<p>For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/en/2.8.3/standalone-docker"><span>Run Pulsar in Docker</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-pulsar-standalone">Install Pulsar standalone</a><ul class="toc-headings"><li><a href="#system-requirements">System requirements</a></li><li><a href="#install-pulsar-using-binary-release">Install Pulsar using binary release</a></li><li><a href="#install-builtin-connectors-optional">Install builtin connectors (optional)</a></li><li><a href="#install-tiered-storage-offloaders-optional">Install tiered storage offloaders (optional)</a></li></ul></li><li><a href="#start-pulsar-standalone">Start Pulsar standalone</a></li><li><a href="#use-pulsar-standalone">Use Pulsar standalone</a><ul class="toc-headings"><li><a href="#consume-a-message">Consume a message</a></li><li><a href="#produce-a-message">Produce a message</a></li></ul></li><li><a href="#stop-pulsar-standalone">Stop Pulsar standalone</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.8.3"]}
+              });
+            </script></body></html>

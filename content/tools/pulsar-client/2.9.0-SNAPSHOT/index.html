@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Docs</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/vnd.microsoft.icon">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" type="text/css">
+<link rel="stylesheet" href="node_modules/highlight.js/styles/default.css" type="text/css">
+<link rel="stylesheet" href="stylesheet.css" type="text/css">
+</head>
+<body>
+<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#produce" class="nav-item">produce</a></li></ul><ul><li class="nav-level-1"><a href="#consume" class="nav-item">consume</a></li></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
+<div id="wrapper">
+<div id="code-tabs-wrapper" class="code-tabs"><ul class="code-tab-list"><li class="code-tab" id="example">example</li></ul></div>
+<div id="page-content-wrapper" class="body-content container-fluid"><hr>
+<h1 id="produce">produce</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$produce</code></p>
+<hr>
+<p>Produce messages to a specified topic</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar-client produce [<span class="hljs-keyword">options</span>]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-ks, --key-schema</code></td>
+<td>Schema type (can be bytes,avro,json,string...)</td>
+<td>string</td>
+</tr>
+<tr>
+<td><code>-m, --messages</code></td>
+<td>Messages to send, either -m or -f must be specified. The default separator is comma</td>
+<td>[]</td>
+</tr>
+<tr>
+<td><code>-s, --separator</code></td>
+<td>Character to split messages string on default is comma</td>
+<td>,</td>
+</tr>
+<tr>
+<td><code>-n, --num-produce</code></td>
+<td>Number of times to send message(s), the count of messages/files * num-produce should below than 1000.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-k, --key</code></td>
+<td>message key to add</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-c, --chunking</code></td>
+<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ekn, --encryption-key-name</code></td>
+<td>The public key name to encrypt payload</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-p, --properties</code></td>
+<td>Properties to add, Comma separated key=value string, like k1=v1,k2=v2.</td>
+<td>[]</td>
+</tr>
+<tr>
+<td><code>-kvet, --key-value-encoding-type</code></td>
+<td>Key Value Encoding Type (it can be separated or inline)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-ekv, --encryption-key-value</code></td>
+<td>The URI of public key to encrypt payload, for example file:///path/to/public.key or data:application/x-pem-file;base64,<strong>*</strong></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-f, --files</code></td>
+<td>Comma separated file paths to send, either -m or -f must be specified.</td>
+<td>[]</td>
+</tr>
+<tr>
+<td><code>-vs, --value-schema</code></td>
+<td>Schema type (can be bytes,avro,json,string...)</td>
+<td>bytes</td>
+</tr>
+<tr>
+<td><code>-r, --rate</code></td>
+<td>Rate (in msg/sec) at which to produce, value 0 means to produce messages as fast as possible.</td>
+<td>0.0</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="consume">consume</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$consume</code></p>
+<hr>
+<p>Consume messages from a specified topic</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar-client consume [<span class="hljs-keyword">options</span>]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t, --subscription-type</code></td>
+<td>Subscription type.</td>
+<td>Exclusive</td>
+</tr>
+<tr>
+<td><code>--hide-content</code></td>
+<td>Do not write the message to console.</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-n, --num-messages</code></td>
+<td>Number of messages to consume, 0 means to consume forever.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-r, --rate</code></td>
+<td>Rate (in msg/sec) at which to consume, value 0 means to consume messages as fast as possible.</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td><code>-ekv, --encryption-key-value</code></td>
+<td>The URI of private key to decrypt payload, for example file:///path/to/private.key or data:application/x-pem-file;base64,<strong>*</strong></td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-st, --schema-type</code></td>
+<td>Set a schema type on the consumer, it can be &#39;bytes&#39; or &#39;auto_consume&#39;</td>
+<td>bytes</td>
+</tr>
+<tr>
+<td><code>-q, --queue-size</code></td>
+<td>Consumer receiver queue size.</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-p, --subscription-position</code></td>
+<td>Subscription position.</td>
+<td>Latest</td>
+</tr>
+<tr>
+<td><code>-mc, --max_chunked_msg</code></td>
+<td>Max pending chunk messages</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>--hex</code></td>
+<td>Display binary messages in hex.</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--regex</code></td>
+<td>Indicate the topic name is a regex pattern</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-m, --subscription-mode</code></td>
+<td>Subscription mode.</td>
+<td>Durable</td>
+</tr>
+<tr>
+<td><code>-s, --subscription-name</code></td>
+<td>Subscription name.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-ac, --auto_ack_chunk_q_full</code></td>
+<td>Auto ack for oldest message on queue is full</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-pm, --pool-messages</code></td>
+<td>Use the pooled message</td>
+<td>true</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<script src="node_modules/jquery/dist/jquery.min.js"></script>
+<script src="node_modules/jquery.scrollto/jquery.scrollTo.min.js"></script>
+<script src="navData.js"></script>
+<script src="scroll.js"></script>
+<!--<script src="actions.js"></script>-->
+<script src="tabvisibility.js"></script>
+</body>
+</html>

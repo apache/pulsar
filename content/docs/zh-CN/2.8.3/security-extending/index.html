@@ -1,0 +1,295 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Extending Authentication and Authorization in Pulsar · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 提供了实现自定义认证和授权的机制。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Extending Authentication and Authorization in Pulsar · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar 提供了实现自定义认证和授权的机制。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/security-extending">English</a></li><li><a href="/docs/ja/2.8.3/security-extending">日本語</a></li><li><a href="/docs/fr/2.8.3/security-extending">Français</a></li><li><a href="/docs/ko/2.8.3/security-extending">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/security-extending">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>安全</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Extending Authentication and Authorization in Pulsar</h1></header><article><div><span><p>Pulsar 提供了实现自定义认证和授权的机制。</p>
+<h2><a class="anchor" aria-hidden="true" id="认证"></a><a href="#认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>认证</h2>
+<p>Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in <a href="/docs/zh-CN/2.8.3/security-overview">Security</a>.</p>
+<p>你能够使用自定义的认证机制，只要实现以下两个插件的具体实现。 一个插件用于客户端库，另一个插件用于Pulsar Proxy 和 Pulsar Broker 来验证凭据。</p>
+<h3><a class="anchor" aria-hidden="true" id="客户端认证插件"></a><a href="#客户端认证插件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端认证插件</h3>
+<p>For the client library, you need to implement <code>org.apache.pulsar.client.api.Authentication</code>. By entering the command below you can pass this class when you create a Pulsar client:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+    .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+    .authentication(<span class="hljs-keyword">new</span> MyAuthentication())
+    .build();
+</code></pre>
+<p>You can use 2 interfaces to implement on the client side:</p>
+<ul>
+<li><code>Authentication</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html">http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html</a></li>
+<li><code>AuthenticationDataProvider</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html">http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html</a></li>
+</ul>
+<p>这反过来需要以 <code>org.apache.pulsar.client.api.AuthentationDataProvider</code> 的形式提供客户端凭据。 这样就有机会为不同类型的连接返回不同类型的身份验证令牌，或者通过传递证书链来为TLS使用。</p>
+<p>你可以找到客户端认证实现的一些例子：</p>
+<ul>
+<li>Mutual TLS Auth -- <a href="https://github.com/apache/pulsar/tree/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth">https://github.com/apache/pulsar/tree/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth</a></li>
+<li>Athenz -- <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-auth-athenz/src/main/java/org/apache/pulsar/client/impl/auth">https://github.com/apache/pulsar/tree/master/pulsar-client-auth-athenz/src/main/java/org/apache/pulsar/client/impl/auth</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="proxybroker-认证插件"></a><a href="#proxybroker-认证插件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy/Broker 认证插件</h3>
+<p>在 Proxy/Broker 这一侧，你需要配置相应的插件去检验客户端发送过来的凭据信息。 Proxy 和 Broker 可以同时支持多个身份认证提供者。</p>
+<p>在配置文件<code>conf/broker.conf</code>中，你能够指定一个有效提供者列表：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 认证提供者名字列表, 用逗号分隔类名</span>
+<span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string"></span>
+</code></pre>
+<p>在单个接口实现<code>org.apache.pulsar.broker.authentication.AuthenticationProvider</code>：</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+ * 认证机制提供者
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">AuthenticationProvider</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Closeable</span> </span>{
+
+    <span class="hljs-comment">/**
+     * 初始化认证提供者
+     *
+     * <span class="hljs-doctag">@param</span> config
+     *            Broker 配置对象
+     * <span class="hljs-doctag">@throws</span> IOException
+     *             如果初始化失败，则抛出异常
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">initialize</span><span class="hljs-params">(ServiceConfiguration config)</span> <span class="hljs-keyword">throws</span> IOException</span>;
+
+    <span class="hljs-comment">/**
+     * <span class="hljs-doctag">@return</span> 返回本认证提供者的名称
+     */</span>
+    <span class="hljs-function">String <span class="hljs-title">getAuthMethodName</span><span class="hljs-params">()</span></span>;
+
+    <span class="hljs-comment">/**
+     * 使用指定的身份验证数据验证给定凭据
+     *
+     * <span class="hljs-doctag">@param</span> authData
+     *            provider specific authentication data
+     * <span class="hljs-doctag">@return</span> the "role" string for the authenticated connection, if the authentication was successful
+     * <span class="hljs-doctag">@throws</span> AuthenticationException
+     *             if the credentials are not valid
+     */</span>
+    <span class="hljs-function">String <span class="hljs-title">authenticate</span><span class="hljs-params">(AuthenticationDataSource authData)</span> <span class="hljs-keyword">throws</span> AuthenticationException</span>;
+
+}
+</code></pre>
+<p>以下是 Broker 认证插件的示例：</p>
+<ul>
+<li>Mutual TLS -- <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java">https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java</a></li>
+<li>Athenz -- <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java">https://github.com/apache/pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="授权"></a><a href="#授权" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>授权</h2>
+<p>授权是检查某个“角色”或“主体”是否具有执行某个操作权限的操作。</p>
+<p>默认情况下，你能够使用 Pulsar 自带的授权提供商。 你也可以通过插件的形式，配置不同的授权提供商。 注意，尽管认证插件被设计成可以在 Proxy 和 Broker 中使用。但是授权插件却被设计为只能在 Broker 中使用。所以，如果启用了授权机制，Proxy 只会执行一些简单的针对角色的授权检查。</p>
+<p>要提供自定义提供者，你必须实现<code>org.apache.pulsar.broker.authorization.AuthorizationProvider</code>接口。并将该类放到 Pulsar 所用的 classpath中，并将类名配置到<code>conf/broker.conf</code>中。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Authorization provider fully qualified class-name</span>
+<span class="hljs-attr">authorizationProvider</span>=<span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
+</code></pre>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+ * 授权策略提供者接口
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">AuthorizationProvider</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Closeable</span> </span>{
+
+    <span class="hljs-comment">/**
+     * 初始化授权提供者
+     *
+     * <span class="hljs-doctag">@param</span> conf
+     *            broker config object
+     * <span class="hljs-doctag">@param</span> configCache
+     *            pulsar zk configuration cache service
+     * <span class="hljs-doctag">@throws</span> IOException
+     *             if the initialization fails
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">initialize</span><span class="hljs-params">(ServiceConfiguration conf, ConfigurationCacheService configCache)</span> <span class="hljs-keyword">throws</span> IOException</span>;
+
+    <span class="hljs-comment">/**
+     * 检查指定角色是否具有向指定的完全限定主题名称发送消息的权限
+     *
+     * <span class="hljs-doctag">@param</span> topicName
+     *            the fully qualified topic name associated with the topic.
+     * <span class="hljs-doctag">@param</span> role
+     *            the app id used to send messages to the topic.
+     */</span>
+    <span class="hljs-function">CompletableFuture&lt;Boolean&gt; <span class="hljs-title">canProduceAsync</span><span class="hljs-params">(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData)</span></span>;
+
+    <span class="hljs-comment">/**
+     * 检查指定角色是否具有从指定的完全限定主题接收消息的权限.
+     *
+     * <span class="hljs-doctag">@param</span> topicName
+     *            the fully qualified topic name associated with the topic.
+     * <span class="hljs-doctag">@param</span> role
+     *            the app id used to receive messages from the topic.
+     * <span class="hljs-doctag">@param</span> subscription
+     *            the subscription name defined by the client
+     */</span>
+    <span class="hljs-function">CompletableFuture&lt;Boolean&gt; <span class="hljs-title">canConsumeAsync</span><span class="hljs-params">(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData, String subscription)</span></span>;
+
+    <span class="hljs-comment">/**
+     * 检查指定角色是否可以执行指定主题的查找。
+     *
+     * 要调用它必须拥有生产者或消费者的权限.
+     *
+     * <span class="hljs-doctag">@param</span> topicName
+     * <span class="hljs-doctag">@param</span> role
+     * <span class="hljs-doctag">@return</span>
+     * <span class="hljs-doctag">@throws</span> Exception
+     */</span>
+    <span class="hljs-function">CompletableFuture&lt;Boolean&gt; <span class="hljs-title">canLookupAsync</span><span class="hljs-params">(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData)</span></span>;
+
+    <span class="hljs-comment">/**
+     *
+     * 在命名空间级别授予客户端授权操作的权限。
+     *
+     * <span class="hljs-doctag">@param</span> namespace
+     * <span class="hljs-doctag">@param</span> actions
+     * <span class="hljs-doctag">@param</span> role
+     * <span class="hljs-doctag">@param</span> authDataJson
+     *            additional authdata in json format
+     * <span class="hljs-doctag">@return</span> CompletableFuture
+     * <span class="hljs-doctag">@completesWith</span> &lt;br/&gt;
+     *                IllegalArgumentException when namespace not found&lt;br/&gt;
+     *                IllegalStateException when failed to grant permission
+     */</span>
+    <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">grantPermissionAsync</span><span class="hljs-params">(NamespaceName namespace, Set&lt;AuthAction&gt; actions, String role,
+            String authDataJson)</span></span>;
+
+    <span class="hljs-comment">/**
+     * 在主题上授予客户端授权操作的权限。
+     *
+     * <span class="hljs-doctag">@param</span> topicName
+     * <span class="hljs-doctag">@param</span> role
+     * <span class="hljs-doctag">@param</span> authDataJson
+     *            additional authdata in json format
+     * <span class="hljs-doctag">@return</span> CompletableFuture
+     * <span class="hljs-doctag">@completesWith</span> &lt;br/&gt;
+     *                IllegalArgumentException when namespace not found&lt;br/&gt;
+     *                IllegalStateException when failed to grant permission
+     */</span>
+    <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">grantPermissionAsync</span><span class="hljs-params">(TopicName topicName, Set&lt;AuthAction&gt; actions, String role,
+            String authDataJson)</span></span>;
+
+}
+
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/security-encryption"><span class="arrow-prev">← </span><span>端到端加密</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/security-bouncy-castle"><span>Bouncy Castle Providers</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#认证">认证</a><ul class="toc-headings"><li><a href="#客户端认证插件">客户端认证插件</a></li><li><a href="#proxybroker-认证插件">Proxy/Broker 认证插件</a></li></ul></li><li><a href="#授权">授权</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

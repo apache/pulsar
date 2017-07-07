@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Presentations</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+
+    <article class="content col-xs-12 col-sm-12 col-md-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Presentations</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<h2 id="articles">Articles</h2>
+
+<ul>
+  <li>Yahoo Engineering blog post — <a href="https://yahooeng.tumblr.com/post/150078336821/open-sourcing-pulsar-pub-sub-messaging-at-scale">Open-sourcing Pulsar, Pub-sub Messaging at Scale</a></li>
+  <li>Streamlio — <a href="https://streaml.io/blog/intro-to-pulsar/">Introduction to Apache Pulsar</a></li>
+  <li>Streamlio — <a href="https://streaml.io/blog/why-apache-pulsar/">Why Apache Pulsar? Part 1</a></li>
+  <li>Streamlio — <a href="https://streaml.io/blog/why-apache-pulsar-part-2/">Why Apache Pulsar? Part 2</a></li>
+</ul>
+
+<h2 id="presentations">Presentations</h2>
+
+<ul>
+  <li>October 2016 Hadoop User Group — <a href="https://www.slideshare.net/ydn/october-2016-hug-pulsar-a-highly-scalable-low-latency-pubsub-messaging-system">Pulsar, a highly scalable, low latency pub-sub messaging system</a></li>
+  <li>November 2016 — <a href="https://www.slideshare.net/merlimat/pulsar-distributed-pubsub-platform">Pulsar - Distributed pub/sub platform</a></li>
+</ul>
+
+      </section>
+    </article>
+
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar codebase · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The panels below describe some of the core directories in the [Pulsar codebase](https://github.com/apache/incubator-pulsar)."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="The Pulsar codebase · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/staging/index.html"/><meta property="og:description" content="The panels below describe some of the core directories in the [Pulsar codebase](https://github.com/apache/incubator-pulsar)."/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/staging/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="stylesheet" href="/staging/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/staging/js/custom.js"></script><link rel="stylesheet" href="/staging/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/staging/"><img class="logo" src="/staging/img/pulsar.svg" alt="Apache Pulsar"/></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/staging/docs/standalone" target="_self">Documentation</a></li><li class=""><a href="/staging/en/download" target="_self">Download</a></li><li class=""><a href="/staging/docs/client-libraries" target="_self">Client libraries</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/developing-codebase.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">The Pulsar codebase</h1></header><article><div><span><p>The panels below describe some of the core directories in the <a href="https://github.com/apache/incubator-pulsar">Pulsar codebase</a>.</p>
+<p>{% include codebase.html %}</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu = 
+        '<li>' +
+        '<a id="community-menu" href="#">Community</a>' + 
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/staging/contact">Contant</a></li>' +
+            '<li><a href="/staging/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar">Twitter</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a></li>' +
+            '<li><a href="/staging/resources">Resources</a></li>' +
+            '<li><a href="/staging/team">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span><span><script src="/staging/js/pjax-api.min.js"></script><script>window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>

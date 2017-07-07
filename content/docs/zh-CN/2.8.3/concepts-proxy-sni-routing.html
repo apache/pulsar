@@ -1,0 +1,202 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Proxy support with SNI routing · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="代理服务器是一个中转服务，它通过网络转发多个客户端的请求到不同的后端服务器上。 代理服务器在正向代理和反向代理的场景中起到了类似“流量检查”的作用。它能给你的系统带来如下好处，如负载均衡，性能，安全，自动扩缩容等等。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Proxy support with SNI routing · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="代理服务器是一个中转服务，它通过网络转发多个客户端的请求到不同的后端服务器上。 代理服务器在正向代理和反向代理的场景中起到了类似“流量检查”的作用。它能给你的系统带来如下好处，如负载均衡，性能，安全，自动扩缩容等等。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/concepts-proxy-sni-routing">English</a></li><li><a href="/docs/ja/2.8.3/concepts-proxy-sni-routing">日本語</a></li><li><a href="/docs/fr/2.8.3/concepts-proxy-sni-routing">Français</a></li><li><a href="/docs/ko/2.8.3/concepts-proxy-sni-routing">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>概念和架构</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Proxy support with SNI routing</h1></header><article><div><span><p>代理服务器是一个中转服务，它通过网络转发多个客户端的请求到不同的后端服务器上。 代理服务器在正向代理和反向代理的场景中起到了类似“流量检查”的作用。它能给你的系统带来如下好处，如负载均衡，性能，安全，自动扩缩容等等。</p>
+<p>代理服务起到了反向代理的作用，它在所有的 broker 前面创建了一个网关。 Pulsar 不支持Apache Traffic Server (ATS), HAProxy, Nginx和Envoy 等开源代理组件。 代理服务器支持<strong>SNI 路由</strong>， SNI 路由用于在不断开 SSL 连接的情况下将流量转发到目标地址。 四层路由转发提供了更大的透明度，因为转发的出口连接是根据TCP包里面携带的目标地址信息来确定的。</p>
+<p>Pulsar 客户端(Java, C++, Python) 支持<a href="https://github.com/apache/pulsar/wiki/PIP-60:-Support-Proxy-server-with-SNI-routing">SNI 路由协议</a>，所以可以通过 proxy 连接到 brokers。 本篇文档会教你通过设置 ATS 代理，启用 SNI 路由，使 Pulsar 客户端可以通过 ATS 代理连接到 broker。</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-ats-sni-路由"></a><a href="#pulsar-ats-sni-路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar ATS-SNI 路由</h2>
+<p>如果要支持 <a href="https://docs.trafficserver.apache.org/en/latest/admin-guide/layer-4-routing.en.html">四层 SNI 路由</a> ATS，进站连接必须是 TLS 连接。 Pulsar 客户端在 TLS 连接内支持 SNI 路由协议，所以当 Pulsar 客户端通过 ATS 代理连接到 broker时，Pulsar 实际是使用 ATS 作为一个反向代理。</p>
+<p>Pulsar 的跨域复制也支持 SNI 路由，所以不同集群的 Brokers 之间能够通过 ATS 代理进行通信。</p>
+<p>本节说明了如何设置和使用 ATS 作为反向代理， 使 Pulsar 客户端能够通过在 TLS 连接上使用 SNI 路由，连接到实际的 broker。</p>
+<h3><a class="anchor" aria-hidden="true" id="四层-sni-路由-启用-ats-代理"></a><a href="#四层-sni-路由-启用-ats-代理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>四层 SNI 路由 启用 ATS 代理</h3>
+<p>如果需要支持四层 SNI 路由， 你必须修改<code>records.conf</code>和<code>ssl_server_name.conf</code>这两个配置文件。</p>
+<p><img src="/docs/assets/pulsar-sni-client.png" alt="Pulsar 客户端 SNI"></p>
+<p>默认情况下，<a href="https://docs.trafficserver.apache.org/en/latest/admin-guide/files/records.config.en.html">records.config</a>文件在本地的<code>/usr/local/etc/trafficserver/</code>目录下。 该文件包含了 ATS 相关的可配置参数。</p>
+<p>要修改配置文件<code>records.config</code>，有如下步骤。</p>
+<ol>
+<li>通过参数<code>http.server_ports</code>配置 TLS 监听的端口，通过修改参数: <code>ssl.client.cert.path</code>和<code>ssl.client.cert.filename</code>，修改所使用的代理证书，以建立安全的 TLS 隧道。</code></li>
+<li>通过参数<code>http.connect_port</code>配置 Broker 的服务端口，用来建立隧道。 假设 Pulsar broker 监听的是<code>443</code>和<code>6651</code>端口，那么就需要修改配置<code>http.connect_ports</code>为对应的值。</li>
+</ol>
+<p>The following is an example.</p>
+<pre><code class="hljs"><span class="hljs-comment"># 代理的 TLS 端口</span><span class="hljs-built_in">
+CONFIG </span>proxy.config.http.server_ports STRING 4443:ssl 4080
+<span class="hljs-comment"># 代理的证书文件路径</span><span class="hljs-built_in">
+CONFIG </span>proxy.config.ssl.client.cert.path STRING /proxy-cert.pem
+<span class="hljs-comment"># 代理的公钥文件路径</span><span class="hljs-built_in">
+CONFIG </span>proxy.config.ssl.client.cert.filename STRING /proxy-key.pem #  转发服务器只允许在指定的端口建立隧道。 支持通配符形式(*) 和 范围(如0-1023)两种形式。<span class="hljs-built_in">
+CONFIG </span>proxy.config.http.connect_ports STRING 4443 6651
+</code></pre>
+<p><a href="https://docs.trafficserver.apache.org/en/8.0.x/admin-guide/files/ssl_server_name.yaml.en.html"> ssl_server_name </a>文件用来配置 TLS 连接的入站和出站规则。 配置需要依赖于入站连接的 SNI 的值。 这个文件由一系列配置项组成，每项都是由 SNI 的值(<code>fqdn</code>)决定。 入站连接建立时，会判断 TLS 携带的 SNI 的值和配置文件的选项是否匹配。 如果值是匹配的，那么配置文件对应的选项的值就会覆盖默认的值。</p>
+<p>下面是一个客户端的入站 SNI 主机名的映射关系，以及应该重定向请求的实际 Broker 服务URL的示例。 示例中，如果客户端发送的 SNI 头部携带<code>pulsar-broker1</code>，那么代理服务器会建立一条到<code>pulsar-broker1:665</code> 的TLS连接，然后将该请求重定向到该连接。</p>
+<pre><code class="hljs">server_config = {
+  {
+     fqdn = <span class="hljs-string">'pulsar-broker-vip'</span>,
+     # Forward <span class="hljs-keyword">to</span> Pulsar broker which <span class="hljs-keyword">is</span> listening <span class="hljs-keyword">on</span> <span class="hljs-number">6651</span>
+     tunnel_route = <span class="hljs-string">'pulsar-broker-vip:6651'</span>
+  },
+  {
+     fqdn = <span class="hljs-string">'pulsar-broker1'</span>,
+     # Forward <span class="hljs-keyword">to</span> Pulsar broker<span class="hljs-number">-1</span> which <span class="hljs-keyword">is</span> listening <span class="hljs-keyword">on</span> <span class="hljs-number">6651</span>
+     tunnel_route = <span class="hljs-string">'pulsar-broker1:6651'</span>
+  },
+  {
+     fqdn = <span class="hljs-string">'pulsar-broker2'</span>,
+     # Forward <span class="hljs-keyword">to</span> Pulsar broker<span class="hljs-number">-2</span> which <span class="hljs-keyword">is</span> listening <span class="hljs-keyword">on</span> <span class="hljs-number">6651</span>
+     tunnel_route = <span class="hljs-string">'pulsar-broker2:6651'</span>
+  },
+}
+</code></pre>
+<p>当配置完<code>ssl_server_name.config</code>和<code>records.config</code>两个文件后，ATS 代理服务器就会在客户端和 broker 之间创建一条 TCP 隧道。</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-客户端的-sni-路由配置"></a><a href="#pulsar-客户端的-sni-路由配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 客户端的 SNI 路由配置</h3>
+<p>ATS SNI 路由只能在 TLS  连接上工作。 你首先需要启用 ATS 代理和 Broker 的TLS功能，并且配置 SNI 路由协议，然后Pulsar 客户端和 broker 会通过 ATS 代理建立连接。 Pulsar 客户端支持通过 SNI 路由连接到代理服务器，并在 SNI 头信息里面携带目标的 Broker 地址信息 整个过程是透明的。 你只需要在创建客户端的时候使用 SNI 路由协议，并按照示例示例配置代理信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38806-tab-38807" class="nav-link active" data-group="group_38806" data-tab="tab-group-38806-content-38807">Java</div><div id="tab-group-38806-tab-38808" class="nav-link" data-group="group_38806" data-tab="tab-group-38806-content-38808">C++</div><div id="tab-group-38806-tab-38809" class="nav-link" data-group="group_38806" data-tab="tab-group-38806-content-38809">Python</div></div><div class="tab-content"><div id="tab-group-38806-content-38807" class="tab-pane active" data-group="group_38806" tabindex="-1"><div><span><pre><code class="hljs css language-java">String brokerServiceUrl=“脉冲星+ssl:<span class="hljs-comment">//pulsar-broker-vip:6651/”;</span><br />String proxyUrl=“pulsar”+ssl:<span class="hljs-comment">//ats-proxy:443”;</span><br />ClientBuilder ClientBuilder=PulsarClient.builder（）<br />.serviceUrl（brokerServiceUrl）<br />.tlsTrustCertsFilePath（TLS\u信任\u证书\u文件\u路径）<br />.enableTls（真）<br />.AllowTLInsecureConnection（错误）<br />.proxyServiceUrl（proxyUrl，ProxyProtocol.SNI）<br />.操作超时（<span class="hljs-number">1000</span>，时间单位为毫秒）；<br />Map&lt;String, String&gt;authParams=newhashmap&amp;lt&amp;燃气轮机；();<br />authParams.put（“tlsCertFile”，TLS\u客户端\u证书\u文件\u路径）；<br />put（“tlsKeyFile”，TLS\u CLIENT\u KEY\u FILE\u PATH）；<br />身份验证（AuthenticationTls<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>（），<span class="hljs-title">authParams</span>）；<br /><span class="hljs-title">PulsarClient</span> <span class="hljs-title">PulsarClient</span></span>=clientBuilder.build（）； <br /></code></pre>
+</span></div></div><div id="tab-group-38806-content-38808" class="tab-pane" data-group="group_38806" tabindex="-1"><div><span><pre><code class="hljs css language-c++">ClientConfiguration=ClientConfiguration（）；<br /><span class="hljs-built_in">config</span>.setUseTls（<span class="hljs-literal">true</span>）；<br /><span class="hljs-built_in">config</span>.setTlsTrustCertsFilePath（“/path/to/cacert.pem”）；<br /><span class="hljs-built_in">config</span>.settlesAllowUnsecureConnection（<span class="hljs-literal">false</span>）；<br /><span class="hljs-built_in">config</span>.setAuth（pulsar:：AuthTls:：create(<br />“/path/to/client-cert.pem”，“/path/to/client-key.pem”）；<br />客户端（“脉冲星+ssl:<span class="hljs-comment">//ats-proxy:443“，配置）；</span><br /></code></pre>
+</span></div></div><div id="tab-group-38806-content-38809" class="tab-pane" data-group="group_38806" tabindex="-1"><div><span><pre><code class="hljs css language-python">来自pulsar导入客户端，AuthenticationTLS<br />auth=AuthenticationTLS（“/path/to/my-role.cert.pem”，“/path/to/my-role.key-pk8.pem”）<br />客户机=客户机（“脉冲星+ssl://ats-proxy:443",<br />tls_trust_certs_file_path=“/path/to/ca.cert.pem”，<br />tls\u允许\u不安全\u连接=错误，<br />身份验证（auth）<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-跨域复制使用-sni-路由"></a><a href="#pulsar-跨域复制使用-sni-路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 跨域复制使用 SNI 路由</h3>
+<p>你可以在跨域复制上使用 ATS 代理。 跨域复制当中，Pulsar 的 broker 之间可以使用 SNI 路由进行连接。 如果要允许跨集群的 broker 之间使用 SNI 路由进行通信，你必须把 SNI 代理 URL 配置到集群的元数据信息里面。 如果你在集群元数据里面配置了 SNI 代理 URL，你就能通过代理服务器使用 SNI 路由进行跨集群间的broker通信。</p>
+<p><img src="/docs/assets/pulsar-sni-geo.png" alt="Pulsar 客户端 SNI"></p>
+<p>在这个例子中，在两个不同的地域部署 Pulsar 集群：<code>us-west</code>和<code>us-east</code> 在两个地域部署配置 ATS 代理，每个地域的所有的 Broker 都运行在 ATS 代理的后面。 我们需要在两个集群配置集群元数据信息，然后 broker 在自己的集群能够使用 SNI 路由 通过 ATS 代理和其他集群的 Broker 进行通信。</p>
+<p>修改集群<code>us-east</code>的元数据信息，配置 Broker 的URL、ATS 代理URL、SNI 代理协议。</p>
+<pre><code class="hljs"><span class="hljs-string">./pulsar-admin</span> clusters update \
+<span class="hljs-params">--broker-url-secure</span> pulsar+ssl:<span class="hljs-string">//east-broker-vip</span><span class="hljs-function">:6651</span> \
+<span class="hljs-params">--url</span> http:<span class="hljs-string">//east-broker-vip</span><span class="hljs-function">:8080</span> \
+<span class="hljs-params">--proxy-protocol</span> SNI \
+<span class="hljs-params">--proxy-url</span> pulsar+ssl:<span class="hljs-string">//east-ats-proxy</span><span class="hljs-function">:443</span>
+</code></pre>
+<p>修改集群<code>us-west</code>的元数据信息，配置 Broker 的URL、ATS 代理URL、SNI 代理协议。</p>
+<pre><code class="hljs"><span class="hljs-string">./pulsar-admin</span> clusters update \
+<span class="hljs-params">--broker-url-secure</span> pulsar+ssl:<span class="hljs-string">//west-broker-vip</span><span class="hljs-function">:6651</span> \
+<span class="hljs-params">--url</span> http:<span class="hljs-string">//west-broker-vip</span><span class="hljs-function">:8080</span> \
+<span class="hljs-params">--proxy-protocol</span> SNI \
+<span class="hljs-params">--proxy-url</span> pulsar+ssl:<span class="hljs-string">//west-ats-proxy</span><span class="hljs-function">:443</span>
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/concepts-topic-compaction"><span class="arrow-prev">← </span><span>消息压缩</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners"><span>配置 Advertised 监听器</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-ats-sni-路由">Pulsar ATS-SNI 路由</a><ul class="toc-headings"><li><a href="#四层-sni-路由-启用-ats-代理">四层 SNI 路由 启用 ATS 代理</a></li><li><a href="#pulsar-客户端的-sni-路由配置">Pulsar 客户端的 SNI 路由配置</a></li><li><a href="#pulsar-跨域复制使用-sni-路由">Pulsar 跨域复制使用 SNI 路由</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

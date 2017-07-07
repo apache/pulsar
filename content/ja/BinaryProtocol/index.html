@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsarのバイナリプロトコルの仕様</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsarのバイナリプロトコルの仕様</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <p>PulsarはProducer/ConsumerとBrokerの通信に独自バイナリプロトコルを利用しています。
+プロトコルは転送と実装の最大効率を保証しながら、
+要求される全ての特徴 (例: Ack、フロー制御) をサポートするようにデザインされています。</p>
+
+<p>クライアントとBrokerは互いに <em>コマンド</em> を交換します。
+コマンドは<a href="https://developers.google.com/protocol-buffers/">Protocol Buffers</a>によるバイナリメッセージの形式です。</p>
+
+<p>Protocol Buffersによるコマンドの仕様は<code class="highlighter-rouge">PulsarApi.proto</code>
+ (<a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto">pulsar-common/src/main/proto/PulsarApi.proto</a>) に記述されています。</p>
+
+<p>異なるProducerとConsumerのコマンドは同じ接続を介して
+制限なく送信、インターリーブできます。</p>
+
+<p>全てのコマンドはenum型と全ての可能なサブコマンドをオプショナルフィールドに含むProtocol Buffersのオブジェクト
+<a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L335"><code class="highlighter-rouge">BaseCommand</code></a>
+に埋め込まれています。
+いかなる時も、1つの<code class="highlighter-rouge">BaseCommand</code>は1つのサブコマンドしか設定できません。</p>
+
+<h2 id="フレーミング">フレーミング</h2>
+
+<p>Protocol Buffersはメッセージ・フレームのソートを提供していないため、
+Protocol Buffersのデータの前に4バイトのフィールドを追加しています。</p>
+
+<p>1つのフレームの最大サイズは5 MBです。</p>
+
+<p>Pulsarのプロトコルには以下の2つのタイプのコマンドがあります:</p>
+<ol>
+  <li>ペイロードを持たないシンプルなコマンド。</li>
+  <li>メッセージの配送や発行に使われるペイロードを持つコマンド。
+このケースではそのコマンドのデータの後に、他のProtocol Buffersのメタデータが追従します。
+効率的な理由からペイロードはProtocol Buffersの外側でRaw形式で渡されます。</li>
+</ol>
+
+<p>全てのサイズは4バイト符号なしビッグエンディアン整数として渡されます。</p>
+
+<h4 id="シンプルなコマンド">シンプルなコマンド</h4>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>[TOTAL_SIZE] [CMD_SIZE] [CMD]
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">TOTAL_SIZE</code> → <em>(4バイト)</em> フレームのサイズ。その後に続く全てのデータを数える。</li>
+  <li><code class="highlighter-rouge">CMD_SIZE</code> → <em>(4バイト)</em> シリアライズされたProtocol Buffersのコマンドのサイズ。</li>
+  <li><code class="highlighter-rouge">CMD</code> → バイナリ形式にシリアライズされたProtocol Buffersのオブジェクト。</li>
+</ul>
+
+<h4 id="ペイロードを持つコマンド">ペイロードを持つコマンド</h4>
+
+<div class="highlighter-rouge"><pre class="highlight"><code> [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">TOTAL_SIZE</code> → <em>(4バイト)</em> フレームのサイズ。その後に続く全てのデータを数えます。</li>
+  <li><code class="highlighter-rouge">CMD_SIZE</code> → <em>(4バイト)</em> シリアライズされたProtocol Buffersのコマンドのサイズ。</li>
+  <li><code class="highlighter-rouge">CMD</code> → バイナリ形式にシリアライズされたProtocol Buffersのオブジェクト。</li>
+  <li>実際に永続化されたあとに受け取るデータ。
+    <ul>
+      <li><code class="highlighter-rouge">MAGIC_NUMBER</code> → <em>(2バイト)</em> <code class="highlighter-rouge">0x0e01</code> 現在のフォーマットを特定するマジックナンバー。</li>
+      <li><code class="highlighter-rouge">CHECKSUM</code> → <em>(4バイト)</em> この後に続くデータに対するCRC32-Cチェックサム。</li>
+      <li><code class="highlighter-rouge">METADATA_SIZE</code> → <em>(4バイト)</em> メッセージ・メタデータのサイズ。</li>
+      <li><code class="highlighter-rouge">METADATA</code> → バイナリのProtocol Buffers形式のメッセージ・メタデータ。</li>
+      <li><code class="highlighter-rouge">PAYLOAD</code> → フレームの残りの部分はペイロードとみなされます。
+     任意のバイト列を含めることができます。</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="メッセージメタデータ">メッセージ・メタデータ</h2>
+
+<p>メッセージ・メタデータは、アプリケーションに指定されたペイロードとともに、
+シリアライズされたProtocol Buffersオブジェクトとして保存されます。</p>
+
+<p>メタデータはProducerに作成され、変更されることなくConsumerに渡されます。</p>
+
+<p>フィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">producer_name</code> → メッセージを発行したProducerの名前。</li>
+  <li><code class="highlighter-rouge">sequence_id</code> → Producerから割り当てられたメッセージのシーケンスID。</li>
+  <li><code class="highlighter-rouge">publish_time</code> → 発行時のタイムスタンプ (UTCで1970年1月1日からのミリ秒単位の経過時間) 。</li>
+  <li><code class="highlighter-rouge">properties</code> → アプリケーションに定義された<code class="highlighter-rouge">Pair&lt;String, String&gt;</code>形式のデータ (Pulsarの動作には影響を与えないKey-Value) 。</li>
+  <li><code class="highlighter-rouge">replicated_from</code> → <em>(任意)</em> メッセージがレプリケートされたものかを表し、
+ レプリケートされたものである場合レプリケート元のクラスタ名。</li>
+  <li><code class="highlighter-rouge">partition_key</code> → <em>(任意)</em> パーティションドトピックでpubulishされる間、
+ キーが存在すれば、そのハッシュをパーティションの選択に利用します。</li>
+  <li><code class="highlighter-rouge">compression</code> → <em>(任意)</em> ペイロードが圧縮されているか、
+ どの圧縮ライブラリが使用されているか。</li>
+  <li><code class="highlighter-rouge">uncompressed_size</code> → <em>(任意)</em> 圧縮されている場合、
+ Producerはこのフィールドに元のペイロードサイズを記述する必要があります。</li>
+  <li><code class="highlighter-rouge">num_messages_in_batch</code> → <em>(任意)</em> このメッセージが複数のメッセージのバッチである場合は、
+ 含まれているメッセージの数が記述されている必要があります。</li>
+</ul>
+
+<h3 id="バッチメッセージ">バッチ・メッセージ</h3>
+
+<p>バッチ・メッセージを利用する時、ペイロードはエントリのリストを含んでいます。
+それらは<code class="highlighter-rouge">SingleMessageMetadata</code>により定義された固有のメタデータを持ちます。</p>
+
+<p>1つのバッチのペイロードは以下の通りです:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>[MD_SIZE_1] [MD_1] [PAYLOAD_1] [MD_SIZE_2] [MD_2] [PAYLOAD_2] ...
+</code></pre>
+</div>
+
+<p>ここで:</p>
+<ul>
+  <li><code class="highlighter-rouge">MD_SIZE_X</code> → シリアライズされたProocol Buffers形式のシングル・メッセージ・メタデータのサイズ。</li>
+  <li><code class="highlighter-rouge">MD_X</code> → シングル・メッセージ・メタデータ。</li>
+  <li><code class="highlighter-rouge">PAYLOAD_X</code> → アプリケーションから渡されたメッセージペイロード。</li>
+</ul>
+
+<p><code class="highlighter-rouge">SingleMessageMetadata</code>のフィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">properties</code> → アプリケーションが定義したプロパティ。</li>
+  <li><code class="highlighter-rouge">partition_key</code> → <em>(任意)</em> ハッシュによりパーティションを特定するためのKey。</li>
+  <li><code class="highlighter-rouge">payload_size</code> → バッチ内の1つのメッセージについてのペイロードのサイズ。</li>
+</ul>
+
+<p>圧縮が有効な場合、バッチ全体が一度に圧縮されます。</p>
+
+<h2 id="インタラクション">インタラクション</h2>
+
+<h3 id="接続の確立">接続の確立</h3>
+
+<p>BrokerへのTCPコネクションの確立後、クライアントはセッションを開始しなければなりません。
+通常これには6650番のポートが利用されます。</p>
+
+<p><img src="../../img/Binary Protocol - Connect.png" alt="Connect interaction" /></p>
+
+<p>Brokerから<code class="highlighter-rouge">Connected</code>という応答を受け取ると、クライアントは
+接続準備完了とみなします。もしBrokerが
+クライアントの認証を検証できなれければ、代わりに<code class="highlighter-rouge">Error</code>コマンドを返し
+TCPコネクションをクローズします。</p>
+
+<p>例:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandConnect</span><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="nt">"client_version"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Pulsar-Client-Java-v1.15.2"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"auth_method_name"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"my-authentication-plugin"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"auth_data"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"my-auth-data"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"protocol_version"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>フィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">client_version</code> → フォーマットの強制されていないString形式の識別子。</li>
+  <li><code class="highlighter-rouge">auth_method_name</code> → <em>(任意)</em> 認証が有効な場合は認証プラグインの名前。</li>
+  <li><code class="highlighter-rouge">auth_data</code> → <em>(任意)</em> プラグイン固有の認証データ。</li>
+  <li><code class="highlighter-rouge">protocol_version</code> → クライアントのサポートするプロトコルのバージョン。
+ Brokerは指定されたバージョンより新しいプロトコルのコマンドを送りません。
+     Brokerは最低限のバージョンを要求する可能性があります。</li>
+</ul>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandConnected</span><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="nt">"server_version"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Pulsar-Broker-v1.15.2"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"protocol_version"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>フィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">server_version</code> → BrokerのバージョンのString形式の識別子。</li>
+  <li><code class="highlighter-rouge">protocol_version</code> → Brokerがサポートするプロトコルのバージョン。
+ クライアントは指定されたバージョンより新しいプロトコルのコマンドを送ることができません。</li>
+</ul>
+
+<h3 id="keep-alive">Keep Alive</h3>
+
+<p>クライアントとBrokerの長期のネットワークのパーティションやリモートエンドでの
+TCPコネクションを終了しないままマシンがクラッシュした場合
+(例: 停電、カーネルパニック、ハードリブート) を識別するため、
+リモートピアのアベイラビリティステータスを調べる仕組みが備わっています。</p>
+
+<p>クライアントとBrokerは<code class="highlighter-rouge">Ping</code>コマンド定期的に送信し、
+タイムアウト時間内 (Brokerが使用するデフォルトの値は60秒)に<code class="highlighter-rouge">Pong</code>レスポンスを受け取らなければ
+ソケットをクローズします。</p>
+
+<p>Pulsarクライアントの実装において、<code class="highlighter-rouge">Ping</code>の送信は必須ではありません。
+しかし、Brokerから強制的にTCPコネクションを終了されないために、<code class="highlighter-rouge">Ping</code>を受け取った場合は
+迅速な返答が必要です。</p>
+
+<h3 id="producer">Producer</h3>
+
+<p>メッセージを送るために、クライアントはProducerを作成する必要があります。
+Producerを作成する時、Brokerは最初にそのクライアントがトピックへの発行を
+認可されているかを検証します。</p>
+
+<p>クライアントがProducerの作成を完了すると、ネゴシエートされたProducer IDを参照して
+Brokerにメッセージを発行できます。</p>
+
+<p><img src="../../img/Binary Protocol - Producer.png" alt="Producer interaction" /></p>
+
+<h5 id="producerコマンド">Producerコマンド</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandProducer</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"topic"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"producer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → Producerを作成したいトピックの完全な名前。</li>
+  <li><code class="highlighter-rouge">producer_id</code> → クライアントが生成した同一接続内で一意に定まるProducerの識別子。</li>
+  <li><code class="highlighter-rouge">request_id</code> → レスポンスのマッチングに用いる同一接続内で一意に定まるリクエストの識別子。</li>
+  <li><code class="highlighter-rouge">producer_name</code> → <em>(任意)</em> Producer名が指定されていればそれが利用され、
+ そうでなければ、Brokerが一意に定まる名前を生成します。生成されたProducer名は
+     グローバルで一意に定まることが保証されます。Producerが最初に作成された時、
+     Brokerに新しいProducer名を作成させ、再接続後にProducerを再作成する時は再利用するという
+     実装が期待されます。</li>
+</ul>
+
+<p>Brokerは<code class="highlighter-rouge">ProducerSuccess</code>コマンドか<code class="highlighter-rouge">Error</code>コマンドを返します。</p>
+
+<h5 id="producersuccessコマンド">ProducerSuccessコマンド</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandProducerSuccess</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w">  </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"producer_name"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"generated-unique-producer-name"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">request_id</code> → <code class="highlighter-rouge">CreateProducer</code>リクエストのID。</li>
+  <li><code class="highlighter-rouge">producer_name</code> → 生成されたグローバルで一意に定まるProducer名、
+ もしくはクライアントにより指定された名前。</li>
+</ul>
+
+<h5 id="sendコマンド">Sendコマンド</h5>
+
+<p><code class="highlighter-rouge">Send</code>コマンドは既に存在するProducerのコンテキスト内で新しいメッセージを
+発行する時に使用されます。このコマンドはコマンドだけでなくペイロードを含むフレーム内で
+使用されます。ペイロードは<a href="#ペイロードコマンド">ペイロードコマンド</a> セクションに記されている
+完全なフォーマットで記述されます。</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandSend</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"producer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"sequence_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"num_messages"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">producer_id</code> → ProducerのID。</li>
+  <li><code class="highlighter-rouge">sequence_id</code> → 各メッセージは関連する0からカウントが始まるような
+ 実装が期待されるシーケンスのIDを持ちます。メッセージの効果的な発行を承認する。
+     <code class="highlighter-rouge">SendReceipt</code>は、シーケンスIDによってメッセージを参照します。</li>
+  <li><code class="highlighter-rouge">num_messages</code> → <em>(任意)</em> バッチ・メッセージが発行される時に使用されます。</li>
+</ul>
+
+<h5 id="sendreceiptコマンド">SendReceiptコマンド</h5>
+
+<p>メッセージが設定されたレプリカの数に応じて永続化されたあと、
+BrokerはProducerにメッセージを受け取ったことを示すAck (確認応答) を返します。</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandSendReceipt</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"producer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"sequence_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"message_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="nt">"ledgerId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w">
+     </span><span class="nt">"entryId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">456</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">producer_id</code> → ProducerのID。</li>
+  <li><code class="highlighter-rouge">sequence_id</code> → pubulishされたメッセージのシーケンスのID。</li>
+  <li><code class="highlighter-rouge">message_id</code> → システムに割り当てられた1つのクラスタ内で一意に定まるメッセージのID。
+ メッセージIDは<code class="highlighter-rouge">ledgerId</code>と<code class="highlighter-rouge">entryId</code>の2つのlong値から構成されます。
+     これらの値はBookKeeperのLedgerに追加された時に割り振られたIDに基づいています。</li>
+</ul>
+
+<h5 id="closeproducerコマンド">CloseProducerコマンド</h5>
+
+<p><strong>注</strong>: <em>このコマンドはProducerとBrokerの両方から送信される可能性があります</em>。</p>
+
+<p>Brokerが<code class="highlighter-rouge">CloseProducer</code>コマンドを受け取った時、BrokerはProducerからそれ以上のメッセージの受信を
+停止し、ペンディング中の全てのメッセージが永続化されるまで待ち、クライアントに<code class="highlighter-rouge">Success</code>を返します。</p>
+
+<p>Brokerは、正常なフェイルオーバー
+(例: Brokerの再起動中、またはトピックが別のBrokerに転送されるようにロードバランサによってアンロードされている場合など)
+を実行している時、クライアントに<code class="highlighter-rouge">CloseProducer</code>コマンドを送ることができます。</p>
+
+<p>Producerが<code class="highlighter-rouge">CloseProducer</code>コマンドを受け取った時、クライアントはサービスディスカバリ・ルックアップを通じて
+Producerを再作成することが期待されます。
+この際TCPコネクションは影響を受けません。</p>
+
+<h3 id="consumer">Consumer</h3>
+
+<p>Consumerはサブスクリプションへの接続とそこからのメッセージのconsumeに利用されます。
+接続後、クライアントはトピックを購読する必要があります。
+もしサブスクリプションがそのトピックになければ、新しく作成されます。</p>
+
+<p><img src="../../img/Binary Protocol - Consumer.png" alt="Consumer" /></p>
+
+<h4 id="フロー制御">フロー制御</h4>
+
+<p>Consumerの準備が整ったあと、クライアントはBrokerにメッセージをプッシュするための
+<em>パーミッションを与える</em> 必要があります。これは<code class="highlighter-rouge">Flow</code>コマンドによって成されます。</p>
+
+<p><code class="highlighter-rouge">Flow</code>コマンドは追加の <em>パーミッション</em> を与えます。
+一般的なConsumerの実装では、アプリケーションがメッセージをconsumeする
+準備が整うまでのメッセージの蓄積にキューを利用します。</p>
+
+<p>アプリケーションがメッセージをデキューしたあと、Consumerは
+Brokerに対してさらなるメッセージをプッシュするパーミッションを送ります。</p>
+
+<h5 id="subscribeコマンド">Subscribeコマンド</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandSubscribe</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"topic"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"subscription"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"my-subscription-name"</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"subType"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"consumer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → Consumerを作成したいトピックの完全な名前。</li>
+  <li><code class="highlighter-rouge">subscription</code> → サブスクリプション名。</li>
+  <li><code class="highlighter-rouge">subType</code> → サブスクリプションタイプ: Exclusive, Shared, Failover</li>
+  <li><code class="highlighter-rouge">consumer_id</code> → クライアントが生成した同一接続内で一意に定まるConsumerの識別子。</li>
+  <li><code class="highlighter-rouge">request_id</code> → レスポンスのマッチングに用いる同一接続内で一意に定まるリクエストの識別子。</li>
+  <li><code class="highlighter-rouge">consumer_name</code> → <em>(任意)</em> クライアントはConsumer名を指定できます。
+ この名前は、ステータス上で特定のConsumerを追跡するのに利用されます。
+ また、サブスクリプションタイプがFailoverの時、この名前はどのConsumerが <em>master</em> (メッセージを受け取るConsumer) となるかを
+     決めるのに使用されます。ConsumerはConsumer名によってソートされ、最初のものが
+     masterとして選ばれます。</li>
+</ul>
+
+<h5 id="flowコマンド">Flowコマンド</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandFlow</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"consumer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"messagePermits"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">consumer_id</code> → ConsumerのID。</li>
+  <li><code class="highlighter-rouge">messagePermits</code> → Brokerに対して追加でプッシュを許可するメッセージの数。</li>
+</ul>
+
+<h5 id="messageコマンド">Messageコマンド</h5>
+
+<p><code class="highlighter-rouge">Message</code>コマンドはBrokerが、与えられたパーミッションの制限内で
+Consumerにメッセージをプッシュする際に使用されます。</p>
+
+<p>このコマンドはコマンドだけでなくペイロードを含むフレーム内で
+使用されます。ペイロードは<a href="#ペイロードコマンド">ペイロードコマンド</a> セクションに記されている
+完全なフォーマットで記述されます。</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandMessage</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"consumer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"message_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"ledgerId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"entryId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">456</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h4 id="ackコマンド">Ackコマンド</h4>
+
+<p><code class="highlighter-rouge">Ack</code>コマンドは与えられたメッセージがアプリケーションによって正しく処理され、
+Brokerによる破棄が可能であるというBrokerへの信号です。</p>
+
+<p>加えて、Brokerは<code class="highlighter-rouge">Ack</code>の返されたメッセージに基いて
+Consumerの購読位置を管理します。</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">message</span><span class="w"> </span><span class="err">CommandAck</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"consumer_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"ack_type"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Individual"</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"message_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"ledgerId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"entryId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">456</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>パラメータ:</p>
+<ul>
+  <li><code class="highlighter-rouge">consumer_id</code> → ConsumerのID。</li>
+  <li><code class="highlighter-rouge">ack_type</code> → Ackのタイプ: <code class="highlighter-rouge">Individual</code> もしくは <code class="highlighter-rouge">Cumulative</code></li>
+  <li><code class="highlighter-rouge">message_id</code> → メッセージのID。</li>
+  <li><code class="highlighter-rouge">validation_error</code> → <em>(任意)</em> Consumerが次の理由のためメッセージを
+ 破棄したことを示します: <code class="highlighter-rouge">UncompressedSizeCorruption</code>,
+<code class="highlighter-rouge">DecompressionError</code>, <code class="highlighter-rouge">ChecksumMismatch</code>, <code class="highlighter-rouge">BatchDeSerializeError</code></li>
+</ul>
+
+<h5 id="closeconsumerコマンド">CloseConsumerコマンド</h5>
+
+<p><strong><em>注</em></strong>: <em>このコマンドはConsumerとBrokerの両方から送信される可能性があります</em>。</p>
+
+<p>このコマンドは<a href="#closeproducerコマンド"><code class="highlighter-rouge">CloseProducer</code></a>と同様の振る舞いをします。</p>
+
+<h5 id="redeliverunacknowledgedmessagesコマンド">RedeliverUnacknowledgedMessagesコマンド</h5>
+
+<p>ConsumerはBrokerに、特定のConsumerにプッシュしたがまだ<code class="highlighter-rouge">Ack</code>が返っていないメッセージの
+再配送を要求できます。</p>
+
+<p>そのProtocl BuffersオブジェクトはConsumerが再配送してほしい
+メッセージのIDのリストから構成されます。リストが空の場合は、
+Brokerはペンディング中の全てのメッセージを再送します。</p>
+
+<p>再配送において、メッセージは同一のConsumer、あるいはサブスクリプションタイプがSharedの場合は
+全ての利用可能なConsumerに送信されます。</p>
+
+<h2 id="サービスディスカバリ">サービスディスカバリ</h2>
+
+<h3 id="トピックのルックアップ">トピックのルックアップ</h3>
+
+<p>トピックのルックアップはクライアントがProducer, Consumerを作成、再接続する度に必要となります。
+ルックアップはどの特定のBrokerが、利用しようとしているTopicを提供しているかを見つけるのに使用されます。</p>
+
+<p>ルックアップは<a href="AdminInterface.md#トピックのルックアップ">admin API</a>で
+説明されているREST APIのコールで行うことが可能です。</p>
+
+<p>Pulsar-1.16からは、バイナリプロトコルで行うことも可能です。</p>
+
+<p>例として、サービスディスカバリコンポーネントを<code class="highlighter-rouge">pulsar://broker.example.com:6650</code>で
+起動していると仮定します。</p>
+
+<p>個別のBrokerは<code class="highlighter-rouge">pulsar://broker-1.example.com:6650</code>,
+<code class="highlighter-rouge">pulsar://broker-2.example.com:6650</code>, …で起動しています。</p>
+
+<p>クライアントはサービスディスカバリへの接続を<code class="highlighter-rouge">LookupTopic</code>コマンドを
+送るために利用できます。レスポンスは接続すべきBrokerのホスト名、あるいは
+ルックアップをリトライするためのBrokerのホスト名のどちらかです。</p>
+
+<p><code class="highlighter-rouge">LookupTopic</code>コマンドは<code class="highlighter-rouge">Connect</code> / <code class="highlighter-rouge">Connected</code>の最初のハンドシェイクを終えた
+接続で使用されなければなりません。</p>
+
+<p><img src="../../img/Binary Protocol - Topic lookup.png" alt="トピックのルックアップ" /></p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandLookupTopic</span><span class="w"> </span><span class="p">{</span><span class="w">
+	</span><span class="nt">"topic"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+	</span><span class="nt">"authoritative"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>フィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → ルックアップするトピックの名前。</li>
+  <li><code class="highlighter-rouge">request_id</code> → レスポンスとともに受け取るリクエストのID。</li>
+  <li><code class="highlighter-rouge">authoritative</code> → 最初のルックアップリクエストではfalse、その後に続くリダイレクトのレスポンスでは
+クライアントはレスポンスに含まれているものと同じ値を渡すべきです。</li>
+</ul>
+
+<h5 id="lookuptopicresponse">LookupTopicResponse</h5>
+
+<p>成功時のレスポンス例:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">Command</span><span class="w"> </span><span class="err">LookupTopicResponse</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"response"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Connect"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"brokerServiceUrl"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"pulsar://broker-1.example.com:6650"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"brokerServiceUrlTls"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"pulsar+ssl://broker-1.example.com:6651"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"authoritative"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>リダイレクト時のレスポンス例:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">Command</span><span class="w"> </span><span class="err">LookupTopicResponse</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"response"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Redirect"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"brokerServiceUrl"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"pulsar://broker-2.example.com:6650"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"brokerServiceUrlTls"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"pulsar+ssl://broker-2.example.com:6651"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"authoritative"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>後者の場合、<code class="highlighter-rouge">LookupTopic</code>コマンドリクエストを<code class="highlighter-rouge">broker-2.example.com</code> に対して再発行する必要があります。
+このBrokerはルックアップリクエストに対して決定的なレスポンスを返すことができます。</p>
+
+<h3 id="パーティションドトピックのディスカバリ">パーティションドトピックのディスカバリ</h3>
+
+<p>パーティションドトピックのメタデータのディスカバリはトピックがパーティションドトピックかどうか、
+いくつのパーティションがセットアップされているかを調べるのに利用されます。</p>
+
+<p>トピックがパーティションドである場合、クライアントは<code class="highlighter-rouge">partition-X</code>というサフィックスを用いて
+各パーティションにつき一つのProducerあるいはConsumerを作成することが期待されます。</p>
+
+<p>この情報は最初にProducerあるいはConsumerが作成される時のみに利用されます。
+再接続後は必要ありません。</p>
+
+<p>パーティションドトピック・メタデータのディスカバリはトピックのルックアップと非常によく似た働きをします。
+クライアントはサービスディスカバリに対してリクエストを送り、レスポンスには実際のメタデータが含まれます。</p>
+
+<h5 id="partitionedtopicmetadataコマンド">PartitionedTopicMetadataコマンド</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandPartitionedTopicMetadata</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"topic"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>フィールド:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → パーティションのメタデータを確認するトピック。</li>
+  <li><code class="highlighter-rouge">request_id</code> → レスポンスに渡されるリクエストのID。</li>
+</ul>
+
+<h5 id="partitionedtopicmetadataresponseコマンド">PartitionedTopicMetadataResponseコマンド</h5>
+
+<p>メタデータ付きのレスポンスの例:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="err">CommandPartitionedTopicMetadataResponse</span><span class="w"> </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"request_id"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"response"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"Success"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"partitions"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">32</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

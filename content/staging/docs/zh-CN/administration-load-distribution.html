@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar load distribution · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Load distribution across Pulsar brokers"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar load distribution · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/staging/index.html"/><meta property="og:description" content="## Load distribution across Pulsar brokers"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/staging/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="stylesheet" href="/staging/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/staging/js/custom.js"></script><link rel="stylesheet" href="/staging/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/staging/zh-CN"><img class="logo" src="/staging/img/pulsar.svg" alt="Apache Pulsar"/></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/staging/docs/zh-CN/standalone" target="_self">Documentation</a></li><li class=""><a href="/staging/zh-CN/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/staging/docs/zh-CN/client-libraries" target="_self">Client libraries</a></li><li class=""><a href="/staging/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/staging/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/staging/docs/en/administration-load-distribution">English</a></li><li><a href="/staging/docs/ja/administration-load-distribution">日本語</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>Administration</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting started</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-stats">Pulsar statistics</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/staging/docs/zh-CN/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-permissions">Persmissions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-partitioned-topics">Partitioned topics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              const headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A') {
+                  document.body.classList.remove('tocActive');
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Pulsar load distribution</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="load-distribution-across-pulsar-brokers"></a><a href="#load-distribution-across-pulsar-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Load distribution across Pulsar brokers</h2>
+<p>Pulsar is an horizontally scalable messaging system, so it is a core requirement that the traffic in a logical cluster must be spread across all the available Pulsar brokers, as evenly as possible.</p>
+<p>In most cases, this is true out of the box and one shouldn't worry about it. There are, though, multiple settings and tools to control the traffic distribution and they require a bit of context to understand how the traffic is managed in Pulsar.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-load-manager-architecture"></a><a href="#pulsar-load-manager-architecture" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar load manager architecture</h2>
+<h3><a class="anchor" aria-hidden="true" id="dynamic-assignment-of-topics-to-brokers"></a><a href="#dynamic-assignment-of-topics-to-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dynamic assignment of topics to brokers</h3>
+<p>Topics are dynamically assigned to brokers based on the load conditions of all brokers in the cluster.</p>
+<p>When a clients starts using new topics that are not assigned to any broker, it will trigger a process that, given the load conditions, it will choose the best suited broker to acquire ownership of such topic.</p>
+<p>In case of partitioned topics, different partitions might be assigned to different brokers. We talk about &quot;topic&quot; in this context to mean either a non-partitioned topic or one partition of a topic.</p>
+<p>The assignment is &quot;dynamic&quot; because it can change very quickly. For example, if the broker owning the topic crashes, the topic will be reassigned immediately to another broker. Another scenario is that the broker owning the topic becomes overloaded. In this case too, the topic will be reassigned to a less loaded broker.</p>
+<p>The dynamic assignment is made possible by the stateless nature of brokers. This also ensure that we can quickly expand or shrink the cluster based on usage.</p>
+<h3><a class="anchor" aria-hidden="true" id="assignment-granularity"></a><a href="#assignment-granularity" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Assignment granularity</h3>
+<p>The assignment of topics/partitions to brokers is not done at the individual level. The reason for it is to amortize the amount of information that we need to keep track (eg. which topics are assigned to a particular broker, what's the load on topics for a broker and similar).</p>
+<p>Instead of individual topic/partition assignment, each broker takes ownership of a subset of the topics for a namespace. This subset is called a &quot;<em>bundle</em>&quot; and effectively it's a sharding mechanism.</p>
+<p>The namespace is the &quot;administrative&quot; unit: many config knobs or operations are done at the namespace level.</p>
+<p>For assignment, a namespaces is sharded into a list of &quot;bundles&quot;, with each bundle comprising a portion of overall hash range of the namespace.</p>
+<p>Topics are assigned to a particular bundle by taking the hash of the topic name and seeing in which bundle the hash falls into.</p>
+<p>Each bundle is independent of the others and thus is independently assigned to different brokers.</p>
+<h3><a class="anchor" aria-hidden="true" id="creating-namespaces-and-bundles"></a><a href="#creating-namespaces-and-bundles" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating namespaces and bundles</h3>
+<p>When creating a new namespace, it will set to use the default number of bundles. This is set in <code>conf/broker.conf</code>:</p>
+<pre><code class="hljs css languages- properties"><span class="hljs-comment"># When a namespace is created without specifying the number of bundle, this</span>
+<span class="hljs-comment"># value will be used as the default</span>
+<span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-number">4</span>
+</code></pre>
+<p>One can either change the system default, or override it when creating a new namespace:</p>
+<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
+</code></pre>
+<p>With this command, we're creating a namespace with 16 initial bundles. Therefore the topics for this namespaces can immediately be spread across up to 16 brokers.</p>
+<p>In general, if the expected traffic and number of topics is known in advance, it's a good idea to start with a reasonable number of bundles instead of waiting for the system to auto-correct the distribution.</p>
+<p>On a same note, it is normally beneficial to start with more bundles than number of brokers, primarily because of the hashing nature of the distribution of topics into bundles. For example, for a namespace with 1000 topics, using something like 64 bundles will achieve a good distribution of traffic across 16 brokers.</p>
+<h3><a class="anchor" aria-hidden="true" id="unloading-topics-and-bundles"></a><a href="#unloading-topics-and-bundles" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unloading topics and bundles</h3>
+<p>In Pulsar there is an admin operation of &quot;unloading&quot; a topic. Unloading means to close the topics, release ownership and reassign the topics to a new broker, based on current load.</p>
+<p>When unload happens, the client will experience a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.</p>
+<p>Unloading is the mechanism used by the load-manager to perform the load shedding, but it can also be triggered manually, for example to correct the assignments and redistribute traffic even before having any broker overloaded.</p>
+<p>Unloading a topic has no effect on the assignment, but it will just close and reopen the particular topic:</p>
+<pre><code class="hljs css languages- shell">pulsar-admin topics unload persistent://tenant/namespace/topic
+</code></pre>
+<p>To unload all topics for a namespace and trigger reassignments:</p>
+<pre><code class="hljs css languages- shell">pulsar-admin namespaces unload tenant/namespace
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="namespace-bundles-splitting"></a><a href="#namespace-bundles-splitting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace bundles splitting</h3>
+<p>Since the load for the topics in a bundle might change over time, or could just be hard to predict upfront, bundles can be split in 2 by brokers. The new smaller bundles can then be reassigned to different brokers.</p>
+<p>The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.</p>
+<pre><code class="hljs css languages- properties"><span class="hljs-comment"># enable/disable namespace bundle auto split</span>
+<span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-literal">true</span>
+
+<span class="hljs-comment"># enable/disable automatic unloading of split bundles</span>
+<span class="hljs-attr">loadBalancerAutoUnloadSplitBundlesEnabled</span>=<span class="hljs-literal">true</span>
+
+<span class="hljs-comment"># maximum topics in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxTopics</span>=<span class="hljs-number">1000</span>
+
+<span class="hljs-comment"># maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxSessions</span>=<span class="hljs-number">1000</span>
+
+<span class="hljs-comment"># maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxMsgRate</span>=<span class="hljs-number">30000</span>
+
+<span class="hljs-comment"># maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxBandwidthMbytes</span>=<span class="hljs-number">100</span>
+
+<span class="hljs-comment"># maximum number of bundles in a namespace (for auto-split)</span>
+<span class="hljs-attr">loadBalancerNamespaceMaximumBundles</span>=<span class="hljs-number">128</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="automatic-load-shedding"></a><a href="#automatic-load-shedding" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Automatic load shedding</h3>
+<p>In Pulsar's load manager there is support for automatic load shedding. This means that whenever the system recognized a particular broker is overloaded, it will force some traffic to be reassigned to less loaded brokers.</p>
+<p>When a broker is identifies as overloaded, it will force to &quot;unload&quot; a subset of the bundles, the ones with higher traffic, that make up for the overload percentage.</p>
+<p>For example, the default threshold is 85% and if a broker is over quota at 95% CPU usage, then it will unload the percent difference plus a 5% margin: <code>(95% - 85%) + 5% = 15%</code>.</p>
+<p>Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker will unload bundles for at least 15% of traffic.</p>
+<p>The automatic load shedding is enabled by default and can be disabled with this setting:</p>
+<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Enable/disable automatic bundle unloading for load-shedding</span>
+<span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>There are additional settings that apply to shedding:</p>
+<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Load shedding interval. Broker periodically checks whether some traffic should be offload from</span>
+<span class="hljs-comment"># some over-loaded broker to other under-loaded brokers</span>
+<span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-number">1</span>
+
+<span class="hljs-comment"># Prevent the same topics to be shed and moved to other brokers more that once within this timeframe</span>
+<span class="hljs-attr">loadBalancerSheddingGracePeriodMinutes</span>=<span class="hljs-number">30</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="broker-overload-thresholds"></a><a href="#broker-overload-thresholds" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker overload thresholds</h4>
+<p>The determinations of when a broker is overloaded is based on threshold of CPU, network and memory usage. Whenever either of those metrics reaches the threshold, it will trigger the shedding (if enabled).</p>
+<p>By default, overload threshold is set at 85%:</p>
+<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Usage threshold to determine a broker as over-loaded</span>
+<span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-number">85</span>
+</code></pre>
+<p>The usage stats are gathered by Pulsar from the system metrics.</p>
+<p>In case of network utilization, in some cases the network interface speed reported by Linux is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS report 10Gbps speed.</p>
+<p>Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact it's already using all the bandwidth and the traffic is being slowed down.</p>
+<p>There is a setting to correct the max NIC speed:</p>
+<pre><code class="hljs css languages- properties"># <span class="hljs-keyword">Override</span> the auto-detection <span class="hljs-keyword">of</span> the network interfaces max speed.
+# This option <span class="hljs-keyword">is</span> useful <span class="hljs-keyword">in</span> some environments (eg: EC2 VMs) <span class="hljs-keyword">where</span> the max speed
+# reported <span class="hljs-keyword">by</span> Linux <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> reflecting the real bandwidth available <span class="hljs-keyword">to</span> the broker.
+# Since the network usage <span class="hljs-keyword">is</span> employed <span class="hljs-keyword">by</span> the load manager <span class="hljs-keyword">to</span> decide when a broker
+# <span class="hljs-keyword">is</span> overloaded, it <span class="hljs-keyword">is</span> important <span class="hljs-keyword">to</span> make sure the info <span class="hljs-keyword">is</span> correct <span class="hljs-keyword">or</span> <span class="hljs-keyword">override</span> it
+# <span class="hljs-keyword">with</span> the right value here. The configured value can be a double (eg: <span class="hljs-number">0.8</span>) <span class="hljs-keyword">and</span> that
+# can be used <span class="hljs-keyword">to</span> trigger load-shedding even before hitting <span class="hljs-keyword">on</span> NIC limits.
+loadBalancerOverrideBrokerNicSpeedGbps=
+</code></pre>
+<p>When the value is empty, Pulsar will use the value reported by the OS.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/staging/docs/zh-CN/administration-stats">← Pulsar stats</a><a class="docs-next button" href="/staging/docs/zh-CN/administration-proxy">The Pulsar proxy →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#load-distribution-across-pulsar-brokers">Load distribution across Pulsar brokers</a></li><li><a href="#pulsar-load-manager-architecture">Pulsar load manager architecture</a><ul class="toc-headings"><li><a href="#dynamic-assignment-of-topics-to-brokers">Dynamic assignment of topics to brokers</a></li><li><a href="#assignment-granularity">Assignment granularity</a></li><li><a href="#creating-namespaces-and-bundles">Creating namespaces and bundles</a></li><li><a href="#unloading-topics-and-bundles">Unloading topics and bundles</a></li><li><a href="#namespace-bundles-splitting">Namespace bundles splitting</a></li><li><a href="#automatic-load-shedding">Automatic load shedding</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/staging/contact">Contact</a></li>' +
+            '<li><a href="/staging/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/staging/resources">Resources</a></li>' +
+            '<li><a href="/staging/team">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span><span><script src="/staging/js/pjax-api.min.js"></script><script>window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Transport Encryption using TLS · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## TLS 概述"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Transport Encryption using TLS · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="## TLS 概述"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/security-tls-transport">English</a></li><li><a href="/docs/ja/2.8.3/security-tls-transport">日本語</a></li><li><a href="/docs/fr/2.8.3/security-tls-transport">Français</a></li><li><a href="/docs/ko/2.8.3/security-tls-transport">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/security-tls-transport">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>安全</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Transport Encryption using TLS</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="tls-概述"></a><a href="#tls-概述" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 概述</h2>
+<p>默认情况下，Apache Pulsar 客户端使用纯文本与 Apache Pulsar 服务通信。 这意味着所有发送的数据都暴露在外。 您可以使用 TLS 对此流量进行加密，以保护流量不被中间人攻击者窥探。</p>
+<p>您还可以使用 TLS 同时配置加密和身份认证。 本指南仅配置 TLS 传输加密，可参考 <a href="/docs/zh-CN/2.8.3/security-tls-authentication">此处</a> 来使用 TLS 配置身份验证。 Alternatively, you can use <a href="/docs/zh-CN/2.8.3/security-athenz">another authentication mechanism</a> on top of TLS transport encryption.</p>
+<blockquote>
+<p>请注意，由于加密的开销，启用 TLS 可能会影响性能。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="tls-概念"></a><a href="#tls-概念" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 概念</h2>
+<p>TLS是一种 <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">公钥加密技术</a>。 使用由公钥和私钥组成的密钥对来执行加密。 公钥加密消息，私钥解密消息。</p>
+<p>To use TLS transport encryption, you need two kinds of key pairs, <strong>server key pairs</strong> and a <strong>certificate authority</strong>.</p>
+<p>You can use a third kind of key pair, <strong>client key pairs</strong>, for <a href="/docs/zh-CN/2.8.3/security-tls-authentication">client authentication</a>.</p>
+<p>You should store the <strong>certificate authority</strong> private key in a very secure location (a fully encrypted, disconnected, air gapped computer). As for the certificate authority public key, the <strong>trust cert</strong>, you can freely shared it.</p>
+<p>对于客户端和服务端的密钥对，管理员首先都生成一个私钥和一个证书请求，然后使用证书颁发机构的私钥对证书请求进行签名，最后生成一个证书。 This certificate is the public key for the server/client key pair.</p>
+<p>For TLS transport encryption, the clients can use the <strong>trust cert</strong> to verify that the server has a key pair that the certificate authority signed when the clients are talking to the server. 中间人攻击者不能访问证书颁发机构，因此他们不能创建有这样密钥对的服务。</p>
+<p>For TLS authentication, the server uses the <strong>trust cert</strong> to verify that the client has a key pair that the certificate authority signed. The common name of the <strong>client cert</strong> is then used as the client's role token (see <a href="/docs/zh-CN/2.8.3/security-overview">Overview</a>).</p>
+<p>Pulsar 使用了<code>Bouncy Castle Provider</code> 提供的密码套件和算法。 如果你需要 <a href="https://www.bouncycastle.org/fips_faq.html">FIPS</a> 版本的 <code>Bouncy Castle Provider</code>，请参考 <a href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle 页面</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="创建-tls-证书"></a><a href="#创建-tls-证书" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 TLS 证书</h2>
+<p>为 Pulsar 创建 TLS 证书涉及创建 <a href="#certificate-authority">证书颁发机构</a> (CA), <a href="#server-certificate">服务端证书</a>和 <a href="#client-certificate">客户端证书</a>。</p>
+<p>按照下面的指南建立一个证书颁发机构。 你也可以参考互联网上的大量资源来了解更多细节。 我们推荐 <a href="https://jamielinux.com/docs/openssl-certificate-authority/index.html">此指南</a> 作为您的详细参考。</p>
+<h3><a class="anchor" aria-hidden="true" id="证书颁授"></a><a href="#证书颁授" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>证书颁授</h3>
+<ol>
+<li><p>为 CA 创建证书。 您可以使用 CA 来对 broker 和 客户端证书进行签名。 这确保了每一方都会信任其他方。 您应该将 CA 存储在一个非常安全的位置(理想情况是完全脱离网络、空间隔离和完全加密)。</p></li>
+<li><p>输入下面的命令为 CA 创建一个目录，并将此 <a href="https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf">openssl 配置文件</a> 放入该目录中。 You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. 配置文件使用这个环境变量来查找 CA 需要的其余文件和目录。</p></li>
+</ol>
+<pre><code class="hljs css language-bash">mkdir my-ca
+<span class="hljs-built_in">cd</span> my-ca
+wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+<span class="hljs-built_in">export</span> CA_HOME=$(<span class="hljs-built_in">pwd</span>)
+</code></pre>
+<ol start="3">
+<li>输入下面的命令来创建必要的目录、密钥和证书。</li>
+</ol>
+<pre><code class="hljs css language-bash">mkdir certs crl newcerts private
+chmod 700 private/
+touch index.txt
+<span class="hljs-built_in">echo</span> 1000 &gt; serial
+openssl genrsa -aes256 -out private/ca.key.pem 4096
+chmod 400 private/ca.key.pem
+openssl req -config openssl.cnf -key private/ca.key.pem \
+    -new -x509 -days 7300 -sha256 -extensions v3_ca \
+    -out certs/ca.cert.pem
+chmod 444 certs/ca.cert.pem
+</code></pre>
+<ol start="4">
+<li>After you answer the question prompts, CA-related files are stored in the <code>./my-ca</code> directory. Within that directory:</li>
+</ol>
+<ul>
+<li><code>certs/ca.cert.pem</code> is the public certificate. This public certificates is meant to be distributed to all parties involved.</li>
+<li><code>private/ca.key.pem</code> is the private key. You only need it when you are signing a new certificate for either broker or clients and you must safely guard this private key.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="服务器端证书"></a><a href="#服务器端证书" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务器端证书</h3>
+<p>创建了 CA 证书之后，您就可以创建证书请求并使用 CA 给他们签名。</p>
+<p>下面的命令向您询问一些问题，然后创建证书。 当问到通用名称（common name）时，您应该匹配 broker 的主机名。 您可以使用通配符来匹配一组 broker 主机名，例如 <code>*.brocher.usw.example.com</code>。 这将确保多台机器可以共同使用同一个证书。</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>Sometimes matching the hostname is not possible or makes no sense, such as when you create the brokers with random hostnames, or you plan to connect to the hosts via their IP. 在这些情况下，您需要配置客户端来禁用 TLS 主机名验证。 更多信息，您可以在 <a href="#hostname-verification">客户端配置文档主机验证部分</a> 查看到。</p>
+</blockquote>
+<ol>
+<li>输入下面的命令来生成密钥。</li>
+</ol>
+<pre><code class="hljs css language-bash">openssl genrsa -out broker.key.pem 2048
+</code></pre>
+<p>Broker 需要密钥使用 <a href="https://en.wikipedia.org/wiki/PKCS_8">PKCS 8</a> 格式，因此输入以下命令进行转换。</p>
+<pre><code class="hljs css language-bash">openssl pkcs8 -topk8 -inform PEM -outform PEM \
+      -<span class="hljs-keyword">in</span> broker.key.pem -out broker.key-pk8.pem -nocrypt
+</code></pre>
+<ol start="2">
+<li>输入下面的命令生成证书请求。</li>
+</ol>
+<pre><code class="hljs css language-bash">openssl req -config openssl.cnf \
+    -key broker.key.pem -new -sha256 -out broker.csr.pem
+</code></pre>
+<ol start="3">
+<li>输入下面的命令获取证书颁发机构的签名。</li>
+</ol>
+<pre><code class="hljs css language-bash">openssl ca -config openssl.cnf -extensions server_cert \
+    -days 1000 -notext -md sha256 \
+    -<span class="hljs-keyword">in</span> broker.csr.pem -out broker.cert.pem
+</code></pre>
+<p>此时，您拥有一个证书 <code>broker.cert.pem</code>，和一个密钥 <code>broker.key-pk8.pem</code>，可以与 <code>ca.cert.pem</code> 一起使用，来为 broker 和 proxy 节点配置 TLS 传输加密。</p>
+<h2><a class="anchor" aria-hidden="true" id="configure-broker"></a><a href="#configure-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure broker</h2>
+<p>为了配置 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#broker">broker</a> 使用 TLS 传输加密，需要对位于 <a href="/docs/zh-CN/2.8.3/standalone">Pulsar 安装</a> 目录<code>conf</code> 中的 <code>broker.conf</code> 文件进行一些更改。</p>
+<p>Add these values to the configuration file (substituting the appropriate certificate paths where necessary):</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">tlsEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsRequireTrustedClientCertOnConnect</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<blockquote>
+<p>您可以在 <code>conf/broker.conf</code> 文件中找到完整的参数列表，以及在 <a href="/docs/zh-CN/2.8.3/reference-configuration#broker">Broker Configuration</a>中找到这些参数的默认值。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="tls-协议版本和加密算法"></a><a href="#tls-协议版本和加密算法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 协议版本和加密算法</h3>
+<p>您可以配置 broker (或 proxy) 以要求特定的 TLS 协议版本和加密算法。 您可以使用 TLS 协议版本和加密算法来阻止使用可能存在缺陷的低版本 TLS 协议或加密算法的客户端请求。</p>
+<p>Both the TLS protocol versions and cipher properties can take multiple values, separated by commas. 协议版本和加密算法的值可能取决于您正在使用的 TLS 提供程序。 如果 OpenSSL 可用，Pulsar 将使用 OpenSSL，但如果 OpenSSL 不可用，Pulsar 将默认返回 JDK 实现。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">tlsProtocols</span>=<span class="hljs-string">TLSv1.3,TLSv1.2</span>
+<span class="hljs-attr">tlsCiphers</span>=<span class="hljs-string">TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA</span>
+</code></pre>
+<p>OpenSSL currently supports <code>TLSv1.1</code>, <code>TLSv1.2</code> and <code>TLSv1.3</code> for the protocol version. You can acquire a list of supported cipher from the openssl ciphers command, i.e. <code>openssl ciphers -tls1_3</code>.</p>
+<p>For JDK 11, you can obtain a list of supported values from the documentation:</p>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSEPROVIDERPROTOCOLPARAMETERS-BBF75009">TLS protocol</a></li>
+<li><a href="https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSE_CIPHER_SUITES">Ciphers</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="proxy配置"></a><a href="#proxy配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy配置</h2>
+<p>代理需要为连接到代理的客户端和连接到 broker 的代理这两个方向上配置 TLS。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># For clients connecting to the proxy</span>
+<span class="hljs-attr">tlsEnabledInProxy</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+<span class="hljs-comment">
+# For the proxy to connect to brokers</span>
+<span class="hljs-attr">tlsEnabledWithBroker</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">brokerClientTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="客户端配置"></a><a href="#客户端配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端配置</h2>
+<p>When you enable the TLS transport encryption, you need to configure the client to use <code>https://</code> and port 8443 for the web service URL, and <code>pulsar+ssl://</code> and port 6651 for the broker service URL.</p>
+<p>As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the <strong>trust cert</strong> (recommended), or tell the client to allow untrusted server certs.</p>
+<h3><a class="anchor" aria-hidden="true" id="hostname-verification"></a><a href="#hostname-verification" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hostname verification</h3>
+<p>主机名验证是一种 TLS 安全特性，如果 &quot;CommonName&quot; 与所连接的主机名不匹配，客户机可以拒绝连接到该服务器。 By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.</p>
+<p>此外，由于管理员对证书颁发机构拥有完全的控制权，一个恶意参与者不太可能实现中间人攻击。 &quot;allowInsecureConnection&quot; allows the client to connect to servers whose cert has not been signed by an approved CA. 客户端默认禁用 &quot;allowInsecureConnection&quot;，您也应该始终在生产环境中禁用 &quot;allowInsecureConnection&quot;。 只要您禁用 &quot;allowInsecureConnection&quot;，中间人攻击就会要求攻击者具有访问 CA 的权限。</p>
+<p>One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the &quot;CommonName,&quot; and then enable hostname verification on the client.</p>
+<p>The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default.</p>
+<h3><a class="anchor" aria-hidden="true" id="命令行工具"></a><a href="#命令行工具" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命令行工具</h3>
+<p><a href="/docs/zh-CN/2.8.3/reference-cli-tools">命令行工具</a>如：<a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>，<a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>和<a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>都使用 Pulsar 安装路径中的<code>conf/client.conf</code>配置文件。</p>
+<p>要使用 Pulsar 的 CLI 工具使用 TLS 传输，您需要向该文件添加以下参数：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
+<span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar+ssl://broker.example.com:6651/</span>
+<span class="hljs-attr">useTls</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsAllowInsecureConnection</span>=<span class="hljs-string">false</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+<span class="hljs-attr">tlsEnableHostnameVerification</span>=<span class="hljs-string">false</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="java-客户端"></a><a href="#java-客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java 客户端</h4>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>)
+    .enableTls(<span class="hljs-keyword">true</span>)
+    .tlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>)
+    .enableTlsHostnameVerification(<span class="hljs-keyword">false</span>) <span class="hljs-comment">// false by default, in any case</span>
+    .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>) <span class="hljs-comment">// false by default, in any case</span>
+    .build();
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="python-client"></a><a href="#python-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h4>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client
+
+client = Client(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>,
+                tls_hostname_verification=<span class="hljs-literal">False</span>,
+                tls_trust_certs_file_path=<span class="hljs-string">"/path/to/ca.cert.pem"</span>,
+                tls_allow_insecure_connection=<span class="hljs-literal">False</span>) // defaults to false <span class="hljs-keyword">from</span> v2<span class="hljs-number">.2</span><span class="hljs-number">.0</span> onwards
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h4>
+<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
+
+ClientConfiguration <span class="hljs-built_in">config</span> = ClientConfiguration();
+<span class="hljs-built_in">config</span>.setUseTls(<span class="hljs-literal">true</span>);  <span class="hljs-comment">// shouldn't be needed soon</span>
+<span class="hljs-built_in">config</span>.setTlsTrustCertsFilePath(caPath);
+<span class="hljs-built_in">config</span>.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);
+<span class="hljs-built_in">config</span>.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+<span class="hljs-built_in">config</span>.setValidateHostName(<span class="hljs-literal">false</span>);
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="nodejs-客户端"></a><a href="#nodejs-客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js 客户端</h4>
+<pre><code class="hljs css language-JavaScript"><span class="hljs-keyword">const</span> Pulsar = <span class="hljs-built_in">require</span>(<span class="hljs-string">'pulsar-client'</span>);
+
+<span class="hljs-function">(<span class="hljs-params"><span class="hljs-keyword">async</span> (</span>) =&gt;</span> {
+  <span class="hljs-keyword">const</span> client = <span class="hljs-keyword">new</span> Pulsar.Client({
+    <span class="hljs-attr">serviceUrl</span>: <span class="hljs-string">'pulsar+ssl://broker.example.com:6651/'</span>,
+    <span class="hljs-attr">tlsTrustCertsFilePath</span>: <span class="hljs-string">'/path/to/ca.cert.pem'</span>,
+    <span class="hljs-attr">useTls</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">tlsValidateHostname</span>: <span class="hljs-literal">false</span>,
+    <span class="hljs-attr">tlsAllowInsecureConnection</span>: <span class="hljs-literal">false</span>,
+  });
+})();
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="c-客户端"></a><a href="#c-客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C# 客户端</h4>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> certificate = <span class="hljs-keyword">new</span> X509Certificate2(<span class="hljs-string">"ca.cert.pem"</span>);
+<span class="hljs-keyword">var</span> client = PulsarClient.Builder()
+                         .TrustedCertificateAuthority(certificate) <span class="hljs-comment">//If the CA is not trusted on the host, you can add it explicitly.</span>
+                         .VerifyCertificateAuthority(<span class="hljs-literal">true</span>) <span class="hljs-comment">//Default is 'true'</span>
+                         .VerifyCertificateName(<span class="hljs-literal">false</span>)     <span class="hljs-comment">//Default is 'false'</span>
+                         .Build();
+</code></pre>
+<blockquote>
+<p>Note that <code>VerifyCertificateName</code> refers to the configuration of hostname verification in the C# client.</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/security-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/security-tls-authentication"><span>使用TLS进行认证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#tls-概述">TLS 概述</a></li><li><a href="#tls-概念">TLS 概念</a></li><li><a href="#创建-tls-证书">创建 TLS 证书</a><ul class="toc-headings"><li><a href="#证书颁授">证书颁授</a></li><li><a href="#服务器端证书">服务器端证书</a></li></ul></li><li><a href="#configure-broker">Configure broker</a><ul class="toc-headings"><li><a href="#tls-协议版本和加密算法">TLS 协议版本和加密算法</a></li></ul></li><li><a href="#proxy配置">Proxy配置</a></li><li><a href="#客户端配置">客户端配置</a><ul class="toc-headings"><li><a href="#hostname-verification">Hostname verification</a></li><li><a href="#命令行工具">命令行工具</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

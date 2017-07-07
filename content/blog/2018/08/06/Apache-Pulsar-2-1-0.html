@@ -1,0 +1,193 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.1.0-incubating · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="We are glad to present the new 2.1.0-incubating release of Pulsar."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.1.0-incubating · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0"/><meta property="og:description" content="We are glad to present the new 2.1.0-incubating release of Pulsar."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2018/08/06/Apache-Pulsar-2-1-0">Apache Pulsar 2.1.0-incubating</a></h1><p class="post-meta">August 6, 2018</p><div class="authorBlock"><p class="post-authorName"><a href="https://twitter.com/sijieg" target="_blank" rel="noreferrer noopener">Sijie Guo</a></p></div></header><div><span><p>We are glad to present the new 2.1.0-incubating release of Pulsar.
+This release is the culmination of 2 months of work that have
+brought multiple new features and improvements to Pulsar.</p>
+<p>In Pulsar 2.1 you'll see:</p>
+<ul>
+<li><a href="/docs/io-overview">Pulsar IO</a> connector framework and a list of <a href="/docs/io-connectors">builtin connectors</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics">PIP-17</a>: <a href="/docs/concepts-tiered-storage">Tiered Storage</a></li>
+<li>Pulsar <a href="/docs/functions-state">Stateful Functions</a></li>
+<li><a href="/docs/client-libraries-go">Go Client</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java">Avro</a>
+and <a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/ProtobufSchema.java">Protobuf</a> Schemas</li>
+</ul>
+<p>For details information please check the detailed <a href="/release-notes/#2.1.0-incubating">release notes</a> and <a href="/versions">2.1.0 documentation</a>.</p>
+<!--truncate-->
+<p>We'll provide a brief summary of these features in the section below.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-io"></a><a href="#pulsar-io" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar IO</h2>
+<p>Since Pulsar 2.0, we introduced a serverless inspired lightweight computing framework <a href="/docs/functions-overview">Pulsar Functions</a>,
+providing the easiest possible way to implement application-specific in-stream processing logic of any complexity. A lot of developers
+love Pulsar Functions because they require minimal boilerplate and are easy to reason about.</p>
+<p>In Pulsar 2.1, we continued following this &quot;simplicity first&quot; principle on developing Pulsar. We developed this IO (input/output) connector
+framework on top of Pulsar Functions, to simplify getting data in and out of Apache Pulsar. You don't need to write any single line of code.
+All you need is prepare a configuration file of the system your want to connect to, and use Pulsar admin
+CLI to submit a connector to Pulsar. Pulsar will take care of all the other stuffs, such as fault-tolerance, rebalancing and etc.</p>
+<p>There are 6 built-in connectors released in 2.1 release. They are:</p>
+<ul>
+<li><a href="/docs/io-aerospike/">Aerospike Connector</a></li>
+<li><a href="/docs/io-cassandra/">Cassandra Connector</a></li>
+<li><a href="/docs/io-kafka/">Kafka Connector</a></li>
+<li><a href="/docs/io-kinesis/">Kinesis Connector</a></li>
+<li><a href="/docs/io-rabbitmq/">RabbitMQ Connector</a></li>
+<li><a href="/docs/io-twitter/">Twitter Firehose Connector</a></li>
+</ul>
+<p>You can follow <a href="/docs/io-quickstart">the tutorial</a> to try out Pulsar IO on connecting Pulsar with <a href="http://cassandra.apache.org/">Apache Cassandra</a>.</p>
+<p>More connectors will be coming in future releases. If you are interested in contributing a connector to Pulsar, checkout the guide on <a href="/docs/io-develop">Developing Connectors</a>.
+It is as simple as writing a Pulsar function.</p>
+<h2><a class="anchor" aria-hidden="true" id="tiered-storage"></a><a href="#tiered-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tiered Storage</h2>
+<p>One of the advantages of Apache Pulsar is <a href="https://streaml.io/blog/pulsar-segment-based-architecture">its segment storage</a> using
+<a href="https://bookkeeper.apache.org/">Apache BookKeeper</a>. You can store a topic backlog as large as you want.
+When the cluster starts to run out of space, you just add another storage node, and the system will automatically
+pickup the new storage nodes and start using them without rebalancing partitions. However, this can start to get expensive after a while.</p>
+<p>Pulsar mitigates this cost/size trade-off by providing Tiered Storage. Tiered Storage turns your Pulsar topics into real <em>infinite</em> streams,
+by offloading older segments into a long term storage, such as AWS S3, GCS and HDFS, which is designed for storing cold data. To the end user,
+there is no perceivable difference between consuming streams whose data is stored in BookKeeper or in long term storage. All the underlying
+offloading mechanisms and metadata management are transparent to applications.</p>
+<p>Currently <a href="https://aws.amazon.com/s3/">S3</a> is supported in 2.1. More offloaders (such as Google GCS, Azure Blobstore, and HDFS) are coming
+in future releases.</p>
+<p>If you are interested in this feature, you can checkout more details <a href="/docs/cookbooks-tiered-storage">here</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="stateful-function"></a><a href="#stateful-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stateful Function</h2>
+<p>The greatest challenge that stream processing engines face is managing <em>state</em>. So does Pulsar Functions. As the goal for Pulsar Functions
+is to simplify developing stream native processing logic, we also want to provide an easier way for Pulsar Functions to manage their state.
+We introduced a set of <a href="/docs/functions-state/#api">State API</a> for Pulsar Functions to store their state. It integrates with the table service
+in Apache BookKeeper for storing the state.</p>
+<p>It is released as a developer preview feature in Pulsar Functions Java SDK. We would like to collect feedback to improve it in future releases.</p>
+<h2><a class="anchor" aria-hidden="true" id="schemas"></a><a href="#schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schemas</h2>
+<p>Pulsar 2.0 introduces native support for schemas in Pulsar. It means you can declare how message data looks and have Pulsar enforce that
+producers can only publish valid data on the topics. In 2.0, Pulsar only supports <code>String</code>, <code>bytes</code> and <code>JSON</code> schemas. We introduced the
+support for <a href="https://avro.apache.org/">Avro</a> and <a href="https://developers.google.com/protocol-buffers/">Protobuf</a> in this release.</p>
+<h2><a class="anchor" aria-hidden="true" id="clients"></a><a href="#clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Clients</h2>
+<p>We have introduced a new <a href="/docs/client-libraries-go">Go</a> client in 2.1 release. The Pulsar Go client library is based on the
+<a href="/docs/client-libraries-cpp/">C++</a> client library.</p>
+<p>Follow <a href="/docs/client-libraries-go/#installing-go-package">the instructions</a> to try it out in your Go applications!</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.1.0-incubating" data-url="https://pulsar.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-io">Pulsar IO</a></li><li><a href="#tiered-storage">Tiered Storage</a></li><li><a href="#stateful-function">Stateful Function</a></li><li><a href="#schemas">Schemas</a></li><li><a href="#clients">Clients</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

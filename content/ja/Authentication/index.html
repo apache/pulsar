@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsarにおける認証</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsarにおける認証</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <h2 id="認証モデル">認証モデル</h2>
+
+<p>Pulsarはプラガブル認証メカニズムをサポートし、Brokerは複数の認証ソースをサポートするように設定できます。</p>
+
+<p>認証プロバイダ実装の役割は、 クライアントのアイデンティティを <em>ロール</em> トークンの形式で確立することです。<br />
+このロールトークンを使用して、このクライアントが特定のトピックに対してproduceまたはconsumeを許可されているかどうかを検証します。</p>
+
+<h2 id="認証プロバイダ">認証プロバイダ</h2>
+
+<h3 id="tlsクライアント認証">TLSクライアント認証</h3>
+
+<p>PulsarクライアントとBroker間の接続暗号化を提供することに加えて、<br />
+TLSは信頼された認証局 (CA) によって署名された証明書を通してクライアントを識別できます。</p>
+
+<p><strong>注</strong>: 他のPulsarコードとは異なり、TLS認証プロバイダはYahooのプロダクションでは使用されていません。<br />
+使用する際に発生した問題があれば報告してください。</p>
+
+<h4 id="証明書の作成">証明書の作成</h4>
+
+<h5 id="認証局-ca">認証局 (CA)</h5>
+
+<p>最初のステップは、CAの証明書を作成することです。<br />
+CAはBrokerとクライアント両方の証明書に署名するために用いられ、お互いを信頼できるようにします。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Linuxシステム上で:</span>
+<span class="gp">$ </span>CA.pl -newca
+
+<span class="c"># MacOSX上で</span>
+<span class="gp">$ </span>/System/Library/OpenSSL/misc/CA.pl -newca
+</code></pre>
+</div>
+
+<p>コマンドライン上の質問に回答後、CA関連のファイルが<code class="highlighter-rouge">./demoCA</code>配下に作成されます。</p>
+<ul>
+  <li><code class="highlighter-rouge">demoCA/cacert.pem</code> は公開鍵証明書です。全ての関係者に配布されます。</li>
+  <li><code class="highlighter-rouge">demoCA/private/cakey.pem</code> は秘密鍵です。Brokerまたはクライアントの新規の証明書に署名するときのみ必要になります。安全な場所に保管してください。</li>
+</ul>
+
+<h5 id="brokerの証明書">Brokerの証明書</h5>
+
+<p>証明書リクエストを作成し、CAの公開鍵証明書で署名します。</p>
+
+<p>これらのコマンドはいくつかの質問をし、証明書を作成します。<br />
+コモンネームは、Brokerのホスト名と一致させる必要があります。<br />
+Brokerのホスト名のグループにマッチするワイルドカードを利用することも可能です。<br />
+例えば<code class="highlighter-rouge">*.broker.usw.example.com</code>のようにすることで、同じ証明書を複数マシンで再利用できます。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl req -newkey rsa:2048 -sha256 -nodes -out broker-cert.csr -outform PEM
+
+<span class="c"># 鍵をPKCS#8フォーマットに変換</span>
+<span class="gp">$ </span>openssl pkcs8 -topk8 -inform PEM -outform PEM -in privkey.pem -out broker-key.pem -nocrypt
+</code></pre>
+</div>
+
+<p>このコマンドによりBrokerの証明書リクエストファイル (<code class="highlighter-rouge">broker-cert.csr</code>と<code class="highlighter-rouge">broker-key.pem</code>) が生成されます。</p>
+
+<p>これで署名付き証明書の作成に進むことができます:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl ca -out broker-cert.pem -infiles broker-cert.csr
+</code></pre>
+</div>
+
+<p>この時点で、Brokerに必要な<code class="highlighter-rouge">broker-cert.pem</code>と<code class="highlighter-rouge">broker-key.pem</code>が用意できました。</p>
+
+<h5 id="クライアントの証明書">クライアントの証明書</h5>
+
+<p>Brokerと同じステップを繰り返して、<code class="highlighter-rouge">client-cert.pem</code> と <code class="highlighter-rouge">client-key.pem</code>を作成してください。</p>
+
+<p>クライアントのコモンネームは、クライアントのホスト名と一致させる必要はありませんが、<br />
+<em>ロール</em>トークンで使用予定の文字列を用いる必要があります。</p>
+
+<h4 id="brokerの設定">Brokerの設定</h4>
+
+<p><code class="highlighter-rouge">conf/broker.conf</code>にPulsar BrokerのTLS認証を設定:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">tlsEnabled</span><span class="o">=</span><span class="nb">true
+</span><span class="nv">tlsCertificateFilePath</span><span class="o">=</span>/path/to/broker-cert.pem
+<span class="nv">tlsKeyFilePath</span><span class="o">=</span>/path/to/broker-key.pem
+<span class="nv">tlsTrustCertsFilePath</span><span class="o">=</span>/path/to/cacert.pem
+
+<span class="c"># Add TLS auth provider</span>
+<span class="nv">authenticationEnabled</span><span class="o">=</span><span class="nb">true
+</span><span class="nv">authorizationEnabled</span><span class="o">=</span><span class="nb">true
+</span><span class="nv">authenticationProviders</span><span class="o">=</span>org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+</code></pre>
+</div>
+
+<h4 id="ディスカバリサービスの設定">ディスカバリサービスの設定</h4>
+
+<p>ディスカバリサービスはHTTPSリクエストのリダイレクト処理を行うため、同様にクライアントから信頼される必要があります。<br />
+<code class="highlighter-rouge">conf/discovery.conf</code>にTLS認証の設定を追加：</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">tlsEnabled</span><span class="o">=</span><span class="nb">true
+</span><span class="nv">tlsCertificateFilePath</span><span class="o">=</span>/path/to/broker-cert.pem
+<span class="nv">tlsKeyFilePath</span><span class="o">=</span>/path/to/broker-key.pem
+</code></pre>
+</div>
+
+<h4 id="javaクライアントの設定">Javaクライアントの設定</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">);</span>
+
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsCertFile"</span><span class="o">,</span> <span class="s">"/path/to/client-cert.pem"</span><span class="o">);</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsKeyFile"</span><span class="o">,</span> <span class="s">"/path/to/client-cert.pem"</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">AuthenticationTls</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
+                        <span class="s">"https://my-broker.com:4443"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h4 id="cliツールの設定">CLIツールの設定</h4>
+
+<p><code class="highlighter-rouge">pulsar-admin</code>, <code class="highlighter-rouge">pulsar-perf</code>や<code class="highlighter-rouge">pulsar-client</code>のようなコマンドラインツールは設定ファイル<code class="highlighter-rouge">conf/client.conf</code>を利用します。<br />
+認証パラメータの追加:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">serviceUrl</span><span class="o">=</span>https://broker.example.com:8443/
+<span class="nv">authPlugin</span><span class="o">=</span>org.apache.pulsar.client.impl.auth.AuthenticationTls
+<span class="nv">authParams</span><span class="o">=</span>tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-cert.pem
+<span class="nv">useTls</span><span class="o">=</span><span class="nb">true
+</span><span class="nv">tlsAllowInsecureConnection</span><span class="o">=</span><span class="nb">false
+</span><span class="nv">tlsTrustCertsFilePath</span><span class="o">=</span>/path/to/cacert.pem
+</code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

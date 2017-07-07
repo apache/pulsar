@@ -1,0 +1,423 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Configure Functions runtime · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="可以使用下列方式去运行函数。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Configure Functions runtime · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="可以使用下列方式去运行函数。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-runtime">English</a></li><li><a href="/docs/ja/2.8.3/functions-runtime">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-runtime">Français</a></li><li><a href="/docs/ko/2.8.3/functions-runtime">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/functions-runtime">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Configure Functions runtime</h1></header><article><div><span><p>可以使用下列方式去运行函数。</p>
+<ul>
+<li><em>Thread</em>: Invoke functions threads in functions worker.</li>
+<li><em>Process</em>: Invoke functions in processes forked by functions worker.</li>
+<li><em>Kubernetes</em>: Submit functions as Kubernetes StatefulSets by functions worker.</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong>  <br>
+Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.</p>
+</blockquote>
+<p>线程和进程两种模式有如下不同：</p>
+<ul>
+<li>线程模式：当函数运行在线程模式时，函数和 Puslsar functions 的 work 是运行在同一个Java 虚拟机(JVM) 里面的。</li>
+<li>进程模式： 当函数运行在进程模式时，它们是运行在同一台机器上的不同 Java 虚拟机里面。</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="配置线程模式运行"></a><a href="#配置线程模式运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置线程模式运行</h2>
+<p>It is easy to configure <em>Thread</em> runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-attr">threadGroupName:</span> <span class="hljs-string">"Your Function Container Group"</span>
+</code></pre>
+<p><em>Thread</em> runtime is only supported in Java function.</p>
+<h2><a class="anchor" aria-hidden="true" id="配置进程模式运行"></a><a href="#配置进程模式运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置进程模式运行</h2>
+<p>When you enable <em>Process</em> runtime, you do not need to configure anything.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-comment"># 存储函数日志的目录</span>
+  <span class="hljs-attr">logDirectory:</span>
+  <span class="hljs-comment"># 如果想把 java 实例的 jar 包放在其他位置执行，可以在这配置 jar 包存放位置</span>
+  <span class="hljs-attr">javaInstanceJarLocation:</span>
+  <span class="hljs-comment"># 仅将 python 实例 jar 放在不同位置时才更改 python 实例位置</span>
+  <span class="hljs-attr">pythonInstanceLocation:</span>
+  <span class="hljs-comment"># 更改额外的依赖项位置：</span>
+  <span class="hljs-attr">extraFunctionDependenciesDir:</span>
+</code></pre>
+<p><em>Process</em> runtime is supported in Java, Python, and Go functions.</p>
+<h2><a class="anchor" aria-hidden="true" id="配置-kubernetes-运行"></a><a href="#配置-kubernetes-运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Kubernetes 运行</h2>
+<p>当函数 worker 生成 Kubernetes manifests，应用这份 manifests 时，Kubernetes 就会开始工作。 如果你将函数运行在 Kubernetes 里面，你能够使用<code>serviceAccount</code> 去关联正在运行该函数的 Pod。 然后，可以将其配置为与 Kubernetes 集群进行通信。</p>
+<p>Mainifests 由函数 worker 生成，包含一个<code>StatefulSet</code>，一个<code>Service</code>（用于 pods 之间通信），和一个<code>Secret</code>（在需要的情况下，用于身份认证)。 默认情况下，<code>StatefulSet</code>只有一个 Pod，函数的 “并行度” 决定它的数量。 Pode 启动时， Pod 会下载函数的运行内容 （通过函数 worker 的REST API 下载）。 Pod 的容器镜像是可以配置的，但是必须先有函数运行时。</p>
+<p>Kubernetes 运行时是支持 secrets 的，所以你能够创建一个 Kubernetes secret，并将其作为环境变量在 Pod 内可见。 Kubernetes 运行时是可扩展的，你可以实现类并定制，比如：如何生成 Kubernetes manifests、如果 传递认证数据给pod，如何整合 secrets等。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>For the rules of translating Pulsar object names into Kubernetes resource labels, see <a href="/docs/zh-CN/2.8.3/admin-api-overview#how-to-define-pulsar-resource-names-when-running-pulsar-in-kubernetes">here</a>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="基础配置"></a><a href="#基础配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基础配置</h3>
+<p>It is easy to configure Kubernetes runtime. You can just uncomment the settings of <code>kubernetesContainerFactory</code> in the <code>functions_worker.yaml</code> file. The following is an example.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-comment"># 访问 kubernetes 集群的 uri，为空的话将使用函数 worker 中的 kubernetes 相关配置。</span>
+  <span class="hljs-attr">k8Uri:</span>
+  <span class="hljs-comment"># 运行函数实例的 kubernetes 命名空间。 不设置的话，默认值是 `default`</span>
+  <span class="hljs-attr">jobNamespace:</span>
+  <span class="hljs-comment"># 运行函数实例的 Kubernetes pod 名。 不设置的话，默认值是</span>
+  <span class="hljs-comment"># `pf-&lt;tenant&gt;-&lt;namespace&gt;-&lt;function_name&gt;-&lt;random_uuid(8)&gt;`</span>
+  <span class="hljs-attr">jobName:</span> 
+  <span class="hljs-comment"># 运行函数实例的 docker 镜像。 默认情况下是`apachepulsar/pulsar`</span>
+  <span class="hljs-attr">pulsarDockerImageName:</span>
+  <span class="hljs-comment"># docker 镜像根据用户提供的不同配置运行函数实例。</span>
+  <span class="hljs-comment"># 默认是 `apachepulsar/pulsar`</span>
+  <span class="hljs-comment"># 例如:</span>
+  <span class="hljs-comment"># functionDockerImages:</span>
+  <span class="hljs-comment">#   JAVA: JAVA_IMAGE_NAME</span>
+  <span class="hljs-comment">#   PYTHON: PYTHON_IMAGE_NAME</span>
+  <span class="hljs-comment">#   GO: GO_IMAGE_NAME</span>
+  <span class="hljs-attr">functionDockerImages:</span>
+  <span class="hljs-comment"># 运行函数实例的镜像拉取策略。 默认是 `IfNotPresent`</span>
+  <span class="hljs-attr">imagePullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-comment"># 在 `pulsarDockerImageName` 中的 pulsar 主目录的根目录 by default it is `/pulsar`.</span>
+  <span class="hljs-comment"># 如果使用自主构建的镜像，需要定义 `pulsarDockerImageName`</span>
+  <span class="hljs-attr">pulsarRootDir:</span>
+  <span class="hljs-comment"># config admin CLI 允许用户自定义 admin cli 工具的配置，例如：</span>
+  <span class="hljs-comment"># `/bin/pulsar-admin and /bin/pulsarctl`. 默认是 `/bin/pulsar-admin`。 如果想使用 `pulsarctl`</span>
+  <span class="hljs-comment"># 需要相应的进行如下配置：</span>
+  <span class="hljs-attr">configAdminCLI:</span> 
+  <span class="hljs-comment"># 如果 `k8Uri` 设置为 null 时，才会生效。 if your function worker is running as a k8 pod,</span>
+  <span class="hljs-comment"># setting this to true is let function worker to submit functions to the same k8s cluster as function worker</span>
+  <span class="hljs-comment"># is running. setting this to false if your function worker is not running as a k8 pod.</span>
+  <span class="hljs-attr">submittingInsidePod:</span> <span class="hljs-literal">false</span>
+  <span class="hljs-comment"># 设置提供 pulsar 服务的 url，让 pulsar 函数能够连接到 pulsar</span>
+  <span class="hljs-comment"># 如果没设置，将使用在 worker 里配置的提供 pulsar 服务的 url</span>
+  <span class="hljs-attr">pulsarServiceUrl:</span>
+  <span class="hljs-comment"># 设置提供 pulsar admin 服务的 url，让 pulsar 函数能够连接到 pulsar</span>
+  <span class="hljs-comment"># 如果没设置，将使用在 worker 里配置的提供 pulsar admin 服务的 url</span>
+  <span class="hljs-attr">pulsarAdminUrl:</span>
+  <span class="hljs-comment"># 用于标记是否安装用户代码依赖。 (应用于 python 包)</span>
+  <span class="hljs-attr">installUserCodeDependencies:</span>
+  <span class="hljs-comment"># pulsar 函数用来下载 python 依赖包的存储库</span>
+  <span class="hljs-attr">pythonDependencyRepository:</span>
+  <span class="hljs-comment"># pulsar 函数用来下载 python 额外的依赖包的存储库</span>
+  <span class="hljs-attr">pythonExtraDependencyRepository:</span>
+  <span class="hljs-comment"># 函数 worker 用来为 pod 选择节点的自定义标签</span>
+  <span class="hljs-attr">customLabels:</span>
+  <span class="hljs-comment"># 预期的指标收集间隔，以秒为单位</span>
+  <span class="hljs-attr">expectedMetricsCollectionInterval:</span> <span class="hljs-number">30</span>
+  <span class="hljs-comment"># Kubernetes Runtime 将定期检查此 configMap（如果已定义），并且如果 kubernetes 中特定内容有任何更改，将应用这些更改</span>
+  <span class="hljs-attr">changeConfigMap:</span>
+  <span class="hljs-comment"># 用于存储改动的 configMap 的命名空间</span>
+  <span class="hljs-attr">changeConfigMapNamespace:</span>
+  <span class="hljs-comment"># 为 function/source/sink 设置 cpu 使用率和 cpu 限制</span>
+  <span class="hljs-comment">#  cpu 请求的公式是 cpuRequest = userRequestCpu / cpuOverCommitRatio</span>
+  <span class="hljs-attr">cpuOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># 为 function/source/sink 设置的内存请求率和内存大小限制</span>
+  <span class="hljs-comment"># 内存请求的公式是 memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
+  <span class="hljs-attr">memoryOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># 函数 pod 内部的端口，worker 使用它与 pod 进行通信</span>
+  <span class="hljs-attr">grpcPort:</span> <span class="hljs-number">9093</span>
+  <span class="hljs-comment"># 函数 pod 内的端口，在其上暴露 prometheus 指标</span>
+  <span class="hljs-attr">metricsPort:</span> <span class="hljs-number">9094</span>
+  <span class="hljs-comment"># 函数 pod 中的 nar 包将被提取的目录</span>
+  <span class="hljs-attr">narExtractionDirectory:</span>
+  <span class="hljs-comment"># 存储函数实例文件的 classpath</span>
+  <span class="hljs-attr">functionInstanceClassPath:</span>
+  <span class="hljs-comment"># 用于删除额外的函数依赖项的目录</span>
+  <span class="hljs-comment"># 如果不是绝对路径，那就是相对于 `pulsarRootDir` 的路径</span>
+  <span class="hljs-attr">extraFunctionDependenciesDir:</span>
+  <span class="hljs-comment"># 在每个实例的函数请求的内存之上，添加了额外的内存补充</span>
+  <span class="hljs-attr">percentMemoryPadding:</span> <span class="hljs-number">10</span>
+</code></pre>
+<p>如果函数 worker 运行在 Kubernetes 环境的  broker 中，你可以使用默认配置。</p>
+<h3><a class="anchor" aria-hidden="true" id="kubernetes-运行独立的函数-worker"></a><a href="#kubernetes-运行独立的函数-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes 运行独立的函数 worker</h3>
+<p>如果你想在 Kubernetes 上运行独立的函数 worker (即不嵌入在broker上运行），你必须在函数 worker 上配置<code>pulsarSerivceUrl</code>和<code>pulsarAdminUrl</code>，来指定 broker 的地址。</p>
+<p>例如，Pulsar brokers 和 函数 worker 都运行在 K8S的 <code>pulsar</code>命名空间下。 Broker 有一个叫做 <code>brokers</code> 的服务，函数 worker 有一个叫做 <code>func-worker</code> 的服务。 他们的设置如下：</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">pulsarServiceUrl:</span> <span class="hljs-string">pulsar://broker.pulsar:6650</span> <span class="hljs-string">//</span> <span class="hljs-string">如果使用了</span> <span class="hljs-string">TLS</span> <span class="hljs-string">就用</span> <span class="hljs-string">：pulsar+ssl://broker.pulsar:6651</span>
+<span class="hljs-attr">pulsarAdminUrl:</span> <span class="hljs-string">http://func-worker.pulsar:8080</span> <span class="hljs-string">//</span> <span class="hljs-string">如果使用了TLS</span> <span class="hljs-string">就用：</span> <span class="hljs-string">https://func-worker:8443</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="kubernetes-集群中运行-rbac"></a><a href="#kubernetes-集群中运行-rbac" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes 集群中运行 RBAC</h3>
+<p>如果要在集群中运行 RBAC，需要确保运行函数worker（如果函数运行在 broker 上，那就是 broker ）的 service account 有以下 Kubernetes API 的访问权限。</p>
+<ul>
+<li>services</li>
+<li>configmaps</li>
+<li>pods</li>
+<li>apps.statefulsets</li>
+</ul>
+<p>如下是完整的配置：</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">apiVersion:</span> <span class="hljs-string">rbac.authorization.k8s.io/v1beta1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRole</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">rules:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">apiGroups:</span> <span class="hljs-string">[""]</span>
+  <span class="hljs-attr">resources:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">services</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">configmaps</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">pods</span>
+  <span class="hljs-attr">verbs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">'*'</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">apiGroups:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">apps</span>
+  <span class="hljs-attr">resources:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">statefulsets</span>
+  <span class="hljs-attr">verbs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">'*'</span>
+<span class="hljs-meta">---</span>
+<span class="hljs-attr">apiVersion:</span> <span class="hljs-string">v1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ServiceAccount</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-meta">---</span>
+<span class="hljs-attr">apiVersion:</span> <span class="hljs-string">rbac.authorization.k8s.io/v1beta1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRoleBinding</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">roleRef:</span>
+  <span class="hljs-attr">apiGroup:</span> <span class="hljs-string">rbac.authorization.k8s.io</span>
+  <span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRole</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">subjectsKubernetesSec:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">kind:</span> <span class="hljs-string">ServiceAccount</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+</code></pre>
+<p>如果 service account 的配置不正确，就会有如下的错误信息提示。</p>
+<pre><code class="hljs css language-bash">22:04:27.696 [Timer-0] ERROR org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory - Error <span class="hljs-keyword">while</span> trying to fetch configmap example-pulsar-4qvmb5gur3c6fc9dih0x1xn8b-function-worker-config at namespace pulsar
+io.kubernetes.client.ApiException: Forbidden
+    at io.kubernetes.client.ApiClient.handleResponse(ApiClient.java:882) ~[io.kubernetes-client-java-2.0.0.jar:?]
+    at io.kubernetes.client.ApiClient.execute(ApiClient.java:798) ~[io.kubernetes-client-java-2.0.0.jar:?]
+    at io.kubernetes.client.apis.CoreV1Api.readNamespacedConfigMapWithHttpInfo(CoreV1Api.java:23673) ~[io.kubernetes-client-java-api-2.0.0.jar:?]
+    at io.kubernetes.client.apis.CoreV1Api.readNamespacedConfigMap(CoreV1Api.java:23655) ~[io.kubernetes-client-java-api-2.0.0.jar:?]
+    at org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory.fetchConfigMap(KubernetesRuntimeFactory.java:284) [org.apache.pulsar-pulsar-functions-runtime-2.4.0-42c3bf949.jar:2.4.0-42c3bf949]
+    at org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory<span class="hljs-variable">$1</span>.run(KubernetesRuntimeFactory.java:275) [org.apache.pulsar-pulsar-functions-runtime-2.4.0-42c3bf949.jar:2.4.0-42c3bf949]
+    at java.util.TimerThread.mainLoop(Timer.java:555) [?:1.8.0_212]
+    at java.util.TimerThread.run(Timer.java:505) [?:1.8.0_212]
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="集成-kubernetes-secrets"></a><a href="#集成-kubernetes-secrets" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集成 Kubernetes secrets</h3>
+<p>为了确保信息安全 ，Pulsar 函数可以引用Kubernetes secrets。 如果要启用此功能，请将参数<code>secretsProviderConfiguratorClassName</code>设置为<code>org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator</code>。</p>
+<p>你可以在部署函数的 kubernetes 命名空间中创建一个 secret。 例如，你的函数部署在 Kubernetes 的命名空间 <code>pulsar-func</code>中，你有一个名为<code>database-creds</code>的secret，它有一个字段<code>password</code>，你希望将其作为一个环境变量传递到 pod 中，并且想用名称<code>DATABASE_PASSWORD</code>获取到它。 那么下面的函数配置允许你将这个 secret 以环境变量的形式传递到 pod 里面。</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"mytenant"</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">"mynamespace"</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">"myfunction"</span>
+<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://mytenant/mynamespace/myfuncinput"</span>
+<span class="hljs-attr">className:</span> <span class="hljs-string">"com.company.pulsar.myfunction"</span>
+
+<span class="hljs-attr">secrets:</span>
+  <span class="hljs-comment">#  secret 中的`password`和`database-creds`将被挂载到名为 `DATABASE_PASSWORD `的环境变量中。</span>
+  <span class="hljs-attr">DATABASE_PASSWORD:</span>
+    <span class="hljs-attr">path:</span> <span class="hljs-string">"database-creds"</span>
+    <span class="hljs-attr">key:</span> <span class="hljs-string">"password"</span>
+
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="启用-token-认证"></a><a href="#启用-token-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 Token 认证</h3>
+<p>当你开启 Pulsar 集群的身份认证时，你需要为运行函数的 pod 提供一种机制，以通过 broker的身份认证。</p>
+<p><code>org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider</code> 接口可以为任何认证机制提供支持。 配置文件<code>function-worker.yml</code>的配置项<code>functionAuthProviderClassName</code> 允许你自定义认证实现机制。</p>
+<p>Pulsar 自带了令牌身份认证的实现，并通过相同的方式实现了分发证书授权。 配置如下：</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">functionAuthProviderClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider</span>
+</code></pre>
+<p>使用 Token 身份认证时，函数 worker 会获取到 token，并将其用于部署或者更新函数。 Token 通过 secret 的方式挂载到 pod 里面。</p>
+<p>自定义的认证方式或者TLS， 你必须去实现上面的接口或者使用替代机制实现身份认证。 如果你在集群中使用 Token 身份认证和 TLS 加密实现安全通信，Pulsar 会将证书授权(CA)传递给客户端，所以客户端就可以获取到集群认证所需的内容，同时信任集群所签发的证书。</p>
+<blockquote>
+<p><strong>Note</strong>   <br>
+If you use tokens that expire when deploying functions, these tokens will expire.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="启用身份认证"></a><a href="#启用身份认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用身份认证</h3>
+<p>当您在启用了身份认证的集群中独立运行函数 worker 时, 你必须配置函数 worker 和 broker 交互时传入身份认证信息。 所以你必须配置 broker 所需的身份认证和鉴权选项。</p>
+<p>例如，如果是使用 Token 认证，你必须在<code>function-worker.yml</code>文件内配置如下属性。</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">clientAuthenticationPlugin:</span> <span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
+<span class="hljs-attr">clientAuthenticationParameters:</span> <span class="hljs-string">file:///etc/pulsar/token/admin-token.txt</span>
+<span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">zookeeper-cluster:2181</span> <span class="hljs-comment"># auth requires a connection to zookeeper</span>
+<span class="hljs-attr">authenticationProviders:</span>
+ <span class="hljs-bullet">-</span> <span class="hljs-string">"org.apache.pulsar.broker.authentication.AuthenticationProviderToken"</span>
+<span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">superUserRoles:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">superuser</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">proxy</span>
+<span class="hljs-attr">properties:</span>
+  <span class="hljs-attr">tokenSecretKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/secret</span> <span class="hljs-comment"># if using a secret token, key file must be DER-encoded</span>
+  <span class="hljs-attr">tokenPublicKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/public.key</span> <span class="hljs-comment"># if using public/private key tokens, key file must be DER-encoded</span>
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>   <br>
+You must configure both the Function Worker authorization or authentication for the server to authenticate requests and configure the client to be authenticated to communicate with the broker.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="定制-kubernetes-运行时"></a><a href="#定制-kubernetes-运行时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>定制 Kubernetes 运行时</h3>
+<p>Kubernetes 集成允许你实现类并自定义如何生成manifests. 你可以为配置文件<code>functions-worker.yml</code>的配置项<code>runtimeCustomizerClassName</code>指定一个全路径的类名。 这个类必须实现<code>org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer</code>接口。</p>
+<p>函数(数据来源/ 数据去向) API 会提供了一个标记，<code>customRuntimeOptions</code>，传递到这个接口。</p>
+<p>为了初始化 <code>KubernetesManifestCustomizer</code>，可以将 <code>runtimeCustomizerConfig</code> 在 <code>functions-worker.yml</code> 文件中进行提供。 <code>runtimeCustomizerConfig</code> 作为参数传递给 <code>public void initialize(Map&lt;String, Object&gt; config)</code> 函数。 <code>runtimeCustomizerConfig</code> 和 <code>customRuntimeOptions</code> 的配置值是不同的， <code>runtimeCustomizerConfig</code> 在所有的函数中配置值都一样。 如果同时配置了 <code>runtimeCustomizerConfig</code>  和<code>customRuntimeOptions</code>，需要决定如何管理这两个配置，在对<code>KubernetesManifestCustomizer</code> 的实现中。</p>
+<p>Pulsar 自带了一些实现。 若要使用基本的功能，可以将<code>runtimeCustomizerClassName</code>设置为<code>org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer</code>。 使用 <code>runtimeCustomizerConfig</code> 初始化的内置实现使得能够将 JSON 类型文件作为 <code>customRuntimeOptions</code> 传递，其中包含要扩充的某些属性，这也决定了 manifests 的生成方式。 如果提供了 <code>runtimeCustomizerConfig</code> 和 <code>customRuntimeOptions</code> ，在两个配置发生冲突时，<code>BasicKubernetesManifestCustomizer</code> 会使用<code>customRuntimeOptions</code> 的参数来覆盖 runtimeCustomizerConfig 的配置。</p>
+<p>如下是 <code>customRuntimeOptions</code> 的示例。</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"jobName"</span>: <span class="hljs-string">"jobname"</span>, <span class="hljs-comment">// 运行函数实例的 k8s pod 名字</span>
+  <span class="hljs-attr">"jobNamespace"</span>: <span class="hljs-string">"namespace"</span>, <span class="hljs-comment">// 运行函数实例的 k8s 命名空间</span>
+  <span class="hljs-attr">"extractLabels"</span>: {           <span class="hljs-comment">// 附加给statefulSet，service 和 pods 的额外的标签</span>
+    <span class="hljs-attr">"extraLabel"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"extraAnnotations"</span>: {        <span class="hljs-comment">// 附加给statefulSet，service 和 pods 的额外的注释</span>
+    <span class="hljs-attr">"extraAnnotation"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"nodeSelectorLabels"</span>: {      <span class="hljs-comment">// 添加在 pod 的配置里的节点选择器标签</span>
+    <span class="hljs-attr">"customLabel"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"tolerations"</span>: [             <span class="hljs-comment">// 添加到 pod 的特定情况下某些变量能容忍的值</span>
+    {
+      <span class="hljs-attr">"key"</span>: <span class="hljs-string">"custom-key"</span>,
+      <span class="hljs-attr">"value"</span>: <span class="hljs-string">"value"</span>,
+      <span class="hljs-attr">"effect"</span>: <span class="hljs-string">"NoSchedule"</span>
+    }
+  ],
+  <span class="hljs-attr">"resourceRequirements"</span>: {  <span class="hljs-comment">// cpu 和内存的值参照此处所述定义: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container</span>
+    <span class="hljs-attr">"requests"</span>: {
+      <span class="hljs-attr">"cpu"</span>: <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"memory"</span>: <span class="hljs-string">"4G"</span>
+    },
+    <span class="hljs-attr">"limits"</span>: {
+      <span class="hljs-attr">"cpu"</span>: <span class="hljs-number">2</span>,
+      <span class="hljs-attr">"memory"</span>: <span class="hljs-string">"8G"</span>
+    }
+  }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="使用跨域复制运行集群"></a><a href="#使用跨域复制运行集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用跨域复制运行集群</h2>
+<p>如果你想使用跨域复制运行多个集群，每个集群必须使用不同的函数命名空间。 否则，函数会共享同一个命名空间，可能跨集群调度。</p>
+<p>例如，假设你有两个集群：<code>east-1</code> 和<code>west-1</code>,  你可能对这两个函数做如下的运行配置：</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">east-1</span>
+<span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-east-1</span>
+</code></pre>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">west-1</span>
+<span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-west-1</span>
+</code></pre>
+<p>这确保了两个不同的函数 Worker  使用两个不同的主题进行内部调度。</p>
+<h2><a class="anchor" aria-hidden="true" id="配置函数worker-独立运行"></a><a href="#配置函数worker-独立运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置函数worker 独立运行</h2>
+<p>当需要配置独立运行函数 worker 时，你必须在 broker 里面配置如下参数，尤其是你需要使用 TLS 时。 然后函数 Worker 才可以和 broker 进行通信。</p>
+<p>你必须需配置一下必选参数。</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">workerPort:</span> <span class="hljs-number">8080</span>
+<span class="hljs-attr">workerPortTls:</span> <span class="hljs-number">8443</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
+<span class="hljs-attr">tlsCertificateFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/tls.crt</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
+<span class="hljs-attr">tlsKeyFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/tls.key</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
+<span class="hljs-attr">tlsTrustCertsFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/ca.crt</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
+<span class="hljs-attr">pulsarServiceUrl:</span> <span class="hljs-string">pulsar://broker.pulsar:6650/</span> <span class="hljs-comment"># or pulsar+ssl://pulsar-prod-broker.pulsar:6651/ 使用TLS的时候需要配置</span>
+<span class="hljs-attr">pulsarWebServiceUrl:</span> <span class="hljs-string">http://broker.pulsar:8080/</span> <span class="hljs-comment"># or https://pulsar-prod-broker.pulsar:8443/ 使用TLS的时候需要配置</span>
+<span class="hljs-attr">useTls:</span> <span class="hljs-literal">true</span> <span class="hljs-comment"># 使用TLS的时候需要配置</span>
+
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/functions-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/functions-worker"><span>设置：Pulsar Functions Worker</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置线程模式运行">配置线程模式运行</a></li><li><a href="#配置进程模式运行">配置进程模式运行</a></li><li><a href="#配置-kubernetes-运行">配置 Kubernetes 运行</a><ul class="toc-headings"><li><a href="#基础配置">基础配置</a></li><li><a href="#kubernetes-运行独立的函数-worker">Kubernetes 运行独立的函数 worker</a></li><li><a href="#kubernetes-集群中运行-rbac">Kubernetes 集群中运行 RBAC</a></li><li><a href="#集成-kubernetes-secrets">集成 Kubernetes secrets</a></li><li><a href="#启用-token-认证">启用 Token 认证</a></li><li><a href="#启用身份认证">启用身份认证</a></li><li><a href="#定制-kubernetes-运行时">定制 Kubernetes 运行时</a></li></ul></li><li><a href="#使用跨域复制运行集群">使用跨域复制运行集群</a></li><li><a href="#配置函数worker-独立运行">配置函数worker 独立运行</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

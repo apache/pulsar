@@ -1,0 +1,571 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar CGo client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Pulsar CGo client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class=""><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/client-libraries-cgo">English</a></li><li><a href="/docs/ja/2.8.3/client-libraries-cgo">日本語</a></li><li><a href="/docs/fr/2.8.3/client-libraries-cgo">Français</a></li><li><a href="/docs/zh-CN/2.8.3/client-libraries-cgo">中文</a></li><li><a href="/docs/zh-TW/2.8.3/client-libraries-cgo">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar CGo client</h1></header><article><div><span><p>You can use Pulsar Go client to create Pulsar <a href="#producers">producers</a>, <a href="#consumers">consumers</a>, and <a href="#readers">readers</a> in Go (aka Golang).</p>
+<p>All the methods in <a href="#producers">producers</a>, <a href="#consumers">consumers</a>, and <a href="#readers">readers</a> of a Go client are thread-safe.</p>
+<p>Currently, the following Go clients are maintained in two repositories.</p>
+<table>
+<thead>
+<tr><th>Language</th><th>Project</th><th>Maintainer</th><th>License</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>CGo</td><td><a href="https://github.com/apache/pulsar/tree/master/pulsar-client-go">pulsar-client-go</a></td><td><a href="https://github.com/apache/pulsar">Apache Pulsar</a></td><td><a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a></td><td>CGo client that depends on C++ client library</td></tr>
+<tr><td>Go</td><td><a href="https://github.com/apache/pulsar-client-go">pulsar-client-go</a></td><td><a href="https://github.com/apache/pulsar">Apache Pulsar</a></td><td><a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a></td><td>A native golang client</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>API docs available as well</strong>  <br>
+For standard API docs, consult the <a href="https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar">Godoc</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<h3><a class="anchor" aria-hidden="true" id="requirements"></a><a href="#requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Requirements</h3>
+<p>Pulsar Go client library is based on the C++ client library. Follow the instructions for <a href="/docs/ko/2.8.3/client-libraries-cpp">C++ library</a> for installing the binaries through <a href="/docs/ko/2.8.3/client-libraries-cpp#rpm">RPM</a>, <a href="/docs/ko/2.8.3/client-libraries-cpp#deb">Deb</a> or <a href="/docs/ko/2.8.3/client-libraries-cpp#macos">Homebrew packages</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="install-go-package"></a><a href="#install-go-package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install go package</h3>
+<blockquote>
+<p><strong>Compatibility Warning</strong>  <br>
+The version number of the Go client <strong>must match</strong> the version number of the Pulsar C++ client library.</p>
+</blockquote>
+<p>You can install the <code>pulsar</code> library locally using <code>go get</code>.  Note that <code>go get</code> doesn't support fetching a specific tag - it will always pull in master's version of the Go client.  You'll need a C++ client library that matches master.</p>
+<pre><code class="hljs css language-bash">$ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
+</code></pre>
+<p>Or you can use <a href="https://github.com/golang/dep">dep</a> for managing the dependencies.</p>
+<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.9.1
+</code></pre>
+<p>Once installed locally, you can import it into your project:</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/ko/2.8.3/develop-binary-protocol">Pulsar protocol</a> URL.</p>
+<p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6650
+</code></pre>
+<p>A URL for a production Pulsar cluster may look something like this:</p>
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
+</code></pre>
+<p>If you're using <a href="/docs/ko/2.8.3/security-tls-authentication">TLS</a> authentication, the URL will look like something like this:</p>
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="create-a-client"></a><a href="#create-a-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a client</h2>
+<p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). Here's an example:</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"log"</span>
+    <span class="hljs-string">"runtime"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+        OperationTimeoutSeconds: <span class="hljs-number">5</span>,
+        MessageListenerThreads: runtime.NumCPU(),
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+        log.Fatalf(<span class="hljs-string">"Could not instantiate Pulsar client: %v"</span>, err)
+    }
+}
+</code></pre>
+<p>The following configurable parameters are available for Pulsar clients:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>URL</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. See <a href="#urls">above</a> for more info</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>IOThreads</code></td><td style="text-align:left">The number of threads to use for handling connections to Pulsar <a href="/docs/ko/2.8.3/reference-terminology#broker">brokers</a></td><td style="text-align:left">1</td></tr>
+<tr><td style="text-align:left"><code>OperationTimeoutSeconds</code></td><td style="text-align:left">The timeout for some Go client operations (creating producers, subscribing to and unsubscribing from <a href="/docs/ko/2.8.3/reference-terminology#topic">topics</a>). Retries will occur until this threshold is reached, at which point the operation will fail.</td><td style="text-align:left">30</td></tr>
+<tr><td style="text-align:left"><code>MessageListenerThreads</code></td><td style="text-align:left">The number of threads used by message listeners (<a href="#consumers">consumers</a> and <a href="#readers">readers</a>)</td><td style="text-align:left">1</td></tr>
+<tr><td style="text-align:left"><code>ConcurrentLookupRequests</code></td><td style="text-align:left">The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. You should set values over the default of 5000 only if the client needs to produce and/or subscribe to thousands of Pulsar topics.</td><td style="text-align:left">5000</td></tr>
+<tr><td style="text-align:left"><code>Logger</code></td><td style="text-align:left">A custom logger implementation for the client (as a function that takes a log level, file path, line number, and message). All info, warn, and error messages will be routed to this function.</td><td style="text-align:left"><code>nil</code></td></tr>
+<tr><td style="text-align:left"><code>TLSTrustCertsFilePath</code></td><td style="text-align:left">The file path for the trusted TLS certificate</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>TLSAllowInsecureConnection</code></td><td style="text-align:left">Whether the client accepts untrusted TLS certificates from the broker</td><td style="text-align:left"><code>false</code></td></tr>
+<tr><td style="text-align:left"><code>Authentication</code></td><td style="text-align:left">Configure the authentication provider. (default: no authentication). Example: <code>Authentication: NewAuthenticationTLS(&quot;my-cert.pem&quot;, &quot;my-key.pem&quot;)</code></td><td style="text-align:left"><code>nil</code></td></tr>
+<tr><td style="text-align:left"><code>StatsIntervalInSeconds</code></td><td style="text-align:left">The interval (in seconds) at which client stats are published</td><td style="text-align:left">60</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
+<p>Pulsar producers publish messages to Pulsar topics. You can <a href="#producer-configuration">configure</a> Go producers using a <code>ProducerOptions</code> object. Here's an example:</p>
+<pre><code class="hljs css language-go">producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic: <span class="hljs-string">"my-topic"</span>,
+})
+
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatalf(<span class="hljs-string">"Could not instantiate Pulsar producer: %v"</span>, err)
+}
+
+<span class="hljs-keyword">defer</span> producer.Close()
+
+msg := pulsar.ProducerMessage{
+    Payload: []<span class="hljs-keyword">byte</span>(<span class="hljs-string">"Hello, Pulsar"</span>),
+}
+
+<span class="hljs-keyword">if</span> err := producer.Send(context.Background(), msg); err != <span class="hljs-literal">nil</span> {
+    log.Fatalf(<span class="hljs-string">"Producer could not send message: %v"</span>, err)
+}
+</code></pre>
+<blockquote>
+<p><strong>Blocking operation</strong>  <br>
+When you create a new Pulsar producer, the operation will block (waiting on a go channel) until either a producer is successfully created or an error is thrown.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="producer-operations"></a><a href="#producer-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer operations</h3>
+<p>Pulsar Go producers have the following methods available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Fetches the producer's <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>Name()</code></td><td style="text-align:left">Fetches the producer's name</td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>Send(context.Context, ProducerMessage)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. This call will block until the message is successfully acknowledged by the Pulsar broker, or an error will be thrown if the timeout set using the <code>SendTimeout</code> in the producer's <a href="#producer-configuration">configuration</a> is exceeded.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>SendAndGetMsgID(context.Context, ProducerMessage)</code></td><td style="text-align:left">Send a message, this call will be blocking until is successfully acknowledged by the Pulsar broker.</td><td style="text-align:left">(MessageID, error)</td></tr>
+<tr><td style="text-align:left"><code>SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic asynchronously. The third argument is a callback function that specifies what happens either when the message is acknowledged or an error is thrown.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>SendAndGetMsgIDAsync(context.Context, ProducerMessage, func(MessageID, error))</code></td><td style="text-align:left">Send a message in asynchronous mode. The callback will report back the message being published and the eventual error in publishing</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>LastSequenceID()</code></td><td style="text-align:left">Get the last sequence id that was published by this producer. his represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that was published and acknowledged by the broker.</td><td style="text-align:left">int64</td></tr>
+<tr><td style="text-align:left"><code>Flush()</code></td><td style="text-align:left">Flush all the messages buffered in the client and wait until all messages have been successfully persisted.</td><td style="text-align:left">error</td></tr>
+<tr><td style="text-align:left"><code>Close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. If <code>Close()</code> is called then no more messages will be accepted from the publisher. This method will block until all pending publish requests have been persisted by Pulsar. If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>Schema()</code></td><td style="text-align:left"></td><td style="text-align:left">Schema</td></tr>
+</tbody>
+</table>
+<p>Here's a more involved example usage of a producer:</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"context"</span>
+    <span class="hljs-string">"fmt"</span>
+    <span class="hljs-string">"log"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    <span class="hljs-comment">// Instantiate a Pulsar client</span>
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+    <span class="hljs-comment">// Use the client to instantiate a producer</span>
+    producer, err := client.CreateProducer(pulsar.ProducerOptions{
+        Topic: <span class="hljs-string">"my-topic"</span>,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+    ctx := context.Background()
+
+    <span class="hljs-comment">// Send 10 messages synchronously and 10 messages asynchronously</span>
+    <span class="hljs-keyword">for</span> i := <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">10</span>; i++ {
+        <span class="hljs-comment">// Create a message</span>
+        msg := pulsar.ProducerMessage{
+            Payload: []<span class="hljs-keyword">byte</span>(fmt.Sprintf(<span class="hljs-string">"message-%d"</span>, i)),
+        }
+
+        <span class="hljs-comment">// Attempt to send the message</span>
+        <span class="hljs-keyword">if</span> err := producer.Send(ctx, msg); err != <span class="hljs-literal">nil</span> {
+            log.Fatal(err)
+        }
+
+        <span class="hljs-comment">// Create a different message to send asynchronously</span>
+        asyncMsg := pulsar.ProducerMessage{
+            Payload: []<span class="hljs-keyword">byte</span>(fmt.Sprintf(<span class="hljs-string">"async-message-%d"</span>, i)),
+        }
+
+        <span class="hljs-comment">// Attempt to send the message asynchronously and handle the response</span>
+        producer.SendAsync(ctx, asyncMsg, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(msg pulsar.ProducerMessage, err error)</span></span> {
+            <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+            fmt.Printf(<span class="hljs-string">"the %s successfully published"</span>, <span class="hljs-keyword">string</span>(msg.Payload))
+        })
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="producer-configuration"></a><a href="#producer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer configuration</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method.  If you choose to explicitly assign a name, it will need to be unique across <em>all</em> Pulsar clusters, otherwise the creation operation will throw an error.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>속성</code></td><td style="text-align:left">Attach a set of application defined properties to the producer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>SendTimeout</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/ko/2.8.3/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set <code>SendTimeout</code> to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's <a href="/docs/ko/2.8.3/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30 seconds</td></tr>
+<tr><td style="text-align:left"><code>MaxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/ko/2.8.3/reference-terminology#broker">broker</a>). By default, when the queue is full all calls to the <code>Send</code> and <code>SendAsync</code> methods will fail <em>unless</em> <code>BlockIfQueueFull</code> is set to <code>true</code>.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>MaxPendingMessagesAcrossPartitions</code></td><td style="text-align:left">Set the number of max pending messages across all the partitions. This setting will be used to lower the max pending messages for each partition <code>MaxPendingMessages(int)</code>, if the total exceeds the configured value.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>BlockIfQueueFull</code></td><td style="text-align:left">If set to <code>true</code>, the producer's <code>Send</code> and <code>SendAsync</code> methods will block when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the <code>MaxPendingMessages</code> parameter); if set to <code>false</code> (the default), <code>Send</code> and <code>SendAsync</code> operations will fail and throw a <code>ProducerQueueIsFullError</code> when the queue is full.</td><td style="text-align:left"><code>false</code></td></tr>
+<tr><td style="text-align:left"><code>MessageRoutingMode</code></td><td style="text-align:left">The message routing logic (for producers on <a href="/docs/ko/2.8.3/concepts-architecture-overview#partitioned-topics">partitioned topics</a>). This logic is applied only when no key is set on messages. The available options are: round robin (<code>pulsar.RoundRobinDistribution</code>, the default), publishing all messages to a single partition (<code>pulsar.UseSinglePartition</code>), or a custom partitioning scheme (<code>pulsar.CustomPartition</code>).</td><td style="text-align:left"><code>pulsar.RoundRobinDistribution</code></td></tr>
+<tr><td style="text-align:left"><code>HashingScheme</code></td><td style="text-align:left">The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: <code>pulsar.JavaStringHash</code> (the equivalent of <code>String.hashCode()</code> in Java), <code>pulsar.Murmur3_32Hash</code> (applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function), or <code>pulsar.BoostHash</code> (applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library)</td><td style="text-align:left"><code>pulsar.JavaStringHash</code></td></tr>
+<tr><td style="text-align:left"><code>CompressionType</code></td><td style="text-align:left">The message data compression type used by the producer. The available options are <a href="https://github.com/lz4/lz4"><code>LZ4</code></a>, <a href="https://zlib.net/"><code>ZLIB</code></a>, <a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a> and <a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>.</td><td style="text-align:left">No compression</td></tr>
+<tr><td style="text-align:left"><code>MessageRouter</code></td><td style="text-align:left">By default, Pulsar uses a round-robin routing scheme for <a href="/docs/ko/2.8.3/cookbooks-partitioned">partitioned topics</a>. The <code>MessageRouter</code> parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of <code>func(Message, TopicMetadata) int</code>.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>대량순차작업(Batching)</code></td><td style="text-align:left">프로듀서가 자동 ​​메시지 일괄 처리를 사용할지 여부를 제어합니다.</td><td style="text-align:left">false</td></tr>
+<tr><td style="text-align:left"><code>BatchingMaxPublishDelay</code></td><td style="text-align:left">Set the time period within which the messages sent will be batched (default: 1ms) if batch messages are enabled. If set to a non zero value, messages will be queued until this time interval or until</td><td style="text-align:left">1ms</td></tr>
+<tr><td style="text-align:left"><code>BatchingMaxMessages</code></td><td style="text-align:left">Set the maximum number of messages permitted in a batch. (default: 1000) If set to a value greater than 1, messages will be queued until this threshold is reached or batch interval has elapsed</td><td style="text-align:left">1000</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
+<p>Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can <a href="#consumer-configuration">configure</a> Go consumers using a <code>ConsumerOptions</code> object. Here's a basic example that uses channels:</p>
+<pre><code class="hljs css language-go">msgChannel := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> pulsar.ConsumerMessage)
+
+consumerOpts := pulsar.ConsumerOptions{
+    Topic:            <span class="hljs-string">"my-topic"</span>,
+    SubscriptionName: <span class="hljs-string">"my-subscription-1"</span>,
+    Type:             pulsar.Exclusive,
+    MessageChannel:   msgChannel,
+}
+
+consumer, err := client.Subscribe(consumerOpts)
+
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatalf(<span class="hljs-string">"Could not establish subscription: %v"</span>, err)
+}
+
+<span class="hljs-keyword">defer</span> consumer.Close()
+
+<span class="hljs-keyword">for</span> cm := <span class="hljs-keyword">range</span> msgChannel {
+    msg := cm.Message
+
+    fmt.Printf(<span class="hljs-string">"Message ID: %s"</span>, msg.ID())
+    fmt.Printf(<span class="hljs-string">"Message value: %s"</span>, <span class="hljs-keyword">string</span>(msg.Payload()))
+
+    consumer.Ack(msg)
+}
+</code></pre>
+<blockquote>
+<p><strong>Blocking operation</strong>  <br>
+When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="consumer-operations"></a><a href="#consumer-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer operations</h3>
+<p>Pulsar Go consumers have the following methods available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Returns the consumer's <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>Subscription()</code></td><td style="text-align:left">Returns the consumer's subscription name</td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>Unsubcribe()</code></td><td style="text-align:left">Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>Receive(context.Context)</code></td><td style="text-align:left">Receives a single message from the topic. This method blocks until a message is available.</td><td style="text-align:left"><code>(Message, error)</code></td></tr>
+<tr><td style="text-align:left"><code>Ack(Message)</code></td><td style="text-align:left"><a href="/docs/ko/2.8.3/reference-terminology#acknowledgment-ack">Acknowledges</a> a message to the Pulsar <a href="/docs/ko/2.8.3/reference-terminology#broker">broker</a></td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>AckID(MessageID)</code></td><td style="text-align:left"><a href="/docs/ko/2.8.3/reference-terminology#acknowledgment-ack">Acknowledges</a> a message to the Pulsar <a href="/docs/ko/2.8.3/reference-terminology#broker">broker</a> by message ID</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>AckCumulative(Message)</code></td><td style="text-align:left"><a href="/docs/ko/2.8.3/reference-terminology#acknowledgment-ack">Acknowledges</a> <em>all</em> the messages in the stream, up to and including the specified message. The <code>AckCumulative</code> method will block until the ack has been sent to the broker. After that, the messages will <em>not</em> be redelivered to the consumer. Cumulative acking can only be used with a <a href="/docs/ko/2.8.3/concepts-messaging#shared">shared</a> subscription type.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>AckCumulativeID(MessageID)</code></td><td style="text-align:left">Ack the reception of all the messages in the stream up to (and including) the provided message. This method will block until the acknowledge has been sent to the broker. After that, the messages will not be re-delivered to this consumer.</td><td style="text-align:left">error</td></tr>
+<tr><td style="text-align:left"><code>Nack(Message)</code></td><td style="text-align:left">Acknowledge the failure to process a single message.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>NackID(MessageID)</code></td><td style="text-align:left">Acknowledge the failure to process a single message.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>Close()</code></td><td style="text-align:left">Closes the consumer, disabling its ability to receive messages from the broker</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>RedeliverUnackedMessages()</code></td><td style="text-align:left">Redelivers <em>all</em> unacknowledged messages on the topic. In <a href="/docs/ko/2.8.3/concepts-messaging#failover">failover</a> mode, this request is ignored if the consumer isn't active on the specified topic; in <a href="/docs/ko/2.8.3/concepts-messaging#shared">shared</a> mode, redelivered messages are distributed across all consumers connected to the topic. <strong>Note</strong>: this is a <em>non-blocking</em> operation that doesn't throw an error.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Seek(msgID MessageID)</code></td><td style="text-align:left">Reset the subscription associated with this consumer to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic.</td><td style="text-align:left">error</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="receive-example"></a><a href="#receive-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Receive example</h4>
+<p>Here's an example usage of a Go consumer that uses the <code>Receive()</code> method to process incoming messages:</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"context"</span>
+    <span class="hljs-string">"log"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    <span class="hljs-comment">// Instantiate a Pulsar client</span>
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+            URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+    <span class="hljs-comment">// Use the client object to instantiate a consumer</span>
+    consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+        Topic:            <span class="hljs-string">"my-golang-topic"</span>,
+        SubscriptionName: <span class="hljs-string">"sub-1"</span>,
+        Type: pulsar.Exclusive,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+    <span class="hljs-keyword">defer</span> consumer.Close()
+
+    ctx := context.Background()
+
+    <span class="hljs-comment">// Listen indefinitely on the topic</span>
+    <span class="hljs-keyword">for</span> {
+        msg, err := consumer.Receive(ctx)
+        <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
+
+        <span class="hljs-comment">// Do something with the message</span>
+        err = processMessage(msg)
+
+        <span class="hljs-keyword">if</span> err == <span class="hljs-literal">nil</span> {
+            <span class="hljs-comment">// Message processed successfully</span>
+            consumer.Ack(msg)
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-comment">// Failed to process messages</span>
+            consumer.Nack(msg)
+        }
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Topics</code></td><td style="text-align:left">Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>TopicsPattern</code></td><td style="text-align:left">Specify a regular expression to subscribe to multiple topics under the same namespace. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>SubscriptionName</code></td><td style="text-align:left">The subscription name for this consumer</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>속성</code></td><td style="text-align:left">Attach a set of application defined properties to the consumer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the consumer</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>AckTimeout</code></td><td style="text-align:left">Set the timeout for unacked messages</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>NackRedeliveryDelay</code></td><td style="text-align:left">The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See <code>Consumer.Nack()</code>)</td><td style="text-align:left">1 minute</td></tr>
+<tr><td style="text-align:left"><code>Type</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>SubscriptionInitPos</code></td><td style="text-align:left">InitialPosition at which the cursor will be set when subscribe</td><td style="text-align:left">Latest</td></tr>
+<tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>ReceiverQueueSize</code></td><td style="text-align:left">Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls <code>Receive</code>. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>MaxTotalReceiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value</td><td style="text-align:left">50000</td></tr>
+<tr><td style="text-align:left"><code>ReadCompacted</code></td><td style="text-align:left">If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that point, the messages will be sent as normal.</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
+<p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. Here's an example:</p>
+<pre><code class="hljs css language-go">reader, err := client.CreateReader(pulsar.ReaderOptions{
+    Topic: <span class="hljs-string">"my-golang-topic"</span>,
+    StartMessageId: pulsar.LatestMessage,
+})
+</code></pre>
+<blockquote>
+<p><strong>Blocking operation</strong>  <br>
+When you create a new Pulsar reader, the operation will block (on a go channel) until either a reader is successfully created or an error is thrown.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="reader-operations"></a><a href="#reader-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader operations</h3>
+<p>Pulsar Go readers have the following methods available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic()</code></td><td style="text-align:left">Returns the reader's <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a></td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>Next(context.Context)</code></td><td style="text-align:left">Receives the next message on the topic (analogous to the <code>Receive</code> method for <a href="#consumer-operations">consumers</a>). This method blocks until a message is available.</td><td style="text-align:left"><code>(Message, error)</code></td></tr>
+<tr><td style="text-align:left"><code>HasNext()</code></td><td style="text-align:left">Check if there is any message available to read from the current position</td><td style="text-align:left">(bool, error)</td></tr>
+<tr><td style="text-align:left"><code>Close()</code></td><td style="text-align:left">Closes the reader, disabling its ability to receive messages from the broker</td><td style="text-align:left"><code>error</code></td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="next-example"></a><a href="#next-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;Next&quot; example</h4>
+<p>Here's an example usage of a Go reader that uses the <code>Next()</code> method to process incoming messages:</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"context"</span>
+    <span class="hljs-string">"log"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    <span class="hljs-comment">// Instantiate a Pulsar client</span>
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+            URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatalf(<span class="hljs-string">"Could not create client: %v"</span>, err) }
+
+    <span class="hljs-comment">// Use the client to instantiate a reader</span>
+    reader, err := client.CreateReader(pulsar.ReaderOptions{
+        Topic:          <span class="hljs-string">"my-golang-topic"</span>,
+        StartMessageID: pulsar.EarliestMessage,
+    })
+
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatalf(<span class="hljs-string">"Could not create reader: %v"</span>, err) }
+
+    <span class="hljs-keyword">defer</span> reader.Close()
+
+    ctx := context.Background()
+
+    <span class="hljs-comment">// Listen on the topic for incoming messages</span>
+    <span class="hljs-keyword">for</span> {
+        msg, err := reader.Next(ctx)
+        <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatalf(<span class="hljs-string">"Error reading from topic: %v"</span>, err) }
+
+        <span class="hljs-comment">// Process the message</span>
+    }
+}
+</code></pre>
+<p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. Here's an example:</p>
+<pre><code class="hljs css language-go">lastSavedId := <span class="hljs-comment">// Read last saved message id from external store as byte[]</span>
+
+reader, err := client.CreateReader(pulsar.ReaderOptions{
+    Topic:          <span class="hljs-string">"my-golang-topic"</span>,
+    StartMessageID: DeserializeMessageID(lastSavedId),
+})
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/ko/2.8.3/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the reader</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>StartMessageID</code></td><td style="text-align:left">The initial reader position, i.e. the message at which the reader begins processing messages. The options are <code>pulsar.EarliestMessage</code> (the earliest available message on the topic), <code>pulsar.LatestMessage</code> (the latest available message on the topic), or a <code>MessageID</code> object for a position that isn't earliest or latest.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>ReceiverQueueSize</code></td><td style="text-align:left">Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls <code>Next</code>. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>SubscriptionRolePrefix</code></td><td style="text-align:left">The subscription role prefix.</td><td style="text-align:left"><code>reader</code></td></tr>
+<tr><td style="text-align:left"><code>ReadCompacted</code></td><td style="text-align:left">If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic. This means that, if the topic has been compacted, the reader will only see the latest value for each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that point, the messages will be sent as normal.</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="messages"></a><a href="#messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Messages</h2>
+<p>The Pulsar Go client provides a <code>ProducerMessage</code> interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:</p>
+<pre><code class="hljs css language-go">msg := pulsar.ProducerMessage{
+    Payload: []<span class="hljs-keyword">byte</span>(<span class="hljs-string">"Here is some message data"</span>),
+    Key: <span class="hljs-string">"message-key"</span>,
+    Properties: <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>]<span class="hljs-keyword">string</span>{
+        <span class="hljs-string">"foo"</span>: <span class="hljs-string">"bar"</span>,
+    },
+    EventTime: time.Now(),
+    ReplicationClusters: []<span class="hljs-keyword">string</span>{<span class="hljs-string">"cluster1"</span>, <span class="hljs-string">"cluster3"</span>},
+}
+
+<span class="hljs-keyword">if</span> err := producer.send(msg); err != <span class="hljs-literal">nil</span> {
+    log.Fatalf(<span class="hljs-string">"Could not publish message due to: %v"</span>, err)
+}
+</code></pre>
+<p>The following methods parameters are available for <code>ProducerMessage</code> objects:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Payload</code></td><td style="text-align:left">The actual data payload of the message</td></tr>
+<tr><td style="text-align:left"><code>Value</code></td><td style="text-align:left">Value and payload is mutually exclusive, <code>Value interface{}</code> for schema message.</td></tr>
+<tr><td style="text-align:left"><code>Key</code></td><td style="text-align:left">The optional key associated with the message (particularly useful for things like topic compaction)</td></tr>
+<tr><td style="text-align:left"><code>속성</code></td><td style="text-align:left">A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message</td></tr>
+<tr><td style="text-align:left"><code>EventTime</code></td><td style="text-align:left">The timestamp associated with the message</td></tr>
+<tr><td style="text-align:left"><code>ReplicationClusters</code></td><td style="text-align:left">The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.</td></tr>
+<tr><td style="text-align:left"><code>SequenceID</code></td><td style="text-align:left">Set the sequence id to assign to the current message</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="tls-encryption-and-authentication"></a><a href="#tls-encryption-and-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS encryption and authentication</h2>
+<p>In order to use <a href="/docs/ko/2.8.3/security-tls-transport">TLS encryption</a>, you'll need to configure your client to do so:</p>
+<ul>
+<li>Use <code>pulsar+ssl</code> URL type</li>
+<li>Set <code>TLSTrustCertsFilePath</code> to the path to the TLS certs used by your client and the Pulsar broker</li>
+<li>Configure <code>Authentication</code> option</li>
+</ul>
+<p>Here's an example:</p>
+<pre><code class="hljs css language-go">opts := pulsar.ClientOptions{
+    URL: <span class="hljs-string">"pulsar+ssl://my-cluster.com:6651"</span>,
+    TLSTrustCertsFilePath: <span class="hljs-string">"/path/to/certs/my-cert.csr"</span>,
+    Authentication: NewAuthenticationTLS(<span class="hljs-string">"my-cert.pem"</span>, <span class="hljs-string">"my-key.pem"</span>),
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
+<p>This example shows how to create a producer and consumer with schema.</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">var</span> exampleSchemaDef = <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span> +
+            <span class="hljs-string">"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"</span>
+jsonSchema := NewJsonSchema(exampleSchemaDef, <span class="hljs-literal">nil</span>)
+<span class="hljs-comment">// create producer</span>
+producer, err := client.CreateProducerWithSchema(ProducerOptions{
+    Topic: <span class="hljs-string">"jsonTopic"</span>,
+}, jsonSchema)
+err = producer.Send(context.Background(), ProducerMessage{
+    Value: &amp;testJson{
+        ID:   <span class="hljs-number">100</span>,
+        Name: <span class="hljs-string">"pulsar"</span>,
+    },
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+<span class="hljs-keyword">defer</span> producer.Close()
+<span class="hljs-comment">//create consumer</span>
+<span class="hljs-keyword">var</span> s testJson
+consumerJS := NewJsonSchema(exampleSchemaDef, <span class="hljs-literal">nil</span>)
+consumer, err := client.SubscribeWithSchema(ConsumerOptions{
+    Topic:            <span class="hljs-string">"jsonTopic"</span>,
+    SubscriptionName: <span class="hljs-string">"sub-2"</span>,
+}, consumerJS)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+msg, err := consumer.Receive(context.Background())
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+err = msg.GetValue(&amp;s)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+fmt.Println(s.ID) <span class="hljs-comment">// output: 100</span>
+fmt.Println(s.Name) <span class="hljs-comment">// output: pulsar</span>
+<span class="hljs-keyword">defer</span> consumer.Close()
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#install-go-package">Install go package</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#create-a-client">Create a client</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-configuration">Producer configuration</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li></ul></li><li><a href="#messages">Messages</a></li><li><a href="#tls-encryption-and-authentication">TLS encryption and authentication</a></li><li><a href="#schema">Schema</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

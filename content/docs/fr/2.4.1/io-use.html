@@ -1,0 +1,799 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to use Pulsar connectors · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This guide describes how to use Pulsar connectors."/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="How to use Pulsar connectors · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="This guide describes how to use Pulsar connectors."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.4.1/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.4.1/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.4.1/io-use">English</a></li><li><a href="/docs/ja/2.4.1/io-use">日本語</a></li><li><a href="/docs/ko/2.4.1/io-use">한국어</a></li><li><a href="/docs/zh-CN/2.4.1/io-use">中文</a></li><li><a href="/docs/zh-TW/2.4.1/io-use">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar IO</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-quickstart">Get started</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.4.1/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-develop">Developing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/io-cdc">CDC Connector</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/sql-getting-started">Get Started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/sql-deployment-configurations">Deployment and Configuration</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-token-client">Client Authentication using tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-token-admin">Token authentication admin</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/reference-connector-admin">Connector Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.4.1/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to use Pulsar connectors</h1></header><article><div><span><p>This guide describes how to use Pulsar connectors.</p>
+<h2><a class="anchor" aria-hidden="true" id="install-a-connector"></a><a href="#install-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install a connector</h2>
+<p>Pulsar bundles several <a href="/docs/fr/2.4.1/io-connectors">builtin connectors</a> used to move data in and out of commonly used systems (such as database and messaging system). Optionally, you can create and use your desired non-builtin connectors.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>When using a non-builtin connector, you need to specify the path of a archive file for the connector.</p>
+</blockquote>
+<p>To set up a builtin connector, follow the instructions <a href="/docs/fr/2.4.1/standalone#installing-builtin-connectors">here</a>.</p>
+<p>After the setup, the builtin connector is automatically discovered by Pulsar brokers (or function-workers), so no additional installation steps are required.</p>
+<h2><a class="anchor" aria-hidden="true" id="configure-a-connector"></a><a href="#configure-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a connector</h2>
+<p>You can configure the following information:</p>
+<ul>
+<li><p><a href="#configure-a-default-storage-location-for-a-connector">Configure a default storage location for a connector</a></p></li>
+<li><p><a href="#configure-a-connector-with-yaml-file">Configure a connector with a YAML file</a></p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-a-default-storage-location-for-a-connector"></a><a href="#configure-a-default-storage-location-for-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a default storage location for a connector</h3>
+<p>To configure a default folder for builtin connectors, set the <code>connectorsDirectory</code> parameter in the <code>./conf/functions_worker.yml</code> configuration file.</p>
+<p><strong>Example</strong></p>
+<p>Set the <code>./connectors</code> folder as the default storage location for builtin connectors.</p>
+<pre><code class="hljs">########################
+# Connectors
+########################
+
+connectorsDirectory: ./connectors
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configure-a-connector-with-a-yaml-file"></a><a href="#configure-a-connector-with-a-yaml-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a connector with a YAML file</h3>
+<p>To configure a connector, you need to provide a YAML configuration file when creating a connector.</p>
+<p>The YAML configuration file tells Pulsar where to locate connectors and how to connect connectors with Pulsar topics.</p>
+<p><strong>Example 1</strong></p>
+<p>Below is a YAML configuration file of a Cassandra sink, which tells Pulsar:</p>
+<ul>
+<li><p>Which Cassandra cluster to connect</p></li>
+<li><p>What is the <code>keyspace</code> and <code>columnFamily</code> to be used in Cassandra for collecting data</p></li>
+<li><p>How to map Pulsar messages into Cassandra table key and columns</p></li>
+</ul>
+<pre><code class="hljs css language-shell">tenant: public
+namespace: default
+name: cassandra-test-sink
+...
+<span class="hljs-meta">#</span><span class="bash"> cassandra specific config</span>
+configs:
+    roots: "localhost:9042"
+    keyspace: "pulsar_test_keyspace"
+    columnFamily: "pulsar_test_table"
+    keyname: "key"
+    columnName: "col"
+</code></pre>
+<p><strong>Example 2</strong></p>
+<p>Below is a YAML configuration file of a Kafka source.</p>
+<pre><code class="hljs css language-shell">configs:
+   bootstrapServers: "pulsar-kafka:9092"
+   groupId: "test-pulsar-io"
+   topic: "my-topic"
+   sessionTimeoutMs: "10000"
+   autoCommitEnabled: "false"
+</code></pre>
+<p><strong>Example 3</strong></p>
+<p>Below is a YAML configuration file of a MySQL JDBC sink.</p>
+<pre><code class="hljs css language-shell">configs:
+   userName: "root"
+   password: "jdbc"
+   jdbcUrl: "jdbc:mysql://127.0.0.1:3306/test_jdbc"
+   tableName: "test_jdbc"
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="get-available-connectors"></a><a href="#get-available-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get available connectors</h2>
+<p>Before starting using connectors, you can perform the following operations:</p>
+<ul>
+<li><p><a href="#reload">Reload connectors</a></p></li>
+<li><p><a href="#get-available-connectors">Get a list of available connectors</a></p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="reload"></a><a href="#reload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reload</code></h3>
+<p>If you add or delete a nar file in a connector folder, reload the available builtin connector before using it.</p>
+<h4><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Use the <code>reload</code> subcommand.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin sources reload</span>
+</code></pre>
+<p>For more information, see <a href="reference-connector-admin/#reload"><code>here</code></a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Use the <code>reload</code> subcommand.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin sinks reload</span>
+</code></pre>
+<p>For more information, see <a href="reference-connector-admin/#reload-1"><code>here</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="available"></a><a href="#available" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available</code></h3>
+<p>After reloading connectors (optional), you can get a list of available connectors.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-1"></a><a href="#source-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Use the <code>available-sources</code> subcommand.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin sources available-sources</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="sink-1"></a><a href="#sink-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Use the <code>available-sinks</code> subcommand.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin sinks available-sinks</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="run-a-connector"></a><a href="#run-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a connector</h2>
+<p>To run a connector, you can perform the following operations:</p>
+<ul>
+<li><p><a href="#create">Create a connector</a></p></li>
+<li><p><a href="#start">Start a connector</a></p></li>
+<li><p><a href="#localrun">Run a connector locally</a></p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="create"></a><a href="#create" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
+<p>You can create a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-2"></a><a href="#source-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Create a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28724-tab-28725" class="nav-link active" data-group="group_28724" data-tab="tab-group-28724-content-28725">Admin CLI</div><div id="tab-group-28724-tab-28726" class="nav-link" data-group="group_28724" data-tab="tab-group-28724-content-28726">REST API</div><div id="tab-group-28724-tab-28727" class="nav-link" data-group="group_28724" data-tab="tab-group-28724-content-28727">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28724-content-28725" class="tab-pane active" data-group="group_28724" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources create options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#create">here</a>.</p>
+</span></div></div><div id="tab-group-28724-content-28726" class="tab-pane" data-group="group_28724" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/registerSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</p>
+</span></div></div><div id="tab-group-28724-content-28727" class="tab-pane" data-group="group_28724" tabindex="-1"><div><span><ul>
+<li><p>Create a source connector with a <strong>local file</strong>.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSource</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                  String fileName)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">`sourceConfig` | The source configuration object <br />**Exception**<br /><br />| Name                   | Description      |<br />| ---------------------- | ---------------- |<br />| `PulsarAdminException` | Unexpected error |<br /><br /><br />For more information, see [`createSource`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).<br /></code></pre>
+<ul>
+<li><p>Create a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
+<pre><code class="hljs">  ```java<br />  void createSourceWithUrl(SourceConfig sourceConfig,<br />                           String pkgUrl)<br />                    throws PulsarAdminException<br />  ```<br />  <br />  Supported URLs are `http` and `file`.<br />  <br />  **Example**<br /></code></pre>
+<ul>
+<li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
+<li><p>File: file:///dir/fileName.jar</p>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>sourceConfig</code> | The source configuration object <code>pkgUrl</code> | URL from which pkg can be downloaded</p>
+<p><strong>Exception</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
+</tbody>
+</table>
+</li>
+</ul></li>
+</ul>
+<pre><code class="hljs">    For more information, see [`createSourceWithUrl`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-).<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-2"></a><a href="#sink-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Create a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28728-tab-28729" class="nav-link active" data-group="group_28728" data-tab="tab-group-28728-content-28729">Admin CLI</div><div id="tab-group-28728-tab-28730" class="nav-link" data-group="group_28728" data-tab="tab-group-28728-content-28730">REST API</div><div id="tab-group-28728-tab-28731" class="nav-link" data-group="group_28728" data-tab="tab-group-28728-content-28731">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28728-content-28729" class="tab-pane active" data-group="group_28728" tabindex="-1"><div><span><p>Use the <code>create</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks create options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#create-1">here</a>.</p>
+</span></div></div><div id="tab-group-28728-content-28730" class="tab-pane" data-group="group_28728" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/registerSink?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</p>
+</span></div></div><div id="tab-group-28728-content-28731" class="tab-pane" data-group="group_28728" tabindex="-1"><div><span><ul>
+<li><p>Create a sink connector with a <strong>local file</strong>.</p>
+<pre><code class="hljs">  java<br />    void createSink(SinkConfig sinkConfig,<br />                    String fileName)<br />             throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>|Name|Description |---|--- <code>sinkConfig</code> | The sink configuration object</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-"><code>createSink</code></a>.</p></li>
+<li><p>Create a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                    String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p>Supported URLs are <code>http</code> and <code>file</code>.</p>
+<p><strong>Example</strong></p>
+<ul>
+<li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
+<li><p>File: file:///dir/fileName.jar</p></li>
+</ul>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>sinkConfig</code> | The sink configuration object <code>pkgUrl</code> | URL from which pkg can be downloaded</p>
+<p><strong>Exception</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">For more information, see [`createSinkWithUrl`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-).<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
+<p>You can start a connector using <strong>Admin CLI</strong> or <strong>REST API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-3"></a><a href="#source-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Start a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28732-tab-28733" class="nav-link active" data-group="group_28732" data-tab="tab-group-28732-content-28733">Admin CLI</div><div id="tab-group-28732-tab-28734" class="nav-link" data-group="group_28732" data-tab="tab-group-28732-content-28734">REST API</div></div><div class="tab-content"><div id="tab-group-28732-content-28733" class="tab-pane active" data-group="group_28732" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources start options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#start">here</a>.</p>
+</span></div></div><div id="tab-group-28732-content-28734" class="tab-pane" data-group="group_28732" tabindex="-1"><div><span><ul>
+<li><p>Start <strong>all</strong> source connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/startSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/start</i></a>
+</p></li>
+<li><p>Start a <strong>specified</strong> source connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/startSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+</p></li>
+</ul>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-3"></a><a href="#sink-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Start a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28735-tab-28736" class="nav-link active" data-group="group_28735" data-tab="tab-group-28735-content-28736">Admin CLI</div><div id="tab-group-28735-tab-28737" class="nav-link" data-group="group_28735" data-tab="tab-group-28735-content-28737">REST API</div></div><div class="tab-content"><div id="tab-group-28735-content-28736" class="tab-pane active" data-group="group_28735" tabindex="-1"><div><span><p>Use the <code>start</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks start options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#start-1">here</a>.</p>
+</span></div></div><div id="tab-group-28735-content-28737" class="tab-pane" data-group="group_28735" tabindex="-1"><div><span><ul>
+<li><p>Start <strong>all</strong> sink connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/startSink?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/start</i></a>
+</p></li>
+<li><p>Start a <strong>specified</strong> sink connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/startSink?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start</i></a>
+</p></li>
+</ul>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="localrun"></a><a href="#localrun" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localrun</code></h3>
+<p>You can run a connector locally rather than deploying it on a Pulsar cluster using <strong>Admin CLI</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-4"></a><a href="#source-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Run a source connector locally.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28738-tab-28739" class="nav-link active" data-group="group_28738" data-tab="tab-group-28738-content-28739">Admin CLI</div></div><div class="tab-content"><div id="tab-group-28738-content-28739" class="tab-pane active" data-group="group_28738" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources localrun options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#localrun">here</a>.</p>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-4"></a><a href="#sink-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Run a sink connector locally.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28740-tab-28741" class="nav-link active" data-group="group_28740" data-tab="tab-group-28740-content-28741">Admin CLI</div></div><div class="tab-content"><div id="tab-group-28740-content-28741" class="tab-pane active" data-group="group_28740" tabindex="-1"><div><span><p>Use the <code>localrun</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks localrun options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#localrun-1">here</a>.</p>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="monitor-a-connector"></a><a href="#monitor-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor a connector</h2>
+<p>To monitor a connector, you can perform the following operations:</p>
+<ul>
+<li><p><a href="#get">Get the information of a connector</a></p></li>
+<li><p><a href="#list">Get the list of all running connectors</a></p></li>
+<li><p><a href="#status">Get the current status of a connector</a></p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
+<p>You can get the information of a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-5"></a><a href="#source-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Get the information of a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28742-tab-28743" class="nav-link active" data-group="group_28742" data-tab="tab-group-28742-content-28743">Admin CLI</div><div id="tab-group-28742-tab-28744" class="nav-link" data-group="group_28742" data-tab="tab-group-28742-content-28744">REST API</div><div id="tab-group-28742-tab-28745" class="nav-link" data-group="group_28742" data-tab="tab-group-28742-content-28745">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28742-content-28743" class="tab-pane active" data-group="group_28742" tabindex="-1"><div><span><p>Use the <code>get</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources get options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#get">here</a>.</p>
+</span></div></div><div id="tab-group-28742-content-28744" class="tab-pane" data-group="group_28742" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSourceInfo?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</p>
+</span></div></div><div id="tab-group-28742-content-28745" class="tab-pane" data-group="group_28742" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Example</strong></p>
+<p>This is a sourceConfig.</p>
+<pre><code class="hljs css language-java">{<br /> <span class="hljs-string">"tenant"</span>: <span class="hljs-string">"tenantName"</span>,<br /> <span class="hljs-string">"namespace"</span>: <span class="hljs-string">"namespaceName"</span>,<br /> <span class="hljs-string">"name"</span>: <span class="hljs-string">"sourceName"</span>,<br /> <span class="hljs-string">"className"</span>: <span class="hljs-string">"className"</span>,<br /> <span class="hljs-string">"topicName"</span>: <span class="hljs-string">"topicName"</span>,<br /> <span class="hljs-string">"configs"</span>: {},<br /> <span class="hljs-string">"parallelism"</span>: <span class="hljs-number">1</span>,<br /> <span class="hljs-string">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,<br /> <span class="hljs-string">"resources"</span>: {<br />   <span class="hljs-string">"cpu"</span>: <span class="hljs-number">1.0</span>,<br />   <span class="hljs-string">"ram"</span>: <span class="hljs-number">1073741824</span>,<br />   <span class="hljs-string">"disk"</span>: <span class="hljs-number">10737418240</span><br /> }<br />}<br /></code></pre>
+<p>This is a sourceConfig example.</p>
+<pre><code class="hljs">{<br /> &quot;tenant&quot;: &quot;public&quot;,<br /> &quot;namespace&quot;: &quot;default&quot;,<br /> &quot;name&quot;: &quot;debezium-mysql-source&quot;,<br /> &quot;className&quot;: &quot;org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource&quot;,<br /> &quot;topicName&quot;: &quot;debezium-mysql-topic&quot;,<br /> &quot;configs&quot;: {<br />   &quot;database.user&quot;: &quot;debezium&quot;,<br />   &quot;database.server.id&quot;: &quot;184054&quot;,<br />   &quot;database.server.name&quot;: &quot;dbserver1&quot;,<br />   &quot;database.port&quot;: &quot;3306&quot;,<br />   &quot;database.hostname&quot;: &quot;localhost&quot;,<br />   &quot;database.password&quot;: &quot;dbz&quot;,<br />   &quot;database.history.pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;,<br />   &quot;value.converter&quot;: &quot;org.apache.kafka.connect.json.JsonConverter&quot;,<br />   &quot;database.whitelist&quot;: &quot;inventory&quot;,<br />   &quot;key.converter&quot;: &quot;org.apache.kafka.connect.json.JsonConverter&quot;,<br />   &quot;database.history&quot;: &quot;org.apache.pulsar.io.debezium.PulsarDatabaseHistory&quot;,<br />   &quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;,<br />   &quot;database.history.pulsar.topic&quot;: &quot;history-topic2&quot;<br /> },<br /> &quot;parallelism&quot;: 1,<br /> &quot;processingGuarantees&quot;: &quot;ATLEAST_ONCE&quot;,<br /> &quot;resources&quot;: {<br />   &quot;cpu&quot;: 1.0,<br />   &quot;ram&quot;: 1073741824,<br />   &quot;disk&quot;: 10737418240<br /> }<br />}<br /></code></pre>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException.NotAuthorizedException</code> | You don't have the admin permission <code>PulsarAdminException.NotFoundException</code> | Cluster doesn't exist <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSource</code></a>.</p>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-5"></a><a href="#sink-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Get the information of a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28746-tab-28747" class="nav-link active" data-group="group_28746" data-tab="tab-group-28746-content-28747">Admin CLI</div><div id="tab-group-28746-tab-28748" class="nav-link" data-group="group_28746" data-tab="tab-group-28746-content-28748">REST API</div><div id="tab-group-28746-tab-28749" class="nav-link" data-group="group_28746" data-tab="tab-group-28746-content-28749">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28746-content-28747" class="tab-pane active" data-group="group_28746" tabindex="-1"><div><span><p>Use the <code>get</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks get options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#get-1">here</a>.</p>
+</span></div></div><div id="tab-group-28746-content-28748" class="tab-pane" data-group="group_28746" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSinkInfo?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</p>
+</span></div></div><div id="tab-group-28746-content-28749" class="tab-pane" data-group="group_28746" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Example</strong></p>
+<p>This is a sinkConfig.</p>
+<pre><code class="hljs">{<br />&quot;tenant&quot;: &quot;tenantName&quot;,<br />&quot;namespace&quot;: &quot;namespaceName&quot;,<br />&quot;name&quot;: &quot;sinkName&quot;,<br />&quot;className&quot;: &quot;className&quot;,<br />&quot;inputSpecs&quot;: {<br />&quot;topicName&quot;: {<br />    &quot;isRegexPattern&quot;: false<br />}<br />},<br />&quot;configs&quot;: {},<br />&quot;parallelism&quot;: 1,<br />&quot;processingGuarantees&quot;: &quot;ATLEAST_ONCE&quot;,<br />&quot;retainOrdering&quot;: false,<br />&quot;autoAck&quot;: true<br />}<br /></code></pre>
+<p>This is a sinkConfig example.</p>
+<pre><code class="hljs">{<br />&quot;tenant&quot;: &quot;public&quot;,<br />&quot;namespace&quot;: &quot;default&quot;,<br />&quot;name&quot;: &quot;pulsar-mysql-jdbc-sink&quot;,<br />&quot;className&quot;: &quot;org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink&quot;,<br />&quot;inputSpecs&quot;: {<br />&quot;pulsar-mysql-jdbc-sink-topic&quot;: {<br />    &quot;isRegexPattern&quot;: false<br />}<br />},<br />&quot;configs&quot;: {<br />&quot;password&quot;: &quot;jdbc&quot;,<br />&quot;jdbcUrl&quot;: &quot;jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink&quot;,<br />&quot;userName&quot;: &quot;root&quot;,<br />&quot;tableName&quot;: &quot;pulsar_mysql_jdbc_sink&quot;<br />},<br />&quot;parallelism&quot;: 1,<br />&quot;processingGuarantees&quot;: &quot;ATLEAST_ONCE&quot;,<br />&quot;retainOrdering&quot;: false,<br />&quot;autoAck&quot;: true<br />}<br /></code></pre>
+<p><strong>Parameter description</strong></p>
+<p>Name| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Sink name</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSink-java.lang.String-java.lang.String-java.lang.String-"><code>getSink</code></a>.</p>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
+<p>You can get the list of all running connectors using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-6"></a><a href="#source-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Get the list of all running source connectors.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28750-tab-28751" class="nav-link active" data-group="group_28750" data-tab="tab-group-28750-content-28751">Admin CLI</div><div id="tab-group-28750-tab-28752" class="nav-link" data-group="group_28750" data-tab="tab-group-28750-content-28752">REST API</div><div id="tab-group-28750-tab-28753" class="nav-link" data-group="group_28750" data-tab="tab-group-28750-content-28753">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28750-content-28751" class="tab-pane active" data-group="group_28750" tabindex="-1"><div><span><p>Use the <code>list</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources list options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#list">here</a>.</p>
+</span></div></div><div id="tab-group-28750-content-28752" class="tab-pane" data-group="group_28750" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/listSources?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/</i></a>
+</p>
+</span></div></div><div id="tab-group-28750-content-28753" class="tab-pane" data-group="group_28750" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSources</span><span class="hljs-params">(String tenant,<br />                         String namespace)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Response example</strong></p>
+<pre><code class="hljs css language-java">[<span class="hljs-string">"f1"</span>, <span class="hljs-string">"f2"</span>, <span class="hljs-string">"f3"</span>]<br /></code></pre>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException.NotAuthorizedException</code> | You don't have the admin permission <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#listSources-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-6"></a><a href="#sink-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Get the list of all running sink connectors.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28754-tab-28755" class="nav-link active" data-group="group_28754" data-tab="tab-group-28754-content-28755">Admin CLI</div><div id="tab-group-28754-tab-28756" class="nav-link" data-group="group_28754" data-tab="tab-group-28754-content-28756">REST API</div><div id="tab-group-28754-tab-28757" class="nav-link" data-group="group_28754" data-tab="tab-group-28754-content-28757">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28754-content-28755" class="tab-pane active" data-group="group_28754" tabindex="-1"><div><span><p>Use the <code>list</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks list options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#list-1">here</a>.</p>
+</span></div></div><div id="tab-group-28754-content-28756" class="tab-pane" data-group="group_28754" tabindex="-1"><div><span><p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/listSinks?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/</i></a>
+</p>
+</span></div></div><div id="tab-group-28754-content-28757" class="tab-pane" data-group="group_28754" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">List&lt;String&gt; <span class="hljs-title">listSinks</span><span class="hljs-params">(String tenant,<br />                       String namespace)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Response example</strong></p>
+<pre><code class="hljs css language-java">[<span class="hljs-string">"f1"</span>, <span class="hljs-string">"f2"</span>, <span class="hljs-string">"f3"</span>]<br /></code></pre>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException.NotAuthorizedException</code> | You don't have the admin permission <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#listSinks-java.lang.String-java.lang.String-"><code>listSource</code></a>.</p>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
+<p>You can get the current status of a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-7"></a><a href="#source-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Get the current status of a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28758-tab-28759" class="nav-link active" data-group="group_28758" data-tab="tab-group-28758-content-28759">Admin CLI</div><div id="tab-group-28758-tab-28760" class="nav-link" data-group="group_28758" data-tab="tab-group-28758-content-28760">REST API</div><div id="tab-group-28758-tab-28761" class="nav-link" data-group="group_28758" data-tab="tab-group-28758-content-28761">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28758-content-28759" class="tab-pane active" data-group="group_28758" tabindex="-1"><div><span><p>Use the <code>status</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources status options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#status">here</a>.</p>
+</span></div></div><div id="tab-group-28758-content-28760" class="tab-pane" data-group="group_28758" tabindex="-1"><div><span><ul>
+<li><p>Get the current status of <strong>all</strong> source connectors.</p>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSourceStatus?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/status</i></a>
+</p></li>
+<li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSourceStatus?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28758-content-28761" class="tab-pane" data-group="group_28758" tabindex="-1"><div><span><ul>
+<li><p>Get the current status of <strong>all</strong> source connectors.</p>
+<pre><code class="hljs">  java<br />    SourceStatus getSourceStatus(String tenant,<br />                                String namespace,<br />                                String source)<br />                        throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<p>Name | Description |---|--- <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-"><code>getSourceStatus</code></a>.</p></li>
+<li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
+<pre><code class="hljs css language-java">SourceStatus.SourceInstanceStatus.<span class="hljs-function">SourceInstanceStatusData <span class="hljs-title">getSourceStatus</span><span class="hljs-params">(String tenant,<br />                                                                           String namespace,<br />                                                                           String source,<br />                                                                           <span class="hljs-keyword">int</span> id)</span><br />                                                                    <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Source instanceID</p>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSourceStatus</code></a>.</p></li>
+</ul>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-7"></a><a href="#sink-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Get the current status of a Pulsar sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28762-tab-28763" class="nav-link active" data-group="group_28762" data-tab="tab-group-28762-content-28763">Admin CLI</div><div id="tab-group-28762-tab-28764" class="nav-link" data-group="group_28762" data-tab="tab-group-28762-content-28764">REST API</div><div id="tab-group-28762-tab-28765" class="nav-link" data-group="group_28762" data-tab="tab-group-28762-content-28765">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28762-content-28763" class="tab-pane active" data-group="group_28762" tabindex="-1"><div><span><p>Use the <code>status</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks status options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#status-1">here</a>.</p>
+</span></div></div><div id="tab-group-28762-content-28764" class="tab-pane" data-group="group_28762" tabindex="-1"><div><span><ul>
+<li><p>Get the current status of <strong>all</strong> sink connectors.</p>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSinkStatus?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/status</i></a>
+</p></li>
+<li><p>Gets the current status of a <strong>specified</strong> sink connector.</p>
+<p>Send a <code>GET</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/getSinkInstanceStatus?version=2.9.1&amp;apiVersion=v3"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/status</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28762-content-28765" class="tab-pane" data-group="group_28762" tabindex="-1"><div><span><ul>
+<li><p>Get the current status of <strong>all</strong> sink connectors.</p>
+<pre><code class="hljs">  java<br />    SinkStatus getSinkStatus(String tenant,<br />                             String namespace,<br />                             String sink)<br />                      throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-"><code>getSinkStatus</code></a>.</p></li>
+<li><p>Gets the current status of a <strong>specified</strong> source connector.</p>
+<pre><code class="hljs css language-java">SinkStatus.SinkInstanceStatus.<span class="hljs-function">SinkInstanceStatusData <span class="hljs-title">getSinkStatus</span><span class="hljs-params">(String tenant,<br />                                                                   String namespace,<br />                                                                   String sink,<br />                                                                   <span class="hljs-keyword">int</span> id)</span><br />                                                            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Sink instanceID</p>
+<p><strong>Exception</strong></p>
+<p>Exception name | Description |---|--- <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSinkStatusWithInstanceID</code></a>.</p></li>
+</ul>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="update-a-connector"></a><a href="#update-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update a connector</h2>
+<h3><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
+<p>You can update a running connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-8"></a><a href="#source-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Update a running Pulsar source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28766-tab-28767" class="nav-link active" data-group="group_28766" data-tab="tab-group-28766-content-28767">Admin CLI</div><div id="tab-group-28766-tab-28768" class="nav-link" data-group="group_28766" data-tab="tab-group-28766-content-28768">REST API</div><div id="tab-group-28766-tab-28769" class="nav-link" data-group="group_28766" data-tab="tab-group-28766-content-28769">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28766-content-28767" class="tab-pane active" data-group="group_28766" tabindex="-1"><div><span><p>Use the <code>update</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources update options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#update">here</a>.</p>
+</span></div></div><div id="tab-group-28766-content-28768" class="tab-pane" data-group="group_28766" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/updateSource?version=2.9.1&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</p>
+</span></div></div><div id="tab-group-28766-content-28769" class="tab-pane" data-group="group_28766" tabindex="-1"><div><span><ul>
+<li><p>Update a running source connector with a <strong>local file</strong>.</p>
+<pre><code class="hljs">  java<br />    void updateSource(SourceConfig sourceConfig,<br />                    String fileName)<br />            throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>| Name | Description |---|--- |<code>sourceConfig</code> | The source configuration object</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- |<code>PulsarAdminException.NotAuthorizedException</code>| You don't have the admin permission | <code>PulsarAdminException.NotFoundException</code> | Cluster doesn't exist | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-"><code>updateSource</code></a>.</p></li>
+<li><p>Update a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                     String pkgUrl)</span><br />              <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p>Supported URLs are <code>http</code> and <code>file</code>.</p>
+<p><strong>Example</strong></p>
+<ul>
+<li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
+<li><p>File: file:///dir/fileName.jar</p></li>
+</ul>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sourceConfig</code></td><td>The source configuration object</td></tr>
+<tr><td><code>pkgUrl</code></td><td>URL from which pkg can be downloaded</td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">**Exception**<br /><br />| Name                                          | Description                         |<br />| --------------------------------------------- | ----------------------------------- |<br />| `PulsarAdminException.NotAuthorizedException` | You don't have the admin permission |<br />| `PulsarAdminException.NotFoundException`      | Cluster doesn't exist               |<br />| `PulsarAdminException`                        | Unexpected error                    |<br /></code></pre>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>.</p>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-8"></a><a href="#sink-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Update a running Pulsar sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28770-tab-28771" class="nav-link active" data-group="group_28770" data-tab="tab-group-28770-content-28771">Admin CLI</div><div id="tab-group-28770-tab-28772" class="nav-link" data-group="group_28770" data-tab="tab-group-28770-content-28772">REST API</div><div id="tab-group-28770-tab-28773" class="nav-link" data-group="group_28770" data-tab="tab-group-28770-content-28773">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28770-content-28771" class="tab-pane active" data-group="group_28770" tabindex="-1"><div><span><p>Use the <code>update</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks update options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#update-1">here</a>.</p>
+</span></div></div><div id="tab-group-28770-content-28772" class="tab-pane" data-group="group_28770" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/updateSink?version=2.9.1&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</p>
+</span></div></div><div id="tab-group-28770-content-28773" class="tab-pane" data-group="group_28770" tabindex="-1"><div><span><ul>
+<li><p>Update a running sink connector with a <strong>local file</strong>.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSink</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                String fileName)</span><br />     <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sinkConfig</code></td><td>The sink configuration object</td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">**Exception**<br /><br />| Name                                          | Description                         |<br />| --------------------------------------------- | ----------------------------------- |<br />| `PulsarAdminException.NotAuthorizedException` | You don't have the admin permission |<br />| `PulsarAdminException.NotFoundException`      | Cluster doesn't exist               |<br />| `PulsarAdminException`                        | Unexpected error                    |<br /><br /><br />For more information, see [`updateSink`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-).<br /></code></pre>
+<ul>
+<li><p>Update a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
+<pre><code class="hljs">  ```java<br />  void updateSinkWithUrl(SinkConfig sinkConfig,<br />                         String pkgUrl)<br />                  throws PulsarAdminException<br />  ```<br />  <br />  Supported URLs are `http` and `file`.<br />  <br />  **Example**<br /></code></pre>
+<ul>
+<li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
+<li><p>File: file:///dir/fileName.jar</p>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sinkConfig</code></td><td>The sink configuration object</td></tr>
+<tr><td><code>pkgUrl</code></td><td>URL from which pkg can be downloaded</td></tr>
+</tbody>
+</table>
+</li>
+</ul></li>
+</ul>
+<pre><code class="hljs">    **Exception**<br />    <br />    | Name                                          | Description                         |<br />    | --------------------------------------------- | ----------------------------------- |<br />    | `PulsarAdminException.NotAuthorizedException` | You don't have the admin permission |<br />    | `PulsarAdminException.NotFoundException`      | Cluster doesn't exist               |<br />    | `PulsarAdminException`                        | Unexpected error                    |<br /></code></pre>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-"><code>updateSinkWithUrl</code></a>.</p>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="stop-a-connector"></a><a href="#stop-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop a connector</h2>
+<h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
+<p>You can stop a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-9"></a><a href="#source-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Stop a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28774-tab-28775" class="nav-link active" data-group="group_28774" data-tab="tab-group-28774-content-28775">Admin CLI</div><div id="tab-group-28774-tab-28776" class="nav-link" data-group="group_28774" data-tab="tab-group-28774-content-28776">REST API</div><div id="tab-group-28774-tab-28777" class="nav-link" data-group="group_28774" data-tab="tab-group-28774-content-28777">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28774-content-28775" class="tab-pane active" data-group="group_28774" tabindex="-1"><div><span><p>Use the <code>stop</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources stop options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#stop">here</a>.</p>
+</span></div></div><div id="tab-group-28774-content-28776" class="tab-pane" data-group="group_28774" tabindex="-1"><div><span><ul>
+<li><p>Stop <strong>all</strong> source connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/stopSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</p></li>
+<li><p>Stop a <strong>specified</strong> source connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/stopSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28774-content-28777" class="tab-pane" data-group="group_28774" tabindex="-1"><div><span><ul>
+<li><p>Stop <strong>all</strong> source connectors.</p>
+<pre><code class="hljs">  java<br />    void stopSource(String tenant,<br />                    String namespace,<br />                    String source)<br />            throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>| Name | Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>source</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-"><code>stopSource</code></a>.</p></li>
+<li><p>Stop a <strong>specified</strong> source connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source,<br />                <span class="hljs-keyword">int</span> instanceId)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID <br />**Exception**<br /><br />| Name                   | Description      |<br />| ---------------------- | ---------------- |<br />| `PulsarAdminException` | Unexpected error |<br /><br /><br />For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-9"></a><a href="#sink-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Stop a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28778-tab-28779" class="nav-link active" data-group="group_28778" data-tab="tab-group-28778-content-28779">Admin CLI</div><div id="tab-group-28778-tab-28780" class="nav-link" data-group="group_28778" data-tab="tab-group-28778-content-28780">REST API</div><div id="tab-group-28778-tab-28781" class="nav-link" data-group="group_28778" data-tab="tab-group-28778-content-28781">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28778-content-28779" class="tab-pane active" data-group="group_28778" tabindex="-1"><div><span><p>Use the <code>stop</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks stop options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#stop-1">here</a>.</p>
+</span></div></div><div id="tab-group-28778-content-28780" class="tab-pane" data-group="group_28778" tabindex="-1"><div><span><ul>
+<li><p>Stop <strong>all</strong> sink connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/stopSink?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
+</p></li>
+<li><p>Stop a <strong>specified</strong> sink connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/stopSink?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28778-content-28781" class="tab-pane" data-group="group_28778" tabindex="-1"><div><span><ul>
+<li><p>Stop <strong>all</strong> sink connectors.</p>
+<pre><code class="hljs">  java<br />    void stopSink(String tenant,<br />                String namespace,<br />                String sink)<br />        throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>| Name | Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>source</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-"><code>stopSink</code></a>.</p></li>
+<li><p>Stop a <strong>specified</strong> sink connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,<br />              String namespace,<br />              String sink,<br />              <span class="hljs-keyword">int</span> instanceId)</span><br />       <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID <br />**Exception**<br /><br />| Name                   | Description      |<br />| ---------------------- | ---------------- |<br />| `PulsarAdminException` | Unexpected error |<br /><br /><br />For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="restart-a-connector"></a><a href="#restart-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Restart a connector</h2>
+<h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
+<p>You can restart a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-10"></a><a href="#source-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Restart a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28782-tab-28783" class="nav-link active" data-group="group_28782" data-tab="tab-group-28782-content-28783">Admin CLI</div><div id="tab-group-28782-tab-28784" class="nav-link" data-group="group_28782" data-tab="tab-group-28782-content-28784">REST API</div><div id="tab-group-28782-tab-28785" class="nav-link" data-group="group_28782" data-tab="tab-group-28782-content-28785">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28782-content-28783" class="tab-pane active" data-group="group_28782" tabindex="-1"><div><span><p>Use the <code>restart</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources restart options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#restart">here</a>.</p>
+</span></div></div><div id="tab-group-28782-content-28784" class="tab-pane" data-group="group_28782" tabindex="-1"><div><span><ul>
+<li><p>Restart <strong>all</strong> source connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/restartSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
+</p></li>
+<li><p>Restart a <strong>specified</strong> source connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/restartSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28782-content-28785" class="tab-pane" data-group="group_28782" tabindex="-1"><div><span><ul>
+<li><p>Restart <strong>all</strong> source connectors.</p>
+<pre><code class="hljs">  java<br />    void restartSource(String tenant,<br />                       String namespace,<br />                       String source)<br />                throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>| Name | Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>source</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-"><code>restartSource</code></a>.</p></li>
+<li><p>Restart a <strong>specified</strong> source connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String source,<br />                   <span class="hljs-keyword">int</span> instanceId)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Source instanceID <br />**Exception**<br /><br />| Name                   | Description      |<br />| ---------------------- | ---------------- |<br />| `PulsarAdminException` | Unexpected error |<br /><br /><br />For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-10"></a><a href="#sink-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Restart a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28786-tab-28787" class="nav-link active" data-group="group_28786" data-tab="tab-group-28786-content-28787">Admin CLI</div><div id="tab-group-28786-tab-28788" class="nav-link" data-group="group_28786" data-tab="tab-group-28786-content-28788">REST API</div><div id="tab-group-28786-tab-28789" class="nav-link" data-group="group_28786" data-tab="tab-group-28786-content-28789">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28786-content-28787" class="tab-pane active" data-group="group_28786" tabindex="-1"><div><span><p>Use the <code>restart</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks restart options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#restart-1">here</a>.</p>
+</span></div></div><div id="tab-group-28786-content-28788" class="tab-pane" data-group="group_28786" tabindex="-1"><div><span><ul>
+<li><p>Restart <strong>all</strong> sink connectors.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/restartSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
+</p></li>
+<li><p>Restart a <strong>specified</strong> sink connector.</p>
+<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/restartSource?version=2.9.1&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
+</p></li>
+</ul>
+</span></div></div><div id="tab-group-28786-content-28789" class="tab-pane" data-group="group_28786" tabindex="-1"><div><span><ul>
+<li><p>Restart all Pulsar sink connectors.</p>
+<pre><code class="hljs">  java<br />    void restartSink(String tenant,<br />                     String namespace,<br />                     String sink)<br />              throws PulsarAdminException<br /></code></pre>
+<p><strong>Parameter</strong></p>
+<p>| Name | Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Sink name</p>
+<p><strong>Exception</strong></p>
+<p>|Name|Description| |---|--- | <code>PulsarAdminException</code> | Unexpected error</p>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-"><code>restartSink</code></a>.</p></li>
+<li><p>Restart a <strong>specified</strong> sink connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,<br />                 String namespace,<br />                 String sink,<br />                 <span class="hljs-keyword">int</span> instanceId)</span><br />          <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<pre><code class="hljs">`tenant` | Tenant name `namespace` | Namespace name `source` | Source name `instanceId` | Sink instanceID <br />**Exception**<br /><br />| Name                   | Description      |<br />| ---------------------- | ---------------- |<br />| `PulsarAdminException` | Unexpected error |<br /><br /><br />For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-).<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="delete-a-connector"></a><a href="#delete-a-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a connector</h2>
+<h3><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
+<p>You can delete a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
+<h4><a class="anchor" aria-hidden="true" id="source-11"></a><a href="#source-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
+<p>Delete a source connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28790-tab-28791" class="nav-link active" data-group="group_28790" data-tab="tab-group-28790-content-28791">Admin CLI</div><div id="tab-group-28790-tab-28792" class="nav-link" data-group="group_28790" data-tab="tab-group-28790-content-28792">REST API</div><div id="tab-group-28790-tab-28793" class="nav-link" data-group="group_28790" data-tab="tab-group-28790-content-28793">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28790-content-28791" class="tab-pane active" data-group="group_28790" tabindex="-1"><div><span><p>Use the <code>delete</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sources delete options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#delete">here</a>.</p>
+</span></div></div><div id="tab-group-28790-content-28792" class="tab-pane" data-group="group_28790" tabindex="-1"><div><span><p>Delete al Pulsar source connector.</p>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/deregisterSource?version=2.9.1&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+</p>
+</span></div></div><div id="tab-group-28790-content-28793" class="tab-pane" data-group="group_28790" tabindex="-1"><div><span><p>Delete a source connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,<br />                  String namespace,<br />                  String source)</span><br />           <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+<p><code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>source</code> | Source name</p>
+<p><strong>Exception</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>You don't have the admin permission</td></tr>
+<tr><td><code>PulsarAdminException.NotFoundException</code></td><td>Cluster doesn't exist</td></tr>
+<tr><td><code>PulsarAdminException.PreconditionFailedException</code></td><td>Cluster is not empty</td></tr>
+<tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
+</tbody>
+</table>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#deleteSource-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="sink-11"></a><a href="#sink-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h4>
+<p>Delete a sink connector.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-28794-tab-28795" class="nav-link active" data-group="group_28794" data-tab="tab-group-28794-content-28795">Admin CLI</div><div id="tab-group-28794-tab-28796" class="nav-link" data-group="group_28794" data-tab="tab-group-28794-content-28796">REST API</div><div id="tab-group-28794-tab-28797" class="nav-link" data-group="group_28794" data-tab="tab-group-28794-content-28797">Java Admin API</div></div><div class="tab-content"><div id="tab-group-28794-content-28795" class="tab-pane active" data-group="group_28794" tabindex="-1"><div><span><p>Use the <code>delete</code> subcommand.</p>
+<pre><code class="hljs">$ pulsar-admin sinks delete options<br /></code></pre>
+<p>For more information, see <a href="/docs/fr/2.4.1/reference-connector-admin#delete-1">here</a>.</p>
+</span></div></div><div id="tab-group-28794-content-28796" class="tab-pane" data-group="group_28794" tabindex="-1"><div><span><p>Delete a sink connector.</p>
+<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/deregisterSink?version=2.9.1&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+</p>
+</span></div></div><div id="tab-group-28794-content-28797" class="tab-pane" data-group="group_28794" tabindex="-1"><div><span><p>Delete a Pulsar sink connector.</p>
+<pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,<br />                String namespace,<br />                String source)</span><br />         <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
+<p><strong>Parameter</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td></tr>
+</tbody>
+</table>
+<p><code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Sink name</p>
+<p><strong>Exception</strong></p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PulsarAdminException.NotAuthorizedException</code></td><td>You don't have the admin permission</td></tr>
+<tr><td><code>PulsarAdminException.NotFoundException</code></td><td>Cluster doesn't exist</td></tr>
+<tr><td><code>PulsarAdminException.PreconditionFailedException</code></td><td>Cluster is not empty</td></tr>
+<tr><td><code>PulsarAdminException</code></td><td>Unexpected error</td></tr>
+</tbody>
+</table>
+<p>For more information, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#deleteSink-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>.</p>
+</span></div></div></div></div></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.4.1/io-quickstart"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/fr/2.4.1/io-managing"><span>Suivant</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-a-connector">Install a connector</a></li><li><a href="#configure-a-connector">Configure a connector</a><ul class="toc-headings"><li><a href="#configure-a-default-storage-location-for-a-connector">Configure a default storage location for a connector</a></li><li><a href="#configure-a-connector-with-a-yaml-file">Configure a connector with a YAML file</a></li></ul></li><li><a href="#get-available-connectors">Get available connectors</a><ul class="toc-headings"><li><a href="#reload"><code>reload</code></a></li><li><a href="#available"><code>available</code></a></li></ul></li><li><a href="#run-a-connector">Run a connector</a><ul class="toc-headings"><li><a href="#create"><code>create</code></a></li><li><a href="#start"><code>start</code></a></li><li><a href="#localrun"><code>localrun</code></a></li></ul></li><li><a href="#monitor-a-connector">Monitor a connector</a><ul class="toc-headings"><li><a href="#get"><code>get</code></a></li><li><a href="#list"><code>list</code></a></li><li><a href="#status"><code>status</code></a></li></ul></li><li><a href="#update-a-connector">Update a connector</a><ul class="toc-headings"><li><a href="#update"><code>update</code></a></li></ul></li><li><a href="#stop-a-connector">Stop a connector</a><ul class="toc-headings"><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#restart-a-connector">Restart a connector</a><ul class="toc-headings"><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#delete-a-connector">Delete a connector</a><ul class="toc-headings"><li><a href="#delete"><code>delete</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.4.1"]}
+              });
+            </script></body></html>

@@ -1,0 +1,1496 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "description" : "This provides the REST API for Pulsar Functions operations",
+    "version" : "v3",
+    "title" : "Pulsar Functions REST API",
+    "license" : {
+      "name" : "Apache 2.0",
+      "url" : "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "basePath" : "/admin/v3",
+  "tags" : [ {
+    "name" : "functions"
+  } ],
+  "schemes" : [ "http", "https" ],
+  "paths" : {
+    "/functions/connectors" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
+        "description" : "",
+        "operationId" : "getConnectorsList",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/functions/{tenant}/{namespace}" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Lists all Pulsar Functions currently deployed in a given namespace",
+        "description" : "",
+        "operationId" : "listFunctions",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Fetches information about a Pulsar Function currently running in cluster mode",
+        "description" : "",
+        "operationId" : "getFunctionInfo",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionConfig"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Creates a new Pulsar Function in cluster mode",
+        "description" : "",
+        "operationId" : "registerFunction",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The functions tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The functions namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The functions name",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/FunctionConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Pulsar Function successfully created"
+          },
+          "400" : {
+            "description" : "Invalid request (function already exists, etc.)"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "functions" ],
+        "summary" : "Updates a Pulsar Function currently running in cluster mode",
+        "description" : "",
+        "operationId" : "updateFunction",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topicsPattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/FunctionConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The update options is for the Pulsar Function that needs to be updated.",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/UpdateOptions"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Pulsar Function successfully updated"
+          },
+          "400" : {
+            "description" : "Invalid request (function doesn't exist, etc.)"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "functions" ],
+        "summary" : "Deletes a Pulsar Function currently running in cluster mode",
+        "description" : "",
+        "operationId" : "deregisterFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The function was successfully deleted"
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/restart" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Restart all function instances",
+        "description" : "",
+        "operationId" : "restartFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/start" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Start all function instances",
+        "description" : "",
+        "operationId" : "startFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/state/{key}" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Fetch the current state associated with a Pulsar Function",
+        "description" : "",
+        "operationId" : "getFunctionState",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "key",
+          "in" : "path",
+          "description" : "The stats key",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionState"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The key does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Put the state associated with a Pulsar Function",
+        "description" : "",
+        "operationId" : "putFunctionState",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "key",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/stats" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Displays the stats of a Pulsar Function",
+        "description" : "",
+        "operationId" : "getFunctionStats",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionStats"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/status" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Displays the status of a Pulsar Function",
+        "description" : "",
+        "operationId" : "getFunctionStatus",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionStatus"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/stop" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Stop all function instances",
+        "description" : "",
+        "operationId" : "stopFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/trigger" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Triggers a Pulsar Function with a user-specified value or file data",
+        "description" : "",
+        "operationId" : "triggerFunction",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The value with which you want to trigger the function",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The path to the file that contains the data with which you'd like to trigger the function",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/InputStream"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The specific topic name that the function consumes from which you want to inject the data to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/Message"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/restart" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Restart function instance",
+        "description" : "",
+        "operationId" : "restartFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances are restarted",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/start" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Start function instance",
+        "description" : "",
+        "operationId" : "startFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances sre started. ",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stats" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Displays the stats of a Pulsar Function instance",
+        "description" : "",
+        "operationId" : "getFunctionInstanceStats",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionInstanceStatsData"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/status" : {
+      "get" : {
+        "tags" : [ "functions" ],
+        "summary" : "Displays the status of a Pulsar Function instance",
+        "description" : "",
+        "operationId" : "getFunctionInstanceStatus",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionInstanceStatusData"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          }
+        }
+      }
+    },
+    "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stop" : {
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Stop function instance",
+        "description" : "",
+        "operationId" : "stopFunction",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "The tenant of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "The namespace of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "description" : "The name of functions",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances are stopped. ",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "definitions" : {
+    "ConsumerConfig" : {
+      "type" : "object",
+      "properties" : {
+        "schemaType" : {
+          "type" : "string"
+        },
+        "serdeClassName" : {
+          "type" : "string"
+        },
+        "receiverQueueSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "regexPattern" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "EncryptionContext" : {
+      "type" : "object",
+      "properties" : {
+        "keys" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/EncryptionKey"
+          }
+        },
+        "param" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "algorithm" : {
+          "type" : "string"
+        },
+        "compressionType" : {
+          "type" : "string",
+          "enum" : [ "NONE", "LZ4", "ZLIB", "ZSTD", "SNAPPY" ]
+        },
+        "uncompressedMessageSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "batchSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    },
+    "EncryptionKey" : {
+      "type" : "object",
+      "properties" : {
+        "keyValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "metadata" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "ExceptionInformation" : {
+      "type" : "object",
+      "properties" : {
+        "exceptionString" : {
+          "type" : "string"
+        },
+        "timestampMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
+    "FunctionConfig" : {
+      "type" : "object",
+      "properties" : {
+        "runtimeFlags" : {
+          "type" : "string"
+        },
+        "tenant" : {
+          "type" : "string"
+        },
+        "namespace" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "inputs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "customSerdeInputs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "topicsPattern" : {
+          "type" : "string"
+        },
+        "customSchemaInputs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "inputSpecs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/ConsumerConfig"
+          }
+        },
+        "output" : {
+          "type" : "string"
+        },
+        "outputSchemaType" : {
+          "type" : "string"
+        },
+        "outputSerdeClassName" : {
+          "type" : "string"
+        },
+        "logTopic" : {
+          "type" : "string"
+        },
+        "processingGuarantees" : {
+          "type" : "string",
+          "enum" : [ "ATLEAST_ONCE", "ATMOST_ONCE", "EFFECTIVELY_ONCE" ]
+        },
+        "retainOrdering" : {
+          "type" : "boolean"
+        },
+        "userConfig" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "secrets" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "runtime" : {
+          "type" : "string",
+          "enum" : [ "JAVA", "PYTHON", "GO" ]
+        },
+        "autoAck" : {
+          "type" : "boolean"
+        },
+        "maxMessageRetries" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "deadLetterTopic" : {
+          "type" : "string"
+        },
+        "subName" : {
+          "type" : "string"
+        },
+        "parallelism" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "resources" : {
+          "$ref" : "#/definitions/Resources"
+        },
+        "fqfn" : {
+          "type" : "string"
+        },
+        "windowConfig" : {
+          "$ref" : "#/definitions/WindowConfig"
+        },
+        "timeoutMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "jar" : {
+          "type" : "string"
+        },
+        "py" : {
+          "type" : "string"
+        },
+        "go" : {
+          "type" : "string"
+        },
+        "cleanupSubscription" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "FunctionInstanceStats" : {
+      "type" : "object",
+      "properties" : {
+        "instanceId" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "metrics" : {
+          "$ref" : "#/definitions/FunctionInstanceStatsData"
+        }
+      }
+    },
+    "FunctionInstanceStatsData" : {
+      "type" : "object",
+      "properties" : {
+        "receivedTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "processedSuccessfullyTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "systemExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "userExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "avgProcessLatency" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "1min" : {
+          "$ref" : "#/definitions/FunctionInstanceStatsDataBase"
+        },
+        "lastInvocation" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "userMetrics" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }
+      }
+    },
+    "FunctionInstanceStatsDataBase" : {
+      "type" : "object",
+      "properties" : {
+        "receivedTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "processedSuccessfullyTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "systemExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "userExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "avgProcessLatency" : {
+          "type" : "number",
+          "format" : "double"
+        }
+      }
+    },
+    "FunctionInstanceStatus" : {
+      "type" : "object",
+      "properties" : {
+        "instanceId" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "status" : {
+          "$ref" : "#/definitions/FunctionInstanceStatusData"
+        }
+      }
+    },
+    "FunctionInstanceStatusData" : {
+      "type" : "object",
+      "properties" : {
+        "running" : {
+          "type" : "boolean"
+        },
+        "error" : {
+          "type" : "string"
+        },
+        "numRestarts" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numReceived" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numSuccessfullyProcessed" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numUserExceptions" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "latestUserExceptions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ExceptionInformation"
+          }
+        },
+        "numSystemExceptions" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "latestSystemExceptions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ExceptionInformation"
+          }
+        },
+        "averageLatency" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "lastInvocationTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "workerId" : {
+          "type" : "string"
+        }
+      }
+    },
+    "FunctionState" : {
+      "type" : "object",
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        },
+        "stringValue" : {
+          "type" : "string"
+        },
+        "byteValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "numberValue" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
+    "FunctionStats" : {
+      "type" : "object",
+      "properties" : {
+        "receivedTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "processedSuccessfullyTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "systemExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "userExceptionsTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "avgProcessLatency" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "1min" : {
+          "$ref" : "#/definitions/FunctionInstanceStatsDataBase"
+        },
+        "lastInvocation" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "instances" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FunctionInstanceStats"
+          }
+        }
+      }
+    },
+    "FunctionStatus" : {
+      "type" : "object",
+      "properties" : {
+        "numInstances" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "numRunning" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "instances" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FunctionInstanceStatus"
+          }
+        }
+      }
+    },
+    "InputStream" : {
+      "type" : "object"
+    },
+    "Message" : {
+      "type" : "object",
+      "properties" : {
+        "value" : {
+          "type" : "object"
+        },
+        "key" : {
+          "type" : "string"
+        },
+        "properties" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "data" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        }
+      }
+    },
+    "MessageId" : {
+      "type" : "object"
+    },
+    "Resources" : {
+      "type" : "object",
+      "properties" : {
+        "cpu" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "ram" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "disk" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
+    "UpdateOptions" : {
+      "type" : "object",
+      "properties" : {
+        "update-auth-data" : {
+          "type" : "boolean",
+          "description" : "Whether or not to update the auth data"
+        }
+      },
+      "description" : "Options while updating the sink"
+    },
+    "WindowConfig" : {
+      "type" : "object",
+      "properties" : {
+        "windowLengthCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "windowLengthDurationMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "slidingIntervalCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "slidingIntervalDurationMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lateDataTopic" : {
+          "type" : "string"
+        },
+        "maxLagMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "watermarkEmitIntervalMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "timestampExtractorClassName" : {
+          "type" : "string"
+        },
+        "actualWindowFunctionClassName" : {
+          "type" : "string"
+        }
+      }
+    }
+  }
+}

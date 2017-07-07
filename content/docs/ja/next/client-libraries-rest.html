@@ -1,0 +1,211 @@
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar REST · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar not only provides REST endpoints to manage resources in Pulsar clusters, but also provides methods to query the state for those resources. In addition, Pulsar REST provides a simple way to interact with Pulsar **without using client libraries**, which is convenient for applications to use HTTP to interact with Pulsar."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Pulsar REST · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar not only provides REST endpoints to manage resources in Pulsar clusters, but also provides methods to query the state for those resources. In addition, Pulsar REST provides a simple way to interact with Pulsar **without using client libraries**, which is convenient for applications to use HTTP to interact with Pulsar."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/next/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/client-libraries-rest">English</a></li><li><a href="/docs/fr/next/client-libraries-rest">Français</a></li><li><a href="/docs/ko/next/client-libraries-rest">한국어</a></li><li><a href="/docs/zh-CN/next/client-libraries-rest">中文</a></li><li><a href="/docs/zh-TW/next/client-libraries-rest">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Client Libraries</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/standalone">Pulsar をローカルで実行する</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/sql-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-install">インストール</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-policy-and-supported-versions">Security Policy and Supported Versions</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-authorization">認可と ACL</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/client-libraries-dotnet">C#</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ja/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-overview">概要</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/next/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar REST</h1></header><article><div><span><p>Pulsar not only provides REST endpoints to manage resources in Pulsar clusters, but also provides methods to query the state for those resources. In addition, Pulsar REST provides a simple way to interact with Pulsar <strong>without using client libraries</strong>, which is convenient for applications to use HTTP to interact with Pulsar.</p>
+<h2><a class="anchor" aria-hidden="true" id="connection"></a><a href="#connection" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection</h2>
+<p>To connect to Pulsar, you need to specify a URL.</p>
+<ul>
+<li><p>Produce messages to non-partitioned or partitioned topics</p>
+<pre><code class="hljs"><span class="xml">brokerUrl:</span><span class="hljs-template-variable">{8080/8081}</span><span class="xml">/topics/</span><span class="hljs-template-variable">{persistent/non-persistent}</span><span class="xml">/</span><span class="hljs-template-variable">{my-tenant}</span><span class="xml">/</span><span class="hljs-template-variable">{my-namespace}</span><span class="xml">/</span><span class="hljs-template-variable">{my-topic}</span><span class="xml">
+</span></code></pre></li>
+<li><p>Produce messages to specific partitions of partitioned topics</p>
+<pre><code class="hljs"><span class="xml">brokerUrl:</span><span class="hljs-template-variable">{8080/8081}</span><span class="xml">/topics/</span><span class="hljs-template-variable">{persistent/non-persistent}</span><span class="xml">/</span><span class="hljs-template-variable">{my-tenant}</span><span class="xml">/</span><span class="hljs-template-variable">{my-namespace}</span><span class="xml">/</span><span class="hljs-template-variable">{my-topic}</span><span class="xml">/partitions/</span><span class="hljs-template-variable">{partition-number}</span><span class="xml">
+</span></code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="プロデューサー"></a><a href="#プロデューサー" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>プロデューサー</h2>
+<p>Currently, you can produce messages to the following destinations with tools like cURL or Postman via REST.</p>
+<ul>
+<li><p>Non-partitioned or partitioned topics</p></li>
+<li><p>Specific partitions of partitioned topics</p></li>
+</ul>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>You can only produce messages to <strong>topics that already exist</strong> in Pulsar via REST.</p>
+</blockquote>
+<p>Consuming and reading messages via REST will be supported in the future.</p>
+<h3><a class="anchor" aria-hidden="true" id="メッセージ"></a><a href="#メッセージ" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>メッセージ</h3>
+<ul>
+<li><p>Below is the structure of a request payload.</p>
+<p>Parameter|Required?|Description |---|---|--- <code>schemaVersion</code>|No| Schema version of existing schema used for this message </br></br>You need provide one of the following: <br/><br/> - <code>schemaVersion</code> <br/> - <code>keySchema</code>/<code>valueSchema</code><br/><br/>If both of them are provided, then <code>schemaVersion</code> is used <code>keySchema/valueSchema</code>|No|Key schema / Value schema used for this message <code>producerName</code>|No|Producer name <code>Messages[] SingleMessage</code>|Yes|Messages to be sent</p></li>
+<li><p>Below is the structure of a message.</p>
+<p>Parameter|Required?|Type|Description |---|---|---|--- <code>payload</code>|Yes|<code>String</code>|Actual message payload </br></br>Messages are sent in strings and encoded with given schemas on the server side <code>properties</code>|No|<code>Map&lt;String, String&gt;</code>|Custom properties <code>key</code>|No|<code>String</code>|Partition key <code>replicationClusters</code>|No|<code>List&lt;String&gt;</code>|Clusters to which messages replicate <code>eventTime</code>|No|<code>String</code>|Message event time <code>sequenceId</code>|No|<code>long</code>|Message sequence ID <code>disableReplication</code>|No|<code>boolean</code>|Whether to disable replication of messages <code>deliverAt</code>|No|<code>long</code>|Deliver messages only at or after specified absolute timestamp <code>deliverAfterMs</code>|No|<code>long</code>|Deliver messages only after specified relative delay (in milliseconds)</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h3>
+<ul>
+<li><p>Currently, Primitive, Avro, JSON, and KeyValue schemas are supported.</p></li>
+<li><p>For Primitive, Avro and JSON schemas, schemas should be provided as the full schema encoded as a string.</p></li>
+<li><p>If the schema is not set, messages are encoded with string schema.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<p>Below is an example of sending messages to topics using JSON schema via REST.</p>
+<p>Assume that you send messages representing the following class.</p>
+<pre><code class="hljs css language-java">   <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Seller</span> </span>{
+        <span class="hljs-keyword">public</span> String state;
+        <span class="hljs-keyword">public</span> String street;
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">long</span> zipCode;
+    }
+
+    <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PC</span> </span>{
+        <span class="hljs-keyword">public</span> String brand;
+        <span class="hljs-keyword">public</span> String model;
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> year;
+        <span class="hljs-keyword">public</span> GPU gpu;
+        <span class="hljs-keyword">public</span> Seller seller;
+    }
+</code></pre>
+<p>Send messages to topics with JSON schema using the command below.</p>
+<pre><code class="hljs css language-shell">curl --location --request POST 'brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "valueSchema": "{\"name\":\"\",\"schema\":\"eyJ0eXBlIjoicmVjb3JkIiwibmFtZSI6IlBDIiwibmFtZXNwYWNlIjoib3JnLmFwYWNoZS5wdWxzYXIuYnJva2VyLmFkbWluLlRvcGljc1Rlc3QiLCJmaWVsZHMiOlt7Im5hbWUiOiJicmFuZCIsInR5cGUiOlsibnVsbCIsInN0cmluZyJdLCJkZWZhdWx0IjpudWxsfSx7Im5hbWUiOiJncHUiLCJ0eXBlIjpbIm51bGwiLHsidHlwZSI6ImVudW0iLCJuYW1lIjoiR1BVIiwic3ltYm9scyI6WyJBTUQiLCJOVklESUEiXX1dLCJkZWZhdWx0IjpudWxsfSx7Im5hbWUiOiJtb2RlbCIsInR5cGUiOlsibnVsbCIsInN0cmluZyJdLCJkZWZhdWx0IjpudWxsfSx7Im5hbWUiOiJzZWxsZXIiLCJ0eXBlIjpbIm51bGwiLHsidHlwZSI6InJlY29yZCIsIm5hbWUiOiJTZWxsZXIiLCJmaWVsZHMiOlt7Im5hbWUiOiJzdGF0ZSIsInR5cGUiOlsibnVsbCIsInN0cmluZyJdLCJkZWZhdWx0IjpudWxsfSx7Im5hbWUiOiJzdHJlZXQiLCJ0eXBlIjpbIm51bGwiLCJzdHJpbmciXSwiZGVmYXVsdCI6bnVsbH0seyJuYW1lIjoiemlwQ29kZSIsInR5cGUiOiJsb25nIn1dfV0sImRlZmF1bHQiOm51bGx9LHsibmFtZSI6InllYXIiLCJ0eXBlIjoiaW50In1dfQ==\",\"type\":\"JSON\",\"properties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"true\"},\"schemaDefinition\":\"{\\\"type\\\":\\\"record\\\",\\\"name\\\":\\\"PC\\\",\\\"namespace\\\":\\\"org.apache.pulsar.broker.admin.TopicsTest\\\",\\\"fields\\\":[{\\\"name\\\":\\\"brand\\\",\\\"type\\\":[\\\"null\\\",\\\"string\\\"],\\\"default\\\":null},{\\\"name\\\":\\\"gpu\\\",\\\"type\\\":[\\\"null\\\",{\\\"type\\\":\\\"enum\\\",\\\"name\\\":\\\"GPU\\\",\\\"symbols\\\":[\\\"AMD\\\",\\\"NVIDIA\\\"]}],\\\"default\\\":null},{\\\"name\\\":\\\"model\\\",\\\"type\\\":[\\\"null\\\",\\\"string\\\"],\\\"default\\\":null},{\\\"name\\\":\\\"seller\\\",\\\"type\\\":[\\\"null\\\",{\\\"type\\\":\\\"record\\\",\\\"name\\\":\\\"Seller\\\",\\\"fields\\\":[{\\\"name\\\":\\\"state\\\",\\\"type\\\":[\\\"null\\\",\\\"string\\\"],\\\"default\\\":null},{\\\"name\\\":\\\"street\\\",\\\"type\\\":[\\\"null\\\",\\\"string\\\"],\\\"default\\\":null},{\\\"name\\\":\\\"zipCode\\\",\\\"type\\\":\\\"long\\\"}]}],\\\"default\\\":null},{\\\"name\\\":\\\"year\\\",\\\"type\\\":\\\"int\\\"}]}\"}",
+
+// Schema data is just the base 64 encoded schemaDefinition.
+
+  "producerName": "rest-producer",
+  "messages": [
+    {
+      "key":"my-key",
+      "payload":"{\"brand\":\"dell\",\"model\":\"alienware\",\"year\":2021,\"gpu\":\"AMD\",\"seller\":{\"state\":\"WA\",\"street\":\"main street\",\"zipCode\":98004}}",
+      "eventTime":1603045262772,
+      "sequenceId":1
+    },
+    {
+      "key":"my-key",
+      "payload":"{\"brand\":\"asus\",\"model\":\"rog\",\"year\":2020,\"gpu\":\"NVIDIA\",\"seller\":{\"state\":\"CA\",\"street\":\"back street\",\"zipCode\":90232}}",
+      "eventTime":1603045262772,
+      "sequenceId":2
+    }
+  ]
+}
+`  
+// Sample message
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/client-libraries-dotnet"><span class="arrow-prev">← </span><span>C#</span></a><a class="docs-next button" href="/docs/ja/next/admin-api-overview"><span>概要</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#connection">Connection</a></li><li><a href="#プロデューサー">プロデューサー</a><ul class="toc-headings"><li><a href="#メッセージ">メッセージ</a></li><li><a href="#schema">Schema</a></li><li><a href="#example">Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ja/contact">Contact</a></li>' +
+            '<li><a href="/ja/contributing">Contributing</a></li>' +
+            '<li><a href="/ja/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ja/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ja/resources">Resources</a></li>' +
+            '<li><a href="/ja/team">Team</a></li>' +
+            '<li><a href="/ja/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ja","version:next"]}
+              });
+            </script></body></html>

@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.2" />
+<title>pulsar.functions.context API documentation</title>
+<meta name="description" content="context.py: Context defines context information available during
+processing of a request." />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pulsar.functions.context</code></h1>
+</header>
+<section id="section-intro">
+<p>context.py: Context defines context information available during</p>
+<h1 id="processing-of-a-request">processing of a request.</h1>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">#!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# &#34;License&#34;); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# &#34;AS IS&#34; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# -*- encoding: utf-8 -*-
+
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# &#34;License&#34;); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# &#34;AS IS&#34; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+&#34;&#34;&#34;context.py: Context defines context information available during
+# processing of a request.
+&#34;&#34;&#34;
+from abc import abstractmethod
+
+class Context(object):
+  &#34;&#34;&#34;Interface defining information available at process time&#34;&#34;&#34;
+  @abstractmethod
+  def get_message_id(self):
+    &#34;&#34;&#34;Return the messageid of the current message that we are processing&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_current_message_topic_name(self):
+    &#34;&#34;&#34;Returns the topic name of the message that we are processing&#34;&#34;&#34;
+    pass
+  
+  @abstractmethod
+  def get_function_tenant(self):
+    &#34;&#34;&#34;Returns the tenant of the message that&#39;s being processed&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_namespace(self):
+    &#34;&#34;&#34;Returns the namespace of the message that&#39;s being processed&#34;&#34;&#34;
+
+  @abstractmethod
+  def get_function_name(self):
+    &#34;&#34;&#34;Returns the function name that we are a part of&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_id(self):
+    &#34;&#34;&#34;Returns the function id that we are a part of&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_instance_id(self):
+    &#34;&#34;&#34;Returns the instance id that is executing the function&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_version(self):
+    &#34;&#34;&#34;Returns the version of function that we are executing&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_logger(self):
+    &#34;&#34;&#34;Returns the logger object that can be used to do logging&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_user_config_value(self, key):
+    &#34;&#34;&#34;Returns the value of the user-defined config. If the key doesn&#39;t exist, None is returned&#34;&#34;&#34;
+    pass
+  
+  @abstractmethod
+  def get_user_config_map(self):
+    &#34;&#34;&#34;Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def record_metric(self, metric_name, metric_value):
+    &#34;&#34;&#34;Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def publish(self, topic_name, message, serde_class_name=&#34;serde.IdentitySerDe&#34;, properties=None, compression_type=None):
+    &#34;&#34;&#34;Publishes message to topic_name by first serializing the message using serde_class_name serde
+    The message will have properties specified if any&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_output_topic(self):
+    &#34;&#34;&#34;Returns the output topic of function&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_output_serde_class_name(self):
+    &#34;&#34;&#34;return output Serde class&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def ack(self, msgid, topic):
+    &#34;&#34;&#34;ack this message id&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pulsar.functions.context.Context"><code class="flex name class">
+<span>class <span class="ident">Context</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Interface defining information available at process time</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Context(object):
+  &#34;&#34;&#34;Interface defining information available at process time&#34;&#34;&#34;
+  @abstractmethod
+  def get_message_id(self):
+    &#34;&#34;&#34;Return the messageid of the current message that we are processing&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_current_message_topic_name(self):
+    &#34;&#34;&#34;Returns the topic name of the message that we are processing&#34;&#34;&#34;
+    pass
+  
+  @abstractmethod
+  def get_function_tenant(self):
+    &#34;&#34;&#34;Returns the tenant of the message that&#39;s being processed&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_namespace(self):
+    &#34;&#34;&#34;Returns the namespace of the message that&#39;s being processed&#34;&#34;&#34;
+
+  @abstractmethod
+  def get_function_name(self):
+    &#34;&#34;&#34;Returns the function name that we are a part of&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_id(self):
+    &#34;&#34;&#34;Returns the function id that we are a part of&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_instance_id(self):
+    &#34;&#34;&#34;Returns the instance id that is executing the function&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_function_version(self):
+    &#34;&#34;&#34;Returns the version of function that we are executing&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_logger(self):
+    &#34;&#34;&#34;Returns the logger object that can be used to do logging&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_user_config_value(self, key):
+    &#34;&#34;&#34;Returns the value of the user-defined config. If the key doesn&#39;t exist, None is returned&#34;&#34;&#34;
+    pass
+  
+  @abstractmethod
+  def get_user_config_map(self):
+    &#34;&#34;&#34;Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def record_metric(self, metric_name, metric_value):
+    &#34;&#34;&#34;Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def publish(self, topic_name, message, serde_class_name=&#34;serde.IdentitySerDe&#34;, properties=None, compression_type=None):
+    &#34;&#34;&#34;Publishes message to topic_name by first serializing the message using serde_class_name serde
+    The message will have properties specified if any&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_output_topic(self):
+    &#34;&#34;&#34;Returns the output topic of function&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def get_output_serde_class_name(self):
+    &#34;&#34;&#34;return output Serde class&#34;&#34;&#34;
+    pass
+
+  @abstractmethod
+  def ack(self, msgid, topic):
+    &#34;&#34;&#34;ack this message id&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.functions.context.Context.ack"><code class="name flex">
+<span>def <span class="ident">ack</span></span>(<span>self, msgid, topic)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>ack this message id</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def ack(self, msgid, topic):
+  &#34;&#34;&#34;ack this message id&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_current_message_topic_name"><code class="name flex">
+<span>def <span class="ident">get_current_message_topic_name</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the topic name of the message that we are processing</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_current_message_topic_name(self):
+  &#34;&#34;&#34;Returns the topic name of the message that we are processing&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_function_id"><code class="name flex">
+<span>def <span class="ident">get_function_id</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the function id that we are a part of</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_function_id(self):
+  &#34;&#34;&#34;Returns the function id that we are a part of&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_function_name"><code class="name flex">
+<span>def <span class="ident">get_function_name</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the function name that we are a part of</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_function_name(self):
+  &#34;&#34;&#34;Returns the function name that we are a part of&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_function_namespace"><code class="name flex">
+<span>def <span class="ident">get_function_namespace</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the namespace of the message that's being processed</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_function_namespace(self):
+  &#34;&#34;&#34;Returns the namespace of the message that&#39;s being processed&#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_function_tenant"><code class="name flex">
+<span>def <span class="ident">get_function_tenant</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the tenant of the message that's being processed</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_function_tenant(self):
+  &#34;&#34;&#34;Returns the tenant of the message that&#39;s being processed&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_function_version"><code class="name flex">
+<span>def <span class="ident">get_function_version</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the version of function that we are executing</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_function_version(self):
+  &#34;&#34;&#34;Returns the version of function that we are executing&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_instance_id"><code class="name flex">
+<span>def <span class="ident">get_instance_id</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the instance id that is executing the function</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_instance_id(self):
+  &#34;&#34;&#34;Returns the instance id that is executing the function&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_logger"><code class="name flex">
+<span>def <span class="ident">get_logger</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the logger object that can be used to do logging</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_logger(self):
+  &#34;&#34;&#34;Returns the logger object that can be used to do logging&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_message_id"><code class="name flex">
+<span>def <span class="ident">get_message_id</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Return the messageid of the current message that we are processing</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_message_id(self):
+  &#34;&#34;&#34;Return the messageid of the current message that we are processing&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_output_serde_class_name"><code class="name flex">
+<span>def <span class="ident">get_output_serde_class_name</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>return output Serde class</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_output_serde_class_name(self):
+  &#34;&#34;&#34;return output Serde class&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_output_topic"><code class="name flex">
+<span>def <span class="ident">get_output_topic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the output topic of function</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_output_topic(self):
+  &#34;&#34;&#34;Returns the output topic of function&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_user_config_map"><code class="name flex">
+<span>def <span class="ident">get_user_config_map</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_user_config_map(self):
+  &#34;&#34;&#34;Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.get_user_config_value"><code class="name flex">
+<span>def <span class="ident">get_user_config_value</span></span>(<span>self, key)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the value of the user-defined config. If the key doesn't exist, None is returned</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def get_user_config_value(self, key):
+  &#34;&#34;&#34;Returns the value of the user-defined config. If the key doesn&#39;t exist, None is returned&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.publish"><code class="name flex">
+<span>def <span class="ident">publish</span></span>(<span>self, topic_name, message, serde_class_name='serde.IdentitySerDe', properties=None, compression_type=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Publishes message to topic_name by first serializing the message using serde_class_name serde
+The message will have properties specified if any</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def publish(self, topic_name, message, serde_class_name=&#34;serde.IdentitySerDe&#34;, properties=None, compression_type=None):
+  &#34;&#34;&#34;Publishes message to topic_name by first serializing the message using serde_class_name serde
+  The message will have properties specified if any&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.functions.context.Context.record_metric"><code class="name flex">
+<span>def <span class="ident">record_metric</span></span>(<span>self, metric_name, metric_value)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def record_metric(self, metric_name, metric_value):
+  &#34;&#34;&#34;Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)&#34;&#34;&#34;
+  pass</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#processing-of-a-request">processing of a request.</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pulsar.functions" href="index.html">pulsar.functions</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pulsar.functions.context.Context" href="#pulsar.functions.context.Context">Context</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.functions.context.Context.ack" href="#pulsar.functions.context.Context.ack">ack</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_current_message_topic_name" href="#pulsar.functions.context.Context.get_current_message_topic_name">get_current_message_topic_name</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_function_id" href="#pulsar.functions.context.Context.get_function_id">get_function_id</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_function_name" href="#pulsar.functions.context.Context.get_function_name">get_function_name</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_function_namespace" href="#pulsar.functions.context.Context.get_function_namespace">get_function_namespace</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_function_tenant" href="#pulsar.functions.context.Context.get_function_tenant">get_function_tenant</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_function_version" href="#pulsar.functions.context.Context.get_function_version">get_function_version</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_instance_id" href="#pulsar.functions.context.Context.get_instance_id">get_instance_id</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_logger" href="#pulsar.functions.context.Context.get_logger">get_logger</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_message_id" href="#pulsar.functions.context.Context.get_message_id">get_message_id</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_output_serde_class_name" href="#pulsar.functions.context.Context.get_output_serde_class_name">get_output_serde_class_name</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_output_topic" href="#pulsar.functions.context.Context.get_output_topic">get_output_topic</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_user_config_map" href="#pulsar.functions.context.Context.get_user_config_map">get_user_config_map</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.get_user_config_value" href="#pulsar.functions.context.Context.get_user_config_value">get_user_config_value</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.publish" href="#pulsar.functions.context.Context.publish">publish</a></code></li>
+<li><code><a title="pulsar.functions.context.Context.record_metric" href="#pulsar.functions.context.Context.record_metric">record_metric</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.2</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy Pulsar on DC/OS · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; ### 提示"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Deploy Pulsar on DC/OS · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; ### 提示"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/deploy-dcos">English</a></li><li><a href="/docs/ja/2.8.3/deploy-dcos">日本語</a></li><li><a href="/docs/fr/2.8.3/deploy-dcos">Français</a></li><li><a href="/docs/ko/2.8.3/deploy-dcos">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/deploy-dcos">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy Pulsar on DC/OS</h1></header><article><div><span><blockquote>
+<h3><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h3>
+<p>在 Pulsar 部署中启用所有内置的 <a href="/docs/zh-CN/2.8.3/io-overview">Pulsar IO</a> connector，可以使用 <code>apachepulsar/pulsar-all</code> 镜像而不是 <code>apachepulsar/pulsar</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经捆绑了<a href="/docs/zh-CN/2.8.3/io-overview#working-with-connectors">所有内置 connector</a>。</p>
+</blockquote>
+<p><a href="https://dcos.io/">DC/OS</a> (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on <a href="http://mesos.apache.org/">Apache Mesos</a>. DC/OS 是一个开源工具，由 <a href="https://mesosphere.com/"> Mesosphere</a> 创建和维护。</p>
+<p>Apache Pulsar 可作为<a href="https://mesosphere.github.io/marathon/docs/application-groups.html">Marathon Application Group</a>，它以可管理的集合方式运行多个应用程序。</p>
+<h2><a class="anchor" aria-hidden="true" id="先决条件"></a><a href="#先决条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>先决条件</h2>
+<p>若要在 DC/OS 上运行 Pulsar，需要以下几点：</p>
+<ul>
+<li><p>DC/OS 版本 <a href="https://docs.mesosphere.com/1.9/">1.9</a> 或更高</p></li>
+<li><p>一个至少有三个代理节点的<a href="https://docs.mesosphere.com/1.9/installing/">DC/OS cluster</a></p></li>
+<li><p>已安装 <a href="https://docs.mesosphere.com/1.9/cli/install/">DC/OS CLI tool</a></p></li>
+<li><p>来自 Pulsar GitHub repo 的<a href="https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json"><code>PulsarGroups.json</code></a> 配置文件。</p>
+<pre><code class="hljs css language-bash">$ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
+</code></pre></li>
+</ul>
+<p>DC/OS 管理的 Mesos 集群中的每个节点必须至少有：</p>
+<ul>
+<li>4 个 CPU</li>
+<li>4 GB 内存</li>
+<li>60 GB 总磁盘</li>
+</ul>
+<p>或者，根据 DC/OS 集群的使用资源情况，更改 <code>PulsarGroups.json</code> 的配置。</p>
+<h2><a class="anchor" aria-hidden="true" id="使用-dcos-命令界面部署-pulsar"></a><a href="#使用-dcos-命令界面部署-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 DC/OS 命令界面部署 Pulsar</h2>
+<p>通过此命令在 DC/OS 上部署 Pulsar：</p>
+<pre><code class="hljs css language-bash">$ dcos marathon group add PulsarGroups.json
+</code></pre>
+<p>此命令在三组中部署 Docker 容器实例，构成了一个 Pulsar 集群：</p>
+<ul>
+<li>3 个 bookie（每个代理节点上有 1 个 <a href="/docs/zh-CN/2.8.3/reference-terminology#bookie"> bookie </a> 和 1 个 <a href="http://bookkeeper.apache.org/docs/latest/admin/autorecovery/"> bookie recovery</a>实例）</li>
+<li>3 个 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#broker"> broker</a>（每个节点 1 个 broker 和 1 个 admin 实例）</li>
+<li>1 个 <a href="http://prometheus.io/"> Prometheus</a> 实例 和 1 个 <a href="https://grafana.com/"> Grafana</a> 实例</li>
+</ul>
+<blockquote>
+<p>当运行 DC/OS 时，一个 ZooKeeper 集群已经运行在 <code>master.mesos:2181</code>，因此并不需要再单独安装和启动 ZooKeeper。</p>
+</blockquote>
+<p>After executing the <code>dcos</code> command above, click on the <strong>Services</strong> tab in the DC/OS <a href="https://docs.mesosphere.com/latest/gui/">GUI interface</a>, which you can access at <a href="http://m1.dcos">http://m1.dcos</a> in this example. 正常情况下，可以看到几个正在部署的应用程序。</p>
+<p><img src="/docs/assets/dcos_command_execute.png" alt="DC/OS command executed"></p>
+<p><img src="/docs/assets/dcos_command_execute2.png" alt="DC/OS command executed2"></p>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper-组"></a><a href="#bookkeeper-组" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper 组</h2>
+<p>To monitor the status of the BookKeeper cluster deployment, click on the <strong>bookkeeper</strong> group in the parent <strong>pulsar</strong> group.</p>
+<p><img src="/docs/assets/dcos_bookkeeper_status.png" alt="DC/OS bookkeeper status"></p>
+<p>此时，3 个<a href="/docs/zh-CN/2.8.3/reference-terminology#bookie"> bookies</a>应该显示为绿色，这意味着 bookie 已经部署成功并且在运行了。</p>
+<p><img src="/docs/assets/dcos_bookkeeper_run.png" alt="DC/OS bookkeeper running"></p>
+<p>同样的可以点击每个 bookie 实例来获取更多详细的信息，例如 bookie 的运行日志。</p>
+<p><img src="/docs/assets/dcos_bookie_log.png" alt="DC/OS bookie log"></p>
+<p>若要显示 ZooKeeper 中的 BookKeeper 信息，可以查看 <a href="http://m1.dcos/exhibitor">http://m1.dcos/exhibitor</a>。 在此例中，3 个 bookie 在 <code>available</code> 目录下。</p>
+<p><img src="/docs/assets/dcos_bookkeeper_in_zookeeper.png" alt="DC/OS bookkeeper in zk"></p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-broker-组"></a><a href="#pulsar-broker-组" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar broker 组</h2>
+<p>Similar to the BookKeeper group above, click into the <strong>brokers</strong> to check the status of the Pulsar brokers.</p>
+<p><img src="/docs/assets/dcos_broker_status.png" alt="DC/OS broker status"></p>
+<p><img src="/docs/assets/dcos_broker_run.png" alt="DC/OS broker running"></p>
+<p>同样也可以通过点击每个 broker 实例来获取更多详细的信息，例如 broker 运行日志。</p>
+<p><img src="/docs/assets/dcos_broker_log.png" alt="DC/OS broker log"></p>
+<p>Zookeeper 中的 Broker 集群信息也可以通过 web UI 来获得。 在此例中，可以看到 <code>loadbalance</code> 和 <code>managed-ledgers</code> 目录已经创建。</p>
+<p><img src="/docs/assets/dcos_broker_in_zookeeper.png" alt="DC/OS broker in zk"></p>
+<h2><a class="anchor" aria-hidden="true" id="监控组"></a><a href="#监控组" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监控组</h2>
+<p>The <strong>monitory</strong> group consists of Prometheus and Grafana.</p>
+<p><img src="/docs/assets/dcos_monitor_status.png" alt="DC/OS monitor status"></p>
+<h3><a class="anchor" aria-hidden="true" id="prometheus"></a><a href="#prometheus" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prometheus</h3>
+<p>点击进入 <code>prom</code> 实例，得到 Prometheus 的端点，在此例中是 <code>192.168.65.121:9090</code>。</p>
+<p><img src="/docs/assets/dcos_prom_endpoint.png" alt="DC/OS prom endpoint"></p>
+<p>If you click that endpoint, you can see the Prometheus dashboard. The <a href="http://192.168.65.121:9090/targets">http://192.168.65.121:9090/targets</a> URL display all the bookies and brokers.</p>
+<p><img src="/docs/assets/dcos_prom_targets.png" alt="DC/OS prom targets"></p>
+<h3><a class="anchor" aria-hidden="true" id="grafana"></a><a href="#grafana" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Grafana</h3>
+<p>点击进入 <code>grafana</code> 来获取 Grafana 的端点，在此例中是 <code>192.168.65.121:3000</code>。</p>
+<p><img src="/docs/assets/dcos_grafana_endpoint.png" alt="DC/OS grafana endpoint"></p>
+<p>如果单击该地址，则可以访问 Grafana 仪表板。</p>
+<p><img src="/docs/assets/dcos_grafana_dashboard.png" alt="DC/OS grafana targets"></p>
+<h2><a class="anchor" aria-hidden="true" id="在-dcos-上运行简单的-pulsar-消费者和生产者"></a><a href="#在-dcos-上运行简单的-pulsar-消费者和生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 DC/OS 上运行简单的 Pulsar 消费者和生产者</h2>
+<p>现在已经完全部署好了 Pulsar 集群，接下来就可以运行一个简单的消费者和生产者来展示 DC/OS 上 Pulsar 的运作。</p>
+<h3><a class="anchor" aria-hidden="true" id="下载并准备-pulsar-java-教程"></a><a href="#下载并准备-pulsar-java-教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下载并准备 Pulsar Java 教程</h3>
+<p>可以使用 git clone 下载 <a href="https://github.com/streamlio/pulsar-java-tutorial">Pulsar Java tutorial</a> 仓库。 该 repo 包含了简单的 Pulsar 消费者和生产者（在此 repo 的 <code>README</code> 文件中找到更多的信息）。</p>
+<pre><code class="hljs css language-bash">$ git <span class="hljs-built_in">clone</span> https://github.com/streamlio/pulsar-java-tutorial
+</code></pre>
+<p>在 <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java"><code>ConsumerTutorial.java</code></a> 和 <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a> 将<code>SERVICE_URL</code> 从 <code>pulsar://localhost:6650</code> 修改为 <code>pulsar://a1.dcos:6650</code>。 <code>pulsar://a1.dcos:6650</code> 端点用于 broker 服务。 通过从 DC/OS GUI 中获取每个 broker 实例的端点详细信息。 <code>a1.dcos</code> 是一个 DC/OS 客户端代理，用来运行一个 broker。 客户端代理的 IP 地址也可以用此替代。</p>
+<p>现在，在 <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a> 的 main 方法中，将消息数从 10 改为 10000000 ，便于产生更多的消息。</p>
+<p>现在使用下面的命令编译项目代码：</p>
+<pre><code class="hljs css language-bash">$ mvn clean package
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="运行消费者和生产者"></a><a href="#运行消费者和生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>运行消费者和生产者</h3>
+<p>执行此命令来运行消费者：</p>
+<pre><code class="hljs css language-bash">$ mvn <span class="hljs-built_in">exec</span>:java -Dexec.mainClass=<span class="hljs-string">"tutorial.ConsumerTutorial"</span>
+</code></pre>
+<p>运行此命令来运行生产者：</p>
+<pre><code class="hljs css language-bash">$ mvn <span class="hljs-built_in">exec</span>:java -Dexec.mainClass=<span class="hljs-string">"tutorial.ProducerTutorial"</span>
+</code></pre>
+<p>通过 DC/OS GUI 来查看生产者生产消息和消费者消费消息。</p>
+<p><img src="/docs/assets/dcos_producer.png" alt="DC/OS pulsar producer"></p>
+<p><img src="/docs/assets/dcos_consumer.png" alt="DC/OS pulsar consumer"></p>
+<h3><a class="anchor" aria-hidden="true" id="查看-grafana-metric-输出"></a><a href="#查看-grafana-metric-输出" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查看 Grafana metric 输出</h3>
+<p>当生产者和消费者运行时，可以从 Grafana 中访问运行 metrics 信息。</p>
+<p><img src="/docs/assets/dcos_metrics.png" alt="DC/OS pulsar dashboard"></p>
+<h2><a class="anchor" aria-hidden="true" id="卸载-pulsar"></a><a href="#卸载-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载 Pulsar</h2>
+<p>通过以下两种方式随时从 DC/OS 停止和卸载 <code>pulsar</code> 应用程序。</p>
+<ol>
+<li><p>Using the DC/OS GUI, you can choose <strong>Delete</strong> at the right end of Pulsar group.</p>
+<p><img src="/docs/assets/dcos_uninstall.png" alt="DC/OS pulsar uninstall"></p></li>
+<li><p>使用以下命令：</p>
+<pre><code class="hljs css language-bash">$ dcos marathon group remove /pulsar
+</code></pre></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#先决条件">先决条件</a></li><li><a href="#使用-dcos-命令界面部署-pulsar">使用 DC/OS 命令界面部署 Pulsar</a></li><li><a href="#bookkeeper-组">BookKeeper 组</a></li><li><a href="#pulsar-broker-组">Pulsar broker 组</a></li><li><a href="#监控组">监控组</a><ul class="toc-headings"><li><a href="#prometheus">Prometheus</a></li><li><a href="#grafana">Grafana</a></li></ul></li><li><a href="#在-dcos-上运行简单的-pulsar-消费者和生产者">在 DC/OS 上运行简单的 Pulsar 消费者和生产者</a><ul class="toc-headings"><li><a href="#下载并准备-pulsar-java-教程">下载并准备 Pulsar Java 教程</a></li><li><a href="#运行消费者和生产者">运行消费者和生产者</a></li><li><a href="#查看-grafana-metric-输出">查看 Grafana metric 输出</a></li></ul></li><li><a href="#卸载-pulsar">卸载 Pulsar</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Transport Encryption using TLS · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## TLS Overview"/><meta name="docsearch:version" content="2.1.1-incubating"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Transport Encryption using TLS · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="## TLS Overview"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.1-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.1.1-incubating/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.1.1-incubating/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.1-incubating/security-tls-transport">English</a></li><li><a href="/docs/ja/2.1.1-incubating/security-tls-transport">日本語</a></li><li><a href="/docs/ko/2.1.1-incubating/security-tls-transport">한국어</a></li><li><a href="/docs/zh-CN/2.1.1-incubating/security-tls-transport">中文</a></li><li><a href="/docs/zh-TW/2.1.1-incubating/security-tls-transport">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Sécurité</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/admin-api-schemas">Schemas</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.1.1-incubating/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Transport Encryption using TLS</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="tls-overview"></a><a href="#tls-overview" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS Overview</h2>
+<p>By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text, which means that all data is sent in the clear. TLS can be used to encrypt this traffic so that it cannot be snooped by a man-in-the-middle attacker.</p>
+<p>TLS can be configured for both encryption and authentication. You may configure just TLS transport encryption, which is covered in this guide. TLS authentication is covered <a href="/docs/fr/2.1.1-incubating/security-tls-authentication">elsewhere</a>. Alternatively, you can use <a href="/docs/fr/2.1.1-incubating/security-athenz">another authentication mechanism</a> on top of TLS transport encryption.</p>
+<blockquote>
+<p>Note that enabling TLS may have a performance impact due to encryption overhead.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="tls-concepts"></a><a href="#tls-concepts" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS concepts</h2>
+<p>TLS is a form of <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">public key cryptography</a>. Encryption is performed using key pairs consisting of a public key and a private key. Messages are encrypted with the public key and can be decrypted with the private key.</p>
+<p>To use TLS transport encryption, you need two kinds of key pairs, <strong>server key pairs</strong> and a <strong>certificate authority</strong>.</p>
+<p>A third kind of key pair, <strong>client key pairs</strong>, are used for <a href="/docs/fr/2.1.1-incubating/security-tls-authentication">client authentication</a>.</p>
+<p>The <strong>certificate authority</strong> private key should be stored in a very secure location (a fully encrypted, disconnected, air gapped computer). The certificate authority public key, the <strong>trust cert</strong>, can be freely shared.</p>
+<p>For both client and server key pairs, the administrator first generates a private key and a certificate request. Then the certificate authority private key is used to sign the certificate request, generating a certificate. This certificate is the public key for the server/client key pair.</p>
+<p>For TLS transport encryption, the clients can use the <strong>trust cert</strong> to verify that the server they are talking to has a key pair that was signed by the certificate authority. A man-in-the-middle attacker would not have access to the certificate authority, so they couldn't create a server with such a key pair.</p>
+<p>For TLS authentication, the server uses the <strong>trust cert</strong> to verify that the client has a key pair that was signed by the certificate authority. The Common Name of the <strong>client cert</strong> is then used as the client's role token (see <a href="/docs/fr/2.1.1-incubating/security-overview">Overview</a>).</p>
+<h2><a class="anchor" aria-hidden="true" id="creating-tls-certificates"></a><a href="#creating-tls-certificates" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating TLS Certificates</h2>
+<p>Creating TLS certificates for Pulsar involves creating a <a href="#certificate-authority">certificate authority</a> (CA), <a href="#server-certificate">server certificate</a>, and <a href="#client-certificate">client certificate</a>.</p>
+<p>The following guide is an abridged guide to setting up a certificate authority. For a more detailed guide, there are plenty of resource on the internet. We recommend the <a href="https://jamielinux.com/docs/openssl-certificate-authority/index.html">this guide</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="certificate-authority"></a><a href="#certificate-authority" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Certificate authority</h3>
+<p>The first step is to create the certificate for the CA. The CA will be used to sign both the broker and client certificates, in order to ensure that each party will trust the others. The CA should be stored in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).</p>
+<p>Create a directory for your CA, and place <a href="https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf">this openssl configuration file</a> in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories needed for the CA.</p>
+<pre><code class="hljs css language-bash">mkdir my-ca
+<span class="hljs-built_in">cd</span> my-ca
+wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+<span class="hljs-built_in">export</span> CA_HOME=$(<span class="hljs-built_in">pwd</span>)
+</code></pre>
+<p>Create the necessary directories, keys and certs.</p>
+<pre><code class="hljs css language-bash">mkdir certs crl newcerts private
+chmod 700 private/
+touch index.txt
+<span class="hljs-built_in">echo</span> 1000 &gt; serial
+openssl genrsa -aes256 -out private/ca.key.pem 4096
+chmod 400 private/ca.key.pem
+openssl req -config openssl.cnf -key private/ca.key.pem \
+    -new -x509 -days 7300 -sha256 -extensions v3_ca \
+    -out certs/ca.cert.pem
+chmod 444 certs/ca.cert.pem
+</code></pre>
+<p>After answering the question prompts, this will store CA-related files in the <code>./my-ca</code> directory. Within that directory:</p>
+<ul>
+<li><code>certs/ca.cert.pem</code> is the public certificate. It is meant to be distributed to all parties involved.</li>
+<li><code>private/ca.key.pem</code> is the private key. This is only needed when signing a new certificate for either broker or clients and it must be safely guarded.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="server-certificate"></a><a href="#server-certificate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Server certificate</h3>
+<p>Once a CA certificate has been created, you can create certificate requests and sign them with the CA.</p>
+<p>The following commands will ask you a few questions and then create the certificates. When asked for the common name, you should match the hostname of the broker. You could also use a wildcard to match a group of broker hostnames, for example <code>*.broker.usw.example.com</code>. This ensures that the same certificate can be reused on multiple machines.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tips"></a><a href="#tips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tips</h4>
+<p>Sometimes it is not possible or makes no sense to match the hostname, such as when the brokers are created with random hostnames, or you plan to connect to the hosts via their IP. In this case, the client should be configured to disable TLS hostname verification.</p>
+</blockquote>
+<p>First generate the key.</p>
+<pre><code class="hljs css language-bash">openssl genrsa -out broker.key.pem 2048
+</code></pre>
+<p>The broker expects the key to be in <a href="https://en.wikipedia.org/wiki/PKCS_8">PKCS 8</a> format, so convert it.</p>
+<pre><code class="hljs css language-bash">openssl pkcs8 -topk8 -inform PEM -outform PEM \
+    -<span class="hljs-keyword">in</span> broker.key.pem -out broker.key-pk8.pem -nocrypt
+</code></pre>
+<p>Generate the certificate request...</p>
+<pre><code class="hljs css language-bash">openssl req -config openssl.cnf \
+    -key broker.key.pem -new -sha256 -out broker.csr.pem
+</code></pre>
+<p>... and sign it with the certificate authority.</p>
+<pre><code class="hljs css language-bash">openssl ca -config openssl.cnf -extensions server_cert \
+    -days 1000 -notext -md sha256 \
+    -<span class="hljs-keyword">in</span> broker.csr.pem -out broker.cert.pem
+</code></pre>
+<p>At this point, you have a cert, <code>broker.cert.pem</code>, and a key, <code>broker.key-pk8.pem</code>, which can be used along with <code>ca.cert.pem</code> to configure TLS transport encryption for your broker and proxy nodes.</p>
+<h2><a class="anchor" aria-hidden="true" id="broker-configuration"></a><a href="#broker-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker Configuration</h2>
+<p>To configure a Pulsar <a href="/docs/fr/2.1.1-incubating/reference-terminology#broker">broker</a> to use TLS transport encryption, you'll need to make some changes to <code>broker.conf</code>, which is located in the <code>conf</code> directory of your <a href="/docs/fr/2.1.1-incubating/standalone">Pulsar installation</a>.</p>
+<p>Add these values to the configuration file (substituting the appropriate certificate paths where necessary):</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">tlsEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<blockquote>
+<p>A full list of parameters available in the <code>conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="/docs/fr/2.1.1-incubating/reference-configuration#broker">Broker Configuration</a></p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="proxy-configuration"></a><a href="#proxy-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy Configuration</h2>
+<p>Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy to be able to connect to brokers.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># For clients connecting to the proxy</span>
+<span class="hljs-attr">tlsEnabledInProxy</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+<span class="hljs-comment">
+# For the proxy to connect to brokers</span>
+<span class="hljs-attr">tlsEnabledWithBroker</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">brokerClientTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="configuration-du-client"></a><a href="#configuration-du-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration du client</h2>
+<p>When TLS transport encryption is enabled, you need to configure the client to use <code>https://</code> and port 8443 for the web service URL, and <code>pulsar+ssl://</code> and port 6651 for the broker service URL.</p>
+<p>As the server certificate you generated above doesn't belong to any of the default trust chains, you also need to either specify the path the <strong>trust cert</strong> (recommended), or tell the client to allow untrusted server certs.</p>
+<h3><a class="anchor" aria-hidden="true" id="cli-tools"></a><a href="#cli-tools" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI tools</h3>
+<p><a href="/docs/fr/2.1.1-incubating/reference-cli-tools">Command-line tools</a> like <a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>, <a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>, and <a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> use the <code>conf/client.conf</code> config file in a Pulsar installation.</p>
+<p>You'll need to add the following parameters to that file to use TLS transport with Pulsar's CLI tools:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
+<span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar+ssl://broker.example.com:6651/</span>
+<span class="hljs-attr">useTls</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsAllowInsecureConnection</span>=<span class="hljs-string">false</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="java-client"></a><a href="#java-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java client</h3>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>)
+    .enableTls(<span class="hljs-keyword">true</span>)
+    .tlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>)
+    .build();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="python-client"></a><a href="#python-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python client</h3>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client
+
+client = Client(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>,
+                tls_trust_certs_file_path=<span class="hljs-string">"/path/to/ca.cert.pem"</span>,
+                tls_allow_insecure_connection=<span class="hljs-literal">False</span>)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h3>
+<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
+
+pulsar::ClientConfiguration <span class="hljs-built_in">config</span>;
+<span class="hljs-built_in">config</span>.setUseTls(<span class="hljs-literal">true</span>);
+<span class="hljs-built_in">config</span>.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>);
+<span class="hljs-built_in">config</span>.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);
+
+<span class="hljs-function">pulsar::<span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>, <span class="hljs-built_in">config</span>)</span></span>;
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.1.1-incubating/security-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/fr/2.1.1-incubating/security-tls-authentication"><span>Authentication using TLS</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#tls-overview">TLS Overview</a></li><li><a href="#tls-concepts">TLS concepts</a></li><li><a href="#creating-tls-certificates">Creating TLS Certificates</a><ul class="toc-headings"><li><a href="#certificate-authority">Certificate authority</a></li><li><a href="#server-certificate">Server certificate</a></li></ul></li><li><a href="#broker-configuration">Broker Configuration</a></li><li><a href="#proxy-configuration">Proxy Configuration</a></li><li><a href="#configuration-du-client">Configuration du client</a><ul class="toc-headings"><li><a href="#cli-tools">CLI tools</a></li><li><a href="#java-client">Java client</a></li><li><a href="#python-client">Python client</a></li><li><a href="#c-client">C++ client</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.1.1-incubating"]}
+              });
+            </script></body></html>

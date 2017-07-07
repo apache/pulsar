@@ -1,0 +1,413 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Use filesystem offloader with Pulsar · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="本章将一步一步的指导你完成在 Pulsar 中安装和配置filesystem offloader。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Use filesystem offloader with Pulsar · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="本章将一步一步的指导你完成在 Pulsar 中安装和配置filesystem offloader。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/tiered-storage-filesystem">English</a></li><li><a href="/docs/ja/2.8.3/tiered-storage-filesystem">日本語</a></li><li><a href="/docs/fr/2.8.3/tiered-storage-filesystem">Français</a></li><li><a href="/docs/ko/2.8.3/tiered-storage-filesystem">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>层级存储</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Use filesystem offloader with Pulsar</h1></header><article><div><span><p>本章将一步一步的指导你完成在 Pulsar 中安装和配置filesystem offloader。</p>
+<h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
+<p>本节介绍如何安装 filesystem offloader。</p>
+<h3><a class="anchor" aria-hidden="true" id="前提条件"></a><a href="#前提条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>前提条件</h3>
+<ul>
+<li>Pulsar: 2.4.2 或更高版本</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="步骤"></a><a href="#步骤" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤</h3>
+<p>下列示例将使用 Pulsar 2.5.1。</p>
+<ol>
+<li><p>使用下列方式下载 Pulsar 压缩包：</p>
+<ul>
+<li><p>从<a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz">Apache 镜像</a>下载 Pulsar tar 包。</p></li>
+<li><p>从<a href="https://pulsar.apache.org/download">下载页面</a>下载 Pulsar tar 包。</p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载 Pulsar tar 包。</p>
+<pre><code class="hljs css language-shell">wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
+</code></pre></li>
+</ul></li>
+<li><p>下载并解压 Pulsar offloaders 程序包。</p>
+<pre><code class="hljs css language-bash">wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
+
+tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<ul>
+<li><p>如果在一个裸机集群中运行 Pulsar，请确保<code>offloaders</code>安装包已经在 broker 的所有 Pulsar 目录下解压缩。</p></li>
+<li><p>如果在 Docker 中运行 Pulsar 或使用 Docker 镜像（如 K8S 和 DCOS）部署 Pulsar，则可以使用 <code>apachepulsar/pulsar-all</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经绑定了分层存储 offloader。</p></li>
+</ul>
+</blockquote></li>
+<li><p>将 Pulsar offloaders 作为<code>offloaders</code>复制到Pulsar目录中。</p>
+<pre><code class="hljs">mv apache-pulsar-offloaders<span class="hljs-number">-2.5</span><span class="hljs-number">.1</span>/offloaders apache-pulsar<span class="hljs-number">-2.5</span><span class="hljs-number">.1</span>/offloaders
+
+ls offloaders
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+<span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<ul>
+<li><p>如果在一个裸机集群中运行 Pulsar，请确保<code>offloaders</code>安装包已经在 broker 的所有 Pulsar 目录下解压缩。</p></li>
+<li><p>如果在 Docker 中运行 Pulsar 或使用 Docker 镜像（如 K8S 和 DCOS）部署 Pulsar，则可以使用 <code>apachepulsar/pulsar-all</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经绑定了分层存储 offloader。</p></li>
+</ul>
+</blockquote></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>在将数据从 BookKeeper 卸载到 filesystem 之前，你需要配置 filesystem offloader 驱动程序的一些属性。</p>
+</blockquote>
+<p>此外，你还可以配置 filesystem offloader 的自动触发和手动触发机制。</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-filesystem-offloader-driver"></a><a href="#配置-filesystem-offloader-driver" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 filesystem offloader driver</h3>
+<p>您可以在 <code>broker.conf</code> 或 <code>standalone.conf</code> 配置文件中配置 filesystem offloader 驱动程序。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38974-tab-38975" class="nav-link active" data-group="group_38974" data-tab="tab-group-38974-content-38975">HDFS</div><div id="tab-group-38974-tab-38976" class="nav-link" data-group="group_38974" data-tab="tab-group-38974-content-38976">NFS</div></div><div class="tab-content"><div id="tab-group-38974-content-38975" class="tab-pane active" data-group="group_38974" tabindex="-1"><div><span><ul>
+<li><p>以下为<strong>必选</strong> 配置。</p>
+<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | 连接地址，访问默认 Hadoop 分布式文件系统的 URI。 | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | Hadoop profile path. The configuration file is stored in the Hadoop profile path. 它包含了一些 Hadoop 性能调整的配置。 | ../conf/filesystem_offload_core_site.xml</p></li>
+<li><p>以下为<strong>可选</strong> 配置。</p>
+<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>| topic 的 ledger 切换的最短时间。 <br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发滚动之前添加到 ledger 的最大条目数。<br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|5000</p></li>
+</ul>
+</span></div></div><div id="tab-group-38974-content-38976" class="tab-pane" data-group="group_38974" tabindex="-1"><div><span><ul>
+<li><p>以下为<strong>必选</strong> 配置。</p>
+<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | NFS profile path. The configuration file is stored in the NFS profile path. 它包含用于性能调整的各种设置。 | ../conf/filesystem_offload_core_site.xml</p></li>
+<li><p>以下为<strong>可选</strong> 配置。</p>
+<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>| topic 的 ledger 切换的最短时间。 <br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发滚动之前添加到 ledger 的最大条目数。<br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|5000</p></li>
+</ul>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="自动运行-filesystem-offloader"></a><a href="#自动运行-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自动运行 filesystem offloader</h3>
+<p>您可以将命名空间策略配置为在达到阈值后自动卸载数据。 该阈值基于一个 topic 在 Pulsar 集群的数据存储大小而定。 一旦 topic 到达阈值，就自动触发卸载操作。</p>
+<p>阈值|动作 |---|--- | &gt; 0 | 如果 topic 存储达到其阈值，它就会触发卸载操作。 = 0| 它使 broker 竭尽全力地 offload 数据。 &lt; 0 | 它将禁用自动卸载操作。</p>
+<p>Automatic offload runs when a new segment is added to a topic log. 如果在命名空间上设置了阈值，但向该 topic 生产的消息很少，filesystem offloader 将会停止工作，直至当前 segment 达到饱和。</p>
+<p>通过命令行工具（CLI）可以设置阈值大小，比如 pulsar-admin。</p>
+<h4><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
+<p>该示例使用 pulsar-admin 将 filesystem offloader 的阈值大小设置为 10 MB。</p>
+<pre><code class="hljs css language-bash">pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
+</code></pre>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>关于 <code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/2.8.3/pulsar-admin#set-offload-threshold">这里</a>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="手动运行-filesystem-offloader"></a><a href="#手动运行-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动运行 filesystem offloader</h3>
+<p>对于每一个 topic，使用下列方法之一可以手动触发 filesystem offloader：</p>
+<ul>
+<li><p>使用 REST 端点。</p></li>
+<li><p>使用命令行工具(例如 pulsar-admin)。</p></li>
+</ul>
+<p>要想用命令行工具触发 filesystem offloader，需要指定一个 topic 应该保留在 Pulsar 集群中的最大数据量(阈值)。 如果 Pulsar 集群上 topic 的数据大小超过了这个阈值，那么该 topic 下的 segment 就会被陆续卸载到 filesystem 上，直到不再超过这个阈值。 优先卸载旧的 segment。</p>
+<h4><a class="anchor" aria-hidden="true" id="示例-1"></a><a href="#示例-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
+<ul>
+<li><p>此示例使用 pulsar-admin 手动运行 filesystem offloader。</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-bash">Offload triggered <span class="hljs-keyword">for</span> persistent://my-tenant/my-namespace/topic1 <span class="hljs-keyword">for</span> messages before 2:0:-1
+</code></pre>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>关于<code>pulsar-admin topics offload-status options</code>命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/2.8.3/pulsar-admin#offload">这里</a>。</p>
+</blockquote></li>
+<li><p>该示例使用 pulsar-admin 检查 filesystem offloader 的状态。</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-bash">Offload is currently running
+</code></pre>
+<p>要等待 filesystem 完成任务，请添加 <code>-w</code> 参数。</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
+</code></pre>
+<p>如果在卸载操作中出现错误，该错误会将会在 <code>pulsar-admin topics offload-status</code> 命令中抛出。</p>
+<pre><code class="hljs css language-bash">pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs"><span class="hljs-builtin-name">Error</span> <span class="hljs-keyword">in</span> offload
+<span class="hljs-literal">null</span>
+
+Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous<span class="hljs-built_in"> users </span>cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; <span class="hljs-builtin-name">Error</span> Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+</code></pre>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>关于<code>pulsar-admin topics offload-status options</code>命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/2.8.3/pulsar-admin#offload-status">这里</a>。</p>
+</blockquote></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h2>
+<p>本节提供有关如何使用  filesystem offloader  将数据从 Pulsar 移动到 Hadoop 分布式文件系统（HDFS）或网络文件系统（NFS）的分步说明。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38977-tab-38978" class="nav-link active" data-group="group_38977" data-tab="tab-group-38977-content-38978">HDFS</div><div id="tab-group-38977-tab-38979" class="nav-link" data-group="group_38977" data-tab="tab-group-38977-content-38979">NFS</div></div><div class="tab-content"><div id="tab-group-38977-content-38978" class="tab-pane active" data-group="group_38977" tabindex="-1"><div><span><p>要将数据从 Pulsar 移动到 HDFS，请按照以下步骤进行。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-1-步准备-hdfs-环境"></a><a href="#第-1-步准备-hdfs-环境" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 1 步：准备 HDFS 环境</h3>
+<p>本教程使用 Hadoop 3.2.1设置一个 Hadoop 单个节点集群。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>有关如何设置 Hadoop 单节点集群的详细信息，请参见<a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html">此处</a>。</p>
+</blockquote>
+<ol>
+<li><p>下载并解压缩 Hadoop 3.2.1。</p>
+<pre><code class="hljs">wget <span class="hljs-symbol">https:</span>/<span class="hljs-regexp">/mirrors.bfsu.edu.cn/apache</span><span class="hljs-regexp">/hadoop/common</span><span class="hljs-regexp">/hadoop-3.2.1/hadoop</span><span class="hljs-number">-3.2</span>.<span class="hljs-number">1</span>.tar.gz  <br /><br />tar -zxvf hadoop<span class="hljs-number">-3.2</span>.<span class="hljs-number">1</span>.tar.gz -C <span class="hljs-variable">$HADOOP_HOME</span><br /></code></pre></li>
+<li><p>配置 Hadoop。</p>
+<pre><code class="hljs"><span class="hljs-meta"># $HADOOP_HOME/etc/hadoop/core-site.xml</span><br /><span class="hljs-params">&lt;configuration&gt;</span><br />    <span class="hljs-params">&lt;property&gt;</span><br />        <span class="hljs-params">&lt;name&gt;</span>fs.defaultFS<span class="hljs-params">&lt;/name&gt;</span><br />        <span class="hljs-params">&lt;value&gt;</span>hdfs:<span class="hljs-comment">//localhost:9000&lt;/value&gt;</span><br />    <span class="hljs-params">&lt;/property&gt;</span><br /><span class="hljs-params">&lt;/configuration&gt;</span><br /><br /><span class="hljs-meta"># $HADOOP_HOME/etc/hadoop/hdfs-site.xml</span><br /><span class="hljs-params">&lt;configuration&gt;</span><br />    <span class="hljs-params">&lt;property&gt;</span><br />        <span class="hljs-params">&lt;name&gt;</span>dfs.replication<span class="hljs-params">&lt;/name&gt;</span><br />        <span class="hljs-params">&lt;value&gt;</span><span class="hljs-number">1</span><span class="hljs-params">&lt;/value&gt;</span><br />    <span class="hljs-params">&lt;/property&gt;</span><br /><span class="hljs-params">&lt;/configuration&gt;</span><br /></code></pre></li>
+<li><p>设置无密码 ssh。</p>
+<pre><code class="hljs"><span class="hljs-comment"># 现在检查无需密码是否可以使用 ssh 连接到 localhost：</span><br /><span class="hljs-variable">$ </span>ssh localhost<br /><span class="hljs-comment"># 如果在无密码的情况下无法 ssh 连接到 localhost，请执行以下命令</span><br /><span class="hljs-variable">$ </span>ssh-keygen -t rsa -P <span class="hljs-string">''</span> -f ~<span class="hljs-regexp">/.ssh/id</span>_rsa<br /><span class="hljs-variable">$ </span>cat ~<span class="hljs-regexp">/.ssh/id</span>_rsa.pub &gt;&gt; ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /><span class="hljs-variable">$ </span>chmod 0600 ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /></code></pre></li>
+<li><p>启动 HDFS。</p>
+<pre><code class="hljs"><span class="hljs-comment"># 不要重复执行该命令，重复执行会导致数据节点的 clusterId 与 namenode 不一致</span><br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/bin/</span>hadoop namenode -format<br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/sbin/</span>start-dfs.sh<br /></code></pre></li>
+<li><p>导航到 <a href="http://localhost:9870/">HDFS 网站</a>。</p>
+<p>您可以查看 <strong>概述</strong> 页面。</p>
+<p><img src="/docs/assets/FileSystem-1.png" alt=""></p>
+<ol>
+<li><p>在顶部导航栏，单击 <strong>数据节点</strong> 查看数据节点信息。</p>
+<p><img src="/docs/assets/FileSystem-2.png" alt=""></p></li>
+<li><p>单击 <strong>HTTP 地址</strong> 获取更多关于 localhost:9866 的详细信息。</p>
+<p>如下文所示， <strong>所用容量</strong> 的大小是 4 KB，它是初始值。</p>
+<p><img src="/docs/assets/FileSystem-3.png" alt=""></p></li>
+</ol></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="第-2-步-安装-filesystem-offloader"></a><a href="#第-2-步-安装-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 2 步: 安装 filesystem offloader</h3>
+<p>更多详细信息，请参阅 <a href="#installation">安装</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader"></a><a href="#第-3-步-配置-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader</h3>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置 filesystem offloader 驱动程序，并在<strong>单机（Standalone）</strong>模式下运行 Pulsar。</p>
+<p>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemURI</span>=hdfs://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">9000</span><br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>为测试目的，您可以设置以下两个配置来加速 ledger 切换， 但不建议在生产环境中设置它们。</p>
+</blockquote>
+<pre><code class="hljs"><span class="hljs-attr">managedLedgerMinLedgerRolloverTimeMinutes</span>=<span class="hljs-number">1</span><br /><span class="hljs-attr">managedLedgerMaxEntriesPerLedger</span>=<span class="hljs-number">100</span><br /></code></pre>
+</span></div></div><div id="tab-group-38977-content-38979" class="tab-pane" data-group="group_38977" tabindex="-1"><div><span><blockquote>
+<p><strong>Note</strong></p>
+<p>在本节中，假定您已启用 NFS 服务并设置 NFS 服务的共享路径。 在本节中， <code>/Users/test</code> 被用作 NFS 服务的共享路径。</p>
+</blockquote>
+<p>要将数据卸载到 NFS，请执行以下步骤。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-1-步-安装-filesystem-offloader"></a><a href="#第-1-步-安装-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 1 步: 安装 filesystem offloader</h3>
+<p>更多详细信息，请参阅 <a href="#installation">安装</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-2-步将-nfs-置于本地文件系统"></a><a href="#第-2-步将-nfs-置于本地文件系统" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 2 步：将 NFS 置于本地文件系统</h3>
+<p>此示例将挂载 <em>/Users/pulsar_nfs</em> 到 <em>/Users/test</em>。</p>
+<pre><code class="hljs">mount -e <span class="hljs-number">192.168</span>.0.<span class="hljs-number">103</span><span class="hljs-symbol">:/Users/test/Users/pulsar_nfs</span><br /></code></pre>
+<h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader-驱动程序"></a><a href="#第-3-步-配置-filesystem-offloader-驱动程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader 驱动程序</h3>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置 filesystem offloader 驱动程序，并在<strong>单机（Standalone）</strong>模式下运行 Pulsar。</p>
+<ol>
+<li><p>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre></li>
+<li><p>修改 <em>filesystem_offload_core_site.xml</em>，如下所示。</p>
+<pre><code class="hljs"><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>file:///<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>hadoop.tmp.dir<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>file:///Users/pulsar_nfs<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.file.buffer.size<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>4096<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compress.blocksize<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>1000000<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br /><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compression.type<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>BLOCK<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.map.index.interval<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>128<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /></code></pre></li>
+</ol>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="第-4-步将数据从-bookkeeper-卸载到文件系统"></a><a href="#第-4-步将数据从-bookkeeper-卸载到文件系统" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 4 步：将数据从 BookKeeper 卸载到文件系统</h3>
+<p>在下载 Pulsar tar 包的仓库中执行以下命令。 例如， <code>~/path/to/apache-pulsar-2.5.1</code>。</p>
+<ol>
+<li><p>启动 Pulsar 单机模式。</p>
+<pre><code class="hljs">bin/pulsar standalone -a <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>
+</code></pre></li>
+<li><p>为了确保生成的数据不会立即被删除，建议设置 <a href="https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies">保留策略</a>， 可以是 <strong>大小</strong> 限制或 <strong>时间</strong> 限制。 为保留策略设定的值越大，数据保留的时间越长。</p>
+<pre><code class="hljs"><span class="hljs-string">bin/</span><span class="hljs-string">pulsar-admin </span><span class="hljs-string">namespaces </span><span class="hljs-built_in">set-retention</span> <span class="hljs-string">public/</span><span class="hljs-string">default </span><span class="hljs-built_in">--size</span> <span class="hljs-string">100M </span><span class="hljs-built_in">--time</span> <span class="hljs-string">2d
+</span></code></pre>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>关于 <code>pulsarctl namespaces set-retention options</code> 命令的更多信息，包括参数、描述、默认值和速记方法，参见<a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">这里</a>。</p>
+</blockquote></li>
+<li><p>使用 pulsar-client 生成数据。</p>
+<pre><code class="hljs">bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+</code></pre></li>
+<li><p>卸载操作在触发 ledger 切换后开始。 为了确保卸载数据成功，建议您等待下，直到触发多个 ledger 切换。 在这种情况下，可能需要等待一会。 您可以使用 pulsarctl 检查 ledger 状态。</p>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
+</code></pre>
+<p><strong>输出</strong></p>
+<p>The data of the ledger 696 is not offloaded.</p>
+<pre><code class="hljs">{
+<span class="hljs-attr">"version"</span>: <span class="hljs-number">1</span>,
+<span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
+<span class="hljs-attr">"modificationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.821+08:00"</span>,
+<span class="hljs-attr">"ledgers"</span>: [
+{
+    <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">696</span>,
+    <span class="hljs-attr">"isOffloaded"</span>: <span class="hljs-literal">false</span>
+}
+],
+<span class="hljs-attr">"cursors"</span>: {}
+}
+</code></pre></li>
+<li><p>请稍等，然后向 topic 发送更多消息。</p>
+<pre><code class="hljs">bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+</code></pre></li>
+<li><p>使用 pulsarctl 检查 ledger 状态。</p>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
+</code></pre>
+<p><strong>输出</strong></p>
+<p>Ledger 696 的数据未卸载。</p>
+<pre><code class="hljs">{
+<span class="hljs-attr">"version"</span>: <span class="hljs-number">2</span>,
+<span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
+<span class="hljs-attr">"modificationDate"</span>: <span class="hljs-string">"2020-06-16T21:48:52.288+08:00"</span>,
+<span class="hljs-attr">"ledgers"</span>: [
+{
+    <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">696</span>,
+    <span class="hljs-attr">"entries"</span>: <span class="hljs-number">1001</span>,
+    <span class="hljs-attr">"size"</span>: <span class="hljs-number">81695</span>,
+    <span class="hljs-attr">"isOffloaded"</span>: <span class="hljs-literal">false</span>
+},
+{
+    <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">697</span>,
+    <span class="hljs-attr">"isOffloaded"</span>: <span class="hljs-literal">false</span>
+}
+],
+<span class="hljs-attr">"cursors"</span>: {}
+}
+</code></pre></li>
+<li><p>使用 pulsarctl 手动触发卸载操作。</p>
+<pre><code class="hljs">bin/pulsar-admin topics offload -s <span class="hljs-number">0</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+</code></pre>
+<p><strong>输出</strong></p>
+<p>ledger 中的数据先于 ledge 697 已卸载。</p>
+<pre><code class="hljs"><span class="hljs-comment"># offload info, the ledgers before 697 will be offloaded</span>
+Offload triggered <span class="hljs-keyword">for</span> persistent:<span class="hljs-regexp">//</span>public<span class="hljs-regexp">/default/</span>fs-test3 <span class="hljs-keyword">for</span> messages before <span class="hljs-number">697</span>:<span class="hljs-number">0</span>:-<span class="hljs-number">1</span>
+</code></pre></li>
+<li><p>使用 pulsarctl 检查 ledger 状态。</p>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
+</code></pre>
+<p><strong>输出</strong></p>
+<p>ledger 696 的数据已卸载。</p>
+<pre><code class="hljs">{
+<span class="hljs-attr">"version"</span>: <span class="hljs-number">4</span>,
+<span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
+<span class="hljs-attr">"modificationDate"</span>: <span class="hljs-string">"2020-06-16T21:52:13.25+08:00"</span>,
+<span class="hljs-attr">"ledgers"</span>: [
+{
+    <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">696</span>,
+    <span class="hljs-attr">"entries"</span>: <span class="hljs-number">1001</span>,
+    <span class="hljs-attr">"size"</span>: <span class="hljs-number">81695</span>,
+    <span class="hljs-attr">"isOffloaded"</span>: <span class="hljs-literal">true</span>
+},
+{
+    <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">697</span>,
+    <span class="hljs-attr">"isOffloaded"</span>: <span class="hljs-literal">false</span>
+}
+],
+<span class="hljs-attr">"cursors"</span>: {}
+}
+</code></pre>
+<p>并且 <strong>所用容量</strong> 已经从 4 KB 变成 116.46 KB。</p>
+<p><img src="/docs/assets/FileSystem-8.png" alt=""></p></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/tiered-storage-azure"><span class="function-name-prevnext">Azure BlobStore offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤">步骤</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#配置-filesystem-offloader-driver">配置 filesystem offloader driver</a></li><li><a href="#自动运行-filesystem-offloader">自动运行 filesystem offloader</a></li><li><a href="#手动运行-filesystem-offloader">手动运行 filesystem offloader</a></li></ul></li><li><a href="#教程">教程</a><ul class="toc-headings"><li><a href="#第-1-步准备-hdfs-环境">第 1 步：准备 HDFS 环境</a></li><li><a href="#第-2-步-安装-filesystem-offloader">第 2 步: 安装 filesystem offloader</a></li><li><a href="#第-3-步-配置-filesystem-offloader">第 3 步: 配置 filesystem offloader</a></li><li><a href="#第-1-步-安装-filesystem-offloader">第 1 步: 安装 filesystem offloader</a></li><li><a href="#第-2-步将-nfs-置于本地文件系统">第 2 步：将 NFS 置于本地文件系统</a></li><li><a href="#第-3-步-配置-filesystem-offloader-驱动程序">第 3 步: 配置 filesystem offloader 驱动程序</a></li><li><a href="#第-4-步将数据从-bookkeeper-卸载到文件系统">第 4 步：将数据从 BookKeeper 卸载到文件系统</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

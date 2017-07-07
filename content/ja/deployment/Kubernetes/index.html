@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Kubernetes上でのPulsarのデプロイ</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Kubernetes上でのPulsarのデプロイ</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">Kubernetes</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-kubernetes">Kubernetes</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-kubernetes">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>Kubernetes</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/deployment/Kubernetes/">Kubernetes上でのPulsarのデプロイ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">Google Kubernetes Engine</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-kubernetes-engine">Google Kubernetes Engine</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-google-kubernetes-engine">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>Google Kubernetes Engine</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/deployment/Kubernetes/">Kubernetes上でのPulsarのデプロイ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarは<a href="#google-kubernetes-engine">Google Kubernetes Engine</a>, <a href="https://aws.amazon.com/">Amazon Web Services</a>の管理クラスタ、<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>の<a href="https://kubernetes.io/">Kubernetes</a>クラスタに簡単にデプロイできます。</p>
+
+<p>このガイドのデプロイ方法はKubernetesの<a href="https://kubernetes.io/docs/resources-reference/v1.6/">リソース</a>の<a href="http://yaml.org/">YAML</a>定義に依存しています。<a href="/download">Pulsarパッケージ</a>の<a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><code class="highlighter-rouge">kubernetes</code></a>サブディレクトリは以下のリソース定義を保持します:</p>
+
+<ul>
+  <li>2つの<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>を持つ<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>クラスタ</li>
+  <li>3つのノードを持つ<span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>クラスタ</li>
+  <li>3つの<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>を持つPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span></li>
+  <li><a href="https://prometheus.io/">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, <a href="../../admin/Dashboard">Pulsarダッシュボード</a>からなる監視スタック</li>
+  <li>CLIツール<a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>を用いて管理コマンドを実行できる<a href="https://kubernetes.io/docs/concepts/workloads/pods/pod/">Pod</a></li>
+</ul>
+
+<h2 id="セットアップ">セットアップ</h2>
+
+<p>まず、<a href="/download">ダウンロードページ</a>からソースパッケージをインストールしてください。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    <p>PulsarのバイナリパッケージにはPulsarをKubernetes上にデプロイするために必要なYAMLリソースは<em>含まれない</em>ことに注意してください。</p>
+
+  </div>
+</div>
+
+<p>もしPulsarクラスタのBookie, Broker, ZooKeeperノードの数を変更したい場合は、適切な<a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"><code class="highlighter-rouge">Deployment</code></a>, <a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"><code class="highlighter-rouge">StatefulSet</code></a>リソースの<code class="highlighter-rouge">spec</code>セクション内の<code class="highlighter-rouge">replicas</code>パラメータを編集してください。</p>
+
+<h2 id="google-kubernetes-engine">Google Kubernetes Engine</h2>
+
+<p><a href="https://cloud.google.com/kubernetes-engine">Google Kubernetes Engine</a> (GKE) は<a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE) 内のKubernetesクラスタの作成、管理を自動化します。</p>
+
+<h3 id="前提条件">前提条件</h3>
+
+<p>前提条件として以下が必要です:</p>
+
+<ul>
+  <li><a href="https://cloud.google.com">cloud.google.com</a>にサインアップできるGoogle Cloud Platformアカウント</li>
+  <li>既存のCloud Platformプロジェクト</li>
+  <li><a href="https://cloud.google.com/sdk/downloads">Google Cloud SDK</a> (特に<a href="https://cloud.google.com/sdk/gcloud/"><code class="highlighter-rouge">gcloud</code></a>と<code class="highlighter-rouge">kubectl</code>ツール)</li>
+</ul>
+
+<h3 id="新しいkubernetesクラスタの作成">新しいKubernetesクラスタの作成</h3>
+
+<p><code class="highlighter-rouge">gcloud</code>の<a href="https://cloud.google.com/sdk/gcloud/reference/container/clusters/create"><code class="highlighter-rouge">container clusters create</code></a>コマンドを使って、GKEクラスタを作成できます。このコマンドによってクラスタのノード数、ノードのマシンタイプなどを指定できます。</p>
+
+<p>例として、<a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones#available">us-central1-a</a>ゾーンにKubernetesバージョン<a href="https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164">1.6.4</a>のGKEクラスタを作成します。クラスタは<code class="highlighter-rouge">pulsar-gke-cluster</code>と命名し、2つローカルSSDを備えた3つのVMを<a href="https://cloud.google.com/compute/docs/machine-types">n1-standard-8</a>というマシンタイプで起動します。これらのSSDは<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>インスタンスに使用され、1つはBookKeeperの<a href="../../getting-started/ConceptsAndArchitecture#journalストレージ">Journal</a>、もう1つは実際のメッセージデータが保存されます。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters create pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span>n1-standard-8 <span class="se">\</span>
+  <span class="nt">--num-nodes</span><span class="o">=</span>3 <span class="se">\</span>
+  <span class="nt">--local-ssd-count</span><span class="o">=</span>2 <span class="se">\</span>
+  <span class="nt">--cluster-version</span><span class="o">=</span>1.6.4
+</code></pre></div></div>
+
+<p>デフォルトでは、BookieはSSDを備えた全てのマシンで起動します。この例では、全てのマシンが2つのSSDを持ちますが異なるタイプのマシンを後からクラスタに追加することもできます。どのマシンをBookieサーバにするかは<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels">Label</a>を使用してコントロールできます。</p>
+
+<h3 id="ダッシュボード">ダッシュボード</h3>
+
+<p>KubernetesクラスタのCredentialをダウンロードし、クラスタに対するプロキシをオープンすることによって、<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetesダッシュボード</a>でクラスタを監視できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters get-credentials pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--project</span><span class="o">=</span>your-project-name
+<span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
+
+<p>デフォルトでは、プロキシは8001番ポートでオープンされます。ブラウザから<a href="http://localhost:8001/ui">localhost:8001/ui</a>にアクセスすることで、ダッシュボードを利用できます。最初、GKEクラスタは空ですが、Pulsar<a href="#Pulsarコンポーネントのデプロイ">コンポーネント</a>をデプロイすることによって変更されます。</p>
+
+<h2 id="amazon-web-services">Amazon Web Services</h2>
+
+<p><a href="https://aws.amazon.com/">Amazon Web Services</a> (AWS) では様々な方法でKubernetesを利用できます。<a href="https://aws.amazon.com/blogs/compute/kubernetes-clusters-aws-kops/">最近紹介された</a>非常にシンプルな方法は、<a href="https://github.com/kubernetes/kops">Kubernetes Operations</a> (kops) ツールを利用するものです。</p>
+
+<p>AWSでKubernetesクラスタをセットアップするための詳細な説明は<a href="https://github.com/kubernetes/kops/blob/master/docs/aws.md">こちら</a>です。</p>
+
+<p>この説明を用いてクラスタを作成した時、<code class="highlighter-rouge">~/.kube/config</code> (MacOS, Linuxの場合) にある<code class="highlighter-rouge">kubectl</code>の設定ファイルは、恐らく変更しなくても良いようにアップデートされます。クラスタ内のノードのリストを表示する事によって、<code class="highlighter-rouge">kubectl</code>がクラスタに接続できるかを確認できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">kubectl</code>がクラスタで機能していれば、<a href="#Pulsarコンポーネントのデプロイ">Pulsarコンポーネントのデプロイ</a>に進むことができます。</p>
+
+<h2 id="カスタムkubernetesクラスタ">カスタムKubernetesクラスタ</h2>
+
+<p>Pulsarは独自のGKEではないKubernetesクラスタに対してもデプロイできます。要件を満たすKubernetesのインストール方法の選択方法についての詳細なドキュメントは、Kubernetesドキュメントの<a href="https://kubernetes.io/docs/setup/pick-right-solution">適切なソリューションの選択</a>をご確認ください。</p>
+
+<h3 id="ローカルクラスタ">ローカルクラスタ</h3>
+
+<p>Kubernetesクラスタを立ち上げる最も簡単な方法は、ローカルで行うことです。ローカルVMでテスト目的で小さなローカルクラスタをインストールするために、次のいずれかを選択できます:</p>
+
+<ol>
+  <li>シングルノードのKubernetesクラスタを立ち上げるために<a href="https://kubernetes.io/docs/getting-started-guides/minikube/">minikube</a>を使う</li>
+  <li>同じマシン上で複数のVMを立ち上げてローカルクラスタを作成する</li>
+</ol>
+
+<p>2つ目の選択肢については、<a href="https://www.vagrantup.com/">Vagrant</a>上の<a href="https://coreos.com/">CoreOS</a>を使ったKubernetesの立ち上げの<a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">説明</a>を見てください。ここではこの説明の概要を示します。</p>
+
+<p>まず、<a href="https://www.vagrantup.com/downloads.html">Vagrant</a>と<a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a>がインストールされていることを確認してください。そして、リポジトリをクローンしクラスタをスタートしてください。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
+<span class="nv">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
+
+<span class="c"># 3つのVMのクラスタを起動</span>
+<span class="nv">$ NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
+</code></pre></div></div>
+
+<p>Create SSD disk mount points on the VMs using this script:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03<span class="p">;</span> <span class="k">do
+    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
+    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
+  <span class="k">done</span>
+</code></pre></div></div>
+
+<p><span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>には<a href="../../getting-started/ConceptsAndArchitecture#journalストレージ">Journal</a>と永続メッセージストレージのために、2つの論理デバイスがマウントされることが想定されています。このVMの例では、それぞれのVMに2つのディレクトリを作成します。</p>
+
+<p>クラスタが起動したら、<code class="highlighter-rouge">kubectl</code>がアクセスできるか確認できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
+NAME           STATUS                     AGE       VERSION
+172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
+172.17.8.102   Ready                      8m        v1.6.4
+172.17.8.103   Ready                      6m        v1.6.4
+172.17.8.104   Ready                      4m        v1.6.4
+</code></pre></div></div>
+
+<h3 id="ダッシュボード-1">ダッシュボード</h3>
+
+<p>まず、ローカルのKubernetesクラスタで<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetesダッシュボード</a>を使うために、<code class="highlighter-rouge">kubectl</code>でクラスタに対するプロキシを作成してください:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
+
+<p>ウェブインターフェースで<a href="http://localhost:8001/ui">localhost:8001/ui</a>にアクセスできます。最初ローカルクラスタは空ですが、Pulsar<a href="#Pulsarコンポーネントのデプロイ">コンポーネント</a>をデプロイすることによって変更されます。</p>
+
+<h2 id="pulsarコンポーネントのデプロイ">Pulsarコンポーネントのデプロイ</h2>
+
+<p>ここまでで、<a href="#google-kubernetes-engine">Google Kubernetes Engine</a>あるいは<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>のいずれかで、Kubernetesクラスタのセットアップが完了しました。Pulsarを構成するコンポーネントをデプロイすることができます。PulsarのコンポーネントのYAMLのリソース定義は<a href="/download">Pulsarソースパッケージ</a>の<code class="highlighter-rouge">kubernetes</code>ディレクトリにあります。</p>
+
+<p>このパッケージでは、2セットのリソース定義があります。1つは<code class="highlighter-rouge">kubernetes/google-container-engine</code>ディレクトリに含まれる、Google Kubernetes Engine (GKE) のためのもの、もう1つは<code class="highlighter-rouge">kubernetes/generic</code>ディレクトリに含まれるカスタムKubernetesクラスタのためのものです。まず、<code class="highlighter-rouge">cd</code>で適切なディレクトリへ移動しましょう。</p>
+
+<h3 id="zookeeper">ZooKeeper</h3>
+
+<p>他のコンポーネントが依存するため、<span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>は<em>必ず</em>最初にデプロイしてください。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> zookeeper.yaml
+</code></pre></div></div>
+
+<p>3つのZooKeeperサーバのPodがアップし、ステータスが<code class="highlighter-rouge">Running</code>になるまでお待ちください。ZooKeeperのPodのステータスはいつでも確認できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods <span class="nt">-l</span> <span class="nv">component</span><span class="o">=</span>zookeeper
+NAME      READY     STATUS             RESTARTS   AGE
+zk-0      1/1       Running            0          18m
+zk-1      1/1       Running            0          17m
+zk-2      0/1       Running            6          15m
+</code></pre></div></div>
+
+<p>KubernetesがVMにDockerイメージをダウンロードする必要があるため、このステップは数分間かかります。</p>
+
+<h4 id="クラスタメタデータの初期化">クラスタメタデータの初期化</h4>
+
+<p>Zookeeperが起動したら、Pulsarクラスタの<a href="../InstanceSetup#クラスタメタデータの初期化">メタデータを初期化</a>する必要があります。これは<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>とPulsarのシステムメタデータが広く含まれています。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl <span class="nb">exec</span> <span class="nt">-it</span> zk-0 <span class="nt">--</span> <span class="se">\</span>
+    bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+      <span class="nt">--cluster</span> us-central <span class="se">\</span>
+      <span class="nt">--zookeeper</span> zookeeper <span class="se">\</span>
+      <span class="nt">--global-zookeeper</span> zookeeper <span class="se">\</span>
+      <span class="nt">--web-service-url</span> http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
+      <span class="nt">--broker-service-url</span> pulsar://broker.default.svc.cluster.local:6650/
+</code></pre></div></div>
+
+<p>必要に応じて、クラスタのメタデータ値を修正してください。</p>
+
+<h4 id="残りのコンポーネントのデプロイ">残りのコンポーネントのデプロイ</h4>
+
+<p>クラスタメタデータが正常に初期化されたら、<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>, <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>, 監視スタック (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, <a href="../../admin/Dashboard">Pulsarダッシュボード</a>) をデプロイできます。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> bookie.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> broker.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> monitoring.yaml
+</code></pre></div></div>
+
+<p>これらのコンポーネントのPodのステータスをKubernetesダッシュボードか<code class="highlighter-rouge">kubectl</code>のいずれかで確認できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods
+</code></pre></div></div>
+
+<h4 id="プロパティとネームスペースのセットアップ">プロパティとネームスペースのセットアップ</h4>
+
+<p>全てのコンポーネントが起動したら、少なくとも1つの<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>と少なくとも1つの<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>を作成する必要があります。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p><a href="../../admin/Authz">認証と認可</a>が有効になっている場合、このステップは必ずしも必要ではありませんが、各ネームスペースの<a href="../../admin/PropertiesNamespaces#ネームスペースの管理">ポリシー</a>を後から変更できます。</p>
+
+  </div>
+</div>
+
+<p>プロパティとネームスペースを作成するために、新しく作成したPulsarクラスタのクライアントとして機能する<code class="highlighter-rouge">pulsar-admin</code>のPodに接続してください。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl <span class="nb">exec </span>pulsar-admin <span class="nt">-it</span> <span class="nt">--</span> bash
+</code></pre></div></div>
+
+<p>ここで全ての管理コマンドを実行できます。以下は<code class="highlighter-rouge">prop</code>という名前のプロパティとそのプロパティ下の<code class="highlighter-rouge">prop/us-central/ns</code>という名前のネームスペースを作成するコマンドの例です。</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
+<span class="nb">export </span><span class="nv">MY_NAMESPACE</span><span class="o">=</span>prop/us-central/ns
+
+<span class="c"># 新しいPulsarプロパティの設定</span>
+<span class="nv">$ </span>bin/pulsar-admin properties create <span class="nv">$MY_PROPERTY</span> <span class="se">\</span>
+  <span class="nt">--admin-roles</span> admin <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-central
+
+<span class="c"># 4のBrokerを横断しうるネームスペースの作成</span>
+<span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nv">$MY_NAMESPACE</span>
+</code></pre></div></div>
+
+<h4 id="作成したクラスタでの実験">作成したクラスタでの実験</h4>
+
+<p>プロパティとネームスペースが作成されたので、起動したPulsarクラスタで実験を始められます。例えば、これまでと同じ<code class="highlighter-rouge">pulsar-admin</code> Podから<a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a>コマンドを使って、作成した<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>と<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>内のトピックに秒間10,000のメッセージを発行するテスト<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>を作成できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--rate</span> 10000
+</code></pre></div></div>
+
+<p>同様に、トピックを購読して全てのメッセージを受信するための<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>を起動できます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--subscriber-name</span> my-subscription-name
+</code></pre></div></div>
+
+<p><a href="../../reference/CliTools#pulsar-admin-persistent-stats"><code class="highlighter-rouge">pulsar-admin</code></a>ツールを使って、トピックに対する<a href="../../admin/Stats">統計情報</a>を閲覧することもできます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+</code></pre></div></div>
+
+<h3 id="監視">監視</h3>
+
+<p>Kubernetes上のPulsarのデフォルトの監視スタックは<a href="#prometheus">Prometheus</a>, <a href="#grafana">Grafana</a>, <a href="../../admin/Dashboard">Pulsarダッシュボード</a>で構成されます。</p>
+
+<h4 id="prometheus">Prometheus</h4>
+
+<p>Kubernetes内の全てのPulsarのメトリクスはクラスタ内部で起動している<a href="https://prometheus.io">Prometheus</a>インスタンスで収集されます。通常、Prometheusに直接アクセスする必要はありません。代わりに、Prometheusに保存されたデータを表示する<a href="#grafana">Grafanaインターフェース</a>を使用できます。</p>
+
+<h4 id="grafana">Grafana</h4>
+
+<p>Kubernetesクラスタ内で、Pulsarの<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span> (メッセージレート、レイテンシ、ストレージ)、JVMの統計情報、 <span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>、<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>のためのダッシュボードを閲覧するために<a href="https://grafana.com">Grafana</a>を使用できます。<code class="highlighter-rouge">kubectl</code>の<a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a>コマンドを使ってGrafanaを提供するPodへのアクセス権を得られます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | <span class="nb">grep </span>grafana | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="k">)</span> 3000
+</code></pre></div></div>
+
+<p><a href="http://localhost:3000">localhost:3000</a>でウェブブラウザからダッシュボードにアクセスできます。</p>
+
+<h4 id="pulsarダッシュボード">Pulsarダッシュボード</h4>
+
+<p>GrafanaとPrometheusはヒストリカルデータのグラフの提供に使用されますが、<a href="../../admin/Dashboard">Pulsarダッシュボード</a>は各<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対する現在のデータの詳細をレポートします。</p>
+
+<p>例えば、全てのネームスペース、トピック、Brokerの統計情報のソート可能なテーブル、ConsumerのIPアドレスや接続時間などの詳細なデータが利用可能です。</p>
+
+<p><code class="highlighter-rouge">kubectl</code>の<a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a>コマンドを使ってPulsarダッシュボードを提供するPodへのアクセス権を得られます:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | <span class="nb">grep </span>pulsar-dashboard | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="k">)</span> 8080:80
+</code></pre></div></div>
+
+<p><a href="http://localhost:8080">localhost:8080</a>でウェブブラウザからPulsarダッシュボードにアクセスできます。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Kubernetes上でのPulsarのデプロイ</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

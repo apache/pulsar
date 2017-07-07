@@ -1,0 +1,754 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/reference-metrics">English</a></li><li><a href="/docs/ja/2.8.3/reference-metrics">日本語</a></li><li><a href="/docs/fr/2.8.3/reference-metrics">Français</a></li><li><a href="/docs/ko/2.8.3/reference-metrics">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/reference-metrics">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Reference</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Metrics</h1></header><article><div><span><style type="text/css">
+  table{
+    font-size: 80%;
+  }
+</style>
+<p>Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.</p>
+<ul>
+<li><a href="#zookeeper">ZooKeeper</a></li>
+<li><a href="#bookkeeper">BookKeeper</a></li>
+<li><a href="#broker">Broker</a></li>
+<li><a href="#pulsar-functions">Pulsar Functions</a></li>
+<li><a href="#proxy">Proxy</a></li>
+<li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
+<li><a href="#pulsar-transaction">Pulsar transaction</a></li>
+</ul>
+<p>The following types of metrics are available:</p>
+<ul>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: a cumulative metric that represents a single monotonically increasing counter. The value increases by default. You can reset the value to zero or restart your cluster.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: a metric that represents a single numerical value that can arbitrarily go up and down.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets. The <code>_bucket</code> suffix is the number of observations within a histogram bucket, configured with parameter <code>{le=&quot;&lt;upper inclusive bound&gt;&quot;}</code>. The <code>_count</code> suffix is the number of observations, shown as a time series and behaves like a counter. The <code>_sum</code> suffix is the sum of observed values, also shown as a time series and behaves like a counter. These suffixes are together denoted by <code>_*</code> in this doc.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
+<p>The ZooKeeper metrics are exposed under &quot;/metrics&quot; at port <code>8000</code>. You can use a different port by configuring the <code>metricsProvider.httpPort</code> in conf/zookeeper.conf.</p>
+<p>ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer <a href="https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html">ZooKeeper Monitor Guide</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
+<p>The BookKeeper metrics are exposed under &quot;/metrics&quot; at port <code>8000</code>. You can change the port by updating <code>prometheusStatsHttpPort</code> in the <code>bookkeeper.conf</code> configuration file.</p>
+<h3><a class="anchor" aria-hidden="true" id="server-metrics"></a><a href="#server-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Server metrics</h3>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_SERVER_STATUS</td><td>Gauge</td><td>The server status for bookie server. <br><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul></td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_count</td><td>Counter</td><td>The total number of ADD_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_count</td><td>Counter</td><td>The total number of READ_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookie_WRITE_BYTES</td><td>Counter</td><td>The total number of bytes written to the bookie.</td></tr>
+<tr><td>bookie_READ_BYTES</td><td>Counter</td><td>The total number of bytes read from the bookie.</td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_REQUEST</td><td>總結</td><td>The summary of request latency of ADD_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_REQUEST</td><td>總結</td><td>The summary of request latency of READ_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="journal-metrics"></a><a href="#journal-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Journal metrics</h3>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_journal_JOURNAL_SYNC_count</td><td>Counter</td><td>The total number of journal fsync operations happening at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookie_journal_JOURNAL_QUEUE_SIZE</td><td>Gauge</td><td>The total number of requests pending in the journal queue.</td></tr>
+<tr><td>bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE</td><td>Gauge</td><td>The total number of force write (fsync) requests pending in the force-write queue.</td></tr>
+<tr><td>bookie_journal_JOURNAL_CB_QUEUE_SIZE</td><td>Gauge</td><td>The total number of callbacks pending in the callback queue.</td></tr>
+<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>總結</td><td>The summary of request latency of adding entries to the journal.</td></tr>
+<tr><td>bookie_journal_JOURNAL_SYNC</td><td>總結</td><td>The summary of fsync latency of syncing data to the journal disk.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="storage-metrics"></a><a href="#storage-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Storage metrics</h3>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_ledgers_count</td><td>Gauge</td><td>The total number of ledgers stored in the bookie.</td></tr>
+<tr><td>bookie_entries_count</td><td>Gauge</td><td>The total number of entries stored in the bookie.</td></tr>
+<tr><td>bookie_write_cache_size</td><td>Gauge</td><td>The bookie write cache size (in bytes).</td></tr>
+<tr><td>bookie_read_cache_size</td><td>Gauge</td><td>The bookie read cache size (in bytes).</td></tr>
+<tr><td>bookie_DELETED_LEDGER_COUNT</td><td>Counter</td><td>The total number of ledgers deleted since the bookie has started.</td></tr>
+<tr><td>bookie_ledger_writable_dirs</td><td>Gauge</td><td>The number of writable directories in the bookie.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<p>The broker metrics are exposed under &quot;/metrics&quot; at port <code>8080</code>. You can change the port by updating <code>webServicePort</code> to a different port in the <code>broker.conf</code> configuration file.</p>
+<p>All the metrics exposed by a broker are labelled with <code>cluster=${pulsar_cluster}</code>. The name of Pulsar cluster is the value of <code>${pulsar_cluster}</code>, which you have configured in the <code>broker.conf</code> file.</p>
+<p>The following metrics are available for broker:</p>
+<ul>
+<li><a href="#zookeeper">ZooKeeper</a>
+<ul>
+<li><a href="#server-metrics">Server metrics</a></li>
+<li><a href="#request-metrics">Request metrics</a></li>
+</ul></li>
+<li><a href="#bookkeeper">BookKeeper</a>
+<ul>
+<li><a href="#server-metrics-1">Server metrics</a></li>
+<li><a href="#journal-metrics">Journal metrics</a></li>
+<li><a href="#storage-metrics">Storage metrics</a></li>
+</ul></li>
+<li><a href="#broker">Broker</a>
+<ul>
+<li><a href="#namespace-metrics">Namespace metrics</a>
+<ul>
+<li><a href="#replication-metrics">Replication metrics</a></li>
+</ul></li>
+<li><a href="#topic-metrics">Topic metrics</a>
+<ul>
+<li><a href="#replication-metrics-1">Replication metrics</a></li>
+</ul></li>
+<li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li>
+<li><a href="#managedledger-metrics">ManagedLedger metrics</a></li>
+<li><a href="#loadbalancing-metrics">LoadBalancing metrics</a>
+<ul>
+<li><a href="#bundleunloading-metrics">BundleUnloading metrics</a></li>
+<li><a href="#bundlesplit-metrics">BundleSplit metrics</a></li>
+</ul></li>
+<li><a href="#subscription-metrics">Subscription metrics</a></li>
+<li><a href="#consumer-metrics">Consumer metrics</a></li>
+<li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li>
+<li><a href="#token-metrics">Token metrics</a></li>
+<li><a href="#authentication-metrics">Authentication metrics</a></li>
+<li><a href="#connection-metrics">Connection metrics</a></li>
+<li><a href="#jetty-metrics">Jetty metrics</a></li>
+</ul></li>
+<li><a href="#pulsar-functions">Pulsar Functions</a></li>
+<li><a href="#proxy">Proxy</a></li>
+<li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
+<li><a href="#pulsar-transaction">Pulsar transaction</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="namespace-metrics"></a><a href="#namespace-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace metrics</h3>
+<blockquote>
+<p>Namespace metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to <code>false</code>.</p>
+</blockquote>
+<p>All the namespace metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_topics_count</td><td>Gauge</td><td>The number of Pulsar topics of the namespace owned by this broker.</td></tr>
+<tr><td>pulsar_subscriptions_count</td><td>Gauge</td><td>The number of Pulsar subscriptions of the namespace served by this broker.</td></tr>
+<tr><td>pulsar_producers_count</td><td>Gauge</td><td>The number of active producers of the namespace connected to this broker.</td></tr>
+<tr><td>pulsar_consumers_count</td><td>Gauge</td><td>The number of active consumers of the namespace connected to this broker.</td></tr>
+<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the namespace coming into this broker (messages/second).</td></tr>
+<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the namespace going out from this broker (messages/second).</td></tr>
+<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace coming into this broker (bytes/second).</td></tr>
+<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace going out from this broker (bytes/second).</td></tr>
+<tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this namespace owned by this broker (bytes).</td></tr>
+<tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this namespace owned by this broker (messages).</td></tr>
+<tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this namespace offloaded to the tiered storage (bytes).</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this namespace (message batches / second).</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this namespace (message batches / second).</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="replication-metrics"></a><a href="#replication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
+<p>If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
+<p>All the replication metrics are also labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the namespace replicating from remote cluster (messages/second).</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the namespace replicating to remote cluster (messages/second).</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace replicating from remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace replicating to remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the namespace replicating to remote cluster (messages).</td></tr>
+<tr><td>pulsar_replication_rate_expired</td><td>Gauge</td><td>Total rate of messages expired (messages/second).</td></tr>
+<tr><td>pulsar_replication_connected_count</td><td>Gauge</td><td>The count of replication-subscriber up and running to replicate to remote cluster.</td></tr>
+<tr><td>pulsar_replication_delay_in_seconds</td><td>Gauge</td><td>Time in seconds from the time a message was produced to the time when it is about to be replicated.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="topic-metrics"></a><a href="#topic-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topic metrics</h3>
+<blockquote>
+<p>Topic metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to <code>true</code>.</p>
+</blockquote>
+<p>All the topic metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_subscriptions_count</td><td>Gauge</td><td>The number of Pulsar subscriptions of the topic served by this broker.</td></tr>
+<tr><td>pulsar_producers_count</td><td>Gauge</td><td>The number of active producers of the topic connected to this broker.</td></tr>
+<tr><td>pulsar_consumers_count</td><td>Gauge</td><td>The number of active consumers of the topic connected to this broker.</td></tr>
+<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the topic coming into this broker (messages/second).</td></tr>
+<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the topic going out from this broker (messages/second).</td></tr>
+<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the topic coming into this broker (bytes/second).</td></tr>
+<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the topic going out from this broker (bytes/second).</td></tr>
+<tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this topic owned by this broker (bytes).</td></tr>
+<tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this topic owned by this broker (messages).</td></tr>
+<tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this topic offloaded to the tiered storage (bytes).</td></tr>
+<tr><td>pulsar_storage_backlog_quota_limit</td><td>Gauge</td><td>The total amount of the data in this topic that limit the backlog quota (bytes).</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this topic (message batches / second).</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this topic (message batches / second).</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+<tr><td>pulsar_in_bytes_total</td><td>Counter</td><td>The total number of messages in bytes received for this topic.</td></tr>
+<tr><td>pulsar_in_messages_total</td><td>Counter</td><td>The total number of messages received for this topic.</td></tr>
+<tr><td>pulsar_out_bytes_total</td><td>Counter</td><td>The total number of messages in bytes read from this topic.</td></tr>
+<tr><td>pulsar_out_messages_total</td><td>Counter</td><td>The total number of messages read from this topic.</td></tr>
+<tr><td>pulsar_compaction_removed_event_count</td><td>Gauge</td><td>The total number of removed events of the compaction.</td></tr>
+<tr><td>pulsar_compaction_succeed_count</td><td>Gauge</td><td>The total number of successes of the compaction.</td></tr>
+<tr><td>pulsar_compaction_failed_count</td><td>Gauge</td><td>The total number of failures of the compaction.</td></tr>
+<tr><td>pulsar_compaction_duration_time_in_mills</td><td>Gauge</td><td>The duration time of the compaction.</td></tr>
+<tr><td>pulsar_compaction_read_throughput</td><td>Gauge</td><td>The read throughput of the compaction.</td></tr>
+<tr><td>pulsar_compaction_write_throughput</td><td>Gauge</td><td>The write throughput of the compaction.</td></tr>
+<tr><td>pulsar_compaction_latency_le_*</td><td>Histogram</td><td>The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_compaction_latency_le_1: &lt;= 1ms</li><li>pulsar_compaction_latency_le_5: &lt;= 5ms</li><li>pulsar_compaction_latency_le_10: &lt;= 10ms</li><li>pulsar_compaction_latency_le_20: &lt;= 20ms</li><li>pulsar_compaction_latency_le_50: &lt;= 50ms</li><li>pulsar_compaction_latency_le_100: &lt;= 100ms</li><li>pulsar_compaction_latency_le_200: &lt;= 200ms</li><li>pulsar_compaction_latency_le_1000: &lt;= 1s</li><li>pulsar_compaction_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_compaction_compacted_entries_count</td><td>Gauge</td><td>The total number of the compacted entries.</td></tr>
+<tr><td>pulsar_compaction_compacted_entries_size</td><td>Gauge</td><td>The total size of the compacted entries.</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="replication-metrics-1"></a><a href="#replication-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
+<p>If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
+<p>All the replication metrics are labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the topic replicating from remote cluster (messages/second).</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the topic replicating to remote cluster (messages/second).</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the topic replicating from remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the topic replicating to remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the topic replicating to remote cluster (messages).</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managedledgercache-metrics"></a><a href="#managedledgercache-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedgerCache metrics</h3>
+<p>All the ManagedLedgerCache metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_cache_evictions</td><td>Gauge</td><td>The number of cache evictions during the last minute.</td></tr>
+<tr><td>pulsar_ml_cache_hits_rate</td><td>Gauge</td><td>The number of cache hits per second.</td></tr>
+<tr><td>pulsar_ml_cache_hits_throughput</td><td>Gauge</td><td>The amount of data is retrieved from the cache in byte/s</td></tr>
+<tr><td>pulsar_ml_cache_misses_rate</td><td>Gauge</td><td>The number of cache misses per second</td></tr>
+<tr><td>pulsar_ml_cache_misses_throughput</td><td>Gauge</td><td>The amount of data is retrieved from the cache in byte/s</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations</td><td>Gauge</td><td>The number of currently active allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_huge</td><td>Gauge</td><td>The number of currently active huge allocation in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_normal</td><td>Gauge</td><td>The number of currently active normal allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_small</td><td>Gauge</td><td>The number of currently active small allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_tiny</td><td>Gauge</td><td>The number of currently active tiny allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_allocated</td><td>Gauge</td><td>The total allocated memory of chunk lists in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_used</td><td>Gauge</td><td>The total used memory of chunk lists in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_used_size</td><td>Gauge</td><td>The size in byte used to store the entries payloads</td></tr>
+<tr><td>pulsar_ml_count</td><td>Gauge</td><td>The number of currently opened managed ledgers</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managedledger-metrics"></a><a href="#managedledger-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedger metrics</h3>
+<p>All the managedLedger metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li>namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.</li>
+<li>quantile: quantile=${quantile}. Quantile is only for <code>Histogram</code> type metric, and represents the threshold for given Buckets.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_AddEntryBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages added</td></tr>
+<tr><td>pulsar_ml_AddEntryErrors</td><td>Gauge</td><td>The number of addEntry requests that failed</td></tr>
+<tr><td>pulsar_ml_AddEntryLatencyBuckets</td><td>Histogram</td><td>The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side<br> Available quantile: <br><ul><li> quantile=&quot;0.0_0.5&quot; is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile=&quot;0.5_1.0&quot; is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile=&quot;1.0_5.0&quot; is AddEntryLatency between (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; is AddEntryLatency between (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; is AddEntryLatency between (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; is AddEntryLatency between (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; is AddEntryLatency between (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; is AddEntryLatency between (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; is AddEntryLatency between (200ms, 1s]</li></ul></td></tr>
+<tr><td>pulsar_ml_AddEntryLatencyBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the AddEntryLatency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_AddEntryMessagesRate</td><td>Gauge</td><td>The msg/s rate of messages added</td></tr>
+<tr><td>pulsar_ml_AddEntrySucceed</td><td>Gauge</td><td>The number of addEntry requests that succeeded</td></tr>
+<tr><td>pulsar_ml_EntrySizeBuckets</td><td>Histogram</td><td>The added entry size of a ledger with a given quantile.<br> Available quantile: <br><ul><li>quantile=&quot;0.0_128.0&quot; is EntrySize between (0byte, 128byte]</li><li>quantile=&quot;128.0_512.0&quot; is EntrySize between (128byte, 512byte]</li><li>quantile=&quot;512.0_1024.0&quot; is EntrySize between (512byte, 1KB]</li><li>quantile=&quot;1024.0_2048.0&quot; is EntrySize between (1KB, 2KB]</li><li>quantile=&quot;2048.0_4096.0&quot; is EntrySize between (2KB, 4KB]</li><li>quantile=&quot;4096.0_16384.0&quot; is EntrySize between (4KB, 16KB]</li><li>quantile=&quot;16384.0_102400.0&quot; is EntrySize between (16KB, 100KB]</li><li>quantile=&quot;102400.0_1232896.0&quot; is EntrySize between (100KB, 1MB]</li></ul></td></tr>
+<tr><td>pulsar_ml_EntrySizeBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the EntrySize is larger than 1MB</td></tr>
+<tr><td>pulsar_ml_LedgerSwitchLatencyBuckets</td><td>Histogram</td><td>The ledger switch latency with a given quantile. <br> Available quantile: <br><ul><li>quantile=&quot;0.0_0.5&quot; is EntrySize between (0ms, 0.5ms]</li><li>quantile=&quot;0.5_1.0&quot; is EntrySize between (0.5ms, 1ms]</li><li>quantile=&quot;1.0_5.0&quot; is EntrySize between (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; is EntrySize between (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; is EntrySize between (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; is EntrySize between (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; is EntrySize between (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; is EntrySize between (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; is EntrySize between (200ms, 1000ms]</li></ul></td></tr>
+<tr><td>pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the ledger switch latency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_LedgerAddEntryLatencyBuckets</td><td>Histogram</td><td>The latency for bookie client to persist a ledger entry from broker to BookKeeper service with a given quantile (threshold). <br /> Available quantile: <br /><ul><li> quantile=&quot;0.0_0.5&quot; is LedgerAddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile=&quot;0.5_1.0&quot; is LedgerAddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile=&quot;1.0_5.0&quot; is LedgerAddEntryLatency between (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; is LedgerAddEntryLatency between (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; is LedgerAddEntryLatency between (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; is LedgerAddEntryLatency between (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; is LedgerAddEntryLatency between (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; is LedgerAddEntryLatency between (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; is LedgerAddEntryLatency between (200ms, 1s]</li></ul></td></tr>
+<tr><td>pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the LedgerAddEntryLatency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_MarkDeleteRate</td><td>Gauge</td><td>The rate of mark-delete ops/s</td></tr>
+<tr><td>pulsar_ml_NumberOfMessagesInBacklog</td><td>Gauge</td><td>The number of backlog messages for all the consumers</td></tr>
+<tr><td>pulsar_ml_ReadEntriesBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages read</td></tr>
+<tr><td>pulsar_ml_ReadEntriesErrors</td><td>Gauge</td><td>The number of readEntries requests that failed</td></tr>
+<tr><td>pulsar_ml_ReadEntriesRate</td><td>Gauge</td><td>The msg/s rate of messages read</td></tr>
+<tr><td>pulsar_ml_ReadEntriesSucceeded</td><td>Gauge</td><td>The number of readEntries requests that succeeded</td></tr>
+<tr><td>pulsar_ml_StoredMessagesSize</td><td>Gauge</td><td>The total size of the messages in active ledgers (accounting for the multiple copies stored)</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managed-cursor-acknowledgment-state"></a><a href="#managed-cursor-acknowledgment-state" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed cursor acknowledgment state</h3>
+<p>The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgment, you can configure the metrics for the managed cursor.</p>
+<p>All the cursor acknowledgment state metrics are labelled with the following labels:</p>
+<ul>
+<li><p>namespace: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</p></li>
+<li><p>ledger_name: <code>ledger_name=${pulsar_ledger_name}</code>. <code>${pulsar_ledger_name}</code> is the ledger name.</p></li>
+<li><p>cursor_name: <code>ledger_name=${pulsar_cursor_name}</code>. <code>${pulsar_cursor_name}</code> is the cursor name.</p></li>
+</ul>
+<p>Name    |Type   |Description |---|---|--- brk_ml_cursor_persistLedgerSucceed(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of acknowledgment states that is persistent to a ledger.| brk_ml_cursor_persistLedgerErrors(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.| brk_ml_cursor_persistZookeeperSucceed(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of acknowledgment states that is persistent to ZooKeeper. brk_ml_cursor_persistZookeeperErrors(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper. brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of non-contiguous deleted messages ranges.</p>
+<h3><a class="anchor" aria-hidden="true" id="loadbalancing-metrics"></a><a href="#loadbalancing-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LoadBalancing metrics</h3>
+<p>All the loadbalancing metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li>broker: broker=${broker}. ${broker} is the IP address of the broker</li>
+<li>metric: metric=&quot;loadBalancing&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bandwidth_in_usage</td><td>Gauge</td><td>The broker inbound bandwith usage (in percent).</td></tr>
+<tr><td>pulsar_lb_bandwidth_out_usage</td><td>Gauge</td><td>The broker outbound bandwith usage (in percent).</td></tr>
+<tr><td>pulsar_lb_cpu_usage</td><td>Gauge</td><td>The broker cpu usage (in percent).</td></tr>
+<tr><td>pulsar_lb_directMemory_usage</td><td>Gauge</td><td>The broker process direct memory usage (in percent).</td></tr>
+<tr><td>pulsar_lb_memory_usage</td><td>Gauge</td><td>The broker process memory usage (in percent).</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundleunloading-metrics"></a><a href="#bundleunloading-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleUnloading metrics</h4>
+<p>All the bundleUnloading metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li>metric: metric=&quot;bundleUnloading&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_unload_broker_count</td><td>Counter</td><td>Unload broker count in this bundle unloading</td></tr>
+<tr><td>pulsar_lb_unload_bundle_count</td><td>Counter</td><td>Bundle unload count in this bundle unloading</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundlesplit-metrics"></a><a href="#bundlesplit-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleSplit metrics</h4>
+<p>All the bundleUnloading metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li>metric: metric=&quot;bundlesSplit&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bundles_split_count</td><td>Counter</td><td>bundle split count in this bundle splitting check interval</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="subscription-metrics"></a><a href="#subscription-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription metrics</h3>
+<blockquote>
+<p>Subscription metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to <code>true</code>.</p>
+</blockquote>
+<p>All the subscription metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
+<li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_subscription_back_log</td><td>Gauge</td><td>The total backlog of a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total number of messages are delayed to be dispatched for a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_subscription_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_subscription_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a subscription (messages/second).</td></tr>
+<tr><td>pulsar_subscription_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a subscription (bytes/second).</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consumer-metrics"></a><a href="#consumer-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer metrics</h3>
+<blockquote>
+<p>Consumer metrics are only exposed when both <code>exposeTopicLevelMetricsInPrometheus</code> and <code>exposeConsumerLevelMetricsInPrometheus</code> are set to <code>true</code>.</p>
+</blockquote>
+<p>All the consumer metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
+<li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
+<li><em>consumer_name</em>: <code>consumer_name=${consumer_name}</code>. <code>${consumer_name}</code> is the topic consumer name.</li>
+<li><em>consumer_id</em>: <code>consumer_id=${consumer_id}</code>. <code>${consumer_id}</code> is the topic consumer id.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_consumer_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_consumer_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
+<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_consumer_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a consumer (messages/second).</td></tr>
+<tr><td>pulsar_consumer_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a consumer (bytes/second).</td></tr>
+<tr><td>pulsar_consumer_available_permits</td><td>Gauge</td><td>The available permits for for a consumer.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managed-ledger-bookie-client-metrics"></a><a href="#managed-ledger-bookie-client-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed ledger bookie client metrics</h3>
+<p>All the managed ledger bookie client metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_*</td><td>Gauge</td><td>The number of tasks the scheduler executor execute completed. <br>The number of metrics determined by the scheduler executor thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>. <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_*</td><td>Gauge</td><td>The number of tasks queued in the scheduler executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>. <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_*</td><td>Gauge</td><td>The total number of tasks the scheduler executor received. <br>The number of metrics determined by scheduler executor's thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>. <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution</td><td>總結</td><td>The scheduler task execution latency calculated in milliseconds.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued</td><td>總結</td><td>The scheduler task queued latency calculated in milliseconds.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="token-metrics"></a><a href="#token-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Token metrics</h3>
+<p>All the token metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_expired_token_count</td><td>Counter</td><td>The number of expired tokens in Pulsar.</td></tr>
+<tr><td>pulsar_expiring_token_minutes</td><td>Histogram</td><td>The remaining time of expiring tokens in minutes.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="authentication-metrics"></a><a href="#authentication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication metrics</h3>
+<p>All the authentication metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>provider_name</em>: <code>provider_name=${provider_name}</code>. <code>${provider_name}</code> is the class name of the authentication provider.</li>
+<li><em>auth_method</em>: <code>auth_method=${auth_method}</code>. <code>${auth_method}</code> is the authentication method of the authentication provider.</li>
+<li><em>reason</em>: <code>reason=${reason}</code>. <code>${reason}</code> is the reason for failing authentication operation. (This label is only for <code>pulsar_authentication_failures_count</code>.)</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_authentication_success_count</td><td>Counter</td><td>The number of successful authentication operations.</td></tr>
+<tr><td>pulsar_authentication_failures_count</td><td>Counter</td><td>The number of failing authentication operations.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="connection-metrics"></a><a href="#connection-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection metrics</h3>
+<p>All the connection metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>broker</em>: <code>broker=${advertised_address}</code>. <code>${advertised_address}</code> is the advertised address of the broker.</li>
+<li><em>metric</em>: <code>metric=${metric}</code>. <code>${metric}</code> is the connection metric collective name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_active_connections</td><td>Gauge</td><td>The number of active connections.</td></tr>
+<tr><td>pulsar_connection_created_total_count</td><td>Gauge</td><td>The total number of connections.</td></tr>
+<tr><td>pulsar_connection_create_success_count</td><td>Gauge</td><td>The number of successfully created connections.</td></tr>
+<tr><td>pulsar_connection_create_fail_count</td><td>Gauge</td><td>The number of failed connections.</td></tr>
+<tr><td>pulsar_connection_closed_total_count</td><td>Gauge</td><td>The total number of closed connections.</td></tr>
+<tr><td>pulsar_broker_throttled_connections</td><td>Gauge</td><td>The number of throttled connections.</td></tr>
+<tr><td>pulsar_broker_throttled_connections_global_limit</td><td>Gauge</td><td>The number of throttled connections because of per-connection limit.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="jetty-metrics"></a><a href="#jetty-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Jetty metrics</h3>
+<blockquote>
+<p>For a functions-worker running separately from brokers, its Jetty metrics are only exposed when <code>includeStandardPrometheusMetrics</code> is set to <code>true</code>.</p>
+</blockquote>
+<p>All the jetty metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>jetty_requests_total</td><td>Counter</td><td>Number of requests.</td></tr>
+<tr><td>jetty_requests_active</td><td>Gauge</td><td>Number of requests currently active.</td></tr>
+<tr><td>jetty_requests_active_max</td><td>Gauge</td><td>Maximum number of requests that have been active at once.</td></tr>
+<tr><td>jetty_request_time_max_seconds</td><td>Gauge</td><td>Maximum time spent handling requests.</td></tr>
+<tr><td>jetty_request_time_seconds_total</td><td>Counter</td><td>Total time spent in all request handling.</td></tr>
+<tr><td>jetty_dispatched_total</td><td>Counter</td><td>Number of dispatches.</td></tr>
+<tr><td>jetty_dispatched_active</td><td>Gauge</td><td>Number of dispatches currently active.</td></tr>
+<tr><td>jetty_dispatched_active_max</td><td>Gauge</td><td>Maximum number of active dispatches being handled.</td></tr>
+<tr><td>jetty_dispatched_time_max</td><td>Gauge</td><td>Maximum time spent in dispatch handling.</td></tr>
+<tr><td>jetty_dispatched_time_seconds_total</td><td>Counter</td><td>Total time spent in dispatch handling.</td></tr>
+<tr><td>jetty_async_requests_total</td><td>Counter</td><td>Total number of async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting</td><td>Gauge</td><td>Currently waiting async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting_max</td><td>Gauge</td><td>Maximum number of waiting async requests.</td></tr>
+<tr><td>jetty_async_dispatches_total</td><td>Counter</td><td>Number of requested that have been asynchronously dispatched.</td></tr>
+<tr><td>jetty_expires_total</td><td>Counter</td><td>Number of async requests requests that have expired.</td></tr>
+<tr><td>jetty_responses_total</td><td>Counter</td><td>Number of responses, labeled by status code. The <code>code</code> label can be &quot;1xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, or &quot;5xx&quot;.</td></tr>
+<tr><td>jetty_stats_seconds</td><td>Gauge</td><td>Time in seconds stats have been collected for.</td></tr>
+<tr><td>jetty_responses_bytes_total</td><td>Counter</td><td>Total number of bytes across all responses.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h2>
+<p>All the Pulsar Functions metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_function_processed_successfully_total</td><td>Counter</td><td>The total number of messages processed successfully.</td></tr>
+<tr><td>pulsar_function_processed_successfully_total_1min</td><td>Counter</td><td>The total number of messages processed successfully in the last 1 minute.</td></tr>
+<tr><td>pulsar_function_system_exceptions_total</td><td>Counter</td><td>The total number of system exceptions.</td></tr>
+<tr><td>pulsar_function_system_exceptions_total_1min</td><td>Counter</td><td>The total number of system exceptions in the last 1 minute.</td></tr>
+<tr><td>pulsar_function_user_exceptions_total</td><td>Counter</td><td>The total number of user exceptions.</td></tr>
+<tr><td>pulsar_function_user_exceptions_total_1min</td><td>Counter</td><td>The total number of user exceptions in the last 1 minute.</td></tr>
+<tr><td>pulsar_function_process_latency_ms</td><td>總結</td><td>The process latency in milliseconds.</td></tr>
+<tr><td>pulsar_function_process_latency_ms_1min</td><td>總結</td><td>The process latency in milliseconds in the last 1 minute.</td></tr>
+<tr><td>pulsar_function_last_invocation</td><td>Gauge</td><td>The timestamp of the last invocation of the function.</td></tr>
+<tr><td>pulsar_function_received_total</td><td>Counter</td><td>The total number of messages received from source.</td></tr>
+<tr><td>pulsar_function_received_total_1min</td><td>Counter</td><td>The total number of messages received from source in the last 1 minute.</td></tr>
+<tr><td>pulsar_function_user_metric_</td><td>Summary</td><td>The user-defined metrics.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="connectors"></a><a href="#connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connectors</h2>
+<p>All the Pulsar connector metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+</ul>
+<p>Connector metrics contain <strong>source</strong> metrics and <strong>sink</strong> metrics.</p>
+<ul>
+<li><p><strong>Source</strong> metrics</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<p>pulsar_source_written_total|Counter|The total number of records written to a Pulsar topic. pulsar_source_written_total_1min|Counter|The total number of records written to a Pulsar topic in the last 1 minute. pulsar_source_received_total|Counter|The total number of records received from source. pulsar_source_received_total_1min|Counter|The total number of records received from source in the last 1 minute. pulsar_source_last_invocation|Gauge|The timestamp of the last invocation of the source. pulsar_source_source_exception|Gauge|The exception from a source. pulsar_source_source_exceptions_total|Counter|The total number of source exceptions. pulsar_source_source_exceptions_total_1min |Counter|The total number of source exceptions in the last 1 minute. pulsar_source_system_exception|Gauge|The exception from system code. pulsar_source_system_exceptions_total|Counter|The total number of system exceptions. pulsar_source_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute. pulsar_source_user_metric_ | Summary|The user-defined metrics.</p>
+<ul>
+<li><p><strong>Sink</strong> metrics</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<p>pulsar_sink_written_total|Counter| The total number of records processed by a sink. pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute. pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute. pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics. pulsar_sink_last_invocation|Gauge|The timestamp of the last invocation of the sink. pulsar_sink_sink_exception|Gauge|The exception from a sink. pulsar_sink_sink_exceptions_total|Counter|The total number of sink exceptions. pulsar_sink_sink_exceptions_total_1min |Counter|The total number of sink exceptions in the last 1 minute. pulsar_sink_system_exception|Gauge|The exception from system code. pulsar_sink_system_exceptions_total|Counter|The total number of system exceptions. pulsar_sink_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute. pulsar_sink_user_metric_ | Summary|The user-defined metrics.</p>
+<h2><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h2>
+<p>All the proxy metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>kubernetes_pod_name</em>: <code>kubernetes_pod_name=${kubernetes_pod_name}</code>. <code>${kubernetes_pod_name}</code> is the kubernetes pod name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_proxy_active_connections</td><td>Gauge</td><td>Number of connections currently active in the proxy.</td></tr>
+<tr><td>pulsar_proxy_new_connections</td><td>Counter</td><td>Counter of connections being opened in the proxy.</td></tr>
+<tr><td>pulsar_proxy_rejected_connections</td><td>Counter</td><td>Counter for connections rejected due to throttling.</td></tr>
+<tr><td>pulsar_proxy_binary_ops</td><td>Counter</td><td>Counter of proxy operations.</td></tr>
+<tr><td>pulsar_proxy_binary_bytes</td><td>Counter</td><td>Counter of proxy bytes.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>split_bytes_read</td><td>Counter</td><td>Number of bytes read from BookKeeper.</td></tr>
+<tr><td>split_num_messages_deserialized</td><td>Counter</td><td>Number of messages deserialized.</td></tr>
+<tr><td>split_num_record_deserialized</td><td>Counter</td><td>Number of records deserialized.</td></tr>
+<tr><td>split_bytes_read_per_query</td><td>總結</td><td>Total number of bytes read per query.</td></tr>
+<tr><td>split_entry_deserialize_time</td><td>總結</td><td>Time spent on derserializing entries.</td></tr>
+<tr><td>split_entry_deserialize_time_per_query</td><td>總結</td><td>Time spent on derserializing entries per query.</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time</td><td>總結</td><td>Time spend on waiting to get entry from entry queue because it is empty.</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time_per_query</td><td>總結</td><td>Total time spent on waiting to get entry from entry queue per query.</td></tr>
+<tr><td>split_message_queue_dequeue_wait_time_per_query</td><td>總結</td><td>Time spent on waiting to dequeue from message queue because is is empty per query.</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time</td><td>總結</td><td>Time spent on waiting for message queue enqueue because the message queue is full.</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time_per_query</td><td>總結</td><td>Time spent on waiting for message queue enqueue because the message queue is full per query.</td></tr>
+<tr><td>split_num_entries_per_batch</td><td>總結</td><td>Number of entries per batch.</td></tr>
+<tr><td>split_num_entries_per_query</td><td>總結</td><td>Number of entries per query.</td></tr>
+<tr><td>split_num_messages_deserialized_per_entry</td><td>總結</td><td>Number of messages deserialized per entry.</td></tr>
+<tr><td>split_num_messages_deserialized_per_query</td><td>總結</td><td>Number of messages deserialized per query.</td></tr>
+<tr><td>split_read_attempts</td><td>總結</td><td>Number of read attempts (fail if queues are full).</td></tr>
+<tr><td>split_read_attempts_per_query</td><td>總結</td><td>Number of read attempts per query.</td></tr>
+<tr><td>split_read_latency_per_batch</td><td>總結</td><td>Latency of reads per batch.</td></tr>
+<tr><td>split_read_latency_per_query</td><td>總結</td><td>Total read latency per query.</td></tr>
+<tr><td>split_record_deserialize_time</td><td>總結</td><td>Time spent on deserializing message to record. For example, Avro, JSON, and so on.</td></tr>
+<tr><td>split_record_deserialize_time_per_query</td><td>總結</td><td>Time spent on deserializing message to record per query.</td></tr>
+<tr><td>split_total_execution_time</td><td>總結</td><td>The total execution time.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-transaction"></a><a href="#pulsar-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar transaction</h2>
+<p>All the transaction metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li><em>coordinator_id</em>: <code>coordinator_id=${coordinator_id}</code>. <code>${coordinator_id}</code> is the coordinator id.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_txn_active_count</td><td>Gauge</td><td>Number of active transactions.</td></tr>
+<tr><td>pulsar_txn_created_count</td><td>Counter</td><td>Number of created transactions.</td></tr>
+<tr><td>pulsar_txn_committed_count</td><td>Counter</td><td>Number of committed transactions.</td></tr>
+<tr><td>pulsar_txn_aborted_count</td><td>Counter</td><td>Number of aborted transactions of this coordinator.</td></tr>
+<tr><td>pulsar_txn_timeout_count</td><td>Counter</td><td>Number of timeout transactions.</td></tr>
+<tr><td>pulsar_txn_append_log_count</td><td>Counter</td><td>Number of append transaction logs.</td></tr>
+<tr><td>pulsar_txn_execution_latency_le_*</td><td>Histogram</td><td>Transaction execution latency. <br> Available latencies are as below: <br><ul><li> latency=&quot;10&quot; is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency=&quot;20&quot; is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency=&quot;50&quot; is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency=&quot;100&quot; is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency=&quot;500&quot; is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency=&quot;1000&quot; is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency=&quot;5000&quot; is TransactionExecutionLatency between (1s, 5s]</li><li>latency=&quot;15000&quot; is TransactionExecutionLatency between (5s, 15s]</li><li>latency=&quot;30000&quot; is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency=&quot;60000&quot; is TransactionExecutionLatency between (30s, 60s]</li><li>latency=&quot;300000&quot; is TransactionExecutionLatency between (1m,5m]</li><li>latency=&quot;1500000&quot; is TransactionExecutionLatency between (5m,15m]</li><li>latency=&quot;3000000&quot; is TransactionExecutionLatency between (15m,30m]</li><li>latency=&quot;overflow&quot; is TransactionExecutionLatency between (30m,∞]</li></ul></td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#managed-cursor-acknowledgment-state">Managed cursor acknowledgment state</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#connection-metrics">Connection metrics</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#connectors">Connectors</a></li><li><a href="#proxy">Proxy</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

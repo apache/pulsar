@@ -1,0 +1,655 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通常情況下，schema 隨著時間的推進會持續地改變。 它們會不斷更新變化，以滿足新的客戶或商業需求。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="通常情況下，schema 隨著時間的推進會持續地改變。 它們會不斷更新變化，以滿足新的客戶或商業需求。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/schema-evolution-compatibility">English</a></li><li><a href="/docs/ja/2.8.3/schema-evolution-compatibility">日本語</a></li><li><a href="/docs/fr/2.8.3/schema-evolution-compatibility">Français</a></li><li><a href="/docs/ko/2.8.3/schema-evolution-compatibility">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Schema</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema evolution and compatibility</h1></header><article><div><span><p>通常情況下，schema 隨著時間的推進會持續地改變。 它們會不斷更新變化，以滿足新的客戶或商業需求。</p>
+<p>本章將探討 Pulsar Schema 如何演化以及 Pulsar Schema 的相容性檢查策略。</p>
+<h2><a class="anchor" aria-hidden="true" id="schema-演化"></a><a href="#schema-演化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 演化</h2>
+<p>Pulsar schema 使用 <code>SchemaInfo</code> 來定義數據結構 。</p>
+<p>存儲在 topic 的 <code>SchemaInfo</code> 都有版本號。 Schema 的版本號用於管理 topic 發生 schema 更改的機制。</p>
+<p>使用 <code>SchemaInfo</code> 生成的信息會隨附標記所使用的 schema 版本號。 當信息被 Pulsar 客戶端消費時， Pulsar 客戶端可以使用 schema 的版本來檢索對應的 <code>SchemaInfo</code> 並使用正確的 schema 信息來反序列化數據。</p>
+<h3><a class="anchor" aria-hidden="true" id="什麼是-schema-演化"></a><a href="#什麼是-schema-演化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>什麼是 Schema 演化?</h3>
+<p>Schema 保存資料型別和屬性的詳細信息。 To satisfy new business requirements,  you need to update schemas inevitably over time, which is called <strong>schema evolution</strong>.</p>
+<p>任何 schema 變化都會影響到下游 consumer。 Schema 演化是要確保下游 consumer 能夠無縫地處理以舊 schema 和新 schema 編碼的數據。</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-schema-會如何因應演化"></a><a href="#pulsar-schema-會如何因應演化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar schema 會如何因應演化？</h3>
+<p>答案就是 Pulsar schema 相容性檢查策略。 它決定了schema 如何與 topic 中的新舊 schema 進行對比。</p>
+<p>欲了解更多信息，請參閱 <a href="#schema-compatibility-check-strategy">Schema 相容性檢查策略</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-是如何支持-schema-演化的"></a><a href="#pulsar-是如何支持-schema-演化的" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 是如何支持 Schema 演化的？</h3>
+<ol>
+<li><p>當 producer/consumer/reader 連接到 broker 時，broker會部署由 <code>schemaRegistryCompatibilityCheckers</code> 配置的 schema 相容性檢查器來執行 schema 相容性檢查。</p>
+<p>這個 schema 兼容性檢查器會對每個 schema 產生一個對應的實例。</p>
+<p>目前 Avro 和 JSON 有自己的相容性檢查器，而其他 schema 類型則共享預設的相容性檢查器來查驗 schema 進化是否合規。</p></li>
+<li><p>Producer/consumer/reader 將其定義的 <code>SchemaInfo</code> 發送給 broker。</p></li>
+<li><p>Broker 知道 schema 類別，並且找到此類別的 schema 兼容性檢查器。</p></li>
+<li><p>Broker 使用己經設定好相容性檢查策略的檢查器來檢查 <code>SchemaInfo</code> 是否與topic裡的最新 schema 相容。</p>
+<p>目前，相容性檢查策略是在命名空間級別配置的，適用於命名空間中的所有 topic。</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="schema-相容性檢查策略"></a><a href="#schema-相容性檢查策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 相容性檢查策略</h2>
+<p>Pulsar 有 8種 schema 相容性檢查策略，摘要見下表。</p>
+<p>假設你有一個包含三個版本 schema  (V1、V2 和 V3) 的 topic，V1 是最舊的，V3 是最新的：</p>
+<table style="table">
+<tr>
+<th>
+<p>相容性檢查策略</p>
+</th>
+<th>
+<p>定義</p>
+</th>
+<th>
+<p>允許更改</p>
+</th>
+<th>
+<p>檢查哪版本 schema</p>
+</th>
+<th>
+<p>升級順序</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td>
+<td> 
+<p>不啟用 schema 相容性檢查。</p>
+</td>
+<td> 
+<p>允許所有更改</p>
+</td>
+<td> 
+<p>所有之前的版本</p>
+</td>
+<td> 
+<p>任何請求</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td>
+<td> 
+<p>不啟用 schema 進化。</p>
+</td>
+<td> 
+<p>所有更改已禁用</p>
+</td>
+<td> 
+<p>None</p>
+</td>
+<td> 
+<p>None</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD</code></p>
+</td>
+<td> 
+<p>使用 schema V3 的 consumer 可以處理 producer 使用 schema V3 或 V2 編寫的數據。</p>
+</td>
+<td> 
+<ul>
+<li><p>添加標註為 optional 的欄位</p></li>
+<li><p>刪除欄位</p></li>
+</ul>
+</td>
+<td> 
+<p>最新版本</p>
+</td>
+<td> 
+<p>Consumers</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>使用 schema V3 的 consumer 可以處理 producer 使用 schema V3、V2 或 V1 編寫的數據。</p>
+</td>
+<td> 
+<ul>
+<li><p>添加標註為 optional 的欄位</p></li>
+<li><p>刪除欄位</p></li>
+</ul>
+</td>
+<td> 
+<p>所有之前的版本</p>
+</td>
+<td> 
+<p>Consumers</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD</code></p>
+</td>
+<td> 
+<p>使用 schema V3 或 V2 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。</p>
+</td>
+<td> 
+<ul>
+<li><p>添加欄位</p></li>
+<li><p>刪除標註為 optional 的欄位</p></li>
+</ul>
+</td>
+<td> 
+<p>最新版本</p>
+</td>
+<td> 
+<p>Producers</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>使用 schema V3、V2 或 V1 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。</p>
+</td>
+<td> 
+<ul>
+<li><p>添加欄位</p></li>
+<li><p>刪除標註為 optional 的欄位</p></li>
+</ul>
+</td>
+<td> 
+<p>所有之前的版本</p>
+</td>
+<td> 
+<p>Producers</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL</code></p>
+</td>
+<td> 
+<p>Schema V3 和 V2 之間向後和向前相容。</p>
+</td>
+<td> 
+<ul>
+<li>可修改標註為 optional 的欄位</li>
+</ul>
+</td>
+<td> 
+<p>最新版本</p>
+</td>
+<td> 
+<p>任何請求</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>Schema V3、V2 和 V1 之間向後和向前相容。</p>
+</td>
+<td> 
+<ul>
+<li>可修改標註為 optional 的欄位</li>
+</ul>
+</td>
+<td> 
+<p>所有之前的版本</p>
+</td>
+<td> 
+<p>任何請求</p>
+</td> 
+</tr>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="always_compatible-與-always_incompatible-注意事項"></a><a href="#always_compatible-與-always_incompatible-注意事項" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ALWAYS_COMPATIBLE 與 ALWAYS_INCOMPATIBLE 注意事項</h3>
+<table style="table">
+<tr>
+<th>
+<p>相容性檢查策略</p>
+</th>
+<th>
+<p>定義</p>
+</th>
+<th>
+<p>Note</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td>
+<td> 
+<p>不啟用 schema 相容性檢查。</p>
+</td>
+<td> 
+<p>None</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td>
+<td> 
+<p>不啟用 schema 演化，即拒絕任何 schema 更改。</p>
+</td>
+<td> 
+<ul>
+<li><p>對於除 Avro 和 JSON 以外的所有類型的 schema，schema 預設相容性檢查策略是 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
+<li><p>對於Avro 和 JSON 來說，schema 預設相容性檢查策略是 `FULL'。</p></li>
+</ul>
+</td> 
+</tr>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<ul>
+<li><p>範例 1</p>
+<p>在某些情況下，應用程式需要將幾種不同類型的事件儲存在同一個 Pulsar topic。</p>
+<p>尤其是，當使用 <code>Event Sourcing</code> 風格來設計數據模型時， 你可能有幾種影響 entity 狀態的事件。</p>
+<p>例如，對於 user entity 來說，有 <code>userCreated</code>、<code>userAddressChanged</code> 和 <code>userEnquiryReceived</code> 等等的事件。 應用程式要求這些事件總是按同樣順序來消費。</p>
+<p>因此，這些事件需要被分配到相同的 Pulsar 分區以維持事件順序。 此應用程式可以使用 <code>ALWAYS_COMPATIBLE</code> 來允許不同類型的事件在同一 topic 中共存。</p></li>
+<li><p>範例 2</p>
+<p>有時，我們還必須作出不相容的改變。</p>
+<p>For example, you are modifying a field type from <code>string</code> to <code>int</code>.</p>
+<p>在這種情況下，你需要：</p>
+<ul>
+<li><p>同時將所有 producer 和 consumer 的 schema 版本提升到新 schema 版本。</p></li>
+<li><p>(可選) 創建一個新 topic，並開始遷移應用程式來使用新 topic 和新 schema，這個手法可以避免需要在同一 topic 中處理兩個不相容的版本。</p></li>
+</ul></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="backward-與-backward_transitive"></a><a href="#backward-與-backward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BACKWARD 與 BACKWARD_TRANSITIVE</h3>
+<p>假設你有一個包含三個版本 schema  (V1、V2 和 V3) 的 topic，V1 是最舊的，V3 是最新的：</p>
+<table>
+<thead>
+<tr><th>相容性檢查策略</th><th>定義</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+<p><code>BACKWARD</code> | Consumers using the new schema can process data written by producers using the <strong>last schema</strong>. | 使用 schema V3 的 consumer 可以處理 producer 使用 schema V3 或 V2 編寫的數據。 | <code>BACKWARD_TRANSITIVE</code> | Consumers using the new schema can process data written by producers using <strong>all previous schemas</strong>. | 使用 schema V3 的 consumer 可以處理 producer 使用 schema V3、V2或 V1 編寫的數據。 |</p>
+<h4><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<ul>
+<li><p>範例 1</p>
+<p>移除一個欄位</p>
+<p>一個 consumer 可以處理現在的 schema 與舊 schema 比起來移除了一個欄位，當接收到舊 schema 所編寫的事件資料時，consumer 會忽略這個欄位。</p></li>
+<li><p>範例 2</p>
+<p>你想將所有 Pulsar 數據加載到 Hive 數據倉庫中，並對數據運行 SQL 查詢。</p>
+<p>即使數據被更改，相同的 SQL 查詢也必須能夠繼續正常運作。 為了能夠達到這樣的效果，你可以使用 <code>BACKWARD</code> 策略演化方案。</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="forward-與-forward_transitive"></a><a href="#forward-與-forward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FORWARD 與 FORWARD_TRANSITIVE</h3>
+<p>假設你有一個包含三個版本 schema  (V1、V2 和 V3) 的 topic，V1 是最舊的，V3 是最新的：</p>
+<table>
+<thead>
+<tr><th>相容性檢查策略</th><th>定義</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+<p><code>FORWARD</code> | Consumers using the <strong>last schema</strong> can process data written by producers using a new schema, even though they may not be able to use the full capabilities of the new schema. | 使用 schema V3 或 V2 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。 | <code>FORWARD_TRANSITIVE</code> | Consumers using <strong>all previous schemas</strong> can process data written by producers using a new schema. | 使用 schema V3、V2 或 V1 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。</p>
+<h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<ul>
+<li><p>範例 1</p>
+<p>添加欄位。</p>
+<p>在大多數數據格式中，即使 consumer 收到含有新欄位的新事件，它們也可以以忽略新欄位的作法繼續處理事件。</p></li>
+<li><p>範例 2</p>
+<p>如果一個 consumer 的應用程序邏輯需要綁定在某特定版本 schema， 因此當 topic 上的 schema 版本升級時，應用程序邏輯可能尚無法立即更新。</p>
+<p>在這種情況下，你需要將一個新 schema 的數據可以映射到應用程序可以理解的舊 schema 上的機制與手法。</p>
+<p>透過使用 <code>FORWARD</code> 策略來演化 schemas 可以確保使用<code>舊 schema</code> 的 consumer 能夠處理使用<code>新schema</code> 編碼 producer 所產生的數據。</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="full-與-full_transitive"></a><a href="#full-與-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL 與 FULL_TRANSITIVE</h3>
+<p>假設你有一個包含三個版本 schema  (V1、V2 和 V3) 的 topic，V1 是最舊的，V3 是最新的：</p>
+<table style="table">
+<tr>
+<th>
+<p>相容性檢查策略</p>
+</th>
+<th>
+<p>定義</p>
+</th>
+<th>
+<p>Description</p>
+</th>
+<th>
+<p>Note</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>FULL</code></p>
+</td>
+<td> 
+<p>Schema 既向後相容，也向前相容，這意味著:</p>
+<p>使用最後一個 schema 的 consumer 可以處理 producer 使用新 schema 編寫的數據。</p>
+<p>和</p>
+<p>使用新 schema 的 consumer可以處理 producer 使用最後一個 schema 所編寫的數據。</p>
+</td>
+<td> 
+<p>使用 schema V3 的 consumer 可以處理 producer 使用 schema V3 或 V2 編寫的數據。</p>
+<p>和使用 schema V3 或 V2 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。</p>
+</td>
+<td> 
+<ul>
+<li><p>對於Avro 和 JSON 來說，schema 預設相容性檢查策略是 `FULL'。</p></li>
+<li><p>對於除 Avro 和 JSON 以外的所有類型的 schema，schema 預設相容性檢查策略是 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
+</ul>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>FULL_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>新的schema是可以所有先前註冊的 schema 向前向後相容的。</p>
+</td>
+<td> 
+<p>使用 schema V3 的 consumer 可以處理 producer 使用 schema V3、V2 或 V1 編寫的數據。</p>
+<p>和使用 schema V3、V2 或 V1 的 consumer 可以處理 producer 使用 schema V3 編寫的數據。</p>
+</td>
+<td> 
+<p>None</p>
+</td>
+</tr>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p>在某些數據格式中，例如 Avro，你可以定義欄位並給予預設值。 因此，添加或刪除有預設值的欄位是完全相容的更改。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>You can set schema compatibility check strategy at namespace or broker level. For how to set the strategy, see <a href="/docs/zh-TW/2.8.3/schema-manage/#set-schema-compatibility-check-strategy">here</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="schema-驗證"></a><a href="#schema-驗證" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 驗證</h2>
+<p>當 producer 或 consumer 試圖連接到某個 topic 時，broker 會進行一些檢查來驗證一個 schema。</p>
+<h3><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h3>
+<p>當 producer 試圖連接到某個 topic 時 (假設先忽略 schema 自動創建的機制)，broker 會進行以下檢查：</p>
+<ul>
+<li><p>檢查 producer 攜帶的 schema 是否存在於 schema 註冊表中。</p>
+<ul>
+<li><p>如果 schema 已經被註冊，那麼 producer 就與 broker 連接並生成發佈與此 schema 相關的信息。</p></li>
+<li><p>如果 schema 沒有註冊，那麼 Pulsar 會驗證是否允許根據配置的相容性檢查策略對 schema 進行註冊。</p></li>
+</ul></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h3>
+<p>當 consumer 試圖連接到某個 topic 時， broker 會根據配置的 schema 相容性檢查策略檢查所攜帶的 schema 是否與註冊 schema 相容。</p>
+<table style="table">
+<tr>
+<th>
+<p>相容性檢查策略</p>
+</th>
+<th>
+<p>檢查邏輯</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td>
+<td> 
+<p>全部通過</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td>
+<td> 
+<p>不通過</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD</code></p>
+</td>
+<td> 
+<p>可讀取前一個版本 schema 信息</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>可以讀取前面所有版本 schema 信息</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD</code></p>
+</td>
+<td> 
+<p>可讀取前一個版本 schema 信息</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>可讀取前一個版本 schema 信息</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL</code></p>
+</td>
+<td> 
+<p>可讀取前一個版本 schema 信息</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL_TRANSITIVE</code></p>
+</td>
+<td> 
+<p>可以讀取前面所有版本 schema 信息</p>
+</td> 
+</tr>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="order-of-upgrading-clients"></a><a href="#order-of-upgrading-clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Order of upgrading clients</h2>
+<p>The order of upgrading client applications is determined by the compatibility check strategy.</p>
+<p>For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar.</p>
+<table style="table">
+<tr>
+<th>
+<p>相容性檢查策略</p>
+</th>
+<th>
+<p>升級順序</p>
+</th>
+<th>
+<p>Description</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td>
+<td> 
+<p>任何請求</p>
+</td>
+<td> 
+<p>The compatibility check is disabled.</p>
+<p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td>
+<td> 
+<p>None</p>
+</td>
+<td> 
+<p>The schema evolution is disabled.</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<ul>
+<li><p><code>BACKWARD</code></p></li>
+<li><p><code>BACKWARD_TRANSITIVE</code></p></li>
+</ul>
+</td>
+<td> 
+<p>Consumers</p>
+</td>
+<td> 
+<p>There is no guarantee that consumers using the old schema can read data produced using the new schema.</p>
+<p>Consequently, <strong>upgrade all consumers first</strong>, and then start producing new data.</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<ul>
+<li><p><code>FORWARD</code></p></li>
+<li><p><code>FORWARD_TRANSITIVE</code></p></li>
+</ul>
+</td>
+<td> 
+<p>Producers</p>
+</td>
+<td> 
+<p>There is no guarantee that consumers using the new schema can read data produced using the old schema.</p>
+<p>Consequently, <strong>upgrade all producers first</strong> to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers.</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<ul>
+<li><p><code>FULL</code></p></li>
+<li><p><code>FULL_TRANSITIVE</code></p></li>
+</ul>
+</td>
+<td> 
+<p>任何請求</p>
+</td>
+<td> 
+<p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
+<p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
+</td> 
+</tr>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-TW/2.8.3/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-演化">Schema 演化</a><ul class="toc-headings"><li><a href="#什麼是-schema-演化">什麼是 Schema 演化?</a></li><li><a href="#pulsar-schema-會如何因應演化">Pulsar schema 會如何因應演化？</a></li><li><a href="#pulsar-是如何支持-schema-演化的">Pulsar 是如何支持 Schema 演化的？</a></li></ul></li><li><a href="#schema-相容性檢查策略">Schema 相容性檢查策略</a><ul class="toc-headings"><li><a href="#always_compatible-與-always_incompatible-注意事項">ALWAYS_COMPATIBLE 與 ALWAYS_INCOMPATIBLE 注意事項</a></li><li><a href="#backward-與-backward_transitive">BACKWARD 與 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-與-forward_transitive">FORWARD 與 FORWARD_TRANSITIVE</a></li><li><a href="#full-與-full_transitive">FULL 與 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-驗證">Schema 驗證</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#order-of-upgrading-clients">Order of upgrading clients</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

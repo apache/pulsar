@@ -1,0 +1,481 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar binary protocol specification · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar使用自定义二进制协议在 Producers/Consumers 和 Brokers 之间进行通信。 该协议旨在支持必需的功能，例如确认和流控制，同时确保最大的传输和执行效率。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar binary protocol specification · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar使用自定义二进制协议在 Producers/Consumers 和 Brokers 之间进行通信。 该协议旨在支持必需的功能，例如确认和流控制，同时确保最大的传输和执行效率。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/develop-binary-protocol">English</a></li><li><a href="/docs/ja/2.8.3/develop-binary-protocol">日本語</a></li><li><a href="/docs/fr/2.8.3/develop-binary-protocol">Français</a></li><li><a href="/docs/ko/2.8.3/develop-binary-protocol">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/develop-binary-protocol">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>开发</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar binary protocol specification</h1></header><article><div><span><p>Pulsar使用自定义二进制协议在 Producers/Consumers 和 Brokers 之间进行通信。 该协议旨在支持必需的功能，例如确认和流控制，同时确保最大的传输和执行效率。</p>
+<p>Clients and brokers exchange <em>commands</em> with each other. Commands are formatted as binary <a href="https://developers.google.com/protocol-buffers/">protocol buffer</a> (aka <em>protobuf</em>) messages. 在 <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto"><code>PulsarApi.proto</code></a> 中指定了 protobuf 命令的格式，并在下面的章节的 <a href="#protobuf-interface">Protobuf interface</a> 中记录。</p>
+<blockquote>
+<h3><a class="anchor" aria-hidden="true" id="连接共享"></a><a href="#连接共享" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接共享</h3>
+<p>不同生产者和消费者的指令可以不受限制地相互交错，并通过相同的连接发送。</p>
+</blockquote>
+<p>与 Pulsar 协议相关的所有命令都包含在<a href="#pulsar.proto.BaseCommand"><code>BaseCommand</code></a>协议消息内，它包含了一个所有可能子命令的可选字段的 <a href="#pulsar.proto.Type"><code>类型</code> </a><a href="https://developers.google.com/protocol-buffers/docs/proto#enum">枚举</a> 列表。 <code>BaseCommand</code> 消息只能指定一个子命令。</p>
+<h2><a class="anchor" aria-hidden="true" id="框架"></a><a href="#框架" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>框架</h2>
+<p>因为 protobuf 不提供任何类型的消息帧，所以 Pulsar 协议的所有消息都是以指定帧大小的4字节字段为前缀。 单个帧的最大可用大小是5MB。</p>
+<p>Pulsar 协议允许两个类型的命令：</p>
+<ol>
+<li><strong>Simple commands</strong> that do not carry a message payload.</li>
+<li><strong>Payload commands</strong> that bear a payload that is used when publishing or delivering messages. 在有效载荷命令中，protobuf 命令数据包含 protobuf <a href="#message-metadata">元数据</a>和原始消息内容，消息以原始格式进行传递。 所有消息都是以4字节无符号大枚举整数的形式进行传递。</li>
+</ol>
+<blockquote>
+<p>为了提高效率，消息有效负载以原始格式而不是原buf格式传递。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="简单命令"></a><a href="#简单命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简单命令</h3>
+<p>简单消息(无有效载荷)的基本结构如下：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">说明</th><th style="text-align:left">长度 (in bytes)</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="有效载荷命令"></a><a href="#有效载荷命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>有效载荷命令</h3>
+<p>有效载荷命令的基本结构如下：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">说明</th><th style="text-align:left">长度 (in bytes)</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">magicNumber</td><td style="text-align:left">消息格式版本号，是一个2 byte长的字节数组(如<code>0x0e01</code>)</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left">checksum</td><td style="text-align:left"><a href="http://www.evanjones.ca/crc32c.html">CRC32-C 校验码</a>，对之后的所有内容(metadataSize + metadata + payload)生成的一个校验码，用来校验是否有数据丢失或者被篡改。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">metadataSize</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left">metadata</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>存储成二进制 protobuf 消息。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">payload</td><td style="text-align:left">帧中剩下的任何内容都被认为是有效负载，可以包括任何字节序列。</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="消息元数据"></a><a href="#消息元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息元数据</h2>
+<p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed on unchanged to the consumer.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">发布消息的生产者的名称</td></tr>
+<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">生产者指定的消息的序号ID</td></tr>
+<tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">生产者发布消息的时间，Unix 时间戳格式(即自1970年1月1日起的毫秒数)</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键/值对序列(使用<a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>Key Value</code></a>格式的消息)。 这是应用指定的键和值，在 Pulsar 中没有特殊的意义。</td></tr>
+<tr><td style="text-align:left"><code>replicated_from</code> <em>(optional)</em></td><td style="text-align:left">发送消息的时候，指定消息能被复制的<a href="/docs/zh-CN/2.8.3/reference-terminology#cluster">目标集群</a>的集群名称。</td></tr>
+<tr><td style="text-align:left"><code>partition_key</code> <em>(optional)</em></td><td style="text-align:left">当发布消息到分区主题的时候，如果key存在，将根据该 key 的哈希值来选择消息存储的目标分区。</td></tr>
+<tr><td style="text-align:left"><code>compression</code> <em>(optional)</em></td><td style="text-align:left">表示消息内容将被哪种压缩协议进行压缩。</td></tr>
+<tr><td style="text-align:left"><code>uncompressed_size</code> <em>(optional)</em></td><td style="text-align:left">如果使用压缩，生产者必须用原始有效载荷大小填充未压缩的大小字段</td></tr>
+<tr><td style="text-align:left"><code>num_messages_in_batch</code> <em>(optional)</em></td><td style="text-align:left">如果消息是多个消息组成的<a href="#batch-messages">批量</a>消息，则这个字段必须指定这个批消息里面包含的消息的数量。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="批量消息"></a><a href="#批量消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>批量消息</h3>
+<p>当使用批量消息的时候，payload 字段将包含多个消息条目。每个消息条目都有对应的元数据，定义了<code>SingleMessageMetadata</code> 结构来表示单条消息的元数据。</p>
+<p>对于单个批次，payload 字段的格式如下：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">metadataSizeN</td><td style="text-align:left">单条消息元数据序列为 Protobuf 格式数据后的大小。</td></tr>
+<tr><td style="text-align:left">metadataN</td><td style="text-align:left">单条消息元数据</td></tr>
+<tr><td style="text-align:left">payloadN</td><td style="text-align:left">应用发送的消息内容</td></tr>
+</tbody>
+</table>
+<p>每条元数据的格式如下：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">properties</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left">partition key <em>(optional)</em></td><td style="text-align:left">指定某个分区的散列的键。</td></tr>
+<tr><td style="text-align:left">payload_size</td><td style="text-align:left">批量消息里面的单条消息的消息内容的长度。</td></tr>
+</tbody>
+</table>
+<p>当启用压缩时，batch 消息只会被压缩一次。</p>
+<h2><a class="anchor" aria-hidden="true" id="数据交互"></a><a href="#数据交互" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>数据交互</h2>
+<h3><a class="anchor" aria-hidden="true" id="建立连接"></a><a href="#建立连接" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>建立连接</h3>
+<p>当建立到 broker 的 TCP 连接后，通常连接到 broker 的6650端口，客户端将负责初始化这个会话。</p>
+<p><img src="/docs/assets/binary-protocol-connect.png" alt="Connect interaction"></p>
+<p>收到 broker 返回的 <code>连接成功</code>的信息后，客户端认为连接已经准备就绪。 或者，如果 broker 校验客户端权限没有通过，broker 将返回一个<code>错误信息</code>，同时关闭 TCP 连接。</p>
+<p>例子：</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnect</span> </span>{
+  <span class="hljs-string">"client_version"</span> : <span class="hljs-string">"Pulsar-Client-Java-v1.15.2"</span>,
+  <span class="hljs-string">"auth_method_name"</span> : <span class="hljs-string">"my-authentication-plugin"</span>,
+  <span class="hljs-string">"auth_data"</span> : <span class="hljs-string">"my-auth-data"</span>,
+  <span class="hljs-string">"protocol_version"</span> : <span class="hljs-number">6</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li><code>client_version</code> → String based identifier. Format is not enforced</li>
+<li><code>auth_method_name</code> → <em>(optional)</em> Name of the authentication plugin if auth enabled</li>
+<li><code>auth_data</code> → <em>(optional)</em> Plugin specific authentication data</li>
+<li><code>protocol_version</code> → Indicates the protocol version supported by the client. Broker will not send commands introduced in newer revisions of the protocol. Broker 可能会强制选择一个最小的协议版本。</li>
+</ul>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnected</span> </span>{
+  <span class="hljs-string">"server_version"</span> : <span class="hljs-string">"Pulsar-Broker-v1.15.2"</span>,
+  <span class="hljs-string">"protocol_version"</span> : <span class="hljs-number">6</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li><code>server_version</code> → String identifier of broker version</li>
+<li><code>protocol_version</code> → Protocol version supported by the broker. Client must not attempt to send commands introduced in newer revisions of the protocol</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="保持连接"></a><a href="#保持连接" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>保持连接</h3>
+<p>为了识别客户端和 broker 之间的网络分区情况，或者机器崩溃但是TCP连接却没有正常断开(断电，内核异常，机器重启等）。我们介绍一个探测远程对端服务的可用状态的策略。</p>
+<p>客户端和 broker 之间会定期发送 <code>Ping</code>命令。如果超时时间(默认使用 broker 的配置60s)内没有返回<code>Pong</code>消息就会断开该 Socket 连接。</p>
+<p>一个可用的 Pulsar 客户端不需要自己实现定时发送 <code>Ping</code> 探测的逻辑。但是它需要在收到 broker 的信息后立即回复，以防 broker 强制关闭 TCP 连接。</p>
+<h3><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者（Producer）</h3>
+<p>In order to send messages, a client needs to establish a producer. When creating a producer, the broker will first verify that this particular client is authorized to publish on the topic.</p>
+<p>一旦生产者创建成功，通过使用建立连接过程中生成的生产者 ID，它将可以发布消息到 broker。</p>
+<p><img src="/docs/assets/binary-protocol-producer.png" alt="Producer interaction"></p>
+<h5><a class="anchor" aria-hidden="true" id="生产命令"></a><a href="#生产命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产命令</h5>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducer</span> </span>{
+  <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
+  <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>topic</code> → Complete topic name to where you want to create the producer on</li>
+<li><code>producer_id</code> → Client generated producer identifier. Needs to be unique within the same connection</li>
+<li><code>request_id</code> → Identifier for this request. Used to match the response with the originating request. Needs to be unique within the same connection</li>
+<li><code>producer_name</code> → <em>(optional)</em> If a producer name is specified, the name will be used, otherwise the broker will generate a unique name. Generated producer name is guaranteed to be globally unique. Implementations are expected to let the broker generate a new producer name when the producer is initially created, then reuse it when recreating the producer after reconnections.</li>
+</ul>
+<p>broker 将返回<code>生产成功</code>或者<code>错误</code>命令给客户端。</p>
+<h5><a class="anchor" aria-hidden="true" id="生产成功命令"></a><a href="#生产成功命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产成功命令</h5>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducerSuccess</span> </span>{
+  <span class="hljs-string">"request_id"</span> :  <span class="hljs-number">1</span>,
+  <span class="hljs-string">"producer_name"</span> : <span class="hljs-string">"generated-unique-producer-name"</span>
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>request_id</code> → Original id of the <code>CreateProducer</code> request</li>
+<li><code>producer_name</code> → Generated globally unique producer name or the name specified by the client, if any.</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="发送命令"></a><a href="#发送命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发送命令</h5>
+<p>命令 <code>Send</code> 是给一个已经存在的生产者在上下文中发布新的消息的。 此命令用在消息帧中，此消息帧包含了该命令及消息的有效载荷。<a href="#payload-commands">payload commands</a>包含了完整的命令格式。</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSend</span> </span>{
+  <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"sequence_id"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-string">"num_messages"</span> : <span class="hljs-number">1</span>
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>producer_id</code> → id of an existing producer</li>
+<li><code>sequence_id</code> → each message has an associated sequence id which is expected to be implemented with a counter starting at 0. The <code>SendReceipt</code> that acknowledges the effective publishing of a messages will refer to it by its sequence id.</li>
+<li><code>num_messages</code> → <em>(optional)</em> Used when publishing a batch of messages at once.</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="发送消息返回的命令"></a><a href="#发送消息返回的命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发送消息返回的命令</h5>
+<p>当消息在配置的存储副本数中都存储完成后，broker 将给生产者发送确认消息。</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSendReceipt</span> </span>{
+  <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"sequence_id"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-string">"message_id"</span> : {
+    <span class="hljs-string">"ledgerId"</span> : <span class="hljs-number">123</span>,
+    <span class="hljs-string">"entryId"</span> : <span class="hljs-number">456</span>
+  }
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>producer_id</code> → id of producer originating the send request</li>
+<li><code>sequence_id</code> → sequence id of the published message</li>
+<li><code>message_id</code> → message id assigned by the system to the published message Unique within a single cluster. Message id is composed of 2 longs, <code>ledgerId</code> and <code>entryId</code>, that reflect that this unique id is assigned when appending to a BookKeeper ledger</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="关闭生产者命令"></a><a href="#关闭生产者命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关闭生产者命令</h5>
+<p><strong>Note</strong>: <em>This command can be sent by either producer or broker</em>.</p>
+<p>当 broker 收到<code>CloseProducer</code>命令时，broker 将停止接收这个生产者的任何消息。并会一直等待，直到所有的消息被持久化存储并给客户端返回<code>Success</code>的消息后，才关闭连接。</p>
+<p>当 broker 在演练故障转移（比如: broker重启或者正在通过负载均衡器卸载主题到其他的broker)时，Broker 也能发送<code>CloseProducer</code> 命令给客户端，通知关闭该连接。</p>
+<p>When receiving the <code>CloseProducer</code>, the client is expected to go through the service discovery lookup again and recreate the producer again. The TCP connection is not affected.</p>
+<h3><a class="anchor" aria-hidden="true" id="消费者consumer"></a><a href="#消费者consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者（Consumer）</h3>
+<p>消费者可以添加到订阅，并消费来自该订阅的消息。 每次重新连接后，客户端必须去订阅此主题。 如果订阅不存在，将创建一个新的订阅。</p>
+<p><img src="/docs/assets/binary-protocol-consumer.png" alt="消费者（Consumer）"></p>
+<h4><a class="anchor" aria-hidden="true" id="流量控制"></a><a href="#流量控制" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>流量控制</h4>
+<p>After the consumer is ready, the client needs to <em>give permission</em> to the broker to push messages. This is done with the <code>Flow</code> command.</p>
+<p>A <code>Flow</code> command gives additional <em>permits</em> to send messages to the consumer. 典型的使用者实现将在应用程序准备使用这些消息之前使用队列来累积这些消息。</p>
+<p>应用程序将队列中一半的消息从队列中取出后，消费者会向 broker 发送许可请求更多消息(等于队列中一半的消息)。</p>
+<p>For example, if the queue size is 1000 and the consumer consumes 500 messages in the queue. Then the consumer sends permits to the broker to ask for 500 messages.</p>
+<h5><a class="anchor" aria-hidden="true" id="订阅命令"></a><a href="#订阅命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>订阅命令</h5>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSubscribe</span> </span>{
+  <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
+  <span class="hljs-string">"subscription"</span> : <span class="hljs-string">"my-subscription-name"</span>,
+  <span class="hljs-string">"subType"</span> : <span class="hljs-string">"Exclusive"</span>,
+  <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>topic</code> → Complete topic name to where you want to create the consumer on</li>
+<li><code>subscription</code> → Subscription name</li>
+<li><code>subType</code> → Subscription type: Exclusive, Shared, Failover, Key_Shared</li>
+<li><code>consumer_id</code> → Client generated consumer identifier. Needs to be unique within the same connection</li>
+<li><code>request_id</code> → Identifier for this request. Used to match the response with the originating request. Needs to be unique within the same connection</li>
+<li><code>consumer_name</code> → <em>(optional)</em> Clients can specify a consumer name. This name can be used to track a particular consumer in the stats. Also, in Failover subscription type, the name is used to decide which consumer is elected as <em>master</em> (the one receiving messages): consumers are sorted by their consumer name and the first one is elected master.</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="流控命令"></a><a href="#流控命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>流控命令</h5>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandFlow</span> </span>{
+  <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"messagePermits"</span> : <span class="hljs-number">1000</span>
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>consumer_id</code> → Id of an already established consumer</li>
+<li><code>messagePermits</code> → Number of additional permits to grant to the broker for pushing more messages</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="消息命令"></a><a href="#消息命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息命令</h5>
+<p>Command <code>Message</code> is used by the broker to push messages to an existing consumer, within the limits of the given permits.</p>
+<p>This command is used in a frame that includes the message payload as well, for which the complete format is specified in the <a href="#payload-commands">payload commands</a> section.</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandMessage</span> </span>{
+  <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"message_id"</span> : {
+    <span class="hljs-string">"ledgerId"</span> : <span class="hljs-number">123</span>,
+    <span class="hljs-string">"entryId"</span> : <span class="hljs-number">456</span>
+  }
+}
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="确认命令"></a><a href="#确认命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认命令</h5>
+<p>An <code>Ack</code> is used to signal to the broker that a given message has been successfully processed by the application and can be discarded by the broker.</p>
+<p>In addition, the broker will also maintain the consumer position based on the acknowledged messages.</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandAck</span> </span>{
+  <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"ack_type"</span> : <span class="hljs-string">"Individual"</span>,
+  <span class="hljs-string">"message_id"</span> : {
+    <span class="hljs-string">"ledgerId"</span> : <span class="hljs-number">123</span>,
+    <span class="hljs-string">"entryId"</span> : <span class="hljs-number">456</span>
+  }
+}
+</code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>consumer_id</code> → Id of an already established consumer</li>
+<li><code>ack_type</code> → Type of acknowledgment: <code>Individual</code> or <code>Cumulative</code></li>
+<li><code>message_id</code> → Id of the message to acknowledge</li>
+<li><code>validation_error</code> → <em>(optional)</em> Indicates that the consumer has discarded the messages due to: <code>UncompressedSizeCorruption</code>, <code>DecompressionError</code>, <code>ChecksumMismatch</code>, <code>BatchDeSerializeError</code></li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="关闭消费者命令"></a><a href="#关闭消费者命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关闭消费者命令</h5>
+<p><strong><em>Note</em></strong>: <em>This command can be sent by either producer or broker</em>.</p>
+<p>This command behaves the same as <a href="#command-closeproducer"><code>CloseProducer</code></a></p>
+<h5><a class="anchor" aria-hidden="true" id="重新发送未确认消息命令"></a><a href="#重新发送未确认消息命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重新发送未确认消息命令</h5>
+<p>A consumer can ask the broker to redeliver some or all of the pending messages that were pushed to that particular consumer and not yet acknowledged.</p>
+<p>The protobuf object accepts a list of message ids that the consumer wants to be redelivered. If the list is empty, the broker will redeliver all the pending messages.</p>
+<p>On redelivery, messages can be sent to the same consumer or, in the case of a shared subscription, spread across all available consumers.</p>
+<h5><a class="anchor" aria-hidden="true" id="终止消费主题命令"></a><a href="#终止消费主题命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>终止消费主题命令</h5>
+<p>This is sent by a broker to a particular consumer, whenever the topic has been &quot;terminated&quot; and all the messages on the subscription were acknowledged.</p>
+<p>The client should use this command to notify the application that no more messages are coming from the consumer.</p>
+<h5><a class="anchor" aria-hidden="true" id="获取消费统计数据命令"></a><a href="#获取消费统计数据命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取消费统计数据命令</h5>
+<p>This command is sent by the client to retrieve Subscriber and Consumer level stats from the broker. Parameters:</p>
+<ul>
+<li><code>request_id</code> → Id of the request, used to correlate the request and the response.</li>
+<li><code>consumer_id</code> → Id of an already established consumer.</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="消费统计数据返回命令"></a><a href="#消费统计数据返回命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费统计数据返回命令</h5>
+<p>This is the broker's response to ConsumerStats request by the client. It contains the Subscriber and Consumer level stats of the <code>consumer_id</code> sent in the request. If the <code>error_code</code> or the <code>error_message</code> field is set it indicates that the request has failed.</p>
+<h5><a class="anchor" aria-hidden="true" id="解除订阅命令"></a><a href="#解除订阅命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>解除订阅命令</h5>
+<p>This command is sent by the client to unsubscribe the <code>consumer_id</code> from the associated topic. Parameters:</p>
+<ul>
+<li><code>request_id</code> → Id of the request.</li>
+<li><code>consumer_id</code> → Id of an already established consumer which needs to unsubscribe.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="服务发现"></a><a href="#服务发现" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务发现</h2>
+<h3><a class="anchor" aria-hidden="true" id="搜索主题"></a><a href="#搜索主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>搜索主题</h3>
+<p>Topic lookup needs to be performed each time a client needs to create or reconnect a producer or a consumer. Lookup is used to discover which particular broker is serving the topic we are about to use.</p>
+<p>Lookup can be done with a REST call as described in the <a href="/docs/zh-CN/2.8.3/admin-api-topics#lookup-of-topic">admin API</a> docs.</p>
+<p>Since Pulsar-1.16 it is also possible to perform the lookup within the binary protocol.</p>
+<p>For the sake of example, let's assume we have a service discovery component running at <code>pulsar://broker.example.com:6650</code></p>
+<p>Individual brokers will be running at <code>pulsar://broker-1.example.com:6650</code>, <code>pulsar://broker-2.example.com:6650</code>, ...</p>
+<p>A client can use a connection to the discovery service host to issue a <code>LookupTopic</code> command. The response can either be a broker hostname to connect to, or a broker hostname to which retry the lookup.</p>
+<p>The <code>LookupTopic</code> command has to be used in a connection that has already gone through the <code>Connect</code> / <code>Connected</code> initial handshake.</p>
+<p><img src="/docs/assets/binary-protocol-topic-lookup.png" alt="搜索主题"></p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopic</span> </span>{
+  <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"authoritative"</span> : <span class="hljs-literal">false</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li><code>topic</code> → Topic name to lookup</li>
+<li><code>request_id</code> → Id of the request that will be passed with its response</li>
+<li><code>authoritative</code> → Initial lookup request should use false. When following a redirect response, client should pass the same value contained in the response</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="查找主题返回"></a><a href="#查找主题返回" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查找主题返回</h5>
+<p>Example of response with successful lookup:</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"response"</span> : <span class="hljs-string">"Connect"</span>,
+  <span class="hljs-string">"brokerServiceUrl"</span> : <span class="hljs-string">"pulsar://broker-1.example.com:6650"</span>,
+  <span class="hljs-string">"brokerServiceUrlTls"</span> : <span class="hljs-string">"pulsar+ssl://broker-1.example.com:6651"</span>,
+  <span class="hljs-string">"authoritative"</span> : <span class="hljs-literal">true</span>
+}
+</code></pre>
+<p>Example of lookup response with redirection:</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"response"</span> : <span class="hljs-string">"Redirect"</span>,
+  <span class="hljs-string">"brokerServiceUrl"</span> : <span class="hljs-string">"pulsar://broker-2.example.com:6650"</span>,
+  <span class="hljs-string">"brokerServiceUrlTls"</span> : <span class="hljs-string">"pulsar+ssl://broker-2.example.com:6651"</span>,
+  <span class="hljs-string">"authoritative"</span> : <span class="hljs-literal">true</span>
+}
+</code></pre>
+<p>In this second case, we need to reissue the <code>LookupTopic</code> command request to <code>broker-2.example.com</code> and this broker will be able to give a definitive answer to the lookup request.</p>
+<h3><a class="anchor" aria-hidden="true" id="发现分区主题"></a><a href="#发现分区主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发现分区主题</h3>
+<p>Partitioned topics metadata discovery is used to find out if a topic is a &quot;partitioned topic&quot; and how many partitions were set up.</p>
+<p>If the topic is marked as &quot;partitioned&quot;, the client is expected to create multiple producers or consumers, one for each partition, using the <code>partition-X</code> suffix.</p>
+<p>This information only needs to be retrieved the first time a producer or consumer is created. There is no need to do this after reconnections.</p>
+<p>The discovery of partitioned topics metadata works very similar to the topic lookup. The client send a request to the service discovery address and the response will contain actual metadata.</p>
+<h5><a class="anchor" aria-hidden="true" id="获取分区主题元数据命令"></a><a href="#获取分区主题元数据命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取分区主题元数据命令</h5>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadata</span> </span>{
+  <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li><code>topic</code> → the topic for which to check the partitions metadata</li>
+<li><code>request_id</code> → Id of the request that will be passed with its response</li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="获取分区元数据返回命令"></a><a href="#获取分区元数据返回命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取分区元数据返回命令</h5>
+<p>Example of response with metadata:</p>
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadataResponse</span> </span>{
+  <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-string">"response"</span> : <span class="hljs-string">"Success"</span>,
+  <span class="hljs-string">"partitions"</span> : <span class="hljs-number">32</span>
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="protobuf-接口"></a><a href="#protobuf-接口" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Protobuf 接口</h2>
+<p>All Pulsar's Protobuf definitions can be found <a href="https://github.com/apache/pulsar/tree/master//pulsar-common/src/main/proto/PulsarApi.proto">here</a>
+.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/develop-tools"><span class="arrow-prev">← </span><span>模拟工具</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/develop-schema"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#框架">框架</a><ul class="toc-headings"><li><a href="#简单命令">简单命令</a></li><li><a href="#有效载荷命令">有效载荷命令</a></li></ul></li><li><a href="#消息元数据">消息元数据</a><ul class="toc-headings"><li><a href="#批量消息">批量消息</a></li></ul></li><li><a href="#数据交互">数据交互</a><ul class="toc-headings"><li><a href="#建立连接">建立连接</a></li><li><a href="#保持连接">保持连接</a></li><li><a href="#生产者producer">生产者（Producer）</a></li><li><a href="#消费者consumer">消费者（Consumer）</a></li></ul></li><li><a href="#服务发现">服务发现</a><ul class="toc-headings"><li><a href="#搜索主题">搜索主题</a></li><li><a href="#发现分区主题">发现分区主题</a></li></ul></li><li><a href="#protobuf-接口">Protobuf 接口</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

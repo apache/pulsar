@@ -1,0 +1,652 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar WebSocket API · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通过 Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方[客户端库](/docs/zh-CN/2.8.3/client-libraries)。 通过 WebSocket ，您可以发布和消费消息，并使用在 [客户端特征矩阵](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) 页面上可用的功能。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar WebSocket API · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="通过 Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方[客户端库](/docs/zh-CN/2.8.3/client-libraries)。 通过 WebSocket ，您可以发布和消费消息，并使用在 [客户端特征矩阵](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) 页面上可用的功能。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/client-libraries-websocket">English</a></li><li><a href="/docs/ja/2.8.3/client-libraries-websocket">日本語</a></li><li><a href="/docs/fr/2.8.3/client-libraries-websocket">Français</a></li><li><a href="/docs/ko/2.8.3/client-libraries-websocket">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/client-libraries-websocket">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>客户端库</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar WebSocket API</h1></header><article><div><span><p>通过 Pulsar 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"> WebSocket</a> API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方<a href="/docs/zh-CN/2.8.3/client-libraries">客户端库</a>。 通过 WebSocket ，您可以发布和消费消息，并使用在 <a href="https://github.com/apache/pulsar/wiki/Client-Features-Matrix">客户端特征矩阵</a> 页面上可用的功能。</p>
+<blockquote>
+<p>You can use Pulsar WebSocket API with any WebSocket client library. See examples for Python and Node.js <a href="#client-examples">below</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="运行-websocket-服务"></a><a href="#运行-websocket-服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>运行 WebSocket 服务</h2>
+<p>推荐使用单机模式的 Pulsar 进行开发，在<a href="/docs/zh-CN/2.8.3/standalone">本地开发</a>环境中启用 WebSocket 服务。</p>
+<p>在非单机模式下，有两种方法可以部署 WebSocket 服务：</p>
+<ul>
+<li><a href="#embedded-with-a-pulsar-broker">嵌入</a> Pulsar Broker</li>
+<li>作为一个<a href="#as-a-separate-component">独立</a>的组件</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="嵌入-pulsar-broker"></a><a href="#嵌入-pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>嵌入 Pulsar Broker</h3>
+<p>在这种模式下，WebSocket 服务会使用已经在 broker 中运行的 HTTP 服务。 要启用此模式，需在安装目录下的 <a href="/docs/zh-CN/2.8.3/reference-configuration#broker"><code>conf/broker.conf</code></a> 文件中设置<a href="/docs/zh-CN/2.8.3/reference-configuration#broker-webSocketServiceEnabled"> <code>webSocketServiceEnabled</code></a> 参数。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webSocketServiceEnabled</span>=<span class="hljs-string">true</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="作为一个独立的组件"></a><a href="#作为一个独立的组件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>作为一个独立的组件</h3>
+<p>在这种模式下，WebSocket 会作为单独的服务在 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#broker">broker</a> 上运行。 运行此模式，需在 <a href="/docs/zh-CN/2.8.3/reference-configuration#websocket"><code>conf/websocket.conf</code></a> 文件中进行配置。 You'll need to set <em>at least</em> the following parameters:</p>
+<ul>
+<li><a href="/docs/zh-CN/2.8.3/reference-configuration#websocket-configurationStoreServers"><code>configurationStoreServers</code></a></li>
+<li><a href="/docs/zh-CN/2.8.3/reference-configuration#websocket-webServicePort"><code>webServicePort</code></a></li>
+<li><a href="/docs/zh-CN/2.8.3/reference-configuration#websocket-clusterName"><code>clusterName</code></a></li>
+</ul>
+<p>下面是一个示例：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1:2181,zk2:2181,zk3:2181</span>
+<span class="hljs-attr">webServicePort</span>=<span class="hljs-string">8080</span>
+<span class="hljs-attr">clusterName</span>=<span class="hljs-string">my-cluster</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="安全设置"></a><a href="#安全设置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安全设置</h3>
+<p>在 WebSocket 服务上启用 TLS 加密：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">tlsEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker.cert.pem</span>
+<span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker.key-pk8.pem</span>
+<span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="启动-broker"></a><a href="#启动-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 Broker</h3>
+<p>配置完成后，你可以使用 <a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>  命令来启动服务：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start websocket</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="api-手册"></a><a href="#api-手册" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API 手册：</h2>
+<p>Pulsar 的 WebSocket API 提供三个端点，用于<a href="#producer-endpoint">生产消息</a>、<a href="#consumer-endpoint">消费消息</a>和<a href="#reader-endpoint">阅读消息</a>。</p>
+<p>所有通过 WebSocket API 的数据都使用 JSON 进行交互。</p>
+<h3><a class="anchor" aria-hidden="true" id="认证"></a><a href="#认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>认证</h3>
+<h4><a class="anchor" aria-hidden="true" id="browser-javascript-websocket-client"></a><a href="#browser-javascript-websocket-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Browser javascript WebSocket client</h4>
+<p>使用查询参数 <code>token</code> 传送身份验证令牌。</p>
+<pre><code class="hljs css language-http">ws://broker-service-url:8080/path?token=token
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="producer-端"></a><a href="#producer-端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 端</h3>
+<p>Producer 端需要在 URL 中指定租户、命名空间和 topic，例如：</p>
+<pre><code class="hljs css language-http">ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic 
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="查询参数"></a><a href="#查询参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>sendTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">发送超时(默认值：30秒)</td></tr>
+<tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">boolean</td><td style="text-align:left">否</td><td style="text-align:left">启用批量缓存消息（默认值：false）</td></tr>
+<tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">批量消息数最大值（默认值：1000）</td></tr>
+<tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">设置消息内部队列的最大值（默认值：1000）</td></tr>
+<tr><td style="text-align:left"><code>batchingMaxPublishDelay</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">批量处理消息的时间（默认：10毫秒）</td></tr>
+<tr><td style="text-align:left"><code>messageRoutingMode</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">分区 producer 的消息<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html">路由模式</a>：<code>SingleSection</code> 或 <code>RoundRobinSection</code></td></tr>
+<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">压缩<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/CompressionType.html">类型</a>：<code>LZ4</code> 或 <code>ZLIB</code></td></tr>
+<tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Specify the name for the producer. Pulsar will enforce only one producer with same name can be publishing on a topic</td></tr>
+<tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">设置 producer 发布消息序列 id 的标准。</td></tr>
+<tr><td style="text-align:left"><code>hashingScheme</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">在分区 topic 上发布消息时使用的<a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html">哈希函数</a>：<code>JavaStringHash</code> 或 <code>Murmur3_32Hash</code></td></tr>
+<tr><td style="text-align:left"><code>token</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">身份验证令牌，这用于浏览器的 javascript 客户端</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="发布消息"></a><a href="#发布消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发布消息</h4>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
+  <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
+  <span class="hljs-attr">"context"</span>: <span class="hljs-string">"1"</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的负载</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">分区 topic 中使用的分区</td></tr>
+<tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">数组</td><td style="text-align:left">否</td><td style="text-align:left">根据名称允许添加到<a href="/docs/zh-CN/2.8.3/reference-terminology#cluster">集群</a>列表的副本</td></tr>
+</tbody>
+</table>
+<h5><a class="anchor" aria-hidden="true" id="响应成功示例"></a><a href="#响应成功示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>响应成功示例</h5>
+<pre><code class="hljs css language-json">{
+   <span class="hljs-attr">"result"</span>: <span class="hljs-string">"ok"</span>,
+   <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
+   <span class="hljs-attr">"context"</span>: <span class="hljs-string">"1"</span>
+ }
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="响应失败示例"></a><a href="#响应失败示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>响应失败示例</h5>
+<pre><code class="hljs css language-json"> {
+   <span class="hljs-attr">"result"</span>: <span class="hljs-string">"send-error:3"</span>,
+   <span class="hljs-attr">"errorMsg"</span>: <span class="hljs-string">"Failed to de-serialize from JSON"</span>,
+   <span class="hljs-attr">"context"</span>: <span class="hljs-string">"1"</span>
+ }
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>result</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发送成功则为 <code>ok</code>，否则抛出异常</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">已发布消息的 Message ID</td></tr>
+<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consumer-端"></a><a href="#consumer-端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer 端</h3>
+<p>Concumer 端要求在 URL 中指定租户、命名空间、topic 和订阅：</p>
+<pre><code class="hljs css language-http">ws://broker-service-url:8080/ws/v2/consumer/persistent/:tenant/:namespace/:topic/:subscription
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="查询参数-1"></a><a href="#查询参数-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>ackTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">设置未完成消息确认的超时时间（默认值：0）</td></tr>
+<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left"><a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/SubscriptionType.html">订阅类型</a>：<code>独占</code>、<code>灾备</code>、<code>共享</code>、<code>key共享</code></td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">Consumer 接收队列的大小（默认：1000）</td></tr>
+<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Consumer 的名称</td></tr>
+<tr><td style="text-align:left"><code>priorityLevel</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">指定 consumer 的<a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-">优先级</a></td></tr>
+<tr><td style="text-align:left"><code>maxRedeliverCount</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">为 consumer 指定 <a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">maxRedeliverCount</a>（默认值：0）。 启用 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a>。</td></tr>
+<tr><td style="text-align:left"><code>deadLetterTopic</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">为 consumer 指定 <a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">deadLetterTopic</a>（默认值：{topic}-{subscription}-DLQ）。 启用 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a>。</td></tr>
+<tr><td style="text-align:left"><code>pullMode</code></td><td style="text-align:left">boolean</td><td style="text-align:left">否</td><td style="text-align:left">Enable pull mode (default: false). See &quot;Flow Control&quot; below.</td></tr>
+<tr><td style="text-align:left"><code>negativeAckRedeliveryDelay</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">When a message is negatively acknowledged, it will be redelivered to the DLQ.</td></tr>
+<tr><td style="text-align:left"><code>token</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">身份验证令牌，这用于浏览器的 javascript 客户端</td></tr>
+</tbody>
+</table>
+<p>注意：以上参数（<code>pullMode</code> 除外）适用于 WebSocket 服务的内部 consumer。 因此，即使客户端没有在 WebSocket 上消费，只要消息进入接收队列，就会受到传递设置的约束。</p>
+<h5><a class="anchor" aria-hidden="true" id="接收消息"></a><a href="#接收消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>接收消息</h5>
+<p>Server will push messages on the WebSocket session:</p>
+<pre><code class="hljs css language-json">{
+ <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAMQADAA"</span>,
+  <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"hvXcJvHW7kOSrUn17P2q71RA5SdiXwZBqw=="</span>,
+  <span class="hljs-attr">"properties"</span>: {},
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2021-10-29T16:01:38.967-07:00"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"encryptionContext"</span>: {
+    <span class="hljs-attr">"keys"</span>: {
+      <span class="hljs-attr">"client-rsa.pem"</span>: {
+        <span class="hljs-attr">"keyValue"</span>: <span class="hljs-string">"jEuwS+PeUzmCo7IfLNxqoj4h7txbLjCQjkwpaw5AWJfZ2xoIdMkOuWDkOsqgFmWwxiecakS6GOZHs94x3sxzKHQx9Oe1jpwBg2e7L4fd26pp+WmAiLm/ArZJo6JotTeFSvKO3u/yQtGTZojDDQxiqFOQ1ZbMdtMZA8DpSMuq+Zx7PqLo43UdW1+krjQfE5WD+y+qE3LJQfwyVDnXxoRtqWLpVsAROlN2LxaMbaftv5HckoejJoB4xpf/dPOUqhnRstwQHf6klKT5iNhjsY4usACt78uILT0pEPd14h8wEBidBz/vAlC/zVMEqiDVzgNS7dqEYS4iHbf7cnWVCn3Hxw=="</span>,
+        <span class="hljs-attr">"metadata"</span>: {}
+      }
+    },
+    <span class="hljs-attr">"param"</span>: <span class="hljs-string">"Tfu1PxVm6S9D3+Hk"</span>,
+    <span class="hljs-attr">"compressionType"</span>: <span class="hljs-string">"NONE"</span>,
+    <span class="hljs-attr">"uncompressedMessageSize"</span>: <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"batchSize"</span>: {
+      <span class="hljs-attr">"empty"</span>: <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"present"</span>: <span class="hljs-literal">true</span>
+    }
+  }
+</code></pre>
+<p>Below are the parameters in the WebSocket consumer response.</p>
+<ul>
+<li><p>General parameters</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">消息 ID</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的负载</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">是</td><td style="text-align:left">此消息已经发送的次数</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Producer 设置的原始路由密钥</td></tr>
+<tr><td style="text-align:left"><code>encryptionContext</code></td><td style="text-align:left">EncryptionContext</td><td style="text-align:left">否</td><td style="text-align:left">Encryption context that consumers can use to decrypt received messages</td></tr>
+<tr><td style="text-align:left"><code>param</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Initialization vector for cipher (Base64 encoding)</td></tr>
+<tr><td style="text-align:left"><code>batchSize</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Number of entries in a message (if it is a batch message)</td></tr>
+<tr><td style="text-align:left"><code>uncompressedMessageSize</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Message size before compression</td></tr>
+<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Algorithm used to compress the message payload</td></tr>
+</tbody>
+</table>
+</li>
+<li><p><code>encryptionContext</code> related parameter</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>keys</code></td><td style="text-align:left">key-EncryptionKey pairs</td><td style="text-align:left">是</td><td style="text-align:left">Key in <code>key-EncryptionKey</code> pairs is an encryption key name. Value in <code>key-EncryptionKey</code> pairs is an encryption key object.</td></tr>
+</tbody>
+</table>
+</li>
+<li><p><code>encryptionKey</code> related parameters</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>keyValue</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Encryption key (Base64 encoding)</td></tr>
+<tr><td style="text-align:left"><code>metadata</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">Application-defined metadata</td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="ack-确认消息"></a><a href="#ack-确认消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 确认消息</h4>
+<p>Consumer needs to acknowledge the successful processing of the message to have the Pulsar broker delete it.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">处理消息的消息ID</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="ack-否认消息"></a><a href="#ack-否认消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 否认消息</h4>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"type"</span>: <span class="hljs-string">"negativeAcknowledge"</span>,
+  <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">处理消息的消息ID</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="流量控制"></a><a href="#流量控制" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>流量控制</h4>
+<h5><a class="anchor" aria-hidden="true" id="推送模式"></a><a href="#推送模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>推送模式</h5>
+<p>默认情况下（<code>pullMode=false</code>），consumer 端使用 <code>receiverQueueSize</code> 参数设置内部接收队列的大小，并限制传递到 WebSocket 客户端的未确认消息数。 在这种模式下，如果不发送消息确认，发送到 WebSocket 客户端的消息达到 <code>receiverQueueSize</code>时，Pulsar WebSocket 将停止发送消息。</p>
+<h5><a class="anchor" aria-hidden="true" id="拉取模式"></a><a href="#拉取模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>拉取模式</h5>
+<p>如果设置 <code>pullMode</code> 为 <code>true</code>，则 WebSocket 客户端需要使用 <code>permit</code> 命令允许 Pulsar WebSocket 服务发送更多消息。</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"type"</span>: <span class="hljs-string">"permit"</span>,
+  <span class="hljs-attr">"permitMessages"</span>: <span class="hljs-number">100</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>type</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Type of command. Must be <code>permit</code></td></tr>
+<tr><td style="text-align:left"><code>permitMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">是</td><td style="text-align:left">允许的消息数量</td></tr>
+</tbody>
+</table>
+<p>注意：在这种模式下，可以在不同的连接中确认消息。</p>
+<h4><a class="anchor" aria-hidden="true" id="检查是否到达主题的结尾"></a><a href="#检查是否到达主题的结尾" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查是否到达主题的结尾</h4>
+<p>消费者可以通过发送 <code>isEndOfTopic</code> 请求来检查它是否已经到达主题的结尾。</p>
+<p><strong>Request</strong></p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"type"</span>: <span class="hljs-string">"isEndOfTopic"</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>type</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Type of command. Must be <code>isEndOfTopic</code></td></tr>
+</tbody>
+</table>
+<p><strong>Response</strong></p>
+<pre><code class="hljs css language-json">{
+   <span class="hljs-attr">"endOfTopic"</span>: <span class="hljs-string">"true/false"</span>
+ }
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="reader-端"></a><a href="#reader-端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 端</h3>
+<p>The reader endpoint requires you to specify a tenant, namespace, and topic in the URL:</p>
+<pre><code class="hljs css language-http">ws://broker-service-url:8080/ws/v2/reader/persistent/:tenant/:namespace/:topic
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="查询参数-2"></a><a href="#查询参数-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Reader name</td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">Consumer 接收队列的大小（默认：1000）</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">int or enum</td><td style="text-align:left">否</td><td style="text-align:left">Message ID to start from, <code>earliest</code> or <code>latest</code> (default: <code>latest</code>)</td></tr>
+<tr><td style="text-align:left"><code>token</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">身份验证令牌，这用于浏览器的 javascript 客户端</td></tr>
+</tbody>
+</table>
+<h5><a class="anchor" aria-hidden="true" id="接收消息-1"></a><a href="#接收消息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>接收消息</h5>
+<p>Server will push messages on the WebSocket session:</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
+  <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
+  <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">消息 ID</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的负载</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">是</td><td style="text-align:left">此消息已经发送的次数</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Producer 设置的原始路由密钥</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="ack-确认消息-1"></a><a href="#ack-确认消息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 确认消息</h4>
+<p><strong>In WebSocket</strong>, Reader needs to acknowledge the successful processing of the message to have the Pulsar WebSocket service update the number of pending messages. If you don't send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">处理消息的消息ID</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="检查是否到达主题的结尾-1"></a><a href="#检查是否到达主题的结尾-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查是否到达主题的结尾</h4>
+<p>消费者可以通过发送 <code>isEndOfTopic</code> 请求来检查它是否已经到达主题的结尾。</p>
+<p><strong>Request</strong></p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"type"</span>: <span class="hljs-string">"isEndOfTopic"</span>
+}
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>type</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Type of command. Must be <code>isEndOfTopic</code></td></tr>
+</tbody>
+</table>
+<p><strong>Response</strong></p>
+<pre><code class="hljs css language-json">{
+   <span class="hljs-attr">"endOfTopic"</span>: <span class="hljs-string">"true/false"</span>
+ }
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="错误代码"></a><a href="#错误代码" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>错误代码</h3>
+<p>In case of error the server will close the WebSocket session using the following error codes:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Error Code</th><th style="text-align:left">Error Message</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">1</td><td style="text-align:left">Failed to create producer</td></tr>
+<tr><td style="text-align:left">2</td><td style="text-align:left">Failed to subscribe</td></tr>
+<tr><td style="text-align:left">3</td><td style="text-align:left">Failed to deserialize from JSON</td></tr>
+<tr><td style="text-align:left">4</td><td style="text-align:left">Failed to serialize to JSON</td></tr>
+<tr><td style="text-align:left">5</td><td style="text-align:left">Failed to authenticate client</td></tr>
+<tr><td style="text-align:left">6</td><td style="text-align:left">Client is not authorized</td></tr>
+<tr><td style="text-align:left">7</td><td style="text-align:left">Invalid payload encoding</td></tr>
+<tr><td style="text-align:left">8</td><td style="text-align:left">Unknown error</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>应用程序负责在后台重新建立 WebSocket 连接。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="客户端示例"></a><a href="#客户端示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端示例</h2>
+<p>Below you'll find code examples for the Pulsar WebSocket API in <a href="#python">Python</a> and <a href="#nodejs">Node.js</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h3>
+<p>This example uses the <a href="https://pypi.python.org/pypi/websocket-client"><code>websocket-client</code></a> package. You can install it using <a href="https://pypi.python.org/pypi/pip">pip</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pip install websocket-client</span>
+</code></pre>
+<p>You can also download it from <a href="https://pypi.python.org/pypi/websocket-client">PyPI</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="python-producer"></a><a href="#python-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python producer</h4>
+<p>Here's an example Python producer that sends a simple message to a Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#topic">topic</a>:</p>
+<pre><code class="hljs css language-python"><span class="hljs-comment">#!/usr/bin/python</span>
+<span class="hljs-comment">#coding=utf-8</span>
+<span class="hljs-keyword">import</span> websocket, base64, json
+
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
+
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'</span>
+
+ws = websocket.create_connection(TOPIC)
+
+<span class="hljs-comment"># Send one message as JSON</span>
+ws.send(json.dumps({
+    <span class="hljs-string">'payload'</span> : base64.b64encode(<span class="hljs-string">'Hello World'</span>),
+    <span class="hljs-string">'properties'</span>: {
+        <span class="hljs-string">'key1'</span> : <span class="hljs-string">'value1'</span>,
+        <span class="hljs-string">'key2'</span> : <span class="hljs-string">'value2'</span>
+    },
+    <span class="hljs-string">'context'</span> : <span class="hljs-number">5</span>
+}))
+
+response =  json.loads(ws.recv())
+<span class="hljs-keyword">if</span> response[<span class="hljs-string">'result'</span>] == <span class="hljs-string">'ok'</span>:
+    <span class="hljs-keyword">print</span> <span class="hljs-string">'Message published successfully'</span>
+<span class="hljs-keyword">else</span>:
+    <span class="hljs-keyword">print</span> <span class="hljs-string">'Failed to publish message:'</span>, response
+ws.close()
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="python-consumer"></a><a href="#python-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python consumer</h4>
+<p>Here's an example Python consumer that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
+<pre><code class="hljs css language-python"><span class="hljs-comment">#!/usr/bin/python</span>
+<span class="hljs-comment">#coding=utf-8</span>
+<span class="hljs-keyword">import</span> websocket, base64, json
+
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
+
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'</span>
+
+ws = websocket.create_connection(TOPIC)
+
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+    msg = json.loads(ws.recv())
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> msg: <span class="hljs-keyword">break</span>
+
+    <span class="hljs-keyword">print</span> <span class="hljs-string">"Received: {} - payload: {}"</span>.format(msg, base64.b64decode(msg[<span class="hljs-string">'payload'</span>]))
+
+    <span class="hljs-comment"># Acknowledge successful processing</span>
+    ws.send(json.dumps({<span class="hljs-string">'messageId'</span> : msg[<span class="hljs-string">'messageId'</span>]}))
+
+ws.close()
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="python-reader"></a><a href="#python-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python reader</h4>
+<p>Here's an example Python reader that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
+<pre><code class="hljs css language-python"><span class="hljs-comment">#!/usr/bin/python</span>
+<span class="hljs-comment">#coding=utf-8</span>
+<span class="hljs-keyword">import</span> websocket, base64, json
+
+<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+enable_TLS = <span class="hljs-literal">False</span>
+scheme = <span class="hljs-string">'ws'</span>
+<span class="hljs-keyword">if</span> enable_TLS:
+    scheme = <span class="hljs-string">'wss'</span>
+
+TOPIC = scheme + <span class="hljs-string">'://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'</span>
+ws = websocket.create_connection(TOPIC)
+
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+    msg = json.loads(ws.recv())
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> msg: <span class="hljs-keyword">break</span>
+
+    <span class="hljs-keyword">print</span> <span class="hljs-string">"Received: {} - payload: {}"</span>.format(msg, base64.b64decode(msg[<span class="hljs-string">'payload'</span>]))
+
+    <span class="hljs-comment"># Acknowledge successful processing</span>
+    ws.send(json.dumps({<span class="hljs-string">'messageId'</span> : msg[<span class="hljs-string">'messageId'</span>]}))
+
+ws.close()
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="nodejs"></a><a href="#nodejs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js</h3>
+<p>This example uses the <a href="https://websockets.github.io/ws/"><code>ws</code></a> package. You can install it using <a href="https://www.npmjs.com/">npm</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> npm install ws</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="nodejs-producer"></a><a href="#nodejs-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js producer</h4>
+<p>Here's an example Node.js producer that sends a simple message to a Pulsar topic:</p>
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/producer/persistent/public/default/my-topic`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+
+<span class="hljs-keyword">var</span> message = {
+  <span class="hljs-string">"payload"</span> : <span class="hljs-keyword">new</span> Buffer(<span class="hljs-string">"Hello World"</span>).toString(<span class="hljs-string">'base64'</span>),
+  <span class="hljs-string">"properties"</span>: {
+    <span class="hljs-string">"key1"</span> : <span class="hljs-string">"value1"</span>,
+    <span class="hljs-string">"key2"</span> : <span class="hljs-string">"value2"</span>
+  },
+  <span class="hljs-string">"context"</span> : <span class="hljs-string">"1"</span>
+};
+
+ws.on(<span class="hljs-string">'open'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>) </span>{
+  <span class="hljs-comment">// Send one message</span>
+  ws.send(<span class="hljs-built_in">JSON</span>.stringify(message));
+});
+
+ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">message</span>) </span>{
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'received ack: %s'</span>, message);
+});
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="nodejs-consumer"></a><a href="#nodejs-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Node.js consumer</h4>
+<p>Here's an example Node.js consumer that listens on the same topic used by the producer above:</p>
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+
+ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">message</span>) </span>{
+    <span class="hljs-keyword">var</span> receiveMsg = <span class="hljs-built_in">JSON</span>.parse(message);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Received: %s - payload: %s'</span>, message, <span class="hljs-keyword">new</span> Buffer(receiveMsg.payload, <span class="hljs-string">'base64'</span>).toString());
+    <span class="hljs-keyword">var</span> ackMsg = {<span class="hljs-string">"messageId"</span> : receiveMsg.messageId};
+    ws.send(<span class="hljs-built_in">JSON</span>.stringify(ackMsg));
+});
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="nodejs-reader"></a><a href="#nodejs-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NodeJS reader</h4>
+<pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
+
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
+<span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/reader/persistent/public/default/my-topic`</span>;
+<span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
+
+ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">message</span>) </span>{
+    <span class="hljs-keyword">var</span> receiveMsg = <span class="hljs-built_in">JSON</span>.parse(message);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Received: %s - payload: %s'</span>, message, <span class="hljs-keyword">new</span> Buffer(receiveMsg.payload, <span class="hljs-string">'base64'</span>).toString());
+    <span class="hljs-keyword">var</span> ackMsg = {<span class="hljs-string">"messageId"</span> : receiveMsg.messageId};
+    ws.send(<span class="hljs-built_in">JSON</span>.stringify(ackMsg));
+});
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/client-libraries-node"><span class="arrow-prev">← </span><span>Node.js
+</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/client-libraries-dotnet"><span>C#</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#运行-websocket-服务">运行 WebSocket 服务</a><ul class="toc-headings"><li><a href="#嵌入-pulsar-broker">嵌入 Pulsar Broker</a></li><li><a href="#作为一个独立的组件">作为一个独立的组件</a></li><li><a href="#安全设置">安全设置</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#api-手册">API 手册：</a><ul class="toc-headings"><li><a href="#认证">认证</a></li><li><a href="#producer-端">Producer 端</a></li><li><a href="#consumer-端">Consumer 端</a></li><li><a href="#reader-端">Reader 端</a></li><li><a href="#错误代码">错误代码</a></li></ul></li><li><a href="#客户端示例">客户端示例</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

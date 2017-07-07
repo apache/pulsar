@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema Registry · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Type safety is extremely important in any application built around a message bus like Pulsar. Producers and consumers need some kind of mechanism for coordinating types at the topic level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Schema Registry · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Type safety is extremely important in any application built around a message bus like Pulsar. Producers and consumers need some kind of mechanism for coordinating types at the topic level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class=""><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/concepts-schema-registry">English</a></li><li><a href="/docs/ja/2.8.3/concepts-schema-registry">日本語</a></li><li><a href="/docs/fr/2.8.3/concepts-schema-registry">Français</a></li><li><a href="/docs/ko/2.8.3/concepts-schema-registry">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/concepts-schema-registry">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema Registry</h1></header><article><div><span><p>Type safety is extremely important in any application built around a message bus like Pulsar. Producers and consumers need some kind of mechanism for coordinating types at the topic level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:</p>
+<ol>
+<li>A &quot;client-side&quot; approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also &quot;knowing&quot; which types are being transmitted via which topics. If a producer is sending temperature sensor data on the topic <code>topic-1</code>, consumers of that topic will run into trouble if they attempt to parse that data as, say, moisture sensor readings.</li>
+<li>A &quot;server-side&quot; approach in which producers and consumers inform the system which data types can be transmitted via the topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.</li>
+</ol>
+<p>Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.</p>
+<ol>
+<li>For the &quot;client-side&quot; approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an &quot;out-of-band&quot; basis.</li>
+<li>For the &quot;server-side&quot; approach, Pulsar has a built-in <strong>schema registry</strong> that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.</li>
+</ol>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-TW/2.8.3/client-libraries-java">Java client</a>, <a href="/docs/zh-TW/2.8.3/client-libraries-go">CGo client</a>, <a href="/docs/zh-TW/2.8.3/client-libraries-python">Python client</a>, and <a href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="basic-architecture"></a><a href="#basic-architecture" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Basic architecture</h2>
+<p>Schemas are automatically uploaded when you create a typed Producer with a Schema. Additionally, Schemas can be manually uploaded to, fetched from, and updated via Pulsar's <a href="https://pulsar.apache.org/admin-rest-api#tag/schemas">REST</a>
+ API.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="other-schema-registry-backends"></a><a href="#other-schema-registry-backends" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Other schema registry backends</h4>
+<p>Out of the box, Pulsar uses the <a href="concepts-architecture-overview#persistent-storage">Apache BookKeeper</a> log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="how-schemas-work"></a><a href="#how-schemas-work" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How schemas work</h2>
+<p>Pulsar schemas are applied and enforced <em>at the topic level</em> (schemas cannot be applied at the namespace or tenant level). Producers and consumers upload schemas to Pulsar brokers.</p>
+<p>Pulsar schemas are fairly simple data structures that consist of:</p>
+<ul>
+<li>A <strong>name</strong>. In Pulsar, a schema's name is the topic to which the schema is applied.</li>
+<li>A <strong>payload</strong>, which is a binary representation of the schema</li>
+<li>A schema <a href="#supported-schema-formats"><strong>type</strong></a></li>
+<li>User-defined <strong>properties</strong> as a string/string map. Usage of properties is wholly application specific. Possible properties might be the Git hash associated with a schema, an environment like <code>dev</code> or <code>prod</code>, etc.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="schema-versions"></a><a href="#schema-versions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema versions</h2>
+<p>In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar <a href="/docs/zh-TW/2.8.3/client-libraries-java">Java client</a> created using the code below attempts to connect to Pulsar and begin sending messages:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+</code></pre>
+<p>The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Scenario</th><th style="text-align:left">What happens</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">No schema exists for the topic</td><td style="text-align:left">The producer is created using the given schema. The schema is transmitted to the broker and stored (since no existing schema is &quot;compatible&quot; with the <code>SensorReading</code> schema). Any consumer created using the same schema/topic can consume messages from the <code>sensor-data</code> topic.</td></tr>
+<tr><td style="text-align:left">A schema already exists; the producer connects using the same schema that's already stored</td><td style="text-align:left">The schema is transmitted to the Pulsar broker. The broker determines that the schema is compatible. The broker attempts to store the schema in <a href="/docs/zh-TW/2.8.3/concepts-architecture-overview#persistent-storage">BookKeeper</a> but then determines that it's already stored, so it's then used to tag produced messages.</td></tr>
+<tr><td style="text-align:left">A schema already exists; the producer connects using a new schema that is compatible</td><td style="text-align:left">The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="supported-schema-formats"></a><a href="#supported-schema-formats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported schema formats</h2>
+<p>The following formats are supported by the Pulsar schema registry:</p>
+<ul>
+<li>None. If no schema is specified for a topic, producers and consumers will handle raw bytes.</li>
+<li><code>String</code> (used for UTF-8-encoded strings)</li>
+<li><a href="https://www.json.org/">JSON</a></li>
+<li><a href="https://developers.google.com/protocol-buffers/">Protobuf</a></li>
+<li><a href="https://avro.apache.org/">Avro</a></li>
+</ul>
+<p>For usage instructions, see the documentation for your preferred client library:</p>
+<ul>
+<li><a href="/docs/zh-TW/2.8.3/client-libraries-java#schemas">Java</a></li>
+</ul>
+<blockquote>
+<p>Support for other schema formats will be added in future releases of Pulsar.</p>
+</blockquote>
+<p>The following example shows how to define an Avro schema using the <code>GenericSchemaBuilder</code>, generate a generic Avro schema using <code>GenericRecordBuilder</code>, and consume messages into <code>GenericRecord</code>.</p>
+<p><strong>Example</strong></p>
+<ol>
+<li><p>Use the <code>RecordSchemaBuilder</code> to build a schema.</p>
+<pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);
+recordSchemaBuilder.field(<span class="hljs-string">"intField"</span>).type(SchemaType.INT32);
+SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schemaInfo)).create();
+</code></pre></li>
+<li><p>Use <code>RecordBuilder</code> to build the generic records.</p>
+<pre><code class="hljs css language-java">producer.newMessage().value(schema.newRecordBuilder()
+            .set(<span class="hljs-string">"intField"</span>, <span class="hljs-number">32</span>)
+            .build()).send();
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="managing-schemas"></a><a href="#managing-schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managing Schemas</h2>
+<p>You can use Pulsar admin tools to manage schemas for topics.</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#basic-architecture">Basic architecture</a></li><li><a href="#how-schemas-work">How schemas work</a></li><li><a href="#schema-versions">Schema versions</a></li><li><a href="#supported-schema-formats">Supported schema formats</a></li><li><a href="#managing-schemas">Managing Schemas</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

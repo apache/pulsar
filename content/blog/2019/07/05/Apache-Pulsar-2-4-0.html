@@ -1,0 +1,216 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.4.0 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge "/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.4.0 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0"/><meta property="og:description" content="We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2019/07/05/Apache-Pulsar-2-4-0">Apache Pulsar 2.4.0</a></h1><p class="post-meta">July 5, 2019</p><div class="authorBlock"><p class="post-authorName"><a href="https://twitter.com/lipenghui6" target="_blank" rel="noreferrer noopener">Penghui Li</a></p></div></header><div><span><p>We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge
+effort from the community, with over 460 commits and a long list of new features,
+general improvements and bug fixes.</p>
+<p>Check out the <b><a href="/release-notes/#2.4.0">release notes</a></b> for a detailed list of
+the changes, with links to the relevant pull requests, discussions and documentation.</p>
+<p>Regarding new features introduced, I just want to highlight here a tiny subset of them:</p>
+<!--truncate-->
+<h3><a class="anchor" aria-hidden="true" id="delayed-message-delivery"></a><a href="#delayed-message-delivery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delayed message delivery</h3>
+<p>It's now possible to send a delayed message by Pulsar producer, and a delayed message will be
+available after a delay time.</p>
+<p>The Java code for a client using delayed messages delivery looks as follows:</p>
+<pre><code class="hljs css language-java">producer.newMessage().value(<span class="hljs-string">"delayed message"</span>).deliverAfter(<span class="hljs-number">10</span>, TimeUnit.SECONDS).send()
+</code></pre>
+<blockquote>
+<p>Note:</p>
+<ol>
+<li>Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.</li>
+<li>Delayed messages are sent individually even if you enable message batching on producer.</li>
+</ol>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="go-functions"></a><a href="#go-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Go Functions</h3>
+<p>Before 2.4.0 release, Java and Python are supported to write Pulsar Functions. Now, you can
+use Go to write Pulsar Functions, the following is an example of
+a Pulsar Function written in Go.</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"fmt"</span>
+    <span class="hljs-string">"context"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-function-go/pf"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">HandleRequest</span><span class="hljs-params">(ctx context.Context, in []<span class="hljs-keyword">byte</span>)</span> <span class="hljs-title">error</span></span> {
+    fmt.Println(<span class="hljs-keyword">string</span>(in) + <span class="hljs-string">"!"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    pf.Start(HandleRequest)
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="key_shared-subscription"></a><a href="#key_shared-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Key_Shared subscription</h3>
+<p>A new subscription mode <code>Key_shared</code> is introduced in 2.4.0. In <code>Key_shared</code> subscription mode,
+one partition could have several consumers to consume messages in parallelism and ensure messages
+with the same key are distributed to a consumer in order.
+Here is <a href="http://pulsar.apache.org/docs/en/concepts-messaging/#key_shared">architecture</a>
+for Key_Shared.</p>
+<p>The following is an example to use <code>Key_shared</code> subscription:</p>
+<pre><code class="hljs css language-java">client.newConsumer()
+        .topic(<span class="hljs-string">"topic"</span>)
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .subscriptionName(<span class="hljs-string">"sub-1"</span>)
+        .subscribe();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="schema-versioning"></a><a href="#schema-versioning" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema versioning</h3>
+<p>Before 2.4.0 release, Avro schema used one schema for both writer schema and reader schema.
+Multiple schemas version is supported now.</p>
+<p>With multiple schemas, a producer can send messages with different schema versions and a consumer
+can read messages with different schemas.</p>
+<p>In 2.4.0 release, <code>FORWARD_TRANSITIVE</code>, <code>BACKWARD_TRANSITIVE</code> and <code>FULL_TRANSITIVE</code> compatibility
+strategies are added to check the compatibility with all existing schema version.</p>
+<h3><a class="anchor" aria-hidden="true" id="replicated-subscription"></a><a href="#replicated-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replicated subscription</h3>
+<p>In 2.4.0 release, a mechanism is added to keep subscription state in sync, within a sub-second timeframe,
+in the context of a topic that is being asynchronously replicated across multiple geographical
+regions. Here is <a href="https://github.com/apache/pulsar/wiki/PIP-33%3A-Replicated-subscriptions">architecture</a>
+for replicated subscription.</p>
+<p>The following is an example to use replicated subscription:</p>
+<pre><code class="hljs css language-java">Consumer&lt;String&gt; consumer = client.newConsumer(Schema.STRING)
+            .topic(<span class="hljs-string">"my-topic"</span>)
+            .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+            .replicateSubscriptionState(<span class="hljs-keyword">true</span>)
+            .subscribe();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="new-io-connectors"></a><a href="#new-io-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>New IO connectors</h3>
+<p>A new batch of connectors is added, including Flume, Redis sink, Solr sink, RabbitMQ sink.
+The following lists builtin <a href="http://pulsar.apache.org/docs/en/io-connectors/">connectors</a>
+that Pulsar supports.</p>
+<h3><a class="anchor" aria-hidden="true" id="security"></a><a href="#security" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security</h3>
+<p>In 2.4.0 release, Kerberos is supported in Apache Pulsar broker and client.
+To enable Kerberos authentication, refer to the <a href="http://pulsar.apache.org/docs/en/security-kerberos/">document</a>.</p>
+<p>Also added role based Pulsar Function authentication and authorization.</p>
+<h2><a class="anchor" aria-hidden="true" id="conclusion"></a><a href="#conclusion" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Conclusion</h2>
+<p>If you want to download Pulsar 2.4.0, click <a href="/download">here</a>. You can send any questions or suggestions
+to our mailing lists, contribute to Pulsar on <a href="https://github.com/apache/pulsar">GitHub</a> or join
+the Apache Pulsar community on <a href="https://apache-pulsar.herokuapp.com/">Slack</a>.</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.4.0" data-url="https://pulsar.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#conclusion">Conclusion</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

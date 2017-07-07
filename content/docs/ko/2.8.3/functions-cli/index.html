@@ -1,0 +1,338 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Functions command line tool · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Pulsar Functions command line tool · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-cli">English</a></li><li><a href="/docs/ja/2.8.3/functions-cli">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-cli">Français</a></li><li><a href="/docs/zh-CN/2.8.3/functions-cli">中文</a></li><li><a href="/docs/zh-TW/2.8.3/functions-cli">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Functions command line tool</h1></header><article><div><span><p>The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.</p>
+<h2><a class="anchor" aria-hidden="true" id="localrun"></a><a href="#localrun" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>localrun</h2>
+<p>Run Pulsar Functions locally, rather than deploying it to the Pulsar cluster.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>auto-ack</td><td>Whether or not the framework acknowledges messages automatically.</td><td>true</td></tr>
+<tr><td>broker-service-url</td><td>The URL for the Pulsar broker.</td><td></td></tr>
+<tr><td>classname</td><td>The class name of a Pulsar Function.</td><td></td></tr>
+<tr><td>client-auth-params</td><td>Client authentication parameter.</td><td></td></tr>
+<tr><td>client-auth-plugin</td><td>Client authentication plugin using which function-process can connect to broker.</td><td></td></tr>
+<tr><td>CPU</td><td>The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>custom-schema-inputs</td><td>The map of input topics to Schema class names (as a JSON string).</td><td></td></tr>
+<tr><td>custom-serde-inputs</td><td>The map of input topics to SerDe class names (as a JSON string).</td><td></td></tr>
+<tr><td>dead-letter-topic</td><td>The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions.</td><td></td></tr>
+<tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>hostname-verification-enabled</td><td>Enable hostname verification.</td><td>false</td></tr>
+<tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>instance-id-offset</td><td>Start the instanceIds from this offset.</td><td>0</td></tr>
+<tr><td>log-topic</td><td>The topic to which the logs  a Pulsar Function are produced.</td><td></td></tr>
+<tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>output</td><td>The output topic of a Pulsar Function (If none is specified, no output is written).</td><td></td></tr>
+<tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
+<tr><td>parallelism</td><td>The parallelism factor of  a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
+<tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
+<tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
+<tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
+<tr><td>sliding-interval-count</td><td>The number of messages after which the window slides.</td><td></td></tr>
+<tr><td>sliding-interval-duration-ms</td><td>The time duration after which the window slides.</td><td></td></tr>
+<tr><td>subs-name</td><td>Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>timeout-ms</td><td>The message timeout in milliseconds.</td><td></td></tr>
+<tr><td>tls-allow-insecure</td><td>Allow insecure tls connection.</td><td>false</td></tr>
+<tr><td>tls-trust-cert-path</td><td>tls trust cert file path.</td><td></td></tr>
+<tr><td>topics-pattern</td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function).</td><td></td></tr>
+<tr><td>use-tls</td><td>Use tls connection.</td><td>false</td></tr>
+<tr><td>user-config</td><td>User-defined config key/values.</td><td></td></tr>
+<tr><td>window-length-count</td><td>The number of messages per window.</td><td></td></tr>
+<tr><td>window-length-duration-ms</td><td>The time duration of the window in milliseconds.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="create"></a><a href="#create" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>create</h2>
+<p>Create and deploy a Pulsar Function in cluster mode.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>auto-ack</td><td>Whether or not the framework acknowledges messages automatically.</td><td>true</td></tr>
+<tr><td>classname</td><td>The class name of a Pulsar Function.</td><td></td></tr>
+<tr><td>CPU</td><td>The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>custom-runtime-options</td><td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td><td></td></tr>
+<tr><td>custom-schema-inputs</td><td>The map of input topics to Schema class names (as a JSON string).</td><td></td></tr>
+<tr><td>custom-serde-inputs</td><td>The map of input topics to SerDe class names (as a JSON string).</td><td></td></tr>
+<tr><td>dead-letter-topic</td><td>The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions.</td><td></td></tr>
+<tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
+<tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>output</td><td>The output topic of a Pulsar Function (If none is specified, no output is written).</td><td></td></tr>
+<tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
+<tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
+<tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
+<tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
+<tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
+<tr><td>sliding-interval-count</td><td>The number of messages after which the window slides.</td><td></td></tr>
+<tr><td>sliding-interval-duration-ms</td><td>The time duration after which the window slides.</td><td></td></tr>
+<tr><td>subs-name</td><td>Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>timeout-ms</td><td>The message timeout in milliseconds.</td><td></td></tr>
+<tr><td>topics-pattern</td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function).</td><td></td></tr>
+<tr><td>user-config</td><td>User-defined config key/values.</td><td></td></tr>
+<tr><td>window-length-count</td><td>The number of messages per window.</td><td></td></tr>
+<tr><td>window-length-duration-ms</td><td>The time duration of the window in milliseconds.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>delete</h2>
+<p>Delete a Pulsar Function that is running on a Pulsar cluster.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>update</h2>
+<p>Update a Pulsar Function that has been deployed to a Pulsar cluster.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>auto-ack</td><td>Whether or not the framework acknowledges messages automatically.</td><td>true</td></tr>
+<tr><td>classname</td><td>The class name of a Pulsar Function.</td><td></td></tr>
+<tr><td>CPU</td><td>The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>custom-runtime-options</td><td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td><td></td></tr>
+<tr><td>custom-schema-inputs</td><td>The map of input topics to Schema class names (as a JSON string).</td><td></td></tr>
+<tr><td>custom-serde-inputs</td><td>The map of input topics to SerDe class names (as a JSON string).</td><td></td></tr>
+<tr><td>dead-letter-topic</td><td>The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions.</td><td></td></tr>
+<tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
+<tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>output</td><td>The output topic of a Pulsar Function (If none is specified, no output is written).</td><td></td></tr>
+<tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
+<tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
+<tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
+<tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
+<tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
+<tr><td>sliding-interval-count</td><td>The number of messages after which the window slides.</td><td></td></tr>
+<tr><td>sliding-interval-duration-ms</td><td>The time duration after which the window slides.</td><td></td></tr>
+<tr><td>subs-name</td><td>Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>timeout-ms</td><td>The message timeout in milliseconds.</td><td></td></tr>
+<tr><td>topics-pattern</td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function).</td><td></td></tr>
+<tr><td>update-auth-data</td><td>Whether or not to update the auth data.</td><td>false</td></tr>
+<tr><td>user-config</td><td>User-defined config key/values.</td><td></td></tr>
+<tr><td>window-length-count</td><td>The number of messages per window.</td><td></td></tr>
+<tr><td>window-length-duration-ms</td><td>The time duration of the window in milliseconds.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>get</h2>
+<p>Fetch information about a Pulsar Function.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>restart</h2>
+<p>Restart function instance.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>instance-id</td><td>The function instanceId (restart all instances if instance-id is not provided.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>stop</h2>
+<p>Stops function instance.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>instance-id</td><td>The function instanceId (restart all instances if instance-id is not provided.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>start</h2>
+<p>Starts a stopped function instance.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
+<tr><td>instance-id</td><td>The function instanceId (restart all instances if instance-id is not provided.</td><td></td></tr>
+<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
+<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.8.3/functions-deploy"><span class="arrow-prev">← </span><span>How-to: Deploy</span></a><a class="docs-next button" href="/docs/ko/2.8.3/window-functions-context"><span>Window Functions: Context</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#localrun">localrun</a></li><li><a href="#create">create</a></li><li><a href="#delete">delete</a></li><li><a href="#update">update</a></li><li><a href="#get">get</a></li><li><a href="#restart">restart</a></li><li><a href="#stop">stop</a></li><li><a href="#start">start</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

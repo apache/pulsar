@@ -1,0 +1,427 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar C# client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available [here](https://github.com/apache/pulsar-dotpulsar/wiki)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Pulsar C# client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available [here](https://github.com/apache/pulsar-dotpulsar/wiki)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/client-libraries-dotnet">English</a></li><li><a href="/docs/ja/2.8.3/client-libraries-dotnet">日本語</a></li><li><a href="/docs/ko/2.8.3/client-libraries-dotnet">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/client-libraries-dotnet">中文</a></li><li><a href="/docs/zh-TW/2.8.3/client-libraries-dotnet">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Client Libraries</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar C# client</h1></header><article><div><span><p>You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available <a href="https://github.com/apache/pulsar-dotpulsar/wiki">here</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p>You can install the Pulsar C# client library either through the dotnet CLI or through the Visual Studio. This section describes how to install the Pulsar C# client library through the dotnet CLI. For information about how to install the Pulsar C# client library through the Visual Studio, see <a href="https://docs.microsoft.com/en-us/visualstudio/mac/nuget-walkthrough?view=vsmac-2019">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="prerequisites"></a><a href="#prerequisites" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerequisites</h3>
+<p>Install the <a href="https://dotnet.microsoft.com/download/">.NET Core SDK</a>, which provides the dotnet command-line tool. Starting in Visual Studio 2017, the dotnet CLI is automatically installed with any .NET Core related workloads.</p>
+<h3><a class="anchor" aria-hidden="true" id="procedures"></a><a href="#procedures" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Procedures</h3>
+<p>To install the Pulsar C# client library, following these steps:</p>
+<ol>
+<li><p>Create a project.</p>
+<ol>
+<li><p>Create a folder for the project.</p></li>
+<li><p>Open a terminal window and switch to the new folder.</p></li>
+<li><p>Create the project using the following command.</p>
+<pre><code class="hljs">dotnet new<span class="hljs-built_in"> console
+</span></code></pre></li>
+<li><p>Use <code>dotnet run</code> to test that the app has been created properly.</p></li>
+</ol></li>
+<li><p>Add the DotPulsar NuGet package.</p>
+<ol>
+<li><p>Use the following command to install the <code>DotPulsar</code> package.</p>
+<pre><code class="hljs">dotnet add <span class="hljs-keyword">package</span> <span class="hljs-title">DotPulsar</span>
+</code></pre></li>
+<li><p>After the command completes, open the <code>.csproj</code> file to see the added reference.</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">ItemGroup</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">"DotPulsar"</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">"0.11.0"</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">ItemGroup</span>&gt;</span>
+</code></pre></li>
+</ol></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
+<p>This section describes some configuration examples for the Pulsar C# client.</p>
+<h3><a class="anchor" aria-hidden="true" id="create-client"></a><a href="#create-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create client</h3>
+<p>This example shows how to create a Pulsar C# client connected to localhost.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> client = PulsarClient.Builder().Build();
+</code></pre>
+<p>To create a Pulsar C# client by using the builder, you can specify the following options.</p>
+<table>
+<thead>
+<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>ServiceUrl</td><td>Set the service URL for the Pulsar cluster.</td><td><a href="pulsar://localhost:6650">pulsar://localhost:6650</a></td></tr>
+<tr><td>RetryInterval</td><td>Set the time to wait before retrying an operation or a reconnection.</td><td>3s</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="create-producer"></a><a href="#create-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create producer</h3>
+<p>This section describes how to create a producer.</p>
+<ul>
+<li><p>Create a producer by using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> producer = client.NewProducer()
+                     .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
+                     .Create();
+</code></pre></li>
+<li><p>Create a producer without using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ProducerOptions(<span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<span class="hljs-keyword">var</span> producer = client.CreateProducer(options);
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="create-consumer"></a><a href="#create-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create consumer</h3>
+<p>This section describes how to create a consumer.</p>
+<ul>
+<li><p>Create a consumer by using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> consumer = client.NewConsumer()
+                     .SubscriptionName(<span class="hljs-string">"MySubscription"</span>)
+                     .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
+                     .Create();
+</code></pre></li>
+<li><p>Create a consumer without using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ConsumerOptions(<span class="hljs-string">"MySubscription"</span>, <span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<span class="hljs-keyword">var</span> consumer = client.CreateConsumer(options);
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="create-reader"></a><a href="#create-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create reader</h3>
+<p>This section describes how to create a reader.</p>
+<ul>
+<li><p>Create a reader by using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> reader = client.NewReader()
+                   .StartMessageId(MessageId.Earliest)
+                   .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
+                   .Create();
+</code></pre></li>
+<li><p>Create a reader without using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ReaderOptions(MessageId.Earliest, <span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<span class="hljs-keyword">var</span> reader = client.CreateReader(options);
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-encryption-policies"></a><a href="#configure-encryption-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure encryption policies</h3>
+<p>The Pulsar C# client supports four kinds of encryption policies:</p>
+<ul>
+<li><code>EnforceUnencrypted</code>: always use unencrypted connections.</li>
+<li><code>EnforceEncrypted</code>: always use encrypted connections)</li>
+<li><code>PreferUnencrypted</code>: use unencrypted connections, if possible.</li>
+<li><code>PreferEncrypted</code>: use encrypted connections, if possible.</li>
+</ul>
+<p>This example shows how to set the <code>EnforceUnencrypted</code> encryption policy.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> client = PulsarClient.Builder()
+                         .ConnectionSecurity(EncryptionPolicy.EnforceEncrypted)
+                         .Build();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configure-authentication"></a><a href="#configure-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure authentication</h3>
+<p>Currently, the Pulsar C# client supports the TLS (Transport Layer Security) and JWT (JSON Web Token) authentication.</p>
+<p>If you have followed <a href="/docs/fr/2.8.3/security-tls-authentication">Authentication using TLS</a>, you get a certificate and a key. To use them from the Pulsar C# client, follow these steps:</p>
+<ol>
+<li><p>Create an unencrypted and password-less pfx file.</p>
+<pre><code class="hljs css language-c#">openssl pkcs12 -export -keypbe NONE -certpbe NONE -<span class="hljs-keyword">out</span> admin.pfx -inkey admin.key.pem -<span class="hljs-keyword">in</span> admin.cert.pem -passout pass:
+</code></pre></li>
+<li><p>Use the admin.pfx file to create an X509Certificate2 and pass it to the Pulsar C# client.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> clientCertificate = <span class="hljs-keyword">new</span> X509Certificate2(<span class="hljs-string">"admin.pfx"</span>);
+<span class="hljs-keyword">var</span> client = PulsarClient.Builder()
+                         .AuthenticateUsingClientCertificate(clientCertificate)
+                         .Build();
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h2>
+<p>A producer is a process that attaches to a topic and publishes messages to a Pulsar broker for processing. This section describes some configuration examples about the producer.</p>
+<h2><a class="anchor" aria-hidden="true" id="send-data"></a><a href="#send-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Send data</h2>
+<p>This example shows how to send data.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> data = Encoding.UTF8.GetBytes(<span class="hljs-string">"Hello World"</span>);
+<span class="hljs-keyword">await</span> producer.Send(data);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="send-messages-with-customized-metadata"></a><a href="#send-messages-with-customized-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Send messages with customized metadata</h3>
+<ul>
+<li><p>Send messages with customized metadata by using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> data = Encoding.UTF8.GetBytes(<span class="hljs-string">"Hello World"</span>);
+<span class="hljs-keyword">var</span> messageId = <span class="hljs-keyword">await</span> producer.NewMessage()
+                              .Property(<span class="hljs-string">"SomeKey"</span>, <span class="hljs-string">"SomeValue"</span>)
+                              .Send(data);
+</code></pre></li>
+<li><p>Send messages with customized metadata without using the builder.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> data = Encoding.UTF8.GetBytes(<span class="hljs-string">"Hello World"</span>);
+<span class="hljs-keyword">var</span> metadata = <span class="hljs-keyword">new</span> MessageMetadata();
+metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string">"SomeValue"</span>;
+<span class="hljs-keyword">var</span> messageId = <span class="hljs-keyword">await</span> producer.Send(metadata, data));
+</code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h2>
+<p>A consumer is a process that attaches to a topic through a subscription and then receives messages. This section describes some configuration examples about the consumer.</p>
+<h3><a class="anchor" aria-hidden="true" id="receive-messages"></a><a href="#receive-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Receive messages</h3>
+<p>This example shows how a consumer receives messages from a topic.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> <span class="hljs-keyword">foreach</span> (<span class="hljs-keyword">var</span> message <span class="hljs-keyword">in</span> consumer.Messages())
+{
+    Console.WriteLine(<span class="hljs-string">"Received: "</span> + Encoding.UTF8.GetString(message.Data.ToArray()));
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="acknowledge-messages"></a><a href="#acknowledge-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledge messages</h3>
+<p>Messages can be acknowledged individually or cumulatively. For details about message acknowledgement, see <a href="/docs/fr/2.8.3/concepts-messaging#acknowledgement">acknowledgement</a>.</p>
+<ul>
+<li><p>Acknowledge messages individually.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> <span class="hljs-keyword">foreach</span> (<span class="hljs-keyword">var</span> message <span class="hljs-keyword">in</span> consumer.Messages())
+{
+    Console.WriteLine(<span class="hljs-string">"Received: "</span> + Encoding.UTF8.GetString(message.Data.ToArray()));
+}
+</code></pre></li>
+<li><p>Acknowledge messages cumulatively.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> consumer.AcknowledgeCumulative(message);
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="unsubscribe-from-topics"></a><a href="#unsubscribe-from-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unsubscribe from topics</h3>
+<p>This example shows how a consumer unsubscribes from a topic.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> consumer.Unsubscribe();
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>A consumer cannot be used and is disposed once the consumer unsubscribes from a topic.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="reader"></a><a href="#reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader</h2>
+<p>A reader is actually just a consumer without a cursor. This means that Pulsar does not keep track of your progress and there is no need to acknowledge messages.</p>
+<p>This example shows how a reader receives messages.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> <span class="hljs-keyword">foreach</span> (<span class="hljs-keyword">var</span> message <span class="hljs-keyword">in</span> reader.Messages())
+{
+    Console.WriteLine(<span class="hljs-string">"Received: "</span> + Encoding.UTF8.GetString(message.Data.ToArray()));
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="monitoring"></a><a href="#monitoring" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring</h2>
+<p>This section describes how to monitor the producer, consumer, and reader state.</p>
+<h3><a class="anchor" aria-hidden="true" id="monitor-producer"></a><a href="#monitor-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor producer</h3>
+<p>The following table lists states available for the producer.</p>
+<table>
+<thead>
+<tr><th>State</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Closed</td><td>The producer or the Pulsar client has been disposed.</td></tr>
+<tr><td>Connected</td><td>All is well.</td></tr>
+<tr><td>Disconnected</td><td>The connection is lost and attempts are being made to reconnect.</td></tr>
+<tr><td>Faulted</td><td>An unrecoverable error has occurred.</td></tr>
+</tbody>
+</table>
+<p>This example shows how to monitor the producer state.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-function"><span class="hljs-keyword">private</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> ValueTask <span class="hljs-title">Monitor</span>(<span class="hljs-params">IProducer producer, CancellationToken cancellationToken</span>)</span>
+{
+    <span class="hljs-keyword">var</span> state = ProducerState.Disconnected;
+
+    <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
+    {
+        state = <span class="hljs-keyword">await</span> producer.StateChangedFrom(state, cancellationToken);
+
+        <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
+        {
+            ProducerState.Connected =&gt; <span class="hljs-string">$"The producer is connected"</span>,
+            ProducerState.Disconnected =&gt; <span class="hljs-string">$"The producer is disconnected"</span>,
+            ProducerState.Closed =&gt; <span class="hljs-string">$"The producer has closed"</span>,
+            ProducerState.Faulted =&gt; <span class="hljs-string">$"The producer has faulted"</span>,
+            _ =&gt; <span class="hljs-string">$"The producer has an unknown state '<span class="hljs-subst">{state}</span>'"</span>
+        };
+
+        Console.WriteLine(stateMessage);
+
+        <span class="hljs-keyword">if</span> (producer.IsFinalState(state))
+            <span class="hljs-keyword">return</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="monitor-consumer-state"></a><a href="#monitor-consumer-state" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor consumer state</h3>
+<p>The following table lists states available for the consumer.</p>
+<table>
+<thead>
+<tr><th>State</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Active</td><td>All is well.</td></tr>
+<tr><td>Inactive</td><td>All is well. The subscription type is <code>Failover</code> and you are not the active consumer.</td></tr>
+<tr><td>Closed</td><td>The consumer or the Pulsar client has been disposed.</td></tr>
+<tr><td>Disconnected</td><td>The connection is lost and attempts are being made to reconnect.</td></tr>
+<tr><td>Faulted</td><td>An unrecoverable error has occurred.</td></tr>
+<tr><td>ReachedEndOfTopic</td><td>No more messages are delivered.</td></tr>
+</tbody>
+</table>
+<p>This example shows how to monitor the consumer state.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-function"><span class="hljs-keyword">private</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> ValueTask <span class="hljs-title">Monitor</span>(<span class="hljs-params">IConsumer consumer, CancellationToken cancellationToken</span>)</span>
+{
+    <span class="hljs-keyword">var</span> state = ConsumerState.Disconnected;
+
+    <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
+    {
+        state = <span class="hljs-keyword">await</span> consumer.StateChangedFrom(state, cancellationToken);
+
+        <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
+        {
+            ConsumerState.Active =&gt; <span class="hljs-string">"The consumer is active"</span>,
+            ConsumerState.Inactive =&gt; <span class="hljs-string">"The consumer is inactive"</span>,
+            ConsumerState.Disconnected =&gt; <span class="hljs-string">"The consumer is disconnected"</span>,
+            ConsumerState.Closed =&gt; <span class="hljs-string">"The consumer has closed"</span>,
+            ConsumerState.ReachedEndOfTopic =&gt; <span class="hljs-string">"The consumer has reached end of topic"</span>,
+            ConsumerState.Faulted =&gt; <span class="hljs-string">"The consumer has faulted"</span>,
+            _ =&gt; <span class="hljs-string">$"The consumer has an unknown state '<span class="hljs-subst">{state}</span>'"</span>
+        };
+
+        Console.WriteLine(stateMessage);
+
+        <span class="hljs-keyword">if</span> (consumer.IsFinalState(state))
+            <span class="hljs-keyword">return</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="monitor-reader-state"></a><a href="#monitor-reader-state" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor reader state</h3>
+<p>The following table lists states available for the reader.</p>
+<table>
+<thead>
+<tr><th>State</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Closed</td><td>The reader or the Pulsar client has been disposed.</td></tr>
+<tr><td>Connected</td><td>All is well.</td></tr>
+<tr><td>Disconnected</td><td>The connection is lost and attempts are being made to reconnect.</td></tr>
+<tr><td>Faulted</td><td>An unrecoverable error has occurred.</td></tr>
+<tr><td>ReachedEndOfTopic</td><td>No more messages are delivered.</td></tr>
+</tbody>
+</table>
+<p>This example shows how to monitor the reader state.</p>
+<pre><code class="hljs css language-c#"><span class="hljs-function"><span class="hljs-keyword">private</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> ValueTask <span class="hljs-title">Monitor</span>(<span class="hljs-params">IReader reader, CancellationToken cancellationToken</span>)</span>
+{
+    <span class="hljs-keyword">var</span> state = ReaderState.Disconnected;
+
+    <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
+    {
+        state = <span class="hljs-keyword">await</span> reader.StateChangedFrom(state, cancellationToken);
+
+        <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
+        {
+            ReaderState.Connected =&gt; <span class="hljs-string">"The reader is connected"</span>,
+            ReaderState.Disconnected =&gt; <span class="hljs-string">"The reader is disconnected"</span>,
+            ReaderState.Closed =&gt; <span class="hljs-string">"The reader has closed"</span>,
+            ReaderState.ReachedEndOfTopic =&gt; <span class="hljs-string">"The reader has reached end of topic"</span>,
+            ReaderState.Faulted =&gt; <span class="hljs-string">"The reader has faulted"</span>,
+            _ =&gt; <span class="hljs-string">$"The reader has an unknown state '<span class="hljs-subst">{state}</span>'"</span>
+        };
+
+        Console.WriteLine(stateMessage);
+
+        <span class="hljs-keyword">if</span> (reader.IsFinalState(state))
+            <span class="hljs-keyword">return</span>;
+    }
+}
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.8.3/client-libraries-websocket"><span class="arrow-prev">← </span><span class="function-name-prevnext">WebSocket</span></a><a class="docs-next button" href="/docs/fr/2.8.3/admin-api-overview"><span>Overview</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#procedures">Procedures</a></li></ul></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#create-client">Create client</a></li><li><a href="#create-producer">Create producer</a></li><li><a href="#create-consumer">Create consumer</a></li><li><a href="#create-reader">Create reader</a></li><li><a href="#configure-encryption-policies">Configure encryption policies</a></li><li><a href="#configure-authentication">Configure authentication</a></li></ul></li><li><a href="#producer">Producer</a></li><li><a href="#send-data">Send data</a><ul class="toc-headings"><li><a href="#send-messages-with-customized-metadata">Send messages with customized metadata</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#receive-messages">Receive messages</a></li><li><a href="#acknowledge-messages">Acknowledge messages</a></li><li><a href="#unsubscribe-from-topics">Unsubscribe from topics</a></li></ul></li><li><a href="#reader">Reader</a></li><li><a href="#monitoring">Monitoring</a><ul class="toc-headings"><li><a href="#monitor-producer">Monitor producer</a></li><li><a href="#monitor-consumer-state">Monitor consumer state</a></li><li><a href="#monitor-reader-state">Monitor reader state</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.8.3"]}
+              });
+            </script></body></html>

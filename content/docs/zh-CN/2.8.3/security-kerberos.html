@@ -1,0 +1,407 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Authentication using Kerberos · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="[Kerberos](https://web.mit.edu/kerberos/) 是一种网络身份验证协议。 因其使用了秘钥加密，[Kerberos](https://web.mit.edu/kerberos/) 能为客户端与服务端上的各种应用程序提供强身份验证。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Authentication using Kerberos · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="[Kerberos](https://web.mit.edu/kerberos/) 是一种网络身份验证协议。 因其使用了秘钥加密，[Kerberos](https://web.mit.edu/kerberos/) 能为客户端与服务端上的各种应用程序提供强身份验证。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/security-kerberos">English</a></li><li><a href="/docs/ja/2.8.3/security-kerberos">日本語</a></li><li><a href="/docs/fr/2.8.3/security-kerberos">Français</a></li><li><a href="/docs/ko/2.8.3/security-kerberos">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/security-kerberos">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>安全</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Authentication using Kerberos</h1></header><article><div><span><p><a href="https://web.mit.edu/kerberos/">Kerberos</a> 是一种网络身份验证协议。 因其使用了秘钥加密，<a href="https://web.mit.edu/kerberos/">Kerberos</a> 能为客户端与服务端上的各种应用程序提供强身份验证。</p>
+<p>在 Pulsar 平台中，您可以选择使用 <a href="https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer">SASL</a> 机制配合 Kerberos 实现身份验证。 Pulsar 使用了 <a href="https://en.wikipedia.org/wiki/Java_Authentication_and_Authorization_Service">Java 认证和授权服务（JASS）</a> 进行 SASL 的配置。 因此，使用 Kerberos 身份验证前需要您配置 JAAS 。</p>
+<p>本文详细介绍了如何在 Pulsar 客户端和 brokers （中介性代理）之间配置 <code>Kerberos</code> 与 <code>SASL</code> ，以及如何为 Pulsar 代理配置 Kerberos。</p>
+<h2><a class="anchor" aria-hidden="true" id="在客户端与-broker-之间配置-kerberos"></a><a href="#在客户端与-broker-之间配置-kerberos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在客户端与 Broker 之间配置 Kerberos</h2>
+<h3><a class="anchor" aria-hidden="true" id="先决条件"></a><a href="#先决条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>先决条件</h3>
+<p>首先，您需要创建（或者已经拥有）一个<a href="https://en.wikipedia.org/wiki/Key_distribution_center">密钥分发中心（KDC）</a>。 此外，您还需要提前配置和运行<a href="https://en.wikipedia.org/wiki/Key_distribution_center">密钥分发中心（KDC）</a>。</p>
+<p>如果您的组织已经使用了 Kerberos 服务(例如 <code>Active Directory</code> )，那就不必为 Pulsar 安装新服务了。 如果您的组织没有使用 Kerberos 服务，则需要安装一个 Kerberos 服务。 您的 Linux 供应商可能提供了用于 <code>Kerberos</code> 的包。 关于如何安装和配置 Kerberos，请参考 <a href="https://help.ubuntu.com/community/Kerberos">Ubuntu</a> ，<a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Managing_Smart_Cards/installing-kerberos.html">Redhat</a> 。</p>
+<p>注意，如果您使用 Oracle Java ，您需要下载对应您 Java 版本的 JCE 策略文件，并将它们复制到 <code>$JAVA_HOME/jre/lib/security</code> 目录。</p>
+<h4><a class="anchor" aria-hidden="true" id="kerberos-principals"></a><a href="#kerberos-principals" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos principals</h4>
+<p>若您要使用现有的 Kerberos 系统，请向 Kerberos 管理员索要集群中每个 broker 的 principal ，并使用 Kerberos 身份验证(通过客户机和工具)访问到 Pulsar 的每个操作系统用户的 principal 。</p>
+<p>如果您已经安装了自己的 Kerberos 系统，那么可以使用以下命令创建这些 principals :</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 为 broker 添加 Principals </span></span>
+sudo /usr/sbin/kadmin.local -q 'addprinc -randkey broker/{hostname}@{REALM}'
+sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{broker-keytabname}.keytab broker/{hostname}@{REALM}"
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 为客户端添加 Principals </span></span>
+sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
+sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
+</code></pre>
+<p>Note that <em>Kerberos</em> requires that all your hosts can be resolved with their FQDNs.</p>
+<p>Broker principal 的第一部分（例如， <code>broker/{hostname}@{REALM}</code> 中的 <code>broker</code> ）是每个主机的 <code>serverType</code> 。 <code>serverType</code> 建议值为 <code>broker</code> (主机运行 Pulsar broker 服务)和 <code>proxy</code> (主机运行 Pulsar proxy 服务)。</p>
+<h4><a class="anchor" aria-hidden="true" id="配置如何连接到-kdc"></a><a href="#配置如何连接到-kdc" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置如何连接到 KDC</h4>
+<p>您需要输入下面的命令来为客户端和 Broker 端指定 <code>krb5.conf</code> 文件的路径。 <code>krb5.conf</code> 文件的内容说明了默认的 Realm 和 KDC 信息。 See <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html">JDK’s Kerberos Requirements</a> for more details.</p>
+<pre><code class="hljs css language-shell">-Djava.security.krb5.conf=/etc/pulsar/krb5.conf
+</code></pre>
+<p>Here is an example of the krb5.conf file:</p>
+<p>In the configuration file, <code>EXAMPLE.COM</code> is the default realm; <code>kdc = localhost:62037</code> is the kdc server url for realm <code>EXAMPLE.COM</code>:</p>
+<pre><code class="hljs">[libdefaults]
+ <span class="hljs-attr">default_realm</span> = EXAMPLE.COM
+
+[realms]
+ EXAMPLE.<span class="hljs-attr">COM</span>  = {
+  <span class="hljs-attr">kdc</span> = localhost:<span class="hljs-number">62037</span>
+ }
+</code></pre>
+<p>Usually machines configured with kerberos already have a system wide configuration and this configuration is optional.</p>
+<h4><a class="anchor" aria-hidden="true" id="jaas-配置文件"></a><a href="#jaas-配置文件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>JAAS 配置文件</h4>
+<p>客户端和 broker 端都需要 JAAS 配置文件。 JAAS 配置文件提供了用于连接 KDC 的信息（section）。 Here is an example named <code>pulsar_jaas.conf</code>:</p>
+<pre><code class="hljs"> PulsarBroker {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarbroker.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"broker/localhost@EXAMPLE.COM"</span>;
+};
+
+ PulsarClient {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarclient.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"client/localhost@EXAMPLE.COM"</span>;
+};
+</code></pre>
+<p>You need to set the <code>JAAS</code> configuration file path as JVM parameter for client and broker. 例如:</p>
+<pre><code class="hljs css language-shell">    -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf 
+</code></pre>
+<p>In the <code>pulsar_jaas.conf</code> file above</p>
+<ol>
+<li><code>PulsarBroker</code> 是 JAAS 文件中一种每个 Broker 都会使用的组名（ section name ）。 此组会告知 Broker 要去使用 Kerberos 中的哪个 principal 并存储了 principal 的 keytab 位置信息。 <code>PulsarBroker</code> 允许 Broker 使用本组中指定的 keytab。</li>
+<li><code>PulsarClient</code> 是 JAAS 文件中一种每个 Broker 都会使用的组名（ section name ）。 此组会告知 client要去使用 Kerberos 中的哪个 principal 并存储了 principal 的 keytab 位置信息。 <code>PulsarClient</code> 允许 client使用本组中指定的 keytab。 下面的示例在 Pulsar 内部管理配置和 <code>bin/pulsar-client</code> 、 <code>bin/pulsar-perf</code> 与 <code>bin/pulsar-admin</code> 的 CLI （命令行）指令中也都重用了这个 <code>PulsarClient</code> 部分。 您还可以为不同的用例添加单独的组。</li>
+</ol>
+<p>您可以有两个独立的 JAAS 配置文件：</p>
+<ul>
+<li>包含 <code>PulsarBroker</code> 和 <code>PulsarClient</code> 两个部分的 broker 文件；</li>
+<li>仅有 <code>PulsarClient</code> 部分的客户端文件。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="关于-brokers-的-kerberos-配置"></a><a href="#关于-brokers-的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 Brokers 的 Kerberos 配置</h3>
+<h4><a class="anchor" aria-hidden="true" id="配置-brokerconf-文件"></a><a href="#配置-brokerconf-文件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 <code>broker.conf</code> 文件</h4>
+<p>在 <code>broker.conf</code> 文件中设置 Kerberos 相关配置。</p>
+<ul>
+<li>Set <code>authenticationEnabled</code> to <code>true</code>;</li>
+<li>Set <code>authenticationProviders</code> to choose <code>AuthenticationProviderSasl</code>;</li>
+<li>设置 <code>saslJaasClientAllowedIds</code> 正则表达式，用于 principal 的 broker 连接许可；</li>
+<li>设置 <code>saslJaasBrokerSectionName</code> ，对应于 broker JAAS 配置文件中的组名；</li>
+</ul>
+<p>要使 Pulsar 内部管理客户端正常工作，您需要在 <code>broker.conf</code> 文件中配置如下：</p>
+<ul>
+<li>为客户端插件 <code>AuthenticationSasl</code> 设置 <code>brokerClientAuthenticationPlugin</code> ；</li>
+<li>将 JSON 字符串中的值 <code>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;， &quot;serverType&quot;:&quot;broker&quot;}</code> 设置给 <code>brokerClientAuthenticationParameters</code> ，其中 <code>PulsarClient</code> 是 <code>pulsar_jaas.conf</code> 文件中的组名。 <code>&quot;serverType&quot;:&quot;broker&quot;</code> 表示内部管理客户端连接到 Pulsar broker ；</li>
+</ul>
+<p>Here is an example:</p>
+<pre><code class="hljs"><span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationProviders</span>=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
+<span class="hljs-attr">saslJaasClientAllowedIds</span>=.*client.*
+<span class="hljs-attr">saslJaasBrokerSectionName</span>=PulsarBroker
+
+<span class="hljs-comment">## broker 代理自身的身份验证设置。 当 broker 连接到其他 broker 时使用</span>
+<span class="hljs-attr">brokerClientAuthenticationPlugin</span>=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+<span class="hljs-attr">brokerClientAuthenticationParameters</span>={<span class="hljs-string">"saslJaasClientSectionName"</span>:<span class="hljs-string">"PulsarClient"</span>, <span class="hljs-string">"serverType"</span>:<span class="hljs-string">"broker"</span>}
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="设置-broker-jvm-参数"></a><a href="#设置-broker-jvm-参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置 Broker JVM 参数</h4>
+<p>使用附加选项设置 JAAS 配置文件和 krb5 配置文件的 JVM 参数。</p>
+<pre><code class="hljs css language-shell">   -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
+</code></pre>
+<p>You can add this at the end of <code>PULSAR_EXTRA_OPTS</code> in the file <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_env.sh"><code>pulsar_env.sh</code></a></p>
+<p>您必须确保启动 broker 的操作系统用户能够访问 <code>pulsar_jaas.conf</code> 文件中配置的 keytab 和 <code>krb5.conf</code> 文件中配置的 kdc 服务器。</p>
+<h3><a class="anchor" aria-hidden="true" id="客户端的-kerberos-配置"></a><a href="#客户端的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端的 Kerberos 配置</h3>
+<h4><a class="anchor" aria-hidden="true" id="java-客户端和-java-管理客户端"></a><a href="#java-客户端和-java-管理客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java 客户端和 Java 管理客户端</h4>
+<p>在客户端应用程序的项目依赖项中包含 <code>pular -client-auth-sasl</code> 。</p>
+<pre><code class="hljs"><span class="xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-auth-sasl<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>$</span><span class="hljs-template-variable">{pulsar.version}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</span></code></pre>
+<p>使用 <code>AuthenticationSasl</code> 配置验证类型，并为其提供验证参数。</p>
+<p>您需要两个参数：</p>
+<ul>
+<li><code>saslJaasClientSectionName</code> 。 该参数对应客户端的 JAAS 配置文件部分；</li>
+<li><code>serverType</code> 。 这个参数表示此客户端连接的是 broker 还是 proxy （透传性代理）。 客户端使用该参数获知它应该使用哪一个服务器端的 principal 。</li>
+</ul>
+<p>当您使用上述 JAAS 配置文件中的设置在客户端和 broker 之间进行身份验证时，我们需要将 <code>saslJaasClientSectionName</code> 设置为 <code>PulsarClient</code> ，并将 <code>serverType</code> 设置为 <code>broker</code> 。</p>
+<p>The following is an example of creating a Java client:</p>
+<pre><code class="hljs css language-java">System.setProperty(<span class="hljs-string">"java.security.auth.login.config"</span>, <span class="hljs-string">"/etc/pulsar/pulsar_jaas.conf"</span>);
+System.setProperty(<span class="hljs-string">"java.security.krb5.conf"</span>, <span class="hljs-string">"/etc/pulsar/krb5.conf"</span>);
+
+Map&lt;String, String&gt; authParams = Maps.newHashMap();
+authParams.put(<span class="hljs-string">"saslJaasClientSectionName"</span>, <span class="hljs-string">"PulsarClient"</span>);
+authParams.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"broker"</span>);
+
+Authentication saslAuth = AuthenticationFactory
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
+        .authentication(saslAuth)
+        .build();
+</code></pre>
+<blockquote>
+<p>The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:</p>
+</blockquote>
+<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span>.config=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span>.conf=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
+</code></pre>
+<p>You must ensure that the operating system user who starts pulsar client can reach the keytabs configured in the <code>pulsar_jaas.conf</code> file and kdc server in the <code>krb5.conf</code> file.</p>
+<h4><a class="anchor" aria-hidden="true" id="configure-cli-tools"></a><a href="#configure-cli-tools" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure CLI tools</h4>
+<p>If you use a command-line tool (such as <code>bin/pulsar-client</code>, <code>bin/pulsar-perf</code> and <code>bin/pulsar-admin</code>), you need to perform the following steps:</p>
+<p>Step 1. Enter the command below to configure your <code>client.conf</code>.</p>
+<pre><code class="hljs css language-shell">authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
+</code></pre>
+<p>步骤 2 。 输入下面的命令为 JAAS 配置文件和 krb5 配置文件设置 JVM 参数，并提供其他选项。</p>
+<pre><code class="hljs css language-shell">   -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
+</code></pre>
+<p>您可以在 <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh"><code>pulsar_tools_env.sh</code></a> 文件中 <code>PULSAR_EXTRA_OPTS</code> 的末尾添加这个， 或者直接在 CLI 工具脚本中添加一行 <code>OPTS=&quot;$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf &quot;</code> 。</p>
+<p>配置的含义与 Java 客户端部分中的配置含义相同。</p>
+<h2><a class="anchor" aria-hidden="true" id="用于处理-pulsar-proxy-的-kerberos-配置"></a><a href="#用于处理-pulsar-proxy-的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用于处理 Pulsar Proxy 的 Kerberos 配置</h2>
+<p>通过上述配置，客户端和 broker 可以使用 Kerberos 进行身份验证。</p>
+<p>连接到 Pulsar Proxy 的客户端有些不同。 Pulsar Proxy (作为 Kerberos 中的 SASL 服务器)首先验证客户端(作为 Kerberos 中的 SASL 客户端); 然后 Pulsar broker 验证 Pulsar Proxy 。</p>
+<p>现在，通过对比上述客户端和 broker 之间的配置，我们将向您展示如何配置 Pulsar Proxy 。</p>
+<h3><a class="anchor" aria-hidden="true" id="在-kerberos-中创建-pulsar-proxy-的-principal"></a><a href="#在-kerberos-中创建-pulsar-proxy-的-principal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Kerberos 中创建 Pulsar Proxy 的 principal</h3>
+<p>与以上配置相比，需要为 Pulsar Proxy 添加新的 principals 。 如果您已经有了客户端和 broker 的 principal ，那么您只需要在这里添加 proxy principal 。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加 Pulsar Proxy 的 Principals </span></span>
+sudo /usr/sbin/kadmin.local -q 'addprinc -randkey proxy/{hostname}@{REALM}'
+sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{proxy-keytabname}.keytab proxy/{hostname}@{REALM}"
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加 broker 的 Principals </span></span>
+sudo /usr/sbin/kadmin.local -q 'addprinc -randkey broker/{hostname}@{REALM}'
+sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{broker-keytabname}.keytab broker/{hostname}@{REALM}"
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加客户端的 Principals </span></span>
+sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
+sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="在-pulsar-proxy-的-jaas-配置文件中添加组"></a><a href="#在-pulsar-proxy-的-jaas-配置文件中添加组" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Pulsar Proxy 的 JAAS 配置文件中添加组</h3>
+<p>与上述配置相比较，在 JAAS 配置文件中为 Pulsar Proxy 增加新组。</p>
+<p>Here is an example named <code>pulsar_jaas.conf</code>:</p>
+<pre><code class="hljs"> PulsarBroker {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarbroker.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"broker/localhost@EXAMPLE.COM"</span>;
+};
+
+ PulsarProxy {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarproxy.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"proxy/localhost@EXAMPLE.COM"</span>;
+};
+
+ PulsarClient {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarclient.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"client/localhost@EXAMPLE.COM"</span>;
+};
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="proxy-客户端配置"></a><a href="#proxy-客户端配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy 客户端配置</h3>
+<p>Pulsar 客户端配置与客户端和 broker 配置类似，除了您需要将 <code>serverType</code> 设置为 <code>proxy</code> 而不是 <code>broker</code> ，因为您需要在客户端和 proxy 之间进行 Kerberos 身份验证。</p>
+<pre><code class="hljs css language-java">System.setProperty(<span class="hljs-string">"java.security.auth.login.config"</span>, <span class="hljs-string">"/etc/pulsar/pulsar_jaas.conf"</span>);
+System.setProperty(<span class="hljs-string">"java.security.krb5.conf"</span>, <span class="hljs-string">"/etc/pulsar/krb5.conf"</span>);
+
+Map&lt;String, String&gt; authParams = Maps.newHashMap();
+authParams.put(<span class="hljs-string">"saslJaasClientSectionName"</span>, <span class="hljs-string">"PulsarClient"</span>);
+authParams.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"proxy"</span>);        <span class="hljs-comment">// ** here is the different **</span>
+
+Authentication saslAuth = AuthenticationFactory
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
+        .authentication(saslAuth)
+        .build();
+</code></pre>
+<blockquote>
+<p>The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:</p>
+</blockquote>
+<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span>.config=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span>.conf=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="kerberos-configuration-for-pulsar-proxy-service"></a><a href="#kerberos-configuration-for-pulsar-proxy-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos configuration for Pulsar proxy service</h3>
+<p>In the <code>proxy.conf</code> file, set Kerberos related configuration. Here is an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment"># related to authenticate client.</span></span>
+authenticationEnabled=true
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
+saslJaasClientAllowedIds=.*client.*
+saslJaasBrokerSectionName=PulsarProxy
+<span class="hljs-meta">
+#</span><span class="bash"><span class="hljs-comment"># 与 broker 身份验证相关的</span></span>
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+brokerClientAuthenticationParameters={"saslJaasClientSectionName":"PulsarProxy", "serverType":"broker"}
+forwardAuthorizationCredentials=true
+</code></pre>
+<p>第一部分涉及到客户端与 Pulsar Proxy 之间的身份验证。 In this phase, client works as SASL client, while Pulsar Proxy works as SASL server.</p>
+<p>第二部分是 Pulsar Proxy 和 Pulsar Broker 之间的验证。 In this phase, Pulsar Proxy works as SASL client, while Pulsar Broker works as SASL server.</p>
+<h3><a class="anchor" aria-hidden="true" id="broker-侧配置"></a><a href="#broker-侧配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker 侧配置</h3>
+<p>The broker side configuration file is the same with the above <code>broker.conf</code>, you do not need special configuration for Pulsar Proxy.</p>
+<pre><code class="hljs"><span class="hljs-attr">authenticationEnabled</span>=<span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationProviders</span>=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
+<span class="hljs-attr">saslJaasClientAllowedIds</span>=.*client.*
+<span class="hljs-attr">saslJaasBrokerSectionName</span>=PulsarBroker
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="关于授权和角色令牌role-token"></a><a href="#关于授权和角色令牌role-token" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于授权和角色令牌（role token）</h2>
+<p>对于 Kerberos 身份验证，我们通常使用经过身份验证的 principal 作为用于 Pulsar 授权的角色令牌。 For more information of authorization in Pulsar, see <a href="/docs/zh-CN/2.8.3/security-authorization">security authorization</a>.</p>
+<p>如果你启用了'authorizationEnabled'，你需要在 <code>broker.conf</code> 中设置 <code>superUserRoles</code> 对应于 kdc 中注册的名称。</p>
+<p>例如:</p>
+<pre><code class="hljs css language-bash">superUserRoles=client/{clientIp}@EXAMPLE.COM
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="关于-zookeeper-服务和-broker-之间的身份验证"></a><a href="#关于-zookeeper-服务和-broker-之间的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 ZooKeeper 服务和 Broker 之间的身份验证</h2>
+<p>当您使用 Zookeeper 进行身份验证时， Pulsar Broker 充当 Kerberos 客户端。 根据 <a href="https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication">ZooKeeper文档</a> ，你需要在 <code>conf/ ZooKeeper.conf</code> 中设置：</p>
+<pre><code class="hljs">authProvider.<span class="hljs-number">1</span>=org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.zookeeper</span><span class="hljs-selector-class">.server</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.SASLAuthenticationProvider</span>
+requireClientAuthScheme=sasl
+</code></pre>
+<p>输入以下命令，在 Pulsar Broker 使用的文件 <code>pulsar_jaas.conf</code> 中添加一段 `Client<code> 配置。</p></p>
+<pre><code class="hljs"> Client {
+   com.sun.security.auth.module.Krb5LoginModule required
+   useKeyTab=true
+   storeKey=true
+   useTicketCache=false
+   keyTab="/etc/security/keytabs/pulsarbroker.keytab"
+   principal="broker/localhost@EXAMPLE.COM";
+};
+`</pre>
+<p>在使用 ZooKeeper 进行身份验证时，此设置中的 Pulsar Broker 和 keyTab 文件的 principal 指示了 Broker 的角色。</p>
+<h2><a class="anchor" aria-hidden="true" id="关于-bookkeeper-储存系统和-broker-之间的身份验证"></a><a href="#关于-bookkeeper-储存系统和-broker-之间的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 BookKeeper 储存系统和 Broker 之间的身份验证</h2>
+<p>当您使用 Bookie 进行身份验证时，Pulsar Broker 充当 Kerberos 客户端。 根据 <a href="http://bookkeeper.apache.org/docs/latest/security/sasl/">BookKeeper文档</a> ，需要在 <code>broker.conf</code> 中添加 <code>bookkeeperClientAuthenticationPlugin</code> 参数：</p>
+<pre><code class="hljs">bookkeeperClientAuthenticationPlugin=org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.bookkeeper</span><span class="hljs-selector-class">.sasl</span><span class="hljs-selector-class">.SASLClientProviderFactory</span>
+</code></pre>
+<p>在此设置中， <code>SASLClientProviderFactory</code> 在 Broker 中创建了一个 BookKeeper SASL 客户端， Broker 通过 Bookie 节点使用创建的 SASL 客户端进行身份验证。</p>
+<p>输入以下命令，在 Pulsar Broker 使用的 <code>pulsar_jaas.conf</code> 文件中添加一段 <code>BookKeeper</code> 配置：</p>
+<pre><code class="hljs"> BookKeeper {
+   com.sun.security.auth.module.Krb5LoginModule required
+   <span class="hljs-attribute">useKeyTab</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">storeKey</span>=<span class="hljs-literal">true</span>
+   <span class="hljs-attribute">useTicketCache</span>=<span class="hljs-literal">false</span>
+   <span class="hljs-attribute">keyTab</span>=<span class="hljs-string">"/etc/security/keytabs/pulsarbroker.keytab"</span>
+   <span class="hljs-attribute">principal</span>=<span class="hljs-string">"broker/localhost@EXAMPLE.COM"</span>;
+};
+</code></pre>
+<p>在使用 Bookie 进行身份验证时，此设置中的 Pulsar Broker 和 keyTab 文件的 principal 指示了 Broker 的角色。</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/security-athenz"><span class="arrow-prev">← </span><span>使用 Athenz 验证</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/security-oauth2"><span>使用 OAuth 2.0 访问令牌进行身份验证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在客户端与-broker-之间配置-kerberos">在客户端与 Broker 之间配置 Kerberos</a><ul class="toc-headings"><li><a href="#先决条件">先决条件</a></li><li><a href="#关于-brokers-的-kerberos-配置">关于 Brokers 的 Kerberos 配置</a></li><li><a href="#客户端的-kerberos-配置">客户端的 Kerberos 配置</a></li></ul></li><li><a href="#用于处理-pulsar-proxy-的-kerberos-配置">用于处理 Pulsar Proxy 的 Kerberos 配置</a><ul class="toc-headings"><li><a href="#在-kerberos-中创建-pulsar-proxy-的-principal">在 Kerberos 中创建 Pulsar Proxy 的 principal</a></li><li><a href="#在-pulsar-proxy-的-jaas-配置文件中添加组">在 Pulsar Proxy 的 JAAS 配置文件中添加组</a></li><li><a href="#proxy-客户端配置">Proxy 客户端配置</a></li><li><a href="#kerberos-configuration-for-pulsar-proxy-service">Kerberos configuration for Pulsar proxy service</a></li><li><a href="#broker-侧配置">Broker 侧配置</a></li></ul></li><li><a href="#关于授权和角色令牌role-token">关于授权和角色令牌（role token）</a></li><li><a href="#关于-zookeeper-服务和-broker-之间的身份验证">关于 ZooKeeper 服务和 Broker 之间的身份验证</a></li><li><a href="#关于-bookkeeper-储存系统和-broker-之间的身份验证">关于 BookKeeper 储存系统和 Broker 之间的身份验证</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

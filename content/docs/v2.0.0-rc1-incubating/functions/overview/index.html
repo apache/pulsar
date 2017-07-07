@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Pulsar Functions overview</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.0-incubating/getting-started/LocalCluster">2.0.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/Pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-functions">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
+            Pulsar Functions
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-functions" role="tabpanel" aria-labelledby="heading-pulsar-functions">
+        <ul>
+          
+          
+          <li>
+            <a href="../../functions/overview">
+              Pulsar Functions overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/quickstart">
+              Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/LoadDistribution">
+              Load distribution
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/tenants">
+              Tenants
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-cookbooks">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
+        <ul>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-deduplication">
+              Message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/non-persistent-messaging">
+              Non-persistent messaging
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-queue">
+              Using Pulsar as a message queue
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/schema-storage">
+              Custom schema storage
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">
+          Pulsar Functions overview
+          
+           <span class="badge badge-warning">Preview</span>
+        </h1>
+        <span class="docs-lead">A bird's-eye look at Pulsar's lightweight, developer-friendly compute platform</span><br />
+        <section class="tags">
+          
+        </section>
+
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
+</span>
+    
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
+
+  </div>
+</div>
+
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p><strong>Pulsar Functions</strong> are lightweight compute processes that</p>
+
+<ul>
+  <li>consume <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">messages</span> from one or more Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>,</li>
+  <li>apply a user-supplied processing logic to each message,</li>
+  <li>publish the results of the computation to another topic</li>
+</ul>
+
+<p>Here’s an example Pulsar Function for Java (using the <a href="../api#java-native">native interface</a>):</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">java.util.Function</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">ExclamationFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span> <span class="k">return</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"%s!"</span><span class="o">,</span> <span class="n">input</span><span class="o">);</span> <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Here’s an equivalent function in Python (also using the <a href="../api#python-native">native interface</a>):</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">"{0}!"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Functions are executed each time a message is published to the input topic. If a function is listening on the topic <code class="highlighter-rouge">tweet-stream</code>, for example, then the function would be run each time a message is published to that topic.</p>
+
+<h2 id="goals">Goals</h2>
+
+<p>The core goal behind Pulsar Functions is to enable you to easily create processing logic of any level of complexity without needing to deploy a separate neighboring system (such as <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, <a href="https://flink.apache.org/">Apache Flink</a>, etc.). Pulsar Functions is essentially ready-made compute infrastructure at your disposal as part of your Pulsar messaging system. This core goal is tied to a series of other goals:</p>
+
+<ul>
+  <li>Developer productivity (<a href="#native">language-native</a> vs. <a href="#sdk">Pulsar Functions SDK</a> functions)</li>
+  <li>Easy troubleshooting</li>
+  <li>Operational simplicity (no need for an external processing system)</li>
+</ul>
+
+<h2 id="inspirations">Inspirations</h2>
+
+<p>The Pulsar Functions feature was inspired by (and takes cues from) several systems and paradigms:</p>
+
+<ul>
+  <li>Stream processing engines such as <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-hero">Apache Heron</a>, and <a href="https://flink.apache.org">Apache Flink</a></li>
+  <li>“Serverless” and “Function as a Service” (FaaS) cloud platforms like <a href="https://aws.amazon.com/lambda/">Amazon Web Services Lambda</a>, <a href="https://cloud.google.com/functions/">Google Cloud Functions</a>, and <a href="https://azure.microsoft.com/en-us/services/functions/">Azure Cloud Functions</a></li>
+</ul>
+
+<p>Pulsar Functions could be described as</p>
+
+<ul>
+  <li><a href="https://aws.amazon.com/lambda/">Lambda</a>-style functions that are</li>
+  <li>specifically designed to use Pulsar as a message bus</li>
+</ul>
+
+<h2 id="programming-model">Programming model</h2>
+
+<p>The core programming model behind Pulsar Functions is very simple:</p>
+
+<ul>
+  <li>Functions receive messages from one or more <strong>input <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span></strong>. Every time a message is received, the function can do a variety of things:
+    <ul>
+      <li>Apply some processing logic to the input and write output to:
+        <ul>
+          <li>An <strong>output topic</strong> in Pulsar</li>
+          <li><a href="#state-storage">Apache BookKeeper</a></li>
+        </ul>
+      </li>
+      <li>Write logs to a <strong>log topic</strong> (potentially for debugging purposes)</li>
+      <li>Increment a <a href="#counters">counter</a></li>
+    </ul>
+  </li>
+</ul>
+
+<p><img src="/img/pulsar-functions-overview.png" alt="Pulsar Functions core programming model" /></p>
+
+<h3 id="word-count">Word count example</h3>
+
+<p>If you were to implement the classic word count example using Pulsar Functions, it might look something like this:</p>
+
+<p><img src="/img/pulsar-functions-word-count.png" alt="Pulsar Functions word count example" /></p>
+
+<p>If you were writing the function in <a href="../api#java">Java</a> using the <a href="../api#java-sdk">Pulsar Functions SDK for Java</a>, you could write the function like this…</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">example</span><span class="o">.</span><span class="na">functions</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Context</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Function</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.Arrays</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">WordCountFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="c1">// This function is invoked every time a message is published to the input topic</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">input</span><span class="o">.</span><span class="na">split</span><span class="o">(</span><span class="s">" "</span><span class="o">)).</span><span class="na">forEach</span><span class="o">(</span><span class="n">word</span> <span class="o">-&gt;</span> <span class="o">{</span>
+            <span class="n">String</span> <span class="n">counterKey</span> <span class="o">=</span> <span class="n">word</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">();</span>
+            <span class="n">context</span><span class="o">.</span><span class="na">incrCounter</span><span class="o">(</span><span class="n">counterKey</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
+        <span class="o">});</span>
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>…and then <a href="#cluster-mode">deploy it</a> in your Pulsar cluster using the <a href="#cli">command line</a> like this:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> target/my-jar-with-dependencies.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.example.functions.WordCountFunction <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> word-count <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/sentences <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/count
+</code></pre></div></div>
+
+<h3 id="content">Content-based routing example</h3>
+
+<p>The use cases for Pulsar Functions are essentially endless, but let’s dig into a more sophisticated example that involves content-based routing.</p>
+
+<p>Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a <a href="#logging">log topic</a>. Here’s a visual representation:</p>
+
+<p><img src="/img/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example" /></p>
+
+<p>If you were implementing this routing functionality in Python, it might look something like this:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">RoutingFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fruits_topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/fruits"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vegetables_topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/vegetables"</span>
+
+    <span class="k">def</span> <span class="nf">is_fruit</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s">"apple"</span><span class="p">,</span> <span class="s">"orange"</span><span class="p">,</span> <span class="s">"pear"</span><span class="p">,</span> <span class="s">"other fruits..."</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">is_vegetable</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s">"carrot"</span><span class="p">,</span> <span class="s">"lettuce"</span><span class="p">,</span> <span class="s">"radish"</span><span class="p">,</span> <span class="s">"other vegetables..."</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_fruit</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fruits_topic</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_vegetable</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vegetables_topic</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">warning</span> <span class="o">=</span> <span class="s">"The item {0} is neither a fruit nor a vegetable"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="cli">Command-line interface</h2>
+
+<p>Pulsar Functions are managed using the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool (in particular the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">functions</code></a> command). Here’s an example command that would run a function in <a href="#local-run">local run mode</a>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions localrun <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/test_src <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/test_result <span class="se">\</span>
+  <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction
+</code></pre></div></div>
+
+<h2 id="fqfn">Fully Qualified Function Name (FQFN)</h2>
+
+<p>Each Pulsar Function has a <strong>Fully Qualified Function Name</strong> (FQFN) that consists of three elements: the function’s <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and function name. FQFN’s look like this:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="fqfn">
+  <span class="tenant">tenant</span>/<span class="namespace">namespace</span>/<span class="name">name</span>
+</section>
+
+<p>FQFNs enable you to, for example, create multiple functions with the same name provided that they’re in different namespaces.</p>
+
+<h2 id="configuration">Configuration</h2>
+
+<p>Pulsar Functions can be configured in two ways:</p>
+
+<ul>
+  <li>Via <a href="#cli">command-line arguments</a> passed to the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">pulsar-admin functions</code></a> interface</li>
+  <li>Via <a href="http://yaml.org/">YAML</a> configuration files</li>
+</ul>
+
+<p>If you’re supplying a YAML configuration, you must specify a path to the file on the command line. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--functionConfigFile</span> ./my-function.yaml
+</code></pre></div></div>
+
+<p>And here’s an example <code class="highlighter-rouge">my-function.yaml</code> file:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">name</span><span class="pi">:</span> <span class="s">my-function</span>
+<span class="na">tenant</span><span class="pi">:</span> <span class="s">sample</span>
+<span class="na">namespace</span><span class="pi">:</span> <span class="s">ns1</span>
+<span class="na">jar</span><span class="pi">:</span> <span class="s">./target/my-functions.jar</span>
+<span class="na">className</span><span class="pi">:</span> <span class="s">org.example.pulsar.functions.MyFunction</span>
+<span class="na">inputs</span><span class="pi">:</span>
+<span class="pi">-</span> <span class="s">persistent://sample/standalone/ns1/test_src</span>
+<span class="na">output</span><span class="pi">:</span> <span class="s">persistent://sample/standalone/ns1/test_result</span>
+</code></pre></div></div>
+
+<p>You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.</p>
+
+<h2 id="supported-languages">Supported languages</h2>
+
+<p>Pulsar Functions can currently be written in <a href="../../functions/api#java">Java</a> and <a href="../../functions/api#python">Python</a>. Support for additional languages is coming soon.</p>
+
+<h2 id="api">The Pulsar Functions API</h2>
+
+<ul>
+  <li>Type safe (bytes versus specific types)</li>
+  <li>SerDe (built-in vs. custom)</li>
+  <li>Pulsar messages are always just bytes, but Pulsar Functions handles data types for you <em>unless</em> you need custom types</li>
+</ul>
+
+<h3 id="context">Function context</h3>
+
+<p>Each Pulsar Function created using the <a href="#sdk">Pulsar Functions SDK</a> has access to a context object that both provides:</p>
+
+<ol>
+  <li>A wide variety of information about the function, including:
+    <ul>
+      <li>The name of the function</li>
+      <li>The <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> of the function</li>
+      <li><a href="#user-config">User-supplied configuration</a> values</li>
+    </ul>
+  </li>
+  <li>Special functionality, including:
+    <ul>
+      <li>The ability to produce <a href="#logging">logs</a> to a specified logging topic</li>
+      <li>The ability to produce <a href="#metrics">metrics</a></li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="native">Language-native functions</h3>
+
+<p>Both Java and Python support writing “native” functions, i.e. Pulsar Functions with no dependencies.</p>
+
+<p>The benefit of native functions is that they don’t have any dependencies beyond what’s already available in Java/Python “out of the box.” The downside is that they don’t provide access to the function’s <a href="#context">context</a>, which is necessary for a variety of functionality, including <a href="#logging">logging</a>, <a href="#user-config">user configuration</a>, and more.</p>
+
+<h2 id="sdk">The Pulsar Functions SDK</h2>
+
+<p>If you’d like a Pulsar Function to have access to a <a href="#context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="../api#java-sdk">Java</a> and <a href="../api#python-sdk">Pythnon</a>.</p>
+
+<h3 id="java-sdk">Java</h3>
+
+<p>Here’s an example Java function that uses information about its context:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Context</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Function</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.slf4j.Logger</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">ContextAwareFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span><span class="o">,</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">Logger</span> <span class="n">LOG</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getLogger</span><span class="o">();</span>
+        <span class="n">String</span> <span class="n">functionTenant</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getTenant</span><span class="o">();</span>
+        <span class="n">String</span> <span class="n">functionNamespace</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getNamespace</span><span class="o">();</span>
+        <span class="n">String</span> <span class="n">functionName</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getName</span><span class="o">();</span>
+        <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Function tenant/namespace/name: {}/{}/{}"</span><span class="o">,</span> <span class="n">functionTenant</span><span class="o">,</span> <span class="n">functionNamespace</span><span class="o">,</span> <span class="n">functionName</span><span class="o">);</span>
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="python-sdk">Python</h3>
+
+<p>Here’s an example Python function that uses information about its context:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">ContextAwareFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+        <span class="n">function_tenant</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_tenant</span><span class="p">()</span>
+        <span class="n">function_namespace</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_namespace</span><span class="p">()</span>
+        <span class="n">function_name</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_name</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">"Function tenant/namespace/name: {0}/{1}/{2}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">function_tenant</span><span class="p">,</span> <span class="n">function_namespace</span><span class="p">,</span> <span class="n">function_name</span><span class="p">))</span>
+</code></pre></div></div>
+
+<h2 id="deployment">Deployment</h2>
+
+<p>The Pulsar Functions feature was built to support a variety of deployment options. At the moment, there are two ways to run Pulsar Functions:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Deployment mode</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="#local-run">Local run mode</a></td>
+      <td style="text-align: left">The function runs in your local environment, for example on your laptop</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="#cluster-run">Cluster mode</a></td>
+      <td style="text-align: left">The function runs <em>inside of</em> your Pulsar cluster, on the same machines as your Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="local-run">Local run mode</h3>
+
+<p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here’s an example <a href="../../CliTools#pulsar-admin-functions-localrun"><code class="highlighter-rouge">localrun</code></a> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+</code></pre></div></div>
+
+<p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> service URL of <code class="highlighter-rouge">pulsar://localhost:6650</code>. If you’d like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code class="highlighter-rouge">--brokerServiceUrl</code> flag. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
+  <span class="nt">--brokerServiceUrl</span> pulsar://my-cluster-host:6650 <span class="se">\</span>
+  <span class="c"># Other function parameters</span>
+</code></pre></div></div>
+
+<h3 id="cluster-run">Cluster run mode</h3>
+
+<p>When you run a Pulsar Function in <strong>cluster mode</strong>, the function code will be uploaded to a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and run <em>alongside the broker</em> rather than in your <a href="#local-run">local environment</a>. You can run a function in cluster mode using the <a href="../../CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></a> command. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+</code></pre></div></div>
+
+<p>This command will upload <code class="highlighter-rouge">myfunc.py</code> to Pulsar, which will use the code to start one <a href="#parallelism">or more</a> instances of the function.</p>
+
+<h3 id="parallelism">Parallelism</h3>
+
+<p>By default, only one <strong>instance</strong> of a Pulsar Function runs when you create and run it in <a href="#cluster-run">cluster run mode</a>. You can also, however, run multiple instances in parallel. You can specify the number of instances when you create the function, or update an existing single-instance function with a new parallelism factor.</p>
+
+<p>This command, for example, would create and run a function with a parallelism of 5 (i.e. 5 instances):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--name</span> parallel-fun <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--py</span> func.py <span class="se">\</span>
+  <span class="nt">--className</span> func.ParallelFunction <span class="se">\</span>
+  <span class="nt">--parallelism</span> 5
+</code></pre></div></div>
+
+<h3 id="logging">Logging</h3>
+
+<p>Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function’s configuration. The function created using the command below, for example, would produce all logs on the <code class="highlighter-rouge">persistent://sample/standalone/ns1/my-func-1-log</code> topic:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--name</span> my-func-1 <span class="se">\</span>
+  <span class="nt">--logTopic</span> persistent://sample/standalone/ns1/my-func-1-log <span class="se">\</span>
+  <span class="c"># Other configs</span>
+</code></pre></div></div>
+
+<p>Here’s an example <a href="../api#java-logging">Java function</a> that logs at different log levels based on the function’s input:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">LoggerFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">Logger</span> <span class="n">LOG</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getLogger</span><span class="o">();</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">input</span><span class="o">.</span><span class="na">length</span><span class="o">()</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"This string has a length of {}"</span><span class="o">,</span> <span class="n">input</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">LOG</span><span class="o">.</span><span class="na">warn</span><span class="o">(</span><span class="s">"This string is getting too long! It has {} characters"</span><span class="o">,</span> <span class="n">input</span><span class="o">);</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="user-config">User configuration</h3>
+
+<p>Pulsar Functions can be passed arbitrary key-values via the command line (both keys and values must be strings). This set of key-values is called the functions <strong>user configuration</strong>. User configurations must consist of JSON strings.</p>
+
+<p>Here’s an example of passing a user configuration to a function:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--userConfig</span> <span class="s1">'{"key-1":"value-1","key-2","value-2"}'</span> <span class="se">\</span>
+  <span class="c"># Other configs</span>
+</code></pre></div></div>
+
+<p>Here’s an example of a function that accesses that config map:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">ConfigMapFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">String</span> <span class="n">val1</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getUserConfigValue</span><span class="o">(</span><span class="s">"key1"</span><span class="o">).</span><span class="na">get</span><span class="o">();</span>
+        <span class="n">String</span> <span class="n">val2</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getUserConfigValue</span><span class="o">(</span><span class="s">"key2"</span><span class="o">).</span><span class="na">get</span><span class="o">();</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">getLogger</span><span class="o">().</span><span class="na">info</span><span class="o">(</span><span class="s">"The user-supplied values are {} and {}"</span><span class="o">,</span> <span class="n">val1</span><span class="o">,</span> <span class="n">val2</span><span class="o">);</span>
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="triggering">Triggering Pulsar Functions</h3>
+
+<p>Pulsar Functions running in <a href="#cluster-mode">cluster mode</a> can be <a href="../deployment#triggering">triggered</a> via the <a href="#cli">command line</a>. With triggering you can easily pass a specific value to a function and get the function’s return value <em>without</em> needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for—but is by no means limited to—testing and debugging purposes.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function’s input topics. The <a href="../../CliTools#pulsar-admin-functions-trigger"><code class="highlighter-rouge">pulsar-admin functions trigger</code></a> command is essentially a convenient mechanism for sending messages to functions without needing to use the <a href="../../CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool or a language-specific client library.</p>
+
+  </div>
+</div>
+
+<p>Let’s take an example Pulsar Function written in Python (using the <a href="../api#python-native">native interface</a>) that simply reverses string inputs:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">input</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>If that function were running in a Pulsar cluster, it could be triggered like this:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions trigger <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> reverse-func <span class="se">\</span>
+  <span class="nt">--triggerValue</span> <span class="s2">"snoitcnuf raslup ot emoclew"</span>
+</code></pre></div></div>
+
+<p>That should return <code class="highlighter-rouge">welcome to pulsar functions</code> as the console output.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>Instead of passing in a string via the CLI, you can also trigger a Pulsar Function with the contents of a file using the <code class="highlighter-rouge">--triggerFile</code> flag.</p>
+
+  </div>
+</div>
+
+<h2 id="guarantees">Processing guarantees</h2>
+
+<p>The Pulsar Functions feature provides three different messaging semantics that you can apply to any function:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Delivery semantics</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>At-most-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will most likely be processed but also may not be (hence the “at most”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>At-least-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function could be processed more than once (hence the “at least”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>Effectively-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will have one output associated with it</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>This command, for example, would run a function in <a href="#cluster-mode">cluster mode</a> with effectively-once guarantees applied:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--name</span> my-effectively-once-function <span class="se">\</span>
+  <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE <span class="se">\</span>
+  <span class="c"># Other function configs</span>
+</code></pre></div></div>
+
+<h2 id="metrics">Metrics</h2>
+
+<p>Pulsar Functions that use the <a href="#sdk">Pulsar Functions SDK</a> can publish metrics to Pulsar. For more information, see <a href="../metrics">Metrics for Pulsar Functions</a>.</p>
+
+<h2 id="state-storage">State storage</h2>
+
+<p>Pulsar Functions use <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> as a state storage interface. All Pulsar installations, including local <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> installations, include a deployment of BookKeeper <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>.</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar Functions overview</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

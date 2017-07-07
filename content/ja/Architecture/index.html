@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>システム概要</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a class="active" href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">システム概要</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <p>Pulsarはマルチテナントで、ハイパフォーマンスなサーバ間メッセージングのソリューションです。<br />
+主な特徴は:</p>
+
+<ul>
+  <li>シンプルなAPIによるJavaバインディング</li>
+  <li>複数のサブスクリプションモード: pub/sub、ロードバランサ、フェイルオーバー</li>
+  <li>シームレスなメッセージのジオレプリケーション</li>
+  <li>発行、end-to-endでの低レイテンシ</li>
+  <li>永続メッセージングによるメッセージ配信保証; 永続ストレージは複数ホスト間での複数コピーが設定可能な構成</li>
+</ul>
+
+<h2 id="アーキテクチャ">アーキテクチャ</h2>
+
+<p>上位レベルでは、Pulsarインスタンスは単一または複数クラスタで構成され、それぞれのクラスタは異なる地理的地域に存在する可能性があります。<br />
+1つのPulsarクラスタはメッセージBroker, BookKeeperおよび (コンポーネント間の) 連携と構成管理のためのZooKeeperアンサンブルで構成されています。<br />
+そしてクライアントライブラリが使い勝手の良いAPIを提供します。</p>
+
+<p><img src="../../img/pulsar_system_architecture.png" alt="アーキテクチャ図" /></p>
+
+<h3 id="メッセージbroker">メッセージBroker</h3>
+
+<p>PulsarのBrokerはステートレスなコンポーネントで、主に2つの異なるコンポーネントを実行します:<br />
+トピックのルックアップと管理操作のためのRESTインターフェースを提供するHTTPサーバと、全てのデータ転送を独自バイナリプロトコル上で行う非同期TCPサーバであるディスパッチャです。</p>
+
+<p>バックログがキャッシュサイズを超えない限り、メッセージは通常Managed Ledgerのキャッシュから送信され、超えた場合にはBrokerがBookKeeperからエントリの読み出しを始めます。</p>
+
+<p>グローバルトピックでのジオレプリケーションをサポートするためにBrokerはレプリケータを管理します。<br />
+このレプリケータはPulsarクライアントライブラリを利用し、ローカルクラスタ内で発行されるエントリをtailしリモートクラスタに再発行します。</p>
+
+<h3 id="永続ストア">永続ストア</h3>
+
+<p>Pulsarは、Apache BookKeeperを分散ログ先行書き込みシステムの永続ストレージとして使用しています。<br />
+BookKeeperでは、アプリケーションはLedgerと呼ばれる多くの独立したログを作成できます。<br />
+Ledgerは、単一のwriterが末尾への追加のみを行うデータ構造で、複数のストレージノード (またはBookieと呼びます) に割り当てられ、エントリはこれらのノードの複数にレプリケートされます。<br />
+Ledgerのセマンティクスはとてもシンプルです:プロセスはLedgerの作成、エントリの末尾への追加、Ledgerのクローズができます。明示的またはwriterのプロセスがクラッシュしてLedgerがクローズされた後、read-onlyモードのみでオープンできます。<br />
+そしてLedger内のエントリが不要になったら、システムからそのLedger自体を削除できます。</p>
+
+<p>BookKeeperの主な強みは、障害発生時のLedgerの読み取りの一貫性を保証することです。<br />
+Ledgerは単一のプロセスによってのみ書き込み可能なので、プロセスは非常に効率よく自由にエントリを追加することができ (追加のコンセンサスが不要) 、障害後には、Ledgerは状態を確定しログに最後にコミットされたエントリを確定するリカバリープロセスを実行します。<br />
+その後、Ledgerの全てのreaderは全く同じ内容を参照することが保証されます。</p>
+
+<p>BookKeeperはエントリのレプリケーション、ノード障害を処理するのに非常に効率的なシーケンシャルストアであり、加えて容量とスループットが水平にスケーラブルなため、Pulsarで採用しています。<br />
+運用上の観点からも、PulsarクラスタにBookieを追加するだけで容量を即座に増やすことができます。<br />
+BookKeeperの他の強みは、Bookieは並行読み込み/書き込みで何千ものLedgerを処理するようにデザインされている点と、複数ディスクデバイス (1つはJournal用、もう１つは通常のストレージ用) を利用することで、進行中の書き込み処理のレイテンシから読み込み処理の影響を分離できる点です。</p>
+
+<h3 id="managed-ledger">Managed Ledger</h3>
+
+<p>BookKeeperのLedgerが単一のログ抽象化を提供するため、単一トピックのストレージ層を表すManaged Ledgerと呼ばれるLedgerの上位概念を表すライブラリが開発されました。<br />
+Managed Ledgerは、ストリームの最後に追加し続ける単一のwriterとストリームをconsumeしている複数カーソル (それぞれが独自の関連位置を保持します) を持つメッセージストリームの抽象化を表します。</p>
+
+<p>内部的には、1つのManaged Ledgerはデータを保持するために複数のBookKeeperのLedgerを使います。<br />
+複数のLedgerを持つのには2つの理由があります:<br />
+1つ目は、障害後にLedgerはもはや書き込めないため新しいLedgerを作成する必要があるためで、<br />
+2つ目は、すべてのカーソルがLedgerに含まれるすべてのメッセージをconsumeした時にLedgerを削除する可能性があるため定期的にLedgerをロールオーバーしたいためです。</p>
+
+<h3 id="メタデータストア">メタデータストア</h3>
+
+<p>Pulsarはメタデータやクラスタの構成、 (コンポーネント間の) 連携のためにApache ZooKeeperを利用します。</p>
+<ul>
+  <li><em>Global ZooKeeper</em> は、グローバルで整合性が必要なプロパティやネームスペース、ポリシーのようなユーザプロビジョニングデータを保持します。</li>
+  <li>それぞれのクラスタには、ownershipのメタデータやBrokerの負荷レポート、BookKeeperのLedgerのメタデータのようなクラスタ特有の構成、連携のためのデータを保持している<em>Local ZooKeeper</em>アンサンブルがあります。</li>
+</ul>
+
+<h2 id="デザイン">デザイン</h2>
+
+<h3 id="トピック">トピック</h3>
+
+<p><strong>トピック</strong> はメッセージを発行、購読するするための論理的なエンドポイントです。
+Producerはトピックに対してメッセージを発行し、Consumerはトピックに対して購読します。
+Pulsarではトピックに対する複数のサブスクリプションモードでpub/sub、ロードバランサー、フェイルオーバーのユースケースをサポートします。</p>
+
+<p>通常のトピック (パーティションドトピックを除く) は明示的に作成される必要はなく、
+トピックに対してメッセージをproduce/consumeしようとした際に作成されます。</p>
+
+<h3 id="サブスクリプション">サブスクリプション</h3>
+
+<p>サブスクリプションはConsumerが最初に接続した時に与えられたサブスクリプション名によって作成される永続性のあるリソースです。
+サブスクリプションは作成された後、トピックに対して発行された全てのメッセージを受け取ります。
+Consumerがこのサブスクリプションに1つも接続していない場合、発行された全てのメッセージはバックログに保持されます。
+最終的に、トピックからサブスクリプションを削除するために、Consumerは購読解除できます。</p>
+
+<h3 id="サブスクリプションモード">サブスクリプションモード</h3>
+
+<p>サブスクリプションモードはメッセージをConsumerにどのようにメッセージを配送するかを決定する設定です。</p>
+
+<p><img src="../../img/pulsar_subscriptions.jpg" alt="サブスクリプションモード" /></p>
+
+<p><strong>Exclusive</strong></p>
+
+<ul>
+  <li>デフォルトのサブスクリプションモードです。1つのサブスクリプションに対して1つのConsumerのみが接続を許可されます。2つ以上のConsumerが同じサブスクリプション名を用いてトピックに対して購読を試みた場合、エラーが発生します。トピックに対するpublish/subscribeモデルをサポートするために、複数のConsumerは異なるサブスクリプション名を利用します。トピックに発行されたメッセージは全てのConsumerに配送されます。</li>
+</ul>
+
+<p><strong>Shared</strong></p>
+
+<ul>
+  <li>複数のConsumerが同じサブスクリプションに接続できます。メッセージはラウンドロビンで複数のConsumerに配送され、各メッセージは1つのConsumerのみに配送されます。Consumerが切断するとき、送信されたがAck (確認応答) が返ってきていない全てのメッセージは、再送のためにリスケジュールされます。</li>
+  <li>SharedのConsumerに対する配送の順序は保証されません。</li>
+</ul>
+
+<p><strong>Failover</strong></p>
+
+<ul>
+  <li>複数のConsumerが同じサブスクリプションに接続できます。ConsumerはConsumer名により辞書順にソートされ、辞書順で最初のConsumerがMaster Consumerとしてメッセージを受信します。このConsumerが切断された場合、Ackが返ってきていないものとその後に続く全てのメッセージは辞書順で次のConsumerに配送されます。</li>
+</ul>
+
+<h3 id="プロパティとネームスペース">プロパティとネームスペース</h3>
+
+<p>プロパティとネームスペースはマルチテナントをサポートするためのPulsarのキーコンセプトです。</p>
+
+<ul>
+  <li><strong>プロパティ</strong>　はテナントを特定します。Pulsarは適切な容量を割り当てられた特定のプロパティに対して提供されます。</li>
+  <li><strong>ネームスペース</strong> はプロパティ内での管理単位の名前です。ネームスペースに設定されたポリシーは、そのネームスペース内の全てのトピックに適用されます。プロパティはREST APIやCLIツールを用いてセルフ管理により複数のネームスペースを作成できます。例えば、異なるアプリケーションを持つプロパティは、各アプリケーションのために別々のネームスペースを作成できます。</li>
+</ul>
+
+<p>例えば、プロパティ<code class="highlighter-rouge">my-property</code>のための、クラスタ<code class="highlighter-rouge">us-w</code>に存在している、アプリケーション<code class="highlighter-rouge">my-app1</code>が使用するネームスペース、<code class="highlighter-rouge">my-property/us-w/my-app1</code>ついて考えてみます。
+そのようなネームスペースに対するトピックネームは以下のようになります:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>persistent://my-property/us-w/my-app1/my-topic-1
+persistent://my-property/us-w/my-app1/my-topic-2
+...
+</code></pre>
+</div>
+
+<h3 id="producer">Producer</h3>
+
+<p>Producerはトピックに接続し、メッセージを送信します。</p>
+
+<p><strong>同期送信 vs. 非同期送信</strong> - メッセージは同期的あるいは非同期的にBrokerに送信できます:</p>
+
+<ul>
+  <li>同期: Producerはメッセージを送信した後Brokerからの確認応答を待ちます。</li>
+  <li>非同期: Producerはメッセージをブロッキングキューに入れ、制御を戻します。クライアントライブラリはバックグラウンドでBrokerに送信します。キューが最大量 (設定可能) に達した場合、Producerは送信APIを呼び出した時、Producerの引数に応じてブロックされる、あるいは失敗する可能性があります。</li>
+</ul>
+
+<p><strong>圧縮</strong> - 帯域を節約するため、メッセージを圧縮することが可能です。圧縮と解凍はどちらもクライアントで動作します。以下の圧縮形式をサポートしています:</p>
+
+<ul>
+  <li>LZ4</li>
+  <li>ZLIB</li>
+</ul>
+
+<p><strong>バッチ</strong> - バッチ処理が可能な場合、Producerはメッセージを蓄積し、1つのリクエストでメッセージのバッチを送信しようとします。バッチサイズはメッセージの最大数と最大発行レイテンシで定義されます。</p>
+
+<h3 id="consumer">Consumer</h3>
+
+<p>Consumerはサブスクリプションに接続し、メッセージを受け取ります。</p>
+
+<p><strong>同期受信 vs. 非同期受信</strong> - 同期受信はメッセージが利用可能になるまでブロックされます。同期受信ではCompletableFutureインスタンスとしてすぐに返却されます。CompletableFutureインスタンスは新しいメッセージが利用可能になった時、受信して完了します。</p>
+
+<p><strong>確認応答</strong> - メッセージは1つ1つ個別に、あるいは累積的に確認応答が返されます。累積的な確認応答をするConsumerは、最後に受け取ったメッセージの確認応答を返します。その場合、確認応答を返したメッセージまでのストリーム内の全てのメッセージはそのConsumerに再送されません。サブスクリプションモードがSharedの場合は、累積的な確認応答は使用できません。</p>
+
+<p><strong>リスナー</strong> - カスタマイズされたMessageListenerの実装をConsumerに渡すことができます。クライアントライブラリは新しいメッセージを受け取るとリスナーを呼び出します (Consumer Receiveを呼び出す必要はありません) 。</p>
+
+<h3 id="パーティションドトピック">パーティションドトピック</h3>
+
+<p>通常のトピックは最大スループットを制限する1つのBrokerのみから提供されます。パーティションドトピックは高いスループットを達成するために複数のBrokerにまたがる特殊なトピックです。パーティションドトピックは管理API/CLIを通じて明示的に作成される必要があります。トピックを作成する際、パーティションの数を記述できます。</p>
+
+<p>パーティションドトピックは実際にはN (パーティションの数) 個の内部トピックとして実装されます。内部トピックと普通のトピックについて、サブスクリプションモードの挙動に違いはありません。</p>
+
+<p><img src="../../img/pulsar_partitioned_topic.jpg" alt="パーティションドトピック" /></p>
+
+<p><strong>ルーティングモード</strong> - ルーティングモードはどのパーティション (内部トピック) にメッセージが発行されるかを決定します:</p>
+
+<ul>
+  <li>キーハッシュ: メッセージにキーが指定されていれば、Partitioned Producerはキーをハッシュ化し、キーバケットごとの順序を保証しながら、特定のパーティションに割り当てます。</li>
+  <li>Single Partition: キーが指定されない場合、各プロデューサのメッセージはプロデューサごとのメッセージの順序を保証するために、 (最初にランダムに選ばれた) 専用パーティションにルーティングされます。</li>
+  <li>Round Robin Partition: キーが指定されない場合、最大スループットを達成するために、全てのメッセージはラウンドロビンで異なるパーティションにルーティングされます。順序は保証されません。</li>
+  <li>Custom Partition: メッセージは独自のMessageRouterの実装によってルーティングされます。</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MessageRouter</span> <span class="kd">extends</span> <span class="n">Serializable</span> <span class="o">{</span>
+    <span class="cm">/**
+     * @param msg メッセージオブジェクト
+     * @return そのメッセージのために使用するパーティションのインデックス
+     */</span>
+    <span class="kt">int</span> <span class="nf">choosePartition</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h3 id="永続化">永続化</h3>
+
+<p>保証されたメッセージの配送はそれらが配信され、Consumerによる確認応答を受け取るまで頑健な方法で保存される必要があります。このメッセージングの方法は一般的にPersistent Messagingと呼ばれます。</p>
+
+<p>メッセージの永続性はトピックレベルで設定されます。トピックは“persistent”にも“non-persistent”にもなりえます。トピック名は以下のようになります:
+<em>persistent://my-property/global/my-ns/my-topic</em></p>
+
+<p><strong>persistent</strong></p>
+
+<ul>
+  <li>全てのメッセージはディスク上に保存、同期され、N個のコピー (例: 4個のコピーが個別にミラーリングされたRAIDボリュームを持つ2台のサーバに存在) が全てのConsumerがメッセージをconsumeするまで保存されます。カーソルと呼ばれるCosumerの購読位置もディスク上に保存されます。メッセージは必ず1回は配送されることが保証されます。</li>
+</ul>
+
+<p><strong>non-persistent</strong></p>
+
+<ul>
+  <li>現在、PulsarはNon-persistent Messagingとして知られるベストエフォートの配送はサポートしていません。しかし、今後の計画としてNon-persistent Messagingをサポートする予定があります。</li>
+</ul>
+
+<h3 id="レプリケーション">レプリケーション</h3>
+
+<p>Pulsarでは異なるジオロケーションでのメッセージのproduce, consumeが可能です。例えば、アプリケーションが1つのジオ/マーケットにデータを発行し、異なるジオ/マーケットでそれをconsumeし処理したいとします。Global Replicationがそれを可能にします。</p>
+
+<h3 id="認証と認可">認証と認可</h3>
+
+<p>TODO</p>
+
+<h1 id="クライアントライブラリ">クライアントライブラリ</h1>
+
+<p>PulsarはJava言語バインディングのクライアントAPIを公開しています。
+クライアントAPIはクライアント-Broker間の通信プロトコルを最適化・カプセル化し、アプリケーションから使用するためのシンプルで直感的なAPIを公開しています。
+その内部では、クライアントライブラリが透過的なBrokerとの再接続や接続フェイルオーバー、BrokerからAckが返されるまでのメッセージのキューイング、バックオフによる接続再試行のようなヒューリスティクスなどをサポートしています。</p>
+
+<h2 id="クライアントのセットアップフェイズ">クライアントのセットアップフェイズ</h2>
+
+<p>アプリケーションがProducer/Consumerを作成する際、Pulsarのクライアントライブラリは2つのステップから成るセットアップフェイズを内部的に開始します。
+最初のタスクは、ルックアップのためのHTTPリクエストを送信してトピックのオーナーであるBrokerを見つける事です。
+このリクエストはアクティブなBrokerの中の1台に届き、 (キャッシュされた) ZooKeeperのメタデータを参照する事でどのBrokerがトピックを提供しているかを知る事ができます。
+どのBrokerもリクエストされたトピックを提供していない場合には、最も負荷の小さいBrokerにそのトピックが割り当てられます。</p>
+
+<p>クライアントライブラリがBrokerのアドレスを取得すると、TCPコネクションを作成 (またはプールされた既存のコネクションを再利用) し、認証を行います。
+このコネクションの中で、クライアントとBrokerは独自プロトコルのバイナリコマンドを交換します。
+この時点で、クライアントはProducer/Consumerを作成するためのコマンドをBrokerに送信します。
+なお、このコマンドは認可ポリシーを検証した後、それに従って行われます。</p>
+
+<p>TCPコネクションが切断されると、即座にクライアントはこのセットアップフェイズを再実行し、成功するまで指数バックオフを試行し続けます。</p>
+
+<h2 id="pulsarclient">PulsarClient</h2>
+
+<p>PulsarClient (TODO: javadocs) インスタンスは、メッセージのproduce/consumeを行う前に必要となります。</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">PulsarClient</span> <span class="n">pulsarClient</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"http://broker.example.com:8080"</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+<span class="o">...</span>
+<span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p>PulsarClientに引数を渡すためにClientConfiguration (TODO: javadocs) を使用できます:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Pulsarクライアントのインスタンスの中で使用する認証プロバイダをセット</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">Authentication</span> <span class="n">authentication</span><span class="o">);</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">String</span> <span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">String</span> <span class="n">authParamsString</span><span class="o">);</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setAuthentication</span><span class="o">(</span><span class="n">String</span> <span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="c1">// オペレーションのタイムアウト値をセット (デフォルト：30秒)</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setOperationTimeout</span><span class="o">(</span><span class="kt">int</span> <span class="n">operationTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">);</span>
+
+<span class="c1">// Brokerとのコネクションをハンドリングするスレッド数をセット (デフォルト：1スレッド)</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setIoThreads</span><span class="o">(</span><span class="kt">int</span> <span class="n">numIoThreads</span><span class="o">);</span>
+
+<span class="c1">// メッセージリスナとして使用するスレッド数をセット (デフォルト：1スレッド)</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setListenerThreads</span><span class="o">(</span><span class="kt">int</span> <span class="n">numListenerThreads</span><span class="o">);</span>
+
+<span class="c1">// 1台のBrokerとの間にオープンするコネクション数の最大値をセット</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setConnectionsPerBroker</span><span class="o">(</span><span class="kt">int</span> <span class="n">connectionsPerBroker</span><span class="o">);</span>
+
+<span class="c1">// Nagleアルゴリズムを無効化するためにTCP no-delayフラグを使用するかどうかを設定</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUseTcpNoDelay</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">useTcpNoDelay</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h2 id="consumer-api">Consumer API</h2>
+
+<p>PulsarClientを使用してConsumer (TODO javadocs) を作成し、10のメッセージを受信します。</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ConsumerConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setSubscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Exclusive</span><span class="o">);</span>
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span>
+      <span class="s">"persistent://my-property/us-w/my-ns/my-topic"</span><span class="o">,</span> <span class="s">"my-subscriber-name"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
+
+<span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+    <span class="c1">// メッセージを受信</span>
+    <span class="n">Msg</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+
+    <span class="c1">// 何らかの処理を実行</span>
+    <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Received: "</span> <span class="o">+</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
+
+    <span class="c1">// メッセージの処理に成功した事を通知するAck</span>
+    <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledge</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
+<span class="o">}</span>
+
+<span class="n">consumer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p>Consumerに引数を渡すためにConsumerConfiguration (TODO javadocs) を使用できます:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Ackが返されていないメッセージのタイムアウト値をセット (最も近いミリ秒の値になるように切り捨て)</span>
+<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setAckTimeout</span><span class="o">(</span><span class="kt">long</span> <span class="n">ackTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">timeUnit</span><span class="o">);</span>
+<span class="c1">// トピックの購読時に使用するサブスクリプションタイプを選択</span>
+<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setSubscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span> <span class="n">subscriptionType</span><span class="o">);</span>
+<span class="c1">// ConsumerのMessageListenerをセット</span>
+<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setMessageListener</span><span class="o">(</span><span class="n">MessageListener</span> <span class="n">messageListener</span><span class="o">);</span>
+<span class="c1">// Consumerの受信キューのサイズをセット</span>
+<span class="kd">public</span> <span class="n">ConsumerConfiguration</span> <span class="nf">setReceiverQueueSize</span><span class="o">(</span><span class="kt">int</span> <span class="n">receiverQueueSize</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h2 id="producer-api">Producer API</h2>
+
+<p>PulsarClientを使用してProducer (TODO javadocs) を作成し、10のメッセージを発行します。</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ProducerConfiguration</span> <span class="o">=</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span>
+           <span class="s">"persistent://my-property/us-w/my-ns/my-topic"</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+<span class="c1">// 10のメッセージをトピックに発行</span>
+<span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+    <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"my-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+<span class="o">}</span>
+<span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p>Producerに引数を渡すためにProducerConfiguration (TODO javadocs) を使用できます:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// 送信タイムアウト値をセット (デフォルト：30秒)</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setSendTimeout</span><span class="o">(</span><span class="kt">int</span> <span class="n">sendTimeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">);</span>
+<span class="c1">// BrokerからAckを受信するためにペンディング状態になっているメッセージを保持するキューの最大サイズをセット</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setMaxPendingMessages</span><span class="o">(</span><span class="kt">int</span> <span class="n">maxPendingMessages</span><span class="o">);</span>
+<span class="c1">// 送信メッセージキューがいっぱいになった時に Producer#send および Producer#sendAsync をブロックするかどうかをセット</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setBlockIfQueueFull</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">blockIfQueueFull</span><span class="o">);</span>
+<span class="c1">// Partitioned Producerのメッセージのルーティングモードをセット</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setMessageRoutingMode</span><span class="o">(</span><span class="n">MessageRoutingMode</span> <span class="n">messageRouteMode</span><span class="o">);</span>
+<span class="c1">// メッセージの圧縮方式をセット</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setCompressionType</span><span class="o">(</span><span class="n">CompressionType</span> <span class="n">compressionType</span><span class="o">);</span>
+<span class="c1">// MessageRouterの実装を渡してカスタマイズされたメッセージのルーティングポリシーをセット</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setMessageRouter</span><span class="o">(</span><span class="n">MessageRouter</span> <span class="n">messageRouter</span><span class="o">);</span>
+<span class="c1">// メッセージの自動バッチ処理を有効にするかどうかを指定 (デフォルト：false)</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setBatchingEnabled</span><span class="o">(</span><span class="kt">boolean</span> <span class="n">batchMessagesEnabled</span><span class="o">);</span>
+<span class="c1">// 送信メッセージがバッチ処理される期間をセット (デフォルト：10ミリ秒)</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setBatchingMaxPublishDelay</span><span class="o">(</span><span class="kt">long</span> <span class="n">batchDelay</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">timeUnit</span><span class="o">);</span>
+<span class="c1">// 1回のバッチ処理で許可されるメッセージの最大数をセット (デフォルト：1000)</span>
+<span class="kd">public</span> <span class="n">ProducerConfiguration</span> <span class="nf">setBatchingMaxMessages</span><span class="o">(</span><span class="kt">int</span> <span class="n">batchMessagesMaxMessagesPerBatch</span><span class="o">);</span>
+</code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

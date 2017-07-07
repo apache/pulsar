@@ -1,0 +1,282 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploying a Pulsar cluster on AWS using Terraform and Ansible · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](/docs/fr/2.8.3/deploy-bare-metal). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](/docs/fr/2.8.3/deploy-bare-metal-multi-cluster)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Deploying a Pulsar cluster on AWS using Terraform and Ansible · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](/docs/fr/2.8.3/deploy-bare-metal). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](/docs/fr/2.8.3/deploy-bare-metal-multi-cluster)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/deploy-aws">English</a></li><li><a href="/docs/ja/2.8.3/deploy-aws">日本語</a></li><li><a href="/docs/ko/2.8.3/deploy-aws">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/deploy-aws">中文</a></li><li><a href="/docs/zh-TW/2.8.3/deploy-aws">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Deployment</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploying a Pulsar cluster on AWS using Terraform and Ansible</h1></header><article><div><span><blockquote>
+<p>For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see <a href="/docs/fr/2.8.3/deploy-bare-metal">Deploying a Pulsar cluster on bare metal</a>. For instructions on manually deploying a multi-cluster Pulsar instance, see <a href="/docs/fr/2.8.3/deploy-bare-metal-multi-cluster">Deploying a Pulsar instance on bare metal</a>.</p>
+</blockquote>
+<p>One of the easiest ways to get a Pulsar <a href="/docs/fr/2.8.3/reference-terminology#cluster">cluster</a> running on <a href="https://aws.amazon.com/">Amazon Web Services</a> (AWS) is to use the <a href="https://terraform.io">Terraform</a> infrastructure provisioning tool and the <a href="https://www.ansible.com">Ansible</a> server automation tool. Terraform can create the resources necessary for running the Pulsar cluster---<a href="https://aws.amazon.com/ec2/">EC2</a> instances, networking and security infrastructure, etc.---While Ansible can install and run Pulsar on the provisioned resources.</p>
+<h2><a class="anchor" aria-hidden="true" id="requirements-and-setup"></a><a href="#requirements-and-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Requirements and setup</h2>
+<p>In order to install a Pulsar cluster on AWS using Terraform and Ansible, you need to prepare the following things:</p>
+<ul>
+<li>An <a href="https://aws.amazon.com/account/">AWS account</a> and the <a href="https://aws.amazon.com/cli/"><code>aws</code></a> command-line tool</li>
+<li>Python and <a href="https://pip.pypa.io/en/stable/">pip</a></li>
+<li>The <a href="https://github.com/adammck/terraform-inventory"><code>terraform-inventory</code></a> tool, which enables Ansible to use Terraform artifacts</li>
+</ul>
+<p>You also need to make sure that you are currently logged into your AWS account via the <code>aws</code> tool:</p>
+<pre><code class="hljs css language-bash">$ aws configure
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p>You can install Ansible on Linux or macOS using pip.</p>
+<pre><code class="hljs css language-bash">$ pip install ansible
+</code></pre>
+<p>You can install Terraform using the instructions <a href="https://www.terraform.io/intro/getting-started/install.html">here</a>.</p>
+<p>You also need to have the Terraform and Ansible configuration for Pulsar locally on your machine. You can find them in the <a href="https://github.com/apache/pulsar">GitHub repository</a> of Pulsar, which you can fetch using Git commands:</p>
+<pre><code class="hljs css language-bash">$ git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar
+$ <span class="hljs-built_in">cd</span> pulsar/deployment/terraform-ansible/aws
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="ssh-setup"></a><a href="#ssh-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SSH setup</h2>
+<blockquote>
+<p>If you already have an SSH key and want to use it, you can skip the step of generating an SSH key and update <code>private_key_file</code> setting in <code>ansible.cfg</code> file and <code>public_key_path</code> setting in <code>terraform.tfvars</code> file.</p>
+<p>For example, if you already have a private SSH key in <code>~/.ssh/pulsar_aws</code> and a public key in <code>~/.ssh/pulsar_aws.pub</code>, follow the steps below:</p>
+<ol>
+<li>update <code>ansible.cfg</code> with following values:</li>
+</ol>
+<pre><code class="hljs css language-shell">private_key_file=~/.ssh/pulsar_aws
+</code></pre>
+<ol start="2">
+<li>update <code>terraform.tfvars</code> with following values:</li>
+</ol>
+<pre><code class="hljs css language-shell">public_key_path=~/.ssh/pulsar_aws.pub
+</code></pre>
+</blockquote>
+<p>In order to create the necessary AWS resources using Terraform, you need to create an SSH key. Enter the following commands to create a private SSH key in <code>~/.ssh/id_rsa</code> and a public key in <code>~/.ssh/id_rsa.pub</code>:</p>
+<pre><code class="hljs css language-bash">$ ssh-keygen -t rsa
+</code></pre>
+<p>Do <em>not</em> enter a passphrase (hit <strong>Enter</strong> instead when the prompt comes out). Enter the following command to verify that a key has been created:</p>
+<pre><code class="hljs css language-bash">$ ls ~/.ssh
+id_rsa               id_rsa.pub
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="create-aws-resources-using-terraform"></a><a href="#create-aws-resources-using-terraform" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create AWS resources using Terraform</h2>
+<p>To start building AWS resources with Terraform, you need to install all Terraform dependencies. Enter the following command:</p>
+<pre><code class="hljs css language-bash">$ terraform init
+<span class="hljs-comment"># This will create a .terraform folder</span>
+</code></pre>
+<p>After that, you can apply the default Terraform configuration by entering this command:</p>
+<pre><code class="hljs css language-bash">$ terraform apply
+</code></pre>
+<p>Then you see this prompt below:</p>
+<pre><code class="hljs css language-bash">Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only <span class="hljs-string">'yes'</span> will be accepted to approve.
+
+  Enter a value:
+</code></pre>
+<p>Type <code>yes</code> and hit <strong>Enter</strong>. Applying the configuration could take several minutes. When the configuration applying finishes, you can see <code>Apply complete!</code> along with some other information, including the number of resources created.</p>
+<h3><a class="anchor" aria-hidden="true" id="apply-a-non-default-configuration"></a><a href="#apply-a-non-default-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apply a non-default configuration</h3>
+<p>You can apply a non-default Terraform configuration by changing the values in the <code>terraform.tfvars</code> file. The following variables are available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Variable name</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>public_key_path</code></td><td style="text-align:left">The path of the public key that you have generated.</td><td style="text-align:left"><code>~/.ssh/id_rsa.pub</code></td></tr>
+<tr><td style="text-align:left"><code>region</code></td><td style="text-align:left">The AWS region in which the Pulsar cluster runs</td><td style="text-align:left"><code>us-west-2</code></td></tr>
+<tr><td style="text-align:left"><code>availability_zone</code></td><td style="text-align:left">The AWS availability zone in which the Pulsar cluster runs</td><td style="text-align:left"><code>us-west-2a</code></td></tr>
+<tr><td style="text-align:left"><code>aws_ami</code></td><td style="text-align:left">The <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html">Amazon Machine Image</a> (AMI) that the cluster uses</td><td style="text-align:left"><code>ami-9fa343e7</code></td></tr>
+<tr><td style="text-align:left"><code>num_zookeeper_nodes</code></td><td style="text-align:left">The number of <a href="https://zookeeper.apache.org">ZooKeeper</a> nodes in the ZooKeeper cluster</td><td style="text-align:left">3</td></tr>
+<tr><td style="text-align:left"><code>num_bookie_nodes</code></td><td style="text-align:left">The number of bookies that runs in the cluster</td><td style="text-align:left">3</td></tr>
+<tr><td style="text-align:left"><code>num_broker_nodes</code></td><td style="text-align:left">The number of Pulsar brokers that runs in the cluster</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>num_proxy_nodes</code></td><td style="text-align:left">The number of Pulsar proxies that runs in the cluster</td><td style="text-align:left">1</td></tr>
+<tr><td style="text-align:left"><code>base_cidr_block</code></td><td style="text-align:left">The root <a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> that network assets uses for the cluster</td><td style="text-align:left"><code>10.0.0.0/16</code></td></tr>
+<tr><td style="text-align:left"><code>instance_types</code></td><td style="text-align:left">The EC2 instance types to be used. This variable is a map with two keys: <code>zookeeper</code> for the ZooKeeper instances, <code>bookie</code> for the BookKeeper bookies and <code>broker</code> and <code>proxy</code> for Pulsar brokers and bookies</td><td style="text-align:left"><code>t2.small</code> (ZooKeeper), <code>i3.xlarge</code> (BookKeeper) and <code>c5.2xlarge</code> (Brokers/Proxies)</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="what-is-installed"></a><a href="#what-is-installed" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is installed</h3>
+<p>When you run the Ansible playbook, the following AWS resources are used:</p>
+<ul>
+<li>9 total <a href="https://aws.amazon.com/ec2">Elastic Compute Cloud</a> (EC2) instances running the <a href="https://access.redhat.com/articles/3135091">ami-9fa343e7</a> Amazon Machine Image (AMI), which runs <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index">Red Hat Enterprise Linux (RHEL) 7.4</a>. By default, that includes:
+<ul>
+<li>3 small VMs for ZooKeeper (<a href="https://www.ec2instances.info/?selected=t2.small">t2.small</a> instances)</li>
+<li>3 larger VMs for BookKeeper <a href="/docs/fr/2.8.3/reference-terminology#bookie">bookies</a> (<a href="https://www.ec2instances.info/?selected=i3.xlarge">i3.xlarge</a> instances)</li>
+<li>2 larger VMs for Pulsar <a href="/docs/fr/2.8.3/reference-terminology#broker">brokers</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
+<li>1 larger VMs for Pulsar <a href="/docs/fr/2.8.3/reference-terminology#proxy">proxy</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
+</ul></li>
+<li>An EC2 <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html">security group</a></li>
+<li>A <a href="https://aws.amazon.com/vpc/">virtual private cloud</a> (VPC) for security</li>
+<li>An <a href="https://aws.amazon.com/api-gateway/">API Gateway</a> for connections from the outside world</li>
+<li>A <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Route_Tables.html">route table</a> for the Pulsar cluster's VPC</li>
+<li>A <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html">subnet</a> for the VPC</li>
+</ul>
+<p>All EC2 instances for the cluster run in the <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html">us-west-2</a> region.</p>
+<h3><a class="anchor" aria-hidden="true" id="fetch-your-pulsar-connection-url"></a><a href="#fetch-your-pulsar-connection-url" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fetch your Pulsar connection URL</h3>
+<p>When you apply the Terraform configuration by entering the command <code>terraform apply</code>, Terraform outputs a value for the <code>pulsar_service_url</code>. The value should look something like this:</p>
+<pre><code class="hljs"><span class="hljs-symbol">pulsar:</span><span class="hljs-comment">//pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650</span>
+</code></pre>
+<p>You can fetch that value at any time by entering the command <code>terraform output pulsar_service_url</code> or parsing the <code>terraform.tstate</code> file (which is JSON, even though the filename does not reflect that):</p>
+<pre><code class="hljs css language-bash">$ cat terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="destroy-your-cluster"></a><a href="#destroy-your-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Destroy your cluster</h3>
+<p>At any point, you can destroy all AWS resources associated with your cluster using Terraform's <code>destroy</code> command:</p>
+<pre><code class="hljs css language-bash">$ terraform destroy
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="setup-disks"></a><a href="#setup-disks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup Disks</h2>
+<p>Before you run the Pulsar playbook, you need to mount the disks to the correct directories on those bookie nodes. Since different type of machines have different disk layout, you need to update the task defined in <code>setup-disk.yaml</code> file after changing the <code>instance_types</code> in your terraform config,</p>
+<p>To setup disks on bookie nodes, enter this command:</p>
+<pre><code class="hljs css language-bash">$ ansible-playbook \
+  --user=<span class="hljs-string">'ec2-user'</span> \
+  --inventory=`<span class="hljs-built_in">which</span> terraform-inventory` \
+  setup-disk.yaml
+</code></pre>
+<p>After that, the disks is mounted under <code>/mnt/journal</code> as journal disk, and <code>/mnt/storage</code> as ledger disk. Remember to enter this command just only once. If you attempt to enter this command again after you have run Pulsar playbook, your disks might potentially be erased again, causing the bookies to fail to start up.</p>
+<h2><a class="anchor" aria-hidden="true" id="run-the-pulsar-playbook"></a><a href="#run-the-pulsar-playbook" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run the Pulsar playbook</h2>
+<p>Once you have created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible.</p>
+<p>(Optional) If you want to use any <a href="/docs/fr/2.8.3/io-connectors">built-in IO connectors</a>, edit the <code>Download Pulsar IO packages</code> task in the <code>deploy-pulsar.yaml</code> file and uncomment the connectors you want to use.</p>
+<p>To run the playbook, enter this command:</p>
+<pre><code class="hljs css language-bash">$ ansible-playbook \
+  --user=<span class="hljs-string">'ec2-user'</span> \
+  --inventory=`<span class="hljs-built_in">which</span> terraform-inventory` \
+  ../deploy-pulsar.yaml
+</code></pre>
+<p>If you have created a private SSH key at a location different from <code>~/.ssh/id_rsa</code>, you can specify the different location using the <code>--private-key</code> flag in the following command:</p>
+<pre><code class="hljs css language-bash">$ ansible-playbook \
+  --user=<span class="hljs-string">'ec2-user'</span> \
+  --inventory=`<span class="hljs-built_in">which</span> terraform-inventory` \
+  --private-key=<span class="hljs-string">"~/.ssh/some-non-default-key"</span> \
+  ../deploy-pulsar.yaml
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="access-the-cluster"></a><a href="#access-the-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Access the cluster</h2>
+<p>You can now access your running Pulsar using the unique Pulsar connection URL for your cluster, which you can obtain following the instructions <a href="#fetching-your-pulsar-connection-url">above</a>.</p>
+<p>For a quick demonstration of accessing the cluster, we can use the Python client for Pulsar and the Python shell. First, install the Pulsar Python module using pip:</p>
+<pre><code class="hljs css language-bash">$ pip install pulsar-client
+</code></pre>
+<p>Now, open up the Python shell using the <code>python</code> command:</p>
+<pre><code class="hljs css language-bash">$ python
+</code></pre>
+<p>Once you are in the shell, enter the following command:</p>
+<pre><code class="hljs css language-python"><span class="hljs-meta">&gt;&gt;&gt; </span><span class="hljs-keyword">import</span> pulsar
+<span class="hljs-meta">&gt;&gt;&gt; </span>client = pulsar.Client(<span class="hljs-string">'pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650'</span>)
+<span class="hljs-comment"># Make sure to use your connection URL</span>
+<span class="hljs-meta">&gt;&gt;&gt; </span>producer = client.create_producer(<span class="hljs-string">'persistent://public/default/test-topic'</span>)
+<span class="hljs-meta">&gt;&gt;&gt; </span>producer.send(<span class="hljs-string">'Hello world'</span>)
+<span class="hljs-meta">&gt;&gt;&gt; </span>client.close()
+</code></pre>
+<p>If all of these commands are successful, Pulsar clients can now use your cluster!</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.8.3/helm-tools"><span class="arrow-prev">← </span><span>Required Tools</span></a><a class="docs-next button" href="/docs/fr/2.8.3/deploy-kubernetes"><span>Kubernetes</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#requirements-and-setup">Requirements and setup</a></li><li><a href="#installation">Installation</a></li><li><a href="#ssh-setup">SSH setup</a></li><li><a href="#create-aws-resources-using-terraform">Create AWS resources using Terraform</a><ul class="toc-headings"><li><a href="#apply-a-non-default-configuration">Apply a non-default configuration</a></li><li><a href="#what-is-installed">What is installed</a></li><li><a href="#fetch-your-pulsar-connection-url">Fetch your Pulsar connection URL</a></li><li><a href="#destroy-your-cluster">Destroy your cluster</a></li></ul></li><li><a href="#setup-disks">Setup Disks</a></li><li><a href="#run-the-pulsar-playbook">Run the Pulsar playbook</a></li><li><a href="#access-the-cluster">Access the cluster</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.8.3"]}
+              });
+            </script></body></html>

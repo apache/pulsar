@@ -1,0 +1,148 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar admin interface · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Pulsar admin interface enables you to manage all of the important entities in a Pulsar [instance](/staging/docs/zh-CN/reference-terminology#instance), such as [tenants](/staging/docs/zh-CN/reference-terminology#tenant), [topics](/staging/docs/zh-CN/reference-terminology#topic), and [namespaces](/staging/docs/zh-CN/reference-terminology#namespace)."/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="The Pulsar admin interface · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/staging/index.html"/><meta property="og:description" content="The Pulsar admin interface enables you to manage all of the important entities in a Pulsar [instance](/staging/docs/zh-CN/reference-terminology#instance), such as [tenants](/staging/docs/zh-CN/reference-terminology#tenant), [topics](/staging/docs/zh-CN/reference-terminology#topic), and [namespaces](/staging/docs/zh-CN/reference-terminology#namespace)."/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/staging/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="stylesheet" href="/staging/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/staging/js/custom.js"></script><link rel="stylesheet" href="/staging/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/staging/zh-CN"><img class="logo" src="/staging/img/pulsar.svg" alt="Apache Pulsar"/></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/staging/docs/zh-CN/standalone" target="_self">Documentation</a></li><li class=""><a href="/staging/zh-CN/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/staging/docs/zh-CN/client-libraries" target="_self">Client libraries</a></li><li class=""><a href="/staging/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/staging/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/staging/docs/en/admin-api-overview">English</a></li><li><a href="/staging/docs/ja/admin-api-overview">日本語</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting started</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul><li class="navListItem navListItemActive"><a class="navItem" href="/staging/docs/zh-CN/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-permissions">Persmissions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/admin-api-partitioned-topics">Partitioned topics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/zh-CN/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              const headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A') {
+                  document.body.classList.remove('tocActive');
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">The Pulsar admin interface</h1></header><article><div><span><p>The Pulsar admin interface enables you to manage all of the important entities in a Pulsar <a href="/staging/docs/zh-CN/reference-terminology#instance">instance</a>, such as <a href="/staging/docs/zh-CN/reference-terminology#tenant">tenants</a>, <a href="/staging/docs/zh-CN/reference-terminology#topic">topics</a>, and <a href="/staging/docs/zh-CN/reference-terminology#namespace">namespaces</a>.</p>
+<p>You can currently interact with the admin interface via:</p>
+<ul>
+<li>Making HTTP calls against the admin <a href="https://pulsar.incubator.apache.org/staging/en/admin-rest-api#/">REST</a>
+ API provided by Pulsar <a href="/staging/docs/zh-CN/reference-terminology#broker">brokers</a>. For some restful apis, they might be redirected to topic owner brokers for serving with <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307"><code>307 Temporary Redirect</code></a>, hence the HTTP callers should handle <code>307 Temporary Redirect</code>. If you are using <code>curl</code>, you should specify <code>-L</code> to handle redirections.</li>
+<li>The <code>pulsar-admin</code> CLI tool, which is available in the <code>bin</code> folder of your <a href="/staging/docs/zh-CN/standalone">Pulsar installation</a>:</li>
+</ul>
+<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin</span>
+</code></pre>
+<p>Full documentation for this tool can be found in the <a href="/staging/docs/zh-CN/pulsar-admin">Pulsar command-line tools</a> doc.</p>
+<ul>
+<li>A Java client interface.</li>
+</ul>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="the-rest-api-is-the-admin-interface"></a><a href="#the-rest-api-is-the-admin-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The REST API is the admin interface</h4>
+<p>Under the hood, both the <code>pulsar-admin</code> CLI tool and the Java client both use the REST API. If you’d like to implement your own admin interface client, you should use the REST API as well. Full documentation can be found here.</p>
+</blockquote>
+<p>In this document, examples from each of the three available interfaces will be shown.</p>
+<h2><a class="anchor" aria-hidden="true" id="admin-setup"></a><a href="#admin-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin setup</h2>
+<p>Each of Pulsar's three admin interfaces---the <a href="/staging/docs/zh-CN/pulsar-admin"><code>pulsar-admin</code></a> CLI tool, the <a href="/api/admin">Java admin API</a>, and the <a href="https://pulsar.incubator.apache.org/staging/en/admin-rest-api#/">REST</a>
+ API ---requires some special setup if you have <a href="/staging/docs/zh-CN/security-overview#authentication-providers">authentication</a> enabled in your Pulsar <a href="/staging/docs/zh-CN/reference-terminology#instance">instance</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h3>
+<p>If you have <a href="/staging/docs/zh-CN/security-overview#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="/staging/docs/zh-CN/pulsar-admin"><code>pulsar-admin</code></a> tool. By default, the configuration for the <code>pulsar-admin</code> tool is found in the <a href="/staging/docs/zh-CN/reference-configuration#client"><code>conf/client.conf</code></a> file. Here are the available parameters:</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>webServiceUrl</td><td>The web URL for the cluster.</td><td><a href="http://localhost:8080/">http://localhost:8080/</a></td></tr>
+<tr><td>brokerServiceUrl</td><td>The Pulsar protocol URL for the cluster.</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
+<tr><td>authPlugin</td><td>The authentication plugin.</td><td></td></tr>
+<tr><td>authParams</td><td>The authentication parameters for the cluster, as a comma-separated string.</td><td></td></tr>
+<tr><td>useTls</td><td>Whether or not TLS authentication will be enforced in the cluster.</td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client.</td><td>false</td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h3>
+<p>You can find documentation for the REST API exposed by Pulsar <a href="/staging/docs/zh-CN/reference-terminology#broker">brokers</a> in this reference <a href="https://pulsar.incubator.apache.org/staging/en/admin-rest-api#/">document</a>
+.</p>
+<h3><a class="anchor" aria-hidden="true" id="java-admin-client"></a><a href="#java-admin-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java admin client</h3>
+<p>To use the Java admin API, instantiate a <a href="https://pulsar.incubator.apache.org/api/admin/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+ object, specifying a URL for a Pulsar <a href="/staging/docs/zh-CN/reference-terminology#broker">broker</a> and a <a href="https://pulsar.incubator.apache.org/api/admin/org/apache/pulsar/client/admin/ClientConfiguration">ClientConfiguration</a>
+. Here's a minimal example using <code>localhost</code>:</p>
+<pre><code class="hljs css languages- java">URL url = <span class="hljs-keyword">new</span> URL(<span class="hljs-string">"http://localhost:8080"</span>);
+<span class="hljs-comment">// Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
+String authPluginClassName = <span class="hljs-string">"com.org.MyAuthPluginClass"</span>; 
+<span class="hljs-comment">// Pass auth-param if auth-plugin class requires it</span>
+String authParams = <span class="hljs-string">"param1=value1"</span>;
+<span class="hljs-keyword">boolean</span> useTls = <span class="hljs-keyword">false</span>;
+<span class="hljs-keyword">boolean</span> tlsAllowInsecureConnection = <span class="hljs-keyword">false</span>;
+String tlsTrustCertsFilePath = <span class="hljs-keyword">null</span>;
+
+ClientConfiguration config = <span class="hljs-keyword">new</span> ClientConfiguration();
+config.setAuthentication(authPluginClassName, authParams);
+config.setUseTls(useTls);
+config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
+config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+
+PulsarAdmin admin = <span class="hljs-keyword">new</span> PulsarAdmin(url, config);
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/staging/docs/zh-CN/client-libraries-websocket">← Pulsar&#x27;s WebSocket API</a><a class="docs-next button" href="/staging/docs/zh-CN/admin-api-clusters">Managing Clusters →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#admin-setup">Admin setup</a><ul class="toc-headings"><li><a href="#pulsar-admin">pulsar-admin</a></li><li><a href="#rest-api">REST API</a></li><li><a href="#java-admin-client">Java admin client</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/staging/contact">Contact</a></li>' +
+            '<li><a href="/staging/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/staging/resources">Resources</a></li>' +
+            '<li><a href="/staging/team">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span><span><script src="/staging/js/pjax-api.min.js"></script><script>window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>

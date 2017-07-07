@@ -1,0 +1,372 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>ZooKeeper and BookKeeper administration · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 依靠两个外部系统完成重要工作："/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="ZooKeeper and BookKeeper administration · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar 依靠两个外部系统完成重要工作："/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/administration-zk-bk">English</a></li><li><a href="/docs/ja/2.8.3/administration-zk-bk">日本語</a></li><li><a href="/docs/fr/2.8.3/administration-zk-bk">Français</a></li><li><a href="/docs/ko/2.8.3/administration-zk-bk">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/administration-zk-bk">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>系统管理</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">ZooKeeper and BookKeeper administration</h1></header><article><div><span><p>Pulsar 依靠两个外部系统完成重要工作：</p>
+<ul>
+<li><a href="https://zookeeper.apache.org/">ZooKeeper</a> 负责各种与配置和协调相关的任务。</li>
+<li><a href="http://bookkeeper.apache.org/">BookKeeper</a> 负责消息数据的 <a href="/docs/zh-CN/2.8.3/concepts-architecture-overview#persistent-storage">持久化存储</a>。</li>
+</ul>
+<p>ZooKeeper 和 BookKeeper 都是 <a href="https://www.apache.org/">Apache</a> 开源项目。</p>
+<blockquote>
+<p>Skip to the <a href="#how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</a> section below for a more schematic explanation of the role of these two systems in Pulsar.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
+<p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
+<ul>
+<li><a href="#deploy-local-zookeeper">本地 ZooKeeper</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
+<li><a href="#deploy-configuration-store">Configuration Store</a> 在实例层面运行，为整个系统提供配置管理（从而实现跨集群）。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="部署本地zookeeper"></a><a href="#部署本地zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署本地Zookeeper</h3>
+<p>ZooKeeper 负责管理与 Pulsar 协调和配置相关的各种基本任务。</p>
+<p>To deploy a Pulsar instance, you need to stand up one local ZooKeeper cluster <em>per Pulsar cluster</em>.</p>
+<p>首先，将所有 ZooKeeper 服务器添加到 <a href="/docs/zh-CN/2.8.3/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> 指定的 quorum 配置中。 在配置文件中为每个集群节点添加一个 <code>server.N</code> 行，其中 <code>N</code> 是 ZooKeeper 节点的编号。 以下是一个三节点集群的示例：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+<p>在每台主机上，您需要在每个节点的 <code>myid</code> 文件中指定节点 ID，默认位置在服务器的 <code>data/zookeeper</code> 目录 (您可以通过 <a href="/docs/zh-CN/2.8.3/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> 参数更改文件位置)。</p>
+<blockquote>
+<p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
+</blockquote>
+<p>例如，在 Zookeeper 服务器<code>zk1.us-west.example.com</code>上，你可以通过如下方式设置<code>myid</code>：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> mkdir -p data/zookeeper</span>
+<span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid</span>
+</code></pre>
+<p>在服务器<code>zk2.us-west.example.com</code>上，设置命令是<code>echo 2 &gt; data/zookeeper/myid</code>，以此类推。</p>
+<p>一旦你将每台服务器添加到<code>zookeeper.conf</code>配置文件，并且每台服务器都有对应的<code>myid</code>，你就能使用<a href=“reference-cli-tools.md#pulsar-daemon”><code>pulsar-daemon</code></a>命令去启动所有 Zookeeper 服务（如果想在后台运行命令，记得使用 nohup）：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="部署-configuration-store"></a><a href="#部署-configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Configuration Store</h3>
+<p>The ZooKeeper cluster configured and started up in the section above is a <em>local</em> ZooKeeper cluster that you can use to manage a single Pulsar cluster. 但是，除了本地集群之外，一个完整的 Pulsar 实例还需要 configuration store来处理一些实例级配置和协调任务。</p>
+<p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 但是，如果部署了 <a href="#multi-cluster-pulsar-instance">多集群</a> 实例，则需要为配置任务设置一个单独的 ZooKeeper 集群。</p>
+<h4><a class="anchor" aria-hidden="true" id="单集群-pulsar-实例"></a><a href="#单集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单集群 Pulsar 实例</h4>
+<p>如果你的 Pulsar 实例只包含一个集群，你可以在同一批机器上部署本地 Zookeeper 集群和配置存储 Zookeeper 集群，此时这两个集群的 TCP 端口信息需要不一样。</p>
+<p>要在单个集群实例中部署配置存储的 Zookeeper 集群。步骤跟部署<a href="#local-zookeeper">本地 Zookeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/2.8.3/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(Zookeeper 默认使用2181端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
+<span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
+</code></pre>
+<p>跟之前一样，在 <code>data/global-zoocheper/myid</code> 文件为每个服务器创建 <code>myid</code> 。</p>
+<h4><a class="anchor" aria-hidden="true" id="多集群-pulsar-实例"></a><a href="#多集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群 Pulsar 实例</h4>
+<p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
+<p>这里的关键是确保 ZK quorum 节点必须分布在至少 3 个区域，其他区域以观察员身份运行。</p>
+<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 ZooKeeper quorum 共用同一批机器。</p>
+<p>例如，假设 Pulsar 实例由如下集群组成：<code>us-west</code>, <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>。 并且假设每个集群自己的本地 ZK 服务器的名字格式如下：</p>
+<pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
+</code></pre>
+<p>在这种情况下，可以从几个集群中选择 quorum 节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
+<p>这个方法保证即使其中一个区域无法连接，数据也可以写入配置存储服务。</p>
+<p>所有服务器中的 ZK 配置如下：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
+<span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.4</span>=<span class="hljs-string">zk1.us-central.example.com:2185:2186</span>
+<span class="hljs-meta">server.5</span>=<span class="hljs-string">zk2.us-central.example.com:2185:2186</span>
+<span class="hljs-meta">server.6</span>=<span class="hljs-string">zk3.us-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.7</span>=<span class="hljs-string">zk1.us-east.example.com:2185:2186</span>
+<span class="hljs-meta">server.8</span>=<span class="hljs-string">zk2.us-east.example.com:2185:2186</span>
+<span class="hljs-meta">server.9</span>=<span class="hljs-string">zk3.us-east.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.10</span>=<span class="hljs-string">zk1.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.11</span>=<span class="hljs-string">zk2.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.12</span>=<span class="hljs-string">zk3.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.13</span>=<span class="hljs-string">zk1.ap-south.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.14</span>=<span class="hljs-string">zk2.ap-south.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.15</span>=<span class="hljs-string">zk3.ap-south.example.com:2185:2186:observer</span>
+</code></pre>
+<p>此外，ZK 的观察者需要添加如下配置：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=<span class="hljs-string">observer</span>
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="启动服务"></a><a href="#启动服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动服务</h5>
+<p>配置存储服务配置完成后，你可以通过<a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>来启动集群。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start configuration-store</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="zookeeper-配置项说明"></a><a href="#zookeeper-配置项说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Zookeeper 配置项说明</h3>
+<p>在 Pulsar 的安装目录中有两个独立的 ZooKeeper 配置文件：一是<a href="#local-zookeeper">本地 ZooKeeper 集群</a>使用<code>conf/zookeeper.conf</code>配置文件，二是<a href="#configuration-store">配置存储集群</a>使用的<code>conf/global-zookeeper.conf</code>配置文件。</p>
+<h4><a class="anchor" aria-hidden="true" id="本地-zookeeper"></a><a href="#本地-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>本地 ZooKeeper</h4>
+<p>The <a href="/docs/zh-CN/2.8.3/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> file handles the configuration for local ZooKeeper. 下表是可用的配置项列表：</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>tickTime</td><td>The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.</td><td>2000</td></tr>
+<tr><td>initLimit</td><td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the tickTime parameter.</td><td>10</td></tr>
+<tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
+<tr><td>dataDir</td><td>Zookeeper 存储内存数据库快照和数据库更新的日志的目录。</td><td>data/zookeeper</td></tr>
+<tr><td>clientPort</td><td>Zookeeper 服务器监听连接的端口。</td><td>2181</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>ZooKeeper 中自动清理决定了在 autopurge.purgeInterval 参数设定的时间间隔内，存储在 dataDir 中的数据库快照数（其他快照会被删除）。</td><td>3</td></tr>
+<tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, which triggers the ZooKeeper database purge task. Setting to a non-zero number enables auto purge; setting to 0 disables. Read this guide before enabling auto purge.</td><td>1</td></tr>
+<tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Store</h4>
+<p>配置存储服务集群使用的配置文件是<a href="/docs/zh-CN/2.8.3/reference-configuration#configuration-store"><code>conf/global-zookeeper.conf</code></a>。 下表是可用的配置项列表：</p>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
+<p>Pulsar 使用 BookKeeper 来存储所有的持久化消息。 BookKeeper 是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging"> 预写日志（write-ahead log）</a> 系统。它保证了独立消息日志读取的一致性，称为 ledger。 Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<blockquote>
+<p>Pulsar 中管理消息的持久性，保留策略和过期时间，请参考<a href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">该指南</a>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="硬件要求"></a><a href="#硬件要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件要求</h3>
+<p>Bookie 机器将消息数据存储在硬盘上。 为了确保最佳性能，需要确保 bookie 有合适的硬件配置。 以下是 Bookie 机器相关的两个关键的硬件指标：</p>
+<ul>
+<li>硬盘 I/O 的读/写能力。</li>
+<li>存储容量</li>
+</ul>
+<p>默认情况下，在向 Pulsar Broker 返回确认消息之前，写入 bookie 的消息条目总是同步到硬盘。 To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
+<ul>
+<li>A <strong>journal</strong> to ensure durability. 对于连续的写入来说，bookie 机器的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作至关重要。 通常情况下，使用容量小并且读写快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘(SSD)</a>设备就足够了，也可以是带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">机械硬盘(HDD)</a>。 这两种方案 fsync 延时大约为0.4ms。</li>
+<li>A <strong>ledger storage device</strong> stores data. 写入操作是在后台运行的，所以写入的 I/O 性能不是一个大问题。 大部分的读取操作是连续的。backlog 只有在没有消费者的情况下，才会被删除。 要存储大量的数据，典型的配置是多块 HDD 硬盘和 一个RAID 控制器构建硬盘阵列。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-bookkeeper"></a><a href="#configure-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure BookKeeper</h3>
+<p>你能够通过配置文件<a href="/docs/zh-CN/2.8.3/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置bookie时，需要确保<a href="/docs/zh-CN/2.8.3/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>参数设置的是 Pulsar 集群的本地 Zookeeper 的地址的。</p>
+<p>至少需要修改<code>conf/bookkeeper.conf</code>文件的如下配置：</p>
+<blockquote>
+<p><strong>Note</strong> Set <code>journalDirectory</code> and <code>ledgerDirectories</code> carefully. It is difficilt to change them later.</p>
+</blockquote>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Change to point to journal disk mount point</span>
+<span class="hljs-attr">journalDirectory</span>=<span class="hljs-string">data/bookkeeper/journal</span>
+<span class="hljs-comment">
+# Point to ledger storage disk mount point</span>
+<span class="hljs-attr">ledgerDirectories</span>=<span class="hljs-string">data/bookkeeper/ledgers</span>
+<span class="hljs-comment">
+# Point to local ZK quorum</span>
+<span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
+<span class="hljs-comment">
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).</span>
+<span class="hljs-attr">advertisedAddress</span>=<span class="hljs-string"></span>
+</code></pre>
+<p>如果需要更改 BookKeeper 使用的 ZooKeeper 中的根路径，需要使用<code>zkLedgersRootPath=/MY-PREFIX/ledgers</code>，而不是<code>zkServers=localhost:2181/MY-PREFIX</code>。</p>
+<blockquote>
+<p>需要了解更多 Bookeeper 的信息，请参考<a href="http://bookkeeper.apache.org">BookKeeper 官方文档</a>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="部署-bookkeeper"></a><a href="#部署-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookkeeper</h3>
+<p>BookKeeper provides <a href="/docs/zh-CN/2.8.3/concepts-architecture-overview#persistent-storage">persistent message storage</a> for Pulsar. 每个 Pulsar Broker 都有属于自己的 bookie。 The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
+<h3><a class="anchor" aria-hidden="true" id="手动启动-bookie"></a><a href="#手动启动-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动启动 bookie</h3>
+<p>你可以在前台或者后台启动 bookie。</p>
+<p>可以使用<a href="/docs/zh-CN/2.8.3/reference-cli-tools#bookkeeper"><code>bookkeeper</code></a>命令行工具在前台启动 bookie。</p>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper bookie
+</code></pre>
+<p>To start a bookie in the background, use the <a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
+</code></pre>
+<p>你可以使用<a href="/docs/zh-CN/2.8.3/reference-cli-tools#bookkeeper-shell"> BookKeeper shell</a> 命令的<code>bookiesanity</code>选项，来校验 bookie 是否正常工作。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
+</code></pre>
+<p>使用这个命令的时候，底层的机制是在本地的 bookie 创建新的 ledger ，往里面写一些新的条目，然后读取它，最后删除这个ledger。</p>
+<h3><a class="anchor" aria-hidden="true" id="下线-bookie"></a><a href="#下线-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下线 bookie</h3>
+<p>下线 bookie 之前，你必须检查你的环境并满足以下要求：</p>
+<ol>
+<li><p>Ensure the state of your cluster supports decommissioning the target bookie. Check if <code>EnsembleSize &gt;= Write Quorum &gt;= Ack Quorum</code> is <code>true</code> with one less bookie.</p></li>
+<li><p>确保目标 bookie 在<code>listbookies</code>命令列出的 bookie 列表中，</p></li>
+<li><p>确保没有其他的程序正在运行(比如升级)。</p></li>
+</ol>
+<p>And then you can decommission bookies safely. To decommission bookies, complete the following steps.</p>
+<ol>
+<li><p>Log in to the bookie node, check if there are underreplicated ledgers. The decommission command force to replicate the underreplicated ledgers. <code>$ bin/bookkeeper shell listunderreplicated</code></p></li>
+<li><p>Stop the bookie by killing the bookie process. Make sure that no liveness/readiness probes setup for the bookies to spin them back up if you deploy it in a Kubernetes environment.</p></li>
+<li><p>运行下线命令。</p>
+<ul>
+<li>如果你已经登录到了目标节点，则不需要指定参数<code>-bookieid</code>。</li>
+<li>如果你希望从其他 bookie 节点执行目标 bookie 节点下线命令，需要在 <code>-bookieid</code> 参数中指定目标 bookie ID：<code>$ bin/bookkeeper shell decommissionbookie</code> 或 <code>$ bin/bookkeeper shell decommissionbookie -bookieid &lt;target bookieid&gt;</code></li>
+</ul></li>
+<li><p>Validate that no ledgers are on the decommissioned bookie.<br>
+<code>$ bin/bookkeeper shell listledgers -bookieid &lt;target bookieid&gt;</code></p></li>
+</ol>
+<p>你可以通过运行一下命令检查下线的 bookie 是否还在 bookie 列表中:</p>
+<pre><code class="hljs css language-bash">./bookkeeper shell listbookies -rw -h
+./bookkeeper shell listbookies -ro -h
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="bookeeper-持久化策略"></a><a href="#bookeeper-持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bookeeper 持久化策略</h2>
+<p>In Pulsar, you can set <em>persistence policies</em> at the namespace level, which determines how BookKeeper handles persistent storage of messages. Policies determine four things:</p>
+<ul>
+<li>每个 ledger entry 的等待 ack 数 (保证数据保存成功)</li>
+<li>主题使用的的 bookie 数量。</li>
+<li>每个ledger entry 的写入次数。</li>
+<li>标记删除操作的限流率。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="设置持久化策略"></a><a href="#设置持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置持久化策略</h3>
+<p>You can set persistence policies for BookKeeper at the <a href="/docs/zh-CN/2.8.3/reference-terminology#namespace">namespace</a> level.</p>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar-admin</h4>
+<p>Use the <a href="/docs/zh-CN/2.8.3/pulsar-admin#namespaces-set-persistence"><code>set-persistence</code></a> subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">标记</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>-a</code>, <code>--bookkeeper-ack-quorum</code></td><td style="text-align:left">每个 ledger entry 的等待 ack 数 (保证数据保存成功)</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td style="text-align:left">主题在命名空间中使用的<a href="/docs/zh-CN/2.8.3/reference-terminology#bookie"> bookie </a>数量</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td style="text-align:left">每个 ledger entry 的写入次数</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td style="text-align:left">标记删除操作的限流频率(0表示不限制)</td><td style="text-align:left">0</td></tr>
+</tbody>
+</table>
+<p>如下所示：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces <span class="hljs-built_in">set</span>-persistence my-tenant/my-ns \</span>
+  --bookkeeper-ack-quorum 3 \
+  --bookkeeper-ensemble 2
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/setPersistence?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/namespaces/:tenant/:namespace/persistence</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">int</span> bkEnsemble = <span class="hljs-number">2</span>;
+<span class="hljs-keyword">int</span> bkQuorum = <span class="hljs-number">3</span>;
+<span class="hljs-keyword">int</span> bkAckQuorum = <span class="hljs-number">2</span>;
+<span class="hljs-keyword">double</span> markDeleteRate = <span class="hljs-number">0.7</span>;
+PersistencePolicies policies =
+  <span class="hljs-keyword">new</span> PersistencePolicies(ensemble, quorum, ackQuorum, markDeleteRate);
+admin.namespaces().setPersistence(namespace, policies);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="列出持久化策略"></a><a href="#列出持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>列出持久化策略</h3>
+<p>You can see which persistence policy currently applies to a namespace.</p>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar-admin</h4>
+<p>Use the <a href="/docs/zh-CN/2.8.3/pulsar-admin#namespaces-get-persistence"><code>get-persistence</code></a> subcommand and specify the namespace.</p>
+<p>如下所示：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces get-persistence my-tenant/my-ns</span>
+{
+  "bookkeeperEnsemble": 1,
+  "bookkeeperWriteQuorum": 1,
+  "bookkeeperAckQuorum", 1,
+  "managedLedgerMaxMarkDeleteRate": 0
+}
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-1"></a><a href="#rest-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPersistence?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant/:namespace/persistence</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-1"></a><a href="#java-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-如何使用-zookeeper-和-bookkeeper"></a><a href="#pulsar-如何使用-zookeeper-和-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 如何使用 ZooKeeper 和 BookKeeper</h2>
+<p>This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:</p>
+<p><img src="/docs/assets/pulsar-system-architecture.png" alt="ZooKeeper 和 BookKeeper"></p>
+<p>Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/deploy-monitoring"><span class="arrow-prev">← </span><span>Monitor</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/administration-geo"><span>跨地域复制</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署-configuration-store">部署 Configuration Store</a></li><li><a href="#zookeeper-配置项说明">Zookeeper 配置项说明</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#硬件要求">硬件要求</a></li><li><a href="#configure-bookkeeper">Configure BookKeeper</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a></li><li><a href="#手动启动-bookie">手动启动 bookie</a></li><li><a href="#下线-bookie">下线 bookie</a></li></ul></li><li><a href="#bookeeper-持久化策略">Bookeeper 持久化策略</a><ul class="toc-headings"><li><a href="#设置持久化策略">设置持久化策略</a></li><li><a href="#列出持久化策略">列出持久化策略</a></li></ul></li><li><a href="#pulsar-如何使用-zookeeper-和-bookkeeper">Pulsar 如何使用 ZooKeeper 和 BookKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

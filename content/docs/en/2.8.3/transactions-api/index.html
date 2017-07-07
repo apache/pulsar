@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Transactions API · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. "/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Transactions API · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/2.8.3/transactions-api">日本語</a></li><li><a href="/docs/fr/2.8.3/transactions-api">Français</a></li><li><a href="/docs/ko/2.8.3/transactions-api">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/transactions-api">中文</a></li><li><a href="/docs/zh-TW/2.8.3/transactions-api">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/transaction-api.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Transactions API</h1></header><article><div><span><p>All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back.</p>
+<h2><a class="anchor" aria-hidden="true" id="prerequisites"></a><a href="#prerequisites" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerequisites</h2>
+<ol>
+<li>To enable transactions in Pulsar, you need to configure the parameter in <code>broker.conf</code> file or <code>standalone.conf</code> file.</li>
+</ol>
+<pre><code class="hljs"><span class="hljs-attr">transactionCoordinatorEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<ol start="2">
+<li>Initialize transaction coordinator metadata, so the transaction coordinators can leverage advantages of the partitioned topic, such as load balance.</li>
+</ol>
+<pre><code class="hljs">bin/pulsar initialize-transaction-coordinator-metadata -cs <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">2181</span> -c standalone
+</code></pre>
+<p>After initializing transaction coordinator metadata, you can use the transactions API. The following APIs are available.</p>
+<h2><a class="anchor" aria-hidden="true" id="initialize-pulsar-client"></a><a href="#initialize-pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Initialize Pulsar client</h2>
+<p>You can enable transaction for transaction client and initialize transaction coordinator client.</p>
+<pre><code class="hljs">PulsarClient pulsarClient = <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PulsarClient</span>.</span></span>builder<span class="hljs-literal">()</span>
+        .service<span class="hljs-constructor">Url(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span>
+        .enable<span class="hljs-constructor">Transaction(<span class="hljs-params">true</span>)</span>
+        .build<span class="hljs-literal">()</span>;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="start-transactions"></a><a href="#start-transactions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start transactions</h2>
+<p>You can start transaction in the following way.</p>
+<pre><code class="hljs">Transaction txn = pulsarClient
+        <span class="hljs-string">.newTransaction</span><span class="hljs-params">()</span>
+        <span class="hljs-string">.withTransactionTimeout</span><span class="hljs-params">(5, TimeUnit.MINUTES)</span>
+        <span class="hljs-string">.build</span><span class="hljs-params">()</span>
+        <span class="hljs-string">.get</span><span class="hljs-params">()</span>;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="produce-transaction-messages"></a><a href="#produce-transaction-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce transaction messages</h2>
+<p>A transaction parameter is required when producing new transaction messages. The semantic of the transaction messages in Pulsar is <code>read-committed</code>, so the consumer cannot receive the ongoing transaction messages before the transaction is committed.</p>
+<pre><code class="hljs">producer.<span class="hljs-keyword">new</span><span class="hljs-constructor">Message(<span class="hljs-params">txn</span>)</span>.value(<span class="hljs-string">"Hello Pulsar Transaction"</span>.get<span class="hljs-constructor">Bytes()</span>).send<span class="hljs-constructor">Async()</span>;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="acknowledge-the-messages-with-the-transaction"></a><a href="#acknowledge-the-messages-with-the-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledge the messages with the transaction</h2>
+<p>The transaction acknowledgement requires a transaction parameter. The transaction acknowledgement marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.</p>
+<pre><code class="hljs"><span class="hljs-keyword">Message</span>&lt;byte[]&gt; <span class="hljs-keyword">message</span> = consumer.receive();
+consumer.acknowledgeAsync(<span class="hljs-keyword">message</span>.getMessageId(), txn);
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="commit-transactions"></a><a href="#commit-transactions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Commit transactions</h2>
+<p>When the transaction is committed, consumers receive the transaction messages and the pending-ack state becomes ack state.</p>
+<pre><code class="hljs"><span class="hljs-selector-tag">txn</span><span class="hljs-selector-class">.commit</span>()<span class="hljs-selector-class">.get</span>();
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="abort-transaction"></a><a href="#abort-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Abort transaction</h2>
+<p>When the transaction is aborted, the transaction acknowledgement is canceled and the pending-ack messages are redelivered.</p>
+<pre><code class="hljs">txn.<span class="hljs-built_in">abort</span>().<span class="hljs-built_in">get</span>();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<p>The following example shows how messages are processed in transaction.</p>
+<pre><code class="hljs">PulsarClient pulsarClient = <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PulsarClient</span>.</span></span>builder<span class="hljs-literal">()</span>
+        .service<span class="hljs-constructor">Url(<span class="hljs-params">getPulsarServiceList</span>()</span>.get(<span class="hljs-number">0</span>).get<span class="hljs-constructor">BrokerServiceUrl()</span>)
+        .stats<span class="hljs-constructor">Interval(0, TimeUnit.SECONDS)</span>
+        .enable<span class="hljs-constructor">Transaction(<span class="hljs-params">true</span>)</span>
+        .build<span class="hljs-literal">()</span>;
+
+String sourceTopic = <span class="hljs-string">"public/default/source-topic"</span>;
+String sinkTopic = <span class="hljs-string">"public/default/sink-topic"</span>;
+
+Producer&lt;String&gt; sourceProducer = pulsarClient
+        .<span class="hljs-keyword">new</span><span class="hljs-constructor">Producer(Schema.STRING)</span>
+        .topic(sourceTopic)
+        .create<span class="hljs-literal">()</span>;
+sourceProducer.<span class="hljs-keyword">new</span><span class="hljs-constructor">Message()</span>.value(<span class="hljs-string">"hello pulsar transaction"</span>).send<span class="hljs-constructor">Async()</span>;
+
+Consumer&lt;String&gt; sourceConsumer = pulsarClient
+        .<span class="hljs-keyword">new</span><span class="hljs-constructor">Consumer(Schema.STRING)</span>
+        .topic(sourceTopic)
+        .subscription<span class="hljs-constructor">Name(<span class="hljs-string">"test"</span>)</span>
+        .subscription<span class="hljs-constructor">Type(SubscriptionType.Shared)</span>
+        .subscription<span class="hljs-constructor">InitialPosition(SubscriptionInitialPosition.Earliest)</span>
+        .subscribe<span class="hljs-literal">()</span>;
+
+Producer&lt;String&gt; sinkProducer = pulsarClient
+        .<span class="hljs-keyword">new</span><span class="hljs-constructor">Producer(Schema.STRING)</span>
+        .topic(sinkTopic)
+        .create<span class="hljs-literal">()</span>;
+
+Transaction txn = pulsarClient
+        .<span class="hljs-keyword">new</span><span class="hljs-constructor">Transaction()</span>
+        .<span class="hljs-keyword">with</span><span class="hljs-constructor">TransactionTimeout(5, TimeUnit.MINUTES)</span>
+        .build<span class="hljs-literal">()</span>
+        .get<span class="hljs-literal">()</span>;
+
+<span class="hljs-comment">// source message acknowledgement and sink message produce belong to one transaction,</span>
+<span class="hljs-comment">// they are combined into an atomic operation.</span>
+Message&lt;String&gt; message = sourceConsumer.receive<span class="hljs-literal">()</span>;
+sourceConsumer.acknowledge<span class="hljs-constructor">Async(<span class="hljs-params">message</span>.<span class="hljs-params">getMessageId</span>()</span>, txn);
+sinkProducer.<span class="hljs-keyword">new</span><span class="hljs-constructor">Message(<span class="hljs-params">txn</span>)</span>.value(<span class="hljs-string">"sink data"</span>).send<span class="hljs-constructor">Async()</span>;
+
+txn.commit<span class="hljs-literal">()</span>.get<span class="hljs-literal">()</span>;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="enable-batch-messages-in-transactions"></a><a href="#enable-batch-messages-in-transactions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable batch messages in transactions</h2>
+<p>To enable batch messages in transactions, you need to enable the batch index acknowledgement feature. The transaction acks check whether the batch index acknowledgement conflicts.</p>
+<p>To enable batch index acknowledgement, you need to set <code>acknowledgmentAtBatchIndexLevelEnabled</code> to <code>true</code> in the <code>broker.conf</code> or <code>standalone.conf</code> file.</p>
+<pre><code class="hljs"><span class="hljs-attr">acknowledgmentAtBatchIndexLevelEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>And then you need to call the <code>enableBatchIndexAcknowledgment(true)</code> method in the consumer builder.</p>
+<pre><code class="hljs">Consumer&lt;byte[]&gt; sinkConsumer = pulsarClient
+        <span class="hljs-string">.newConsumer</span><span class="hljs-params">()</span>
+        <span class="hljs-string">.topic</span><span class="hljs-params">(transferTopic)</span>
+        <span class="hljs-string">.subscriptionName</span><span class="hljs-params">("sink-topic")</span>
+        <span class="hljs-string">.subscriptionInitialPosition</span><span class="hljs-params">(SubscriptionInitialPosition.Earliest)</span>
+        <span class="hljs-string">.subscriptionType</span><span class="hljs-params">(SubscriptionType.Shared)</span>
+        <span class="hljs-string">.enableBatchIndexAcknowledgment</span><span class="hljs-params">(true)</span> <span class="hljs-string">//</span> enable <span class="hljs-keyword">batch</span> index acknowledgement
+        <span class="hljs-string">.subscribe</span><span class="hljs-params">()</span>;
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#initialize-pulsar-client">Initialize Pulsar client</a></li><li><a href="#start-transactions">Start transactions</a></li><li><a href="#produce-transaction-messages">Produce transaction messages</a></li><li><a href="#acknowledge-the-messages-with-the-transaction">Acknowledge the messages with the transaction</a></li><li><a href="#commit-transactions">Commit transactions</a></li><li><a href="#abort-transaction">Abort transaction</a><ul class="toc-headings"><li><a href="#example">Example</a></li></ul></li><li><a href="#enable-batch-messages-in-transactions">Enable batch messages in transactions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.8.3"]}
+              });
+            </script></body></html>

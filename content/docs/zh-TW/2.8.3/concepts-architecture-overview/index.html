@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Architecture Overview · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](/docs/zh-TW/2.8.3/concepts-replication) data amongst themselves."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Architecture Overview · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](/docs/zh-TW/2.8.3/concepts-replication) data amongst themselves."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/concepts-architecture-overview">English</a></li><li><a href="/docs/ja/2.8.3/concepts-architecture-overview">日本語</a></li><li><a href="/docs/fr/2.8.3/concepts-architecture-overview">Français</a></li><li><a href="/docs/ko/2.8.3/concepts-architecture-overview">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/concepts-architecture-overview">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Concepts and Architecture</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Architecture Overview</h1></header><article><div><span><p>At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can <a href="/docs/zh-TW/2.8.3/concepts-replication">replicate</a> data amongst themselves.</p>
+<p>一個 Pulsar 集群由下面三部分組成：</p>
+<ul>
+<li>一個或者多個 brokers 負責處理和負載均衡從 producer 源源不斷發送出的信息，並將他們發送給 consumer。它與信息存儲元交互來處理相應的任務，Pulsar 將信息資料存儲在 BookKeeper 實例中 (又稱之為 bookies)。它依賴 ZooKeeper 集群處理特定的任務。</li>
+<li>包含一個或者多個 Bookies 的 BookKeeper 集群，它主要負責信息的<a href="#persistent-storage">持久化存儲</a>。</li>
+<li>A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.</li>
+</ul>
+<p>下圖展示了一個 Pulsar 集群：</p>
+<p><img src="/docs/assets/pulsar-system-architecture.png" alt="Pulsar architecture diagram"></p>
+<p>有一個能訪問到全部 Pulsar 實例的 ZooKeeper 群集來負責處理跨多個 Pulsar 集群的配置協調任務, 例如<a href="/docs/zh-TW/2.8.3/concepts-replication">異地複製</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="brokers"></a><a href="#brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Brokers</h2>
+<p>Pulsar 的 broker 是一個無狀態組件, 主要負責運行另外的兩個組件:</p>
+<ul>
+<li>An HTTP server that exposes a <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
+ API for both administrative tasks and <a href="/docs/zh-TW/2.8.3/concepts-clients#client-setup-phase">topic lookup</a> for producers and consumers. The producers connect to the brokers to publish messages and the consumers connect to the brokers to consume the messages.</li>
+<li>一個調度分發器, 它是異步的 TCP 服務器，通過自定義 <a href="/docs/zh-TW/2.8.3/develop-binary-protocol">二進制協議</a>應用於所有相關的數據傳輸。</li>
+</ul>
+<p>Messages are typically dispatched out of a <a href="#managed-ledgers">managed ledger</a> cache for the sake of performance, <em>unless</em> the backlog exceeds the cache size. 如果積壓的消息對於緩存來說太大了, 則 broker 將開始從BookKeeper 那裡讀取 Entries（Entry 同樣是 BookKeeper 中的概念，相當於一條記錄）。</p>
+<p>最後，為了支持全局 Topic 信息異地複製，broker 會控制 Replicators 追踪本地發佈的條目，並把這些條目用<a href="/docs/zh-TW/2.8.3/client-libraries-java">Java client</a> 重新發佈到其他區域</p>
+<blockquote>
+<p>如何管理 Pulsar broker， 請參考 <a href="/docs/zh-TW/2.8.3/admin-api-brokers">brokers</a> 指南</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="clusters"></a><a href="#clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Clusters</h2>
+<p>A Pulsar instance consists of one or more Pulsar <em>clusters</em>. Clusters, in turn, consist of:</p>
+<ul>
+<li>一個或者多個 Pulsar <a href="#brokers">broker</a></li>
+<li>一個 ZooKeeper quorum，用於集群級別的配置和協調。</li>
+<li>一組 BookKeeper 的 bookie 用於信息的<a href="#persistent-storage">持久化存儲</a>。</li>
+</ul>
+<p>集群間可以通過<a href="/docs/zh-TW/2.8.3/concepts-replication">異地複製</a>進行消息同步。</p>
+<blockquote>
+<p>如何管理 Pulsar 集群，請參考 <a href="/docs/zh-TW/2.8.3/admin-api-clusters">clusters</a> 指南。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="元數據存儲"></a><a href="#元數據存儲" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>元數據存儲</h2>
+<p>The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses <a href="https://zookeeper.apache.org/">Apache ZooKeeper</a> for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and <a href="https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage">BookKeeper metadata store</a>. If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.</p>
+<p>In a Pulsar instance:</p>
+<ul>
+<li><strong>配置與仲裁存儲</strong>: 存儲租戶，命名空間和其他需要全局一致的配置項。</li>
+<li>Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration store</h2>
+<p>The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.</p>
+<h2><a class="anchor" aria-hidden="true" id="持久化存儲"></a><a href="#持久化存儲" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>持久化存儲</h2>
+<p>Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.</p>
+<p>為了提供這種保證，未確認送達的信息需要持久化存儲直到它們被確認送達。 This mode of messaging is commonly called <em>persistent messaging</em>. 在 Pulsar 內部，所有信息都被保存並同步N份，例如，2個服務器保存四份，每個服務器上面都有鏡像的<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>存儲。</p>
+<h3><a class="anchor" aria-hidden="true" id="apache-bookkeeper"></a><a href="#apache-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apache BookKeeper</h3>
+<p>Pulsar 用 <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a> 作為持久化存儲。 BookKeeper 是一個分佈式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging">預寫日誌（WAL）</a>系統，有如下幾個特性特別適合 Pulsar 的應用場景：</p>
+<ul>
+<li>It enables Pulsar to utilize many independent logs, called <a href="#ledgers">ledgers</a>. Multiple ledgers can be created for topics over time.</li>
+<li>為按條目複製的順序數據提供了非常高效的存儲。</li>
+<li>它保證了多系統掛掉時 ledgers 的讀取一致性。</li>
+<li>提供不同的 bookie 之間均勻的 IO 分佈的特性。</li>
+<li>It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.</li>
+<li>Bookie 被設計成可以承載數千的並發讀寫的ledger。 搭配使用多個硬碟設備，一個用於日誌，另一個用於一般存儲，這樣 bookie 可以將讀操作的影響和對於寫操作的延遲分隔開。</li>
+</ul>
+<p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. Cursors 是消費端 <a href="/docs/zh-TW/2.8.3/reference-terminology#subscription">subscription</a> 消費的位置。 BookKeeper 讓 Pulsar 可以用一種可擴展的方式存儲消費位置。</p>
+<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
+<pre><code class="hljs css language-http">persistent://my-tenant/my-namespace/my-topic
+</code></pre>
+<blockquote>
+<p>Pulsar 也支持臨時消息（<a href="/docs/zh-TW/2.8.3/concepts-messaging#non-persistent-topics">非持久消息</a>）存儲。</p>
+</blockquote>
+<p>下圖展示了 broker 和 bookie 是如何交互的：</p>
+<p><img src="/docs/assets/broker-bookie.png" alt="Brokers and bookies"></p>
+<h3><a class="anchor" aria-hidden="true" id="ledgers"></a><a href="#ledgers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledgers</h3>
+<p>Ledger 是一個 append-only 數據結構，並且只有一個寫入器，這個寫入器負責多個 BookKeeper 存儲節點（就是 Bookie）的寫入。 Ledger 的條目會被複製到多個 bookie。 Ledger 本身有著非常簡單的語義：</p>
+<ul>
+<li>Pulsar broker 可以創建 ledeger，添加內容到 ledger 和關閉ledger。</li>
+<li>當一個 ledger 被關閉後，除非明確的要寫數據或者是因為寫入器掛掉導致 ledger 關閉，這個 ledger 只會以讀取模式打開。</li>
+<li>最後，當 ledger 中的條目不再有用的時候，整個 legder 可以被刪除（ledger 分佈是跨 bookie 的）。</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="ledger-讀取一致性"></a><a href="#ledger-讀取一致性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledger 讀取一致性</h4>
+<p>BookKeeper 的主要優勢在於它能在有系統故障時保證讀取一致性。 由於 ledger 只能被一個進程寫入（之前提的寫入器進程），這樣這個進程在寫入時不會有衝突，從而寫入會非常高效。 在故障之後，ledger 會啟動一個恢復進程來確定 ledger 的最終狀態並確認最後提交到日誌的是哪一個條目。 在這之後，能保證所有的 ledger 讀進程讀取到相同的內容。</p>
+<h4><a class="anchor" aria-hidden="true" id="managed-ledgers"></a><a href="#managed-ledgers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed ledgers</h4>
+<p>Given that Bookkeeper ledgers provide a single log abstraction, a library was developed on top of the ledger called the <em>managed ledger</em> that represents the storage layer for a single topic. 一個 managed ledger 就是信息流的抽象，有一個寫入器進程不斷在信息流結尾添加信息，並且有多個 cursors 消費這個信息流，每個 cursor 有自己的消費位置記錄。</p>
+<p>Internally, a single managed ledger uses multiple BookKeeper ledgers to store the data. There are two reasons to have multiple ledgers:</p>
+<ol>
+<li>在故障之後，原有的某個 ledger 不能再寫了，需要創建一個新的。</li>
+<li>A ledger can be deleted when all cursors have consumed the messages it contains. This allows for periodic rollover of ledgers.</li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="日誌存儲"></a><a href="#日誌存儲" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>日誌存儲</h3>
+<p>In BookKeeper, <em>journal</em> files contain BookKeeper transaction logs. 在更新到 <a href="#ledgers">ledger</a> 之前，bookie 需要確保描述這個更新的事務被寫到持久（非揮發）存儲上面。 當 bookie 剛啟動和舊的日誌文件大小達到上限（由<a href="/docs/zh-TW/2.8.3/reference-configuration#bookkeeper-journalMaxSizeMB"><code>journalMaxSizeMB</code></a> 參數配置）的時候，新的日誌文件資料檔會被創建起來。</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-proxy"></a><a href="#pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy</h2>
+<p>Pulsar client 和 Pulsar 集群交互的一種方式就是直接連接到 Pulsar <a href="#brokers">broker</a> 。 然而在某些情況下，這種直連既不可行也不可取，因為客戶端並不知道 broker 的地址。 例如在雲端環境或者像 <a href="https://kubernetes.io">Kubernetes</a> 以及其它類似的系統上面運行 Pulsar，直連 broker 就基本上不可能了。</p>
+<p>The <strong>Pulsar proxy</strong> provides a solution to this problem by acting as a single gateway for all of the brokers in a cluster. 如果選擇運行 Pulsar Proxy（這是可選的），所有的客戶端連接將會通過這個代理而不是直接與 brokers 通信。</p>
+<blockquote>
+<p>為了性能和容錯，你可以運行任意多個 Pulsar proxy。</p>
+</blockquote>
+<p>從架構上來看，Pulsar Proxy 從 ZooKeeper 上面讀取它所需要的所有訊息。 當在一個節點啟動代理時，只需要提供用於集群獨有和實例範圍的配置存儲的 ZooKeeper 連接字串。 Here's an example:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar proxy \
+  --zookeeper-servers zk-0,zk-1,zk-2 \
+  --configuration-store-servers zk-0,zk-1,zk-2
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-proxy-文檔"></a><a href="#pulsar-proxy-文檔" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy 文檔</h4>
+<p>如何使用 Pulsar proxy，參考 <a href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy 管理指南</a>。</p>
+</blockquote>
+<p>關於 Pulsar proxy 有一些比較重要的注意點：</p>
+<ul>
+<li>Connecting clients don't need to provide <em>any</em> specific configuration to use the Pulsar proxy. 除了更新用於服務URL的IP之外，你不需要為現有的應用更新客戶端配置（例如你在 Pulsar proxy 上層架設運行了負載均衡器）。</li>
+<li>Pulsar proxy 支持 <a href="/docs/zh-TW/2.8.3/security-tls-transport">TLS 加密</a> 和 <a href="/docs/zh-TW/2.8.3/security-tls-authentication">認證</a>。</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
+<p>連接到 Pulsar broker 的<a href="/docs/zh-TW/2.8.3/client-libraries">客戶端</a>需要能夠使用單個 URL 與整個 Pulsar 實例進行通信。 Pulsar 內部提供了服務發現的機制，你可以通過<a href="/docs/zh-TW/2.8.3/deploy-bare-metal#service-discovery-setup">配置Pulsar實例指南</a>來進行設定。</p>
+<p>你也可以用你自己的服務發現系統。 If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as <code>http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
+<p>下面這張圖展示了 Pulsar 服務發現機制：</p>
+<p><img src="/docs/assets/pulsar-service-discovery.png" alt="alt-text"></p>
+<p>圖中，Pulsar 集群可以通過一個 DNS 名稱來解析位址：<code>pulsar-cluster.acme.com</code>。 例如 <a href="/docs/zh-TW/2.8.3/client-libraries-python">Python客戶端</a>，可以像這樣訪問這個 Pulsar 集群：</p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client
+
+client = Client(<span class="hljs-string">'pulsar://pulsar-cluster.acme.com:6650'</span>)
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/concepts-messaging"><span class="arrow-prev">← </span><span>信息傳送</span></a><a class="docs-next button" href="/docs/zh-TW/2.8.3/concepts-clients"><span>客戶端</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#brokers">Brokers</a></li><li><a href="#clusters">Clusters</a></li><li><a href="#元數據存儲">元數據存儲</a></li><li><a href="#configuration-store">Configuration store</a></li><li><a href="#持久化存儲">持久化存儲</a><ul class="toc-headings"><li><a href="#apache-bookkeeper">Apache BookKeeper</a></li><li><a href="#ledgers">Ledgers</a></li><li><a href="#日誌存儲">日誌存儲</a></li></ul></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#service-discovery">Service discovery</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

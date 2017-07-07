@@ -1,0 +1,503 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Debug Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use the following methods to debug Pulsar Functions:"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Debug Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use the following methods to debug Pulsar Functions:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-debug">English</a></li><li><a href="/docs/ja/2.8.3/functions-debug">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-debug">Français</a></li><li><a href="/docs/ko/2.8.3/functions-debug">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/functions-debug">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Debug Pulsar Functions</h1></header><article><div><span><p>You can use the following methods to debug Pulsar Functions:</p>
+<ul>
+<li><a href="/docs/zh-TW/2.8.3/functions-debug#captured-stderr">捕捉 stderr</a></li>
+<li><a href="/docs/zh-TW/2.8.3/functions-debug#use-unit-test">Use unit test</a></li>
+<li><a href="/docs/zh-TW/2.8.3/functions-debug#debug-with-localrun-mode">Debug with localrun mode</a></li>
+<li><a href="/docs/zh-TW/2.8.3/functions-debug#use-log-topic">Use log topic</a></li>
+<li><a href="/docs/zh-TW/2.8.3/functions-debug#use-functions-cli">Use Functions CLI</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="捕捉-stderr"></a><a href="#捕捉-stderr" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>捕捉 stderr</h2>
+<p>將 Function 啟動訊息和捕捉到的 stderr 輸出寫到 <code>logs/functions/&lt;tenant&gt;/&lt;namespace&gt;/&lt;function&gt;/&lt;function&gt;-&lt;instance&gt;.log</code> 日誌檔。</p>
+<p>這對於 Function 為什麼無法啟動的除錯很有用。</p>
+<h2><a class="anchor" aria-hidden="true" id="use-unit-test"></a><a href="#use-unit-test" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use unit test</h2>
+<p>A Pulsar Function is a function with inputs and outputs, you can test a Pulsar Function in a similar way as you test any function.</p>
+<p>For example, if you have the following Pulsar Function:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.function.Function;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">JavaNativeExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+   <span class="hljs-meta">@Override</span>
+   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{
+       <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
+   }
+}
+</code></pre>
+<p>You can write a simple unit test to test Pulsar Function.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>Pulsar uses testng for testing.</p>
+</blockquote>
+<pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
+<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testJavaNativeExclamationFunction</span><span class="hljs-params">()</span> </span>{
+   JavaNativeExclamationFunction exclamation = <span class="hljs-keyword">new</span> JavaNativeExclamationFunction();
+   String output = exclamation.apply(<span class="hljs-string">"foo"</span>);
+   Assert.assertEquals(output, <span class="hljs-string">"foo!"</span>);
+}
+</code></pre>
+<p>The following Pulsar Function implements the <code>org.apache.pulsar.functions.api.Function</code> interface.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+   <span class="hljs-meta">@Override</span>
+   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
+       <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
+   }
+}
+</code></pre>
+<p>In this situation, you can write a unit test for this function as well. Remember to mock the <code>Context</code> parameter. The following is an example.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>Pulsar uses testng for testing.</p>
+</blockquote>
+<pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
+<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testExclamationFunction</span><span class="hljs-params">()</span> </span>{
+   ExclamationFunction exclamation = <span class="hljs-keyword">new</span> ExclamationFunction();
+   String output = exclamation.process(<span class="hljs-string">"foo"</span>, mock(Context<span class="hljs-class">.<span class="hljs-keyword">class</span>))</span>;
+   Assert.assertEquals(output, <span class="hljs-string">"foo!"</span>);
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="debug-with-localrun-mode"></a><a href="#debug-with-localrun-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Debug with localrun mode</h2>
+<p>When you run a Pulsar Function in localrun mode, it launches an instance of the Function on your local machine as a thread.</p>
+<p>In this mode, a Pulsar Function consumes and produces actual data to a Pulsar cluster, and mirrors how the function actually runs in a Pulsar cluster.</p>
+<blockquote>
+<p>Note<br>
+Currently, debugging with localrun mode is only supported by Pulsar Functions written in Java. 你需要 Pulsar 2.4.0 或更高版本才能執行以下操作。 即使在 Pulsar 2.4.0 之前的版本中都可以使用 localrun，但是這些舊版本的 Pulsar 不能以 localrun 模式進行編程調試或作為線程運行。</p>
+</blockquote>
+<p>You can launch your function in the following manner.</p>
+<pre><code class="hljs css language-java">FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
+functionConfig.setName(functionName);
+functionConfig.setInputs(Collections.singleton(sourceTopic));
+functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+functionConfig.setOutput(sinkTopic);
+
+LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
+localRunner.start(<span class="hljs-keyword">true</span>);
+</code></pre>
+<p>So you can debug functions using an IDE easily. Set breakpoints and manually step through a function to debug with real data.</p>
+<p>The following example illustrates how to programmatically launch a function in localrun mode.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+
+   <span class="hljs-meta">@Override</span>
+   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String s, Context context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+       <span class="hljs-keyword">return</span> s + <span class="hljs-string">"!"</span>;
+   }
+
+<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">(String[] args)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+    FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
+    functionConfig.setName(<span class="hljs-string">"exclamation"</span>);
+    functionConfig.setInputs(Collections.singleton(<span class="hljs-string">"input"</span>));
+    functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+    functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+    functionConfig.setOutput(<span class="hljs-string">"output"</span>);
+</code></pre>
+<p>To use localrun mode programmatically, add the following dependency.</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+   <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+   <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-functions-local-runner<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+   <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+
+</code></pre>
+<p>For complete code samples, see <a href="https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging">here</a>.</p>
+<blockquote>
+<p>Note<br>
+Debugging with localrun mode for Pulsar Functions written in other languages will be supported soon.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="use-log-topic"></a><a href="#use-log-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use log topic</h2>
+<p>In Pulsar Functions, you can generate log information defined in functions to a specified log topic. You can configure consumers to consume messages from a specified log topic to check the log information.</p>
+<p><img src="/docs/assets/pulsar-functions-overview.png" alt="Pulsar Functions core programming model"></p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggingFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">apply</span><span class="hljs-params">(String input, Context context)</span> </span>{
+        Logger LOG = context.getLogger();
+        String messageId = <span class="hljs-keyword">new</span> String(context.getMessageId());
+
+        <span class="hljs-keyword">if</span> (input.contains(<span class="hljs-string">"danger"</span>)) {
+            LOG.warn(<span class="hljs-string">"A warning was received in message {}"</span>, messageId);
+        } <span class="hljs-keyword">else</span> {
+            LOG.info(<span class="hljs-string">"Message {} received\nContent: {}"</span>, messageId, input);
+        }
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<p>As shown in the example above, you can get the logger via <code>context.getLogger()</code> and assign the logger to the <code>LOG</code> variable of <code>slf4j</code>, so you can define your desired log information in a function using the <code>LOG</code> variable. Meanwhile, you need to specify the topic to which the log information is produced.</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
+  <span class="hljs-comment"># Other function configs</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="use-functions-cli"></a><a href="#use-functions-cli" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use Functions CLI</h2>
+<p>With <a href="/docs/zh-TW/2.8.3/pulsar-admin#functions">Pulsar Functions CLI</a>, you can debug Pulsar Functions with the following subcommands:</p>
+<ul>
+<li><code>get</code></li>
+<li><code>status</code></li>
+<li><code>stats</code></li>
+<li><code>list</code></li>
+<li><code>trigger</code></li>
+</ul>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>For complete commands of <strong>Pulsar Functions CLI</strong>, see <a href="/docs/zh-TW/2.8.3/pulsar-admin#functions">here</a>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
+<p>Get information about a Pulsar Function.</p>
+<p><strong>Usage</strong></p>
+<pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> get options
+</code></pre>
+<p><strong>Options</strong></p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>提示</strong></p>
+<p><code>--fqfn</code> 包含了 <code>--name</code>、<code>--namespace</code> 與 <code>--tenant</code>, 因此你可以指定<code>--fqfn</code> 或 <code>--name</code>、<code>--namespace</code> 與 <code>--tenant</code>。</p>
+</blockquote>
+<p><strong>Example</strong></p>
+<p>You can specify <code>--fqfn</code> to get information about a Pulsar Function.</p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> get public/default/ExclamationFunctio6
+</code></pre>
+<p>Optionally, you can specify <code>--name</code>, <code>--namespace</code> and <code>--tenant</code> to get information about a Pulsar Function.</p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
+    --tenant public \
+    --namespace default \
+    --name ExclamationFunctio6
+</code></pre>
+<p>As shown below, the <code>get</code> command shows input, output, runtime, and other information about the <em>ExclamationFunctio6</em> function.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
+  <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"ExclamationFunctio6"</span>,
+  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.example.test.ExclamationFunction"</span>,
+  <span class="hljs-attr">"inputSpecs"</span>: {
+    <span class="hljs-attr">"persistent://public/default/my-topic-1"</span>: {
+      <span class="hljs-attr">"isRegexPattern"</span>: <span class="hljs-literal">false</span>
+    }
+  },
+  <span class="hljs-attr">"output"</span>: <span class="hljs-string">"persistent://public/default/test-1"</span>,
+  <span class="hljs-attr">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,
+  <span class="hljs-attr">"retainOrdering"</span>: <span class="hljs-literal">false</span>,
+  <span class="hljs-attr">"userConfig"</span>: {},
+  <span class="hljs-attr">"runtime"</span>: <span class="hljs-string">"JAVA"</span>,
+  <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">1</span>
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
+<p>Check the current status of a Pulsar Function.</p>
+<p><strong>Usage</strong></p>
+<pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> status options
+</code></pre>
+<p><strong>Options</strong></p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 的實例ID <br> 如果未指定 <code>--instance-id</code>，則將獲得所有實例的 ID 列表。<br></td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+</tbody>
+</table>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> status \
+    --tenant public \
+    --namespace default \
+    --name ExclamationFunctio6 \
+</code></pre>
+<p>As shown below, the <code>status</code> command shows the number of instances, running instances, the instance running under the <em>ExclamationFunctio6</em> function, received messages, successfully processed messages, system exceptions, the average latency and so on.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"instances"</span> : [ {
+    <span class="hljs-attr">"instanceId"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"status"</span> : {
+      <span class="hljs-attr">"running"</span> : <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"error"</span> : <span class="hljs-string">""</span>,
+      <span class="hljs-attr">"numRestarts"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"numReceived"</span> : <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"numSuccessfullyProcessed"</span> : <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"numUserExceptions"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"latestUserExceptions"</span> : [ ],
+      <span class="hljs-attr">"numSystemExceptions"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"latestSystemExceptions"</span> : [ ],
+      <span class="hljs-attr">"averageLatency"</span> : <span class="hljs-number">0.8385</span>,
+      <span class="hljs-attr">"lastInvocationTime"</span> : <span class="hljs-number">1557734137987</span>,
+      <span class="hljs-attr">"workerId"</span> : <span class="hljs-string">"c-standalone-fw-23ccc88ef29b-8080"</span>
+    }
+  } ]
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
+<p>Get the current stats of a Pulsar Function.</p>
+<p><strong>Usage</strong></p>
+<pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> stats options
+</code></pre>
+<p><strong>Options</strong></p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 的實例 ID <br>如果未指定 <code>--instance-id</code>，則將獲得所有實例的 ID 列表。<br></td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+</tbody>
+</table>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> stats \
+    --tenant public \
+    --namespace default \
+    --name ExclamationFunctio6 \
+</code></pre>
+<p>The output is shown as follows:</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"receivedTotal"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"processedSuccessfullyTotal"</span> : <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"systemExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"userExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"avgProcessLatency"</span> : <span class="hljs-number">0.8385</span>,
+  <span class="hljs-attr">"1min"</span> : {
+    <span class="hljs-attr">"receivedTotal"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"processedSuccessfullyTotal"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"systemExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"userExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"avgProcessLatency"</span> : <span class="hljs-literal">null</span>
+  },
+  <span class="hljs-attr">"lastInvocation"</span> : <span class="hljs-number">1557734137987</span>,
+  <span class="hljs-attr">"instances"</span> : [ {
+    <span class="hljs-attr">"instanceId"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"metrics"</span> : {
+      <span class="hljs-attr">"receivedTotal"</span> : <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"processedSuccessfullyTotal"</span> : <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"systemExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"userExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"avgProcessLatency"</span> : <span class="hljs-number">0.8385</span>,
+      <span class="hljs-attr">"1min"</span> : {
+        <span class="hljs-attr">"receivedTotal"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"processedSuccessfullyTotal"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"systemExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"userExceptionsTotal"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"avgProcessLatency"</span> : <span class="hljs-literal">null</span>
+      },
+      <span class="hljs-attr">"lastInvocation"</span> : <span class="hljs-number">1557734137987</span>,
+      <span class="hljs-attr">"userMetrics"</span> : { }
+    }
+  } ]
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
+<p>List all Pulsar Functions running under a specific tenant and namespace.</p>
+<p><strong>Usage</strong></p>
+<pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> list options
+</code></pre>
+<p><strong>Options</strong></p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+</tbody>
+</table>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
+    --tenant public \
+    --namespace default
+</code></pre>
+<p>As shown below, the <code>list</code> command returns three functions running under the <em>public</em> tenant and the <em>default</em> namespace.</p>
+<pre><code class="hljs css language-text">ExclamationFunctio1
+ExclamationFunctio2
+ExclamationFunctio3
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="trigger"></a><a href="#trigger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>trigger</code></h3>
+<p>Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Pulsar Function and verifies it.</p>
+<p><strong>Usage</strong></p>
+<pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> trigger options
+</code></pre>
+<p><strong>Options</strong></p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+<tr><td><code>--topic</code></td><td>Pulsar Function 要消費的 topic 名稱</td></tr>
+<tr><td><code>--trigger-file</code></td><td>包含觸發 Pulsar Function 的數據文件路徑。</td></tr>
+<tr><td><code>--trigger-value</code></td><td>觸發 Pulsar Function 的值</td></tr>
+</tbody>
+</table>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
+    --tenant public \
+    --namespace default \
+    --name ExclamationFunctio6 \
+    --topic persistent://public/default/my-topic-1 \
+    --trigger-value <span class="hljs-string">"hello pulsar functions"</span>
+</code></pre>
+<p>As shown below, the <code>trigger</code> command returns the following result:</p>
+<pre><code class="hljs css language-text">This is my function!
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><strong>Note</strong></h4>
+<p>You must specify the <a href="/docs/zh-TW/2.8.3/pulsar-2.0#topic-names">entire topic name</a> when using the <code>--topic</code> option. 否則，將發生以下錯誤。</p>
+<pre><code class="hljs css language-text">Function in trigger function has unidentified topic
+
+Reason: Function in trigger function has unidentified topic
+</code></pre>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/functions-package"><span class="arrow-prev">← </span><span>How-to: Package</span></a><a class="docs-next button" href="/docs/zh-TW/2.8.3/functions-deploy"><span>How-to: Deploy</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#捕捉-stderr">捕捉 stderr</a></li><li><a href="#use-unit-test">Use unit test</a></li><li><a href="#debug-with-localrun-mode">Debug with localrun mode</a></li><li><a href="#use-log-topic">Use log topic</a></li><li><a href="#use-functions-cli">Use Functions CLI</a><ul class="toc-headings"><li><a href="#get"><code>get</code></a></li><li><a href="#status"><code>status</code></a></li><li><a href="#stats"><code>stats</code></a></li><li><a href="#list"><code>list</code></a></li><li><a href="#trigger"><code>trigger</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

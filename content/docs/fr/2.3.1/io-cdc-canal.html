@@ -1,0 +1,195 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>CDC Canal Connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="### Source Configuration Options"/><meta name="docsearch:version" content="2.3.1"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="CDC Canal Connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="### Source Configuration Options"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.3.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/fr/2.3.1/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class=""><a href="/docs/fr/2.3.1/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.3.1/io-cdc-canal">English</a></li><li><a href="/docs/ja/2.3.1/io-cdc-canal">日本語</a></li><li><a href="/docs/ko/2.3.1/io-cdc-canal">한국어</a></li><li><a href="/docs/zh-CN/2.3.1/io-cdc-canal">中文</a></li><li><a href="/docs/zh-TW/2.3.1/io-cdc-canal">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">CDC Canal Connector</h1></header><article><div><span><h3><a class="anchor" aria-hidden="true" id="source-configuration-options"></a><a href="#source-configuration-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source Configuration Options</h3>
+<p>The Configuration is mostly related to Canal task config.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>zkServers</code></td><td><code>false</code></td><td><code>127.0.0.1:2181</code></td><td><code>The address and port of the zookeeper . if canal server configured to cluster mode</code></td></tr>
+<tr><td><code>batchSize</code></td><td><code>true</code></td><td><code>5120</code></td><td><code>Take 5120 records from the canal server in batches</code></td></tr>
+<tr><td><code>username</code></td><td><code>false</code></td><td>``</td><td><code>Canal server account, not MySQL</code></td></tr>
+<tr><td><code>password</code></td><td><code>false</code></td><td>``</td><td><code>Canal server password, not MySQL</code></td></tr>
+<tr><td><code>cluster</code></td><td><code>false</code></td><td><code>false</code></td><td><code>Decide whether to open cluster mode based on canal server configuration, true: cluster mode, false: standalone mode</code></td></tr>
+<tr><td><code>singleHostname</code></td><td><code>false</code></td><td><code>127.0.0.1</code></td><td><code>The address of canal server</code></td></tr>
+<tr><td><code>singlePort</code></td><td><code>false</code></td><td><code>11111</code></td><td><code>The port of canal server</code></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="configuration-example"></a><a href="#configuration-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Example</h3>
+<p>Here is a configuration Json example:</p>
+<pre><code class="hljs css language-$json { &quot;zkServers&quot;: &quot;127.0.0.1:2181&quot;, &quot;batchSize&quot;: &quot;5120&quot;, &quot;destination&quot;: &quot;example&quot;, &quot;username&quot;: &quot;&quot;, &quot;password&quot;: &quot;&quot;, &quot;cluster&quot;: false, &quot;singleHostname&quot;: &quot;127.0.0.1&quot;, &quot;singlePort&quot;: &quot;11111&quot;, }">
+    You could also find the yaml example <span class="hljs-keyword">in</span> this [<span class="hljs-keyword">file</span>](https:<span class="hljs-comment">//github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml), which has similar content below:</span>
+    
+    ```<span class="hljs-variable">$yaml</span>
+    configs:
+        zkServers: <span class="hljs-string">"127.0.0.1:2181"</span>
+        batchSize: <span class="hljs-string">"5120"</span>
+        destination: <span class="hljs-string">"example"</span>
+        username: <span class="hljs-string">""</span>
+        password: <span class="hljs-string">""</span>
+        <span class="hljs-keyword">cluster</span>: false
+        singleHostname: <span class="hljs-string">"127.0.0.1"</span>
+        singlePort: <span class="hljs-string">"11111"</span>
+    
+
+### Usage example
+
+Here is a simple example to store MySQL change data using above example config.
+
+- Start a MySQL server
+
+```<span class="hljs-variable">$bash</span> docker pull mysql:5.7 docker <span class="hljs-keyword">run</span> -<span class="hljs-keyword">d</span> -it --<span class="hljs-keyword">rm</span> --name pulsar-mysql -p 3306:3306 -<span class="hljs-keyword">e</span> MYSQL_ROOT_PASSWORD=canal -<span class="hljs-keyword">e</span> MYSQL_USER=mysqluser -<span class="hljs-keyword">e</span> MYSQL_PASSWORD=mysqlpw mysql:5.7
+
+    - Modify configuration files mysqld.cnf
+    
+    
+
+[mysqld] pid-<span class="hljs-keyword">file</span> = /<span class="hljs-keyword">var</span>/<span class="hljs-keyword">run</span>/mysqld/mysqld.pid socket = /<span class="hljs-keyword">var</span>/<span class="hljs-keyword">run</span>/mysqld/mysqld.sock datadir = /<span class="hljs-keyword">var</span>/lib/mysql
+
+# <span class="hljs-keyword">log</span>-<span class="hljs-keyword">error</span> = /<span class="hljs-keyword">var</span>/<span class="hljs-keyword">log</span>/mysql/<span class="hljs-keyword">error</span>.<span class="hljs-keyword">log</span>
+
+# <span class="hljs-keyword">By</span> default we only accept connections from localhost
+
+# bind-address = 127.0.0.1
+
+# Disabling symbolic-links is recommended to prevent assorted security risks
+
+symbolic-links=0 <span class="hljs-keyword">log</span>-bin=mysql-bin binlog-<span class="hljs-keyword">format</span>=ROW server_id=1
+
+    &lt;<span class="hljs-keyword">br</span> /&gt;- <span class="hljs-keyword">Copy</span> <span class="hljs-keyword">file</span> to mysql server from <span class="hljs-keyword">local</span> and restart mysql server
+    ```<span class="hljs-variable">$bash</span>
+    docker cp mysqld.cnf pulsar-mysql:/etc/mysql/mysql.<span class="hljs-keyword">conf</span>.<span class="hljs-keyword">d</span>/
+    docker restart pulsar-mysql
+    
+
+- Create <span class="hljs-keyword">test</span> database <span class="hljs-keyword">in</span> mysql server ```<span class="hljs-variable">$bash</span> docker exec -it pulsar-mysql /bin/bash mysql -<span class="hljs-keyword">h</span> 127.0.0.1 -uroot -pcanal -<span class="hljs-keyword">e</span> 'create database <span class="hljs-keyword">test</span>;'
+
+    &lt;<span class="hljs-keyword">br</span> /&gt;- Start canal server and connect mysql server
+    
+    
+
+docker pull canal/canal-server:v1.1.2 docker <span class="hljs-keyword">run</span> -<span class="hljs-keyword">d</span> -it --link pulsar-mysql -<span class="hljs-keyword">e</span> canal.auto.scan=false -<span class="hljs-keyword">e</span> canal.destinations=<span class="hljs-keyword">test</span> -<span class="hljs-keyword">e</span> canal.instance.master.address=pulsar-mysql:3306 -<span class="hljs-keyword">e</span> canal.instance.dbUsername=root -<span class="hljs-keyword">e</span> canal.instance.dbPassword=canal -<span class="hljs-keyword">e</span> canal.instance.connectionCharset=UTF-8 -<span class="hljs-keyword">e</span> canal.instance.tsdb.enable=true -<span class="hljs-keyword">e</span> canal.instance.gtidon=false --name=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -<span class="hljs-keyword">m</span> 4096m canal/canal-server:v1.1.2
+
+    &lt;<span class="hljs-keyword">br</span> /&gt;- Start pulsar standalone
+    
+    ```<span class="hljs-variable">$bash</span>
+    docker pull apachepulsar/pulsar:2.3.0
+    docker <span class="hljs-keyword">run</span> -<span class="hljs-keyword">d</span> -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.3.0 bin/pulsar standalone
+    
+
+- Start pulsar-io <span class="hljs-keyword">in</span> standalone
+
+- Config <span class="hljs-keyword">file</span> canal-mysql-source-config.yaml
+
+```<span class="hljs-variable">$yaml</span> configs: zkServers: <span class="hljs-string">""</span> batchSize: <span class="hljs-string">"5120"</span> destination: <span class="hljs-string">"test"</span> username: <span class="hljs-string">""</span> password: <span class="hljs-string">""</span> <span class="hljs-keyword">cluster</span>: false singleHostname: <span class="hljs-string">"pulsar-canal-server"</span> singlePort: <span class="hljs-string">"11111"</span>
+
+    - Consumer <span class="hljs-keyword">file</span> pulsar-client.py <span class="hljs-keyword">for</span> <span class="hljs-keyword">test</span>
+    
+
+import pulsar
+
+client = pulsar.Client('pulsar:<span class="hljs-comment">//localhost:6650') consumer = client.subscribe('my-topic', subscription_name='my-sub')</span>
+
+<span class="hljs-keyword">while</span> True: msg = consumer.receive() <span class="hljs-keyword">print</span>(<span class="hljs-string">"Received message: '%s'"</span> % msg.data()) consumer.acknowledge(msg)
+
+client.<span class="hljs-keyword">close</span>()
+
+    &lt;<span class="hljs-keyword">br</span> /&gt;- <span class="hljs-keyword">Copy</span> config <span class="hljs-keyword">file</span> and <span class="hljs-keyword">test</span> <span class="hljs-keyword">file</span> to pulsar server
+    
+    ```<span class="hljs-variable">$bash</span>
+    docker cp canal-mysql-source-config.yaml pulsar-standalone:/pulsar/<span class="hljs-keyword">conf</span>/
+    docker cp pulsar-client.py pulsar-standalone:/pulsar/
+    
+
+- Download canal connector and start canal connector ```<span class="hljs-variable">$bash</span> docker exec -it pulsar-standalone /bin/bash wget http:<span class="hljs-comment">//apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors ./bin/pulsar-admin source localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1</span>
+
+    &lt;<span class="hljs-keyword">br</span> /&gt;- Consumption data 
+    
+    ```<span class="hljs-variable">$bash</span>
+    docker exec -it pulsar-standalone /bin/bash
+    python pulsar-client.py
+    
+
+- <span class="hljs-keyword">Open</span> another <span class="hljs-keyword">window</span> <span class="hljs-keyword">for</span> login mysql server
+
+```<span class="hljs-variable">$bash</span> docker exec -it pulsar-mysql /bin/bash mysql -<span class="hljs-keyword">h</span> 127.0.0.1 -uroot -pcanal
+
+    - Create <span class="hljs-keyword">table</span> and insert, delete, <span class="hljs-keyword">update</span> data <span class="hljs-keyword">in</span> mysql server
+    
+
+mysql&gt; <span class="hljs-keyword">use</span> <span class="hljs-keyword">test</span>; mysql&gt; show tables; mysql&gt; CREATE <span class="hljs-keyword">TABLE</span> <span class="hljs-keyword">IF</span> NOT EXISTS `test_table`(`test_id` INT UNSIGNED AUTO_INCREMENT,`test_title` VARCHAR(100) NOT NULL, `test_author` VARCHAR(40) NOT NULL, `test_date` DATE,PRIMARY KEY ( `test_id` ))ENGINE=InnoDB DEFAULT CHARSET=utf8; mysql&gt; INSERT INTO test_table (test_title, test_author, test_date) VALUES(<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, NOW()); mysql&gt; <span class="hljs-keyword">UPDATE</span> test_table <span class="hljs-keyword">SET</span> test_title='c' WHERE test_title='a'; mysql&gt; DELETE FROM test_table WHERE test_title='c'; ```</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.3.1"]}
+              });
+            </script></body></html>

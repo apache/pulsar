@@ -1,0 +1,183 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>ElasticSearch sink connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="ElasticSearch sink connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/fr/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class=""><a href="/docs/fr/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/io-elasticsearch-sink">English</a></li><li><a href="/docs/ja/2.8.3/io-elasticsearch-sink">日本語</a></li><li><a href="/docs/ko/2.8.3/io-elasticsearch-sink">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/io-elasticsearch-sink">中文</a></li><li><a href="/docs/zh-TW/2.8.3/io-elasticsearch-sink">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">ElasticSearch sink connector</h1></header><article><div><span><p>The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.</p>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<p>The configuration of the ElasticSearch sink connector has the following properties.</p>
+<h3><a class="anchor" aria-hidden="true" id="property"></a><a href="#property" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Property</h3>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The URL of elastic search cluster to which the connector connects.</td></tr>
+<tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The index name to which the connector writes messages.</td></tr>
+<tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>The type name to which the connector writes messages to. <br><br> The value should be set explicitly to a valid type name other than &quot;_doc&quot; for Elasticsearch version before 6.2, and left to default otherwise.</td></tr>
+<tr><td><code>indexNumberOfShards</code></td><td>int</td><td>false</td><td>1</td><td>The number of shards of the index.</td></tr>
+<tr><td><code>indexNumberOfReplicas</code></td><td>int</td><td>false</td><td>1</td><td>The number of replicas of the index.</td></tr>
+<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The username used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
+<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The password used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
+<p>Before using the ElasticSearch sink connector, you need to create a configuration file through one of the following methods.</p>
+<h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
+<h4><a class="anchor" aria-hidden="true" id="for-elasticsearch-after-62"></a><a href="#for-elasticsearch-after-62" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>For Elasticsearch After 6.2</h4>
+<ul>
+<li><p>JSON</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"elasticSearchUrl"</span>: <span class="hljs-string">"http://localhost:9200"</span>,
+    <span class="hljs-attr">"indexName"</span>: <span class="hljs-string">"my_index"</span>,
+    <span class="hljs-attr">"username"</span>: <span class="hljs-string">"scooby"</span>,
+    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"doobie"</span>
+}
+</code></pre></li>
+<li><p>YAML</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">elasticSearchUrl:</span> <span class="hljs-string">"http://localhost:9200"</span>
+    <span class="hljs-attr">indexName:</span> <span class="hljs-string">"my_index"</span>
+    <span class="hljs-attr">username:</span> <span class="hljs-string">"scooby"</span>
+    <span class="hljs-attr">password:</span> <span class="hljs-string">"doobie"</span>
+</code></pre></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="for-elasticsearch-before-62"></a><a href="#for-elasticsearch-before-62" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>For Elasticsearch Before 6.2</h4>
+<ul>
+<li><p>JSON</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"elasticSearchUrl"</span>: <span class="hljs-string">"http://localhost:9200"</span>,
+    <span class="hljs-attr">"indexName"</span>: <span class="hljs-string">"my_index"</span>,
+    <span class="hljs-attr">"typeName"</span>: <span class="hljs-string">"doc"</span>,
+    <span class="hljs-attr">"username"</span>: <span class="hljs-string">"scooby"</span>,
+    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"doobie"</span>
+}
+</code></pre></li>
+<li><p>YAML</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">elasticSearchUrl:</span> <span class="hljs-string">"http://localhost:9200"</span>
+    <span class="hljs-attr">indexName:</span> <span class="hljs-string">"my_index"</span>
+    <span class="hljs-attr">typeName:</span> <span class="hljs-string">"doc"</span>
+    <span class="hljs-attr">username:</span> <span class="hljs-string">"scooby"</span>
+    <span class="hljs-attr">password:</span> <span class="hljs-string">"doobie"</span>
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
+<ol>
+<li><p>Start a single node Elasticsearch cluster.</p>
+<pre><code class="hljs css language-bash">$ docker run -p 9200:9200 -p 9300:9300 \
+    -e <span class="hljs-string">"discovery.type=single-node"</span> \
+    docker.elastic.co/elasticsearch/elasticsearch:7.5.1
+</code></pre></li>
+<li><p>Start a Pulsar service locally in standalone mode.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar standalone
+</code></pre>
+<p>Make sure the NAR file is available at <code>connectors/pulsar-io-elastic-search-2.9.1.nar</code>.</p></li>
+<li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
+<ul>
+<li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
+    --archive connectors/pulsar-io-elastic-search-2.9.1.nar \
+    --tenant public \
+    --namespace default \
+    --name elasticsearch-test-sink \
+    --sink-config <span class="hljs-string">'{"elasticSearchUrl":"http://localhost:9200","indexName": "my_index","username": "scooby","password": "doobie"}'</span> \
+    --inputs elasticsearch_test
+</code></pre></li>
+<li><p>Use the <strong>YAML</strong> configuration file as shown previously.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
+    --archive connectors/pulsar-io-elastic-search-2.9.1.nar \
+    --tenant public \
+    --namespace default \
+    --name elasticsearch-test-sink \
+    --sink-config-file elasticsearch-sink.yml \
+    --inputs elasticsearch_test
+</code></pre></li>
+</ul></li>
+<li><p>Publish records to the topic.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce elasticsearch_test --messages <span class="hljs-string">"{\"a\":1}"</span>
+</code></pre></li>
+<li><p>Check documents in Elasticsearch.</p>
+<ul>
+<li>refresh the index
+<pre><code class="hljs css language-bash">    $ curl -s http://localhost:9200/my_index/_refresh
+</code></pre></li>
+<li>search documents
+<pre><code class="hljs css language-bash">    $ curl -s http://localhost:9200/my_index/_search
+</code></pre>
+You can see the record that published earlier has been successfully written into Elasticsearch.
+<pre><code class="hljs css language-json">{<span class="hljs-attr">"took"</span>:<span class="hljs-number">2</span>,<span class="hljs-attr">"timed_out"</span>:<span class="hljs-literal">false</span>,<span class="hljs-attr">"_shards"</span>:{<span class="hljs-attr">"total"</span>:<span class="hljs-number">1</span>,<span class="hljs-attr">"successful"</span>:<span class="hljs-number">1</span>,<span class="hljs-attr">"skipped"</span>:<span class="hljs-number">0</span>,<span class="hljs-attr">"failed"</span>:<span class="hljs-number">0</span>},<span class="hljs-attr">"hits"</span>:{<span class="hljs-attr">"total"</span>:{<span class="hljs-attr">"value"</span>:<span class="hljs-number">1</span>,<span class="hljs-attr">"relation"</span>:<span class="hljs-string">"eq"</span>},<span class="hljs-attr">"max_score"</span>:<span class="hljs-number">1.0</span>,<span class="hljs-attr">"hits"</span>:[{<span class="hljs-attr">"_index"</span>:<span class="hljs-string">"my_index"</span>,<span class="hljs-attr">"_type"</span>:<span class="hljs-string">"_doc"</span>,<span class="hljs-attr">"_id"</span>:<span class="hljs-string">"FSxemm8BLjG_iC0EeTYJ"</span>,<span class="hljs-attr">"_score"</span>:<span class="hljs-number">1.0</span>,<span class="hljs-attr">"_source"</span>:{<span class="hljs-attr">"a"</span>:<span class="hljs-number">1</span>}}]}}
+</code></pre></li>
+</ul></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li></ul></li><li><a href="#example">Example</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#usage">Usage</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.8.3"]}
+              });
+            </script></body></html>

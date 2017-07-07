@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://pulsar.apache.org/blog</id>
+    <title>Apache Pulsar Blog</title>
+    <updated>2021-12-14T06:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://pulsar.apache.org/blog"/>
+    <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
+    <logo>https://pulsar.apache.org/img/pulsar.svg</logo>
+    <rights>Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[What’s New in Apache Pulsar 2.7.4]]></title>
+        <id>https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html"/>
+        <updated>2021-12-14T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits.</p> <p>Highlights of this release are as below:</p> <ul> <li><p>Upgrade Log4j to 2.17.0 - <a href="https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/">CVE-2021-45105</a>. <a href="https://github.com/apache/pulsar/pull/13392">PR-13392</a></p></li> <li><p><code>ManagedLedger</code> can be refer...</p></li></ul>]]></summary>
+        <author>
+            <name>Technoboy-, Anonymitaet</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Log4j2 Zero Day vulnerability (CVE-2021-44228)]]></title>
+        <id>https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE.html"/>
+        <updated>2021-12-11T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Yesterday, a new serious vulnerability was reported regarding Log4j that can allow remote execution for attackers.</p> <p>The vulnerability issue is described and tracked under <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228">CVE-2021-44228</a>.</p> <p>Current releases of Apache Pulsar are bundling Log4j2 versions t...</p>]]></summary>
+        <author>
+            <name>Matteo Merli</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.8.1]]></title>
+        <id>https://pulsar.apache.org/blog/2021/09/23/Apache-Pulsar-2-8-1.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/09/23/Apache-Pulsar-2-8-1.html"/>
+        <updated>2021-09-23T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<h1><a class="anchor" aria-hidden="true" id="whats-new-in-apache-pulsar-281"></a><a href="#whats-new-in-apache-pulsar-281" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewbox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>What’s New in Apache Pulsar 2.8.1</h1> <p>The Apache Pulsar community releases version 2.8.1! 49 contributors provided improvements and bug fixes that delivered 213 commits.</p> <p>Highlights of this release are as below:</p> <ul> <li><p>Key-shared subscriptions no longer stop di...</p></li></ul>]]></summary>
+        <author>
+            <name>Hang Chen, Anonymitaet</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Announcing Pulsar Summit Asia 2021: CFP Is Open!]]></title>
+        <id>https://pulsar.apache.org/blog/2021/08/18/asia-cfp.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/08/18/asia-cfp.html"/>
+        <updated>2021-08-18T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We’re proud to announce the Pulsar Summit Asia 2021!</p> <p>2021 has been a remarkable year for the Apache Pulsar community. <a href="https://streamnative.io/en/blog/community/2021-06-14-pulsar-hits-its-400th-contributor-and-passes-kafka-in-monthly-active-contributors">Both the technology and community are growing rapidly this year</a>, and <a href="https://www.na2021.pulsar-summit.org">Pulsar Virtual Summit North America 2021</a> was a big success with...</p>]]></summary>
+        <author>
+            <name>Dianjin</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.7.3]]></title>
+        <id>https://pulsar.apache.org/blog/2021/08/11/Apache-Pulsar-2-7-3.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/08/11/Apache-Pulsar-2-7-3.html"/>
+        <updated>2021-08-11T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<h1><a class="anchor" aria-hidden="true" id="whats-new-in-apache-pulsar-273"></a><a href="#whats-new-in-apache-pulsar-273" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewbox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>What’s New in Apache Pulsar 2.7.3</h1> <p>The Apache Pulsar community releases version 2.7.3! 34 contributors provided improvements and bug fixes that delivered 79 commits.</p> <h2><a class="anchor" aria-hidden="true" id="highlights"></a><a href="#highlights" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewbox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Highlights</h2> <ul> <li><p>Cursor reads adhere to the dispatch byte rate limiter setting and no long...</p></li></ul>]]></summary>
+        <author>
+            <name>Bo Cong, Anonymitaet</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.8.0]]></title>
+        <id>https://pulsar.apache.org/blog/2021/06/12/Apache-Pulsar-2-8-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/06/12/Apache-Pulsar-2-8-0.html"/>
+        <updated>2021-06-12T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<h1><a class="anchor" aria-hidden="true" id="an-overview-of-the-280-release"></a><a href="#an-overview-of-the-280-release" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewbox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>An Overview of the 2.8.0 Release</h1> <p>We are very glad to see the Apache Pulsar community has successfully released the 2.8.0 version, which includes a number of exciting upgrades and enhancements. This blog provides a deep dive into the updates from the ...</p>]]></summary>
+        <author>
+            <name>Matteo Merli, Sijie Guo</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.7.2]]></title>
+        <id>https://pulsar.apache.org/blog/2021/05/13/Apache-Pulsar-2-7-2.html</id>
+        <link href="https://pulsar.apache.org/blog/2021/05/13/Apache-Pulsar-2-7-2.html"/>
+        <updated>2021-05-13T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are very glad to see the Apache Pulsar community has successfully released the 2.7.2 version.
+This is a minor release that introduces stability fixes and a few new features without breaking changes.</p>
+]]></summary>
+        <author>
+            <name>Enrico Olivelli</name>
+            <uri>https://twitter.com/eolivelli</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.7.0]]></title>
+        <id>https://pulsar.apache.org/blog/2020/12/24/Apache-Pulsar-2-7-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/12/24/Apache-Pulsar-2-7-0.html"/>
+        <updated>2020-12-24T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.7.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes.</p>
+<p>Here is a selection of the most interesting and major features added to Pulsar 2.7.0.</p>
+]]></summary>
+        <author>
+            <name>Penghui Li</name>
+            <uri>https://twitter.com/lipenghui6</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.6.2]]></title>
+        <id>https://pulsar.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2.html"/>
+        <updated>2020-11-09T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes.</p>
+<p>Here are some highlights and major features added in Pulsar 2.6.2.</p>
+]]></summary>
+        <author>
+            <name>Xiaolong Ran</name>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Pulsar Summit Asia 2020 Schedule is Now Online]]></title>
+        <id>https://pulsar.apache.org/blog/2020/11/04/pulsar-summit-asia-schedule.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/11/04/pulsar-summit-asia-schedule.html"/>
+        <updated>2020-11-04T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>The Pulsar Summit is a global conference dedicated to sharing best practices, project updates, and insights across the Apache Pulsar community. Pulsar’s inaugural global summit, the <a href="https://pulsar-summit.org/en/event/virtual-conference-2020">Pulsar Summit Virtual Conference 2020</a>, took place in June 2020 and f...</p>]]></summary>
+        <author>
+            <name>Carolyn King, Dianjin Wang</name>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Pulsar Summit Asia 2020 CFP is now open]]></title>
+        <id>https://pulsar.apache.org/blog/2020/09/01/pulsar-summit-asia-2020-cfp.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/09/01/pulsar-summit-asia-2020-cfp.html"/>
+        <updated>2020-09-01T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>The Pulsar Summit is an annual conference dedicated to the Apache Pulsar community. The summit brings together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messag...</p>]]></summary>
+        <author>
+            <name>Jennifer Huang</name>
+            <uri>https://twitter.com/Jennife06125739</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar Celebrates 300 Contributors]]></title>
+        <id>https://pulsar.apache.org/blog/2020/08/24/Pulsar-300-contributors.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/08/24/Pulsar-300-contributors.html"/>
+        <updated>2020-08-24T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Dear Pulsar community,</p> <p>Over the last few years, the shift to real-time streaming technologies has bolstered the adoption of Pulsar and there has been a major increase in both the interest and adoption of Pulsar in 2020 alone. With Pulsar being sought...</p>]]></summary>
+        <author>
+            <name>Jennifer Huang</name>
+            <uri>https://twitter.com/Jennife06125739</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.6.1]]></title>
+        <id>https://pulsar.apache.org/blog/2020/08/21/Apache-Pulsar-2-6-1.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/08/21/Apache-Pulsar-2-6-1.html"/>
+        <updated>2020-08-21T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are excited to see that the Apache Pulsar community has successfully released 2.6.1 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.1 is the result of a big effort from the community, with over 100 commits and a long list of improvements and bug fixes.</p>
+<p>Here are some highlights and major features added in Pulsar 2.6.1.</p>
+]]></summary>
+        <author>
+            <name>XiaoLong Ran</name>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.6.0]]></title>
+        <id>https://pulsar.apache.org/blog/2020/06/18/Apache-Pulsar-2-6-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/06/18/Apache-Pulsar-2-6-0.html"/>
+        <updated>2020-06-18T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.6.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes.</p>
+<p>Here is a selection of some of the most interesting and major features added to Pulsar 2.6.0.</p>
+]]></summary>
+        <author>
+            <name>Penghui Li</name>
+            <uri>https://twitter.com/lipenghui6</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.5.2]]></title>
+        <id>https://pulsar.apache.org/blog/2020/05/19/Apache-Pulsar-2-5-2.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/05/19/Apache-Pulsar-2-5-2.html"/>
+        <updated>2020-05-19T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are proud to publish Apache Pulsar 2.5.2. This is the result of a huge effort from the community, with over 56 commits, general improvements and bug fixes.</p>
+<p>For detailed changes related to 2.5.2 release, refer to the <b><a href="/release-notes/#2.5.2">release notes</a></b> and the <b><a href="https://github.com/apache/pulsar/pulls?q=is:pr%20label:release/2.5.2%20is:closed">PR list for Pulsar 2.5.2</a></b>.</p>
+<p>The following highlights some improved features and fixed bugs in this release.</p>
+]]></summary>
+        <author>
+            <name>Jia Zhai</name>
+            <uri>https://twitter.com/Jia_Zhai</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.5.1]]></title>
+        <id>https://pulsar.apache.org/blog/2020/04/23/Apache-Pulsar-2-5-1.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/04/23/Apache-Pulsar-2-5-1.html"/>
+        <updated>2020-04-23T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are proud to publish Apache Pulsar 2.5.1. This is the result of a huge effort from the community, with over 130 commits and a long list of new features, general improvements and bug fixes.</p>
+<p>For detailed changes related to 2.5.1 release, refer to the <b><a href="/release-notes/#2.5.1">release notes</a></b> and the <b><a href="https://github.com/apache/pulsar/pulls?q=is:pr%20label:release/2.5.1%20is:closed">PR list for Pulsar 2.5.1</a></b>.</p>
+<p>The following justs highlights a tiny subset of new features.</p>
+]]></summary>
+        <author>
+            <name>Guangning E</name>
+            <uri>https://twitter.com/tuteng3</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Announcing: The Apache Pulsar 2020 User Survey Report]]></title>
+        <id>https://pulsar.apache.org/blog/2020/03/17/announcing-the-apache-pulsar-2020-user-survey-report.html</id>
+        <link href="https://pulsar.apache.org/blog/2020/03/17/announcing-the-apache-pulsar-2020-user-survey-report.html"/>
+        <updated>2020-03-17T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>For the first time ever, the Apache Pulsar PMC team is publishing a user survey report. <strong>The 2020 Apache Pulsar User Survey Report</strong> reveals Pulsar’s accelerating rate of global adoption, details how organizations are leveraging Pulsar to build real-tim...</p>]]></summary>
+        <author>
+            <name>Sijie Guo</name>
+            <uri>https://twitter.com/sijieg</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Pulsar milestone celebration—200 contributors!]]></title>
+        <id>https://pulsar.apache.org/blog/2019/12/20/pulsar-milestone-200-contributors.html</id>
+        <link href="https://pulsar.apache.org/blog/2019/12/20/pulsar-milestone-200-contributors.html"/>
+        <updated>2019-12-20T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Dear Apache Pulsar enthusiast,</p> <p>As we know, when assessing the health of an open-source community, it is tempting to focus on various quantitative metrics, for example, activity, size (contributors), demographics, diversity, and so on, among which the...</p>]]></summary>
+        <author>
+            <name>Yu Liu</name>
+            <uri>https://twitter.com/Anonymitaet1</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Pulsar Summit San Francisco 2020 CFP is now open]]></title>
+        <id>https://pulsar.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html</id>
+        <link href="https://pulsar.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html"/>
+        <updated>2019-12-18T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Pulsar Summit is an annual conference dedicated to Apache Pulsar community, bringing together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming...</p>]]></summary>
+        <author>
+            <name>Jennifer Huang</name>
+            <uri>https://twitter.com/Jennife06125739</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.4.2]]></title>
+        <id>https://pulsar.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</id>
+        <link href="https://pulsar.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html"/>
+        <updated>2019-12-04T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.</p>
+<p>For detailed changes related to 2.4.2 release, refer to <b><a href="/release-notes/#2.4.2">release notes</a></b>.</p>
+<p>I will highlight some improvements and bug fixes in this blog.</p>
+]]></summary>
+        <author>
+            <name>Xiaolong Ran</name>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.4.0]]></title>
+        <id>https://pulsar.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html"/>
+        <updated>2019-07-05T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge
+effort from the community, with over 460 commits and a long list of new features,
+general improvements and bug fixes.</p>
+<p>Check out the <b><a href="/release-notes/#2.4.0">release notes</a></b> for a detailed list of
+the changes, with links to the relevant pull requests, discussions and documentation.</p>
+<p>Regarding new features introduced, I just want to highlight here a tiny subset of them:</p>
+]]></summary>
+        <author>
+            <name>Penghui Li</name>
+            <uri>https://twitter.com/lipenghui6</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.3.0]]></title>
+        <id>https://pulsar.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html"/>
+        <updated>2019-02-20T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>The Apache Pulsar PMC is happy to announce the release of Pulsar 2.3.0. This
+is the result of huge effort from the community, with over 480 commits and
+a long list of new features, general improvements and bug fixes.</p>
+<p>These improvements have been across the board in all of Pulsar components,
+from new messaging features, to improved usability for Pulsar Functions
+and Pulsar IO.</p>
+<p>Check out the official <b><a href="/release-notes/#2.3.0">release notes</a></b> for a
+detailed list of the changes, with links to the relevant pull-requests,
+discussions and documentation.</p>
+<p>Regarding new features introduced, I just want to highlight here a tiny
+subset of them:</p>
+]]></summary>
+        <author>
+            <name>Matteo Merli</name>
+            <uri>https://twitter.com/merlimat</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.1.0-incubating]]></title>
+        <id>https://pulsar.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html</id>
+        <link href="https://pulsar.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html"/>
+        <updated>2018-08-06T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are glad to present the new 2.1.0-incubating release of Pulsar.
+This release is the culmination of 2 months of work that have
+brought multiple new features and improvements to Pulsar.</p>
+<p>In Pulsar 2.1 you'll see:</p>
+<ul>
+<li><a href="/docs/io-overview">Pulsar IO</a> connector framework and a list of <a href="/docs/io-connectors">builtin connectors</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics">PIP-17</a>: <a href="/docs/concepts-tiered-storage">Tiered Storage</a></li>
+<li>Pulsar <a href="/docs/functions-state">Stateful Functions</a></li>
+<li><a href="/docs/client-libraries-go">Go Client</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java">Avro</a>
+and <a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/ProtobufSchema.java">Protobuf</a> Schemas</li>
+</ul>
+<p>For details information please check the detailed <a href="/release-notes/#2.1.0-incubating">release notes</a> and <a href="/versions">2.1.0 documentation</a>.</p>
+]]></summary>
+        <author>
+            <name>Sijie Guo</name>
+            <uri>https://twitter.com/sijieg</uri>
+        </author>
+    </entry>
+</feed>

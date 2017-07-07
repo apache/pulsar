@@ -1,0 +1,236 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.7.3 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="# What’s New in Apache Pulsar 2.7.3"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.7.3 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2021/08/11/Apache-Pulsar-2-7-3"/><meta property="og:description" content="# What’s New in Apache Pulsar 2.7.3"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></h1><p class="post-meta">August 11, 2021</p><div class="authorBlock"><p class="post-authorName"><a target="_blank" rel="noreferrer noopener">Bo Cong, Anonymitaet</a></p></div></header><div><span><h1><a class="anchor" aria-hidden="true" id="whats-new-in-apache-pulsar-273"></a><a href="#whats-new-in-apache-pulsar-273" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What’s New in Apache Pulsar 2.7.3</h1>
+<p>The Apache Pulsar community releases version 2.7.3! 34 contributors provided improvements and bug fixes that delivered 79 commits.</p>
+<h2><a class="anchor" aria-hidden="true" id="highlights"></a><a href="#highlights" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Highlights</h2>
+<ul>
+<li><p>Cursor reads adhere to the dispatch byte rate limiter setting and no longer cause unexpected results. <a href="https://github.com/apache/pulsar/pull/11249">PR-11249</a></p></li>
+<li><p>The ledger rollover scheduled task runs as expected. <a href="https://github.com/apache/pulsar/pull/11226">PR-11226</a></p></li>
+</ul>
+<p>This blog walks through the most noteworthy changes. For the complete list including all enhancements and bug fixes, check out the <a href="https://pulsar.apache.org/release-notes/#273-mdash-2021-07-27-a-id273a">Pulsar 2.7.3 Release Notes</a>.</p>
+<h1><a class="anchor" aria-hidden="true" id="notable-bug-fixes-and-enhancements"></a><a href="#notable-bug-fixes-and-enhancements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Notable bug fixes and enhancements</h1>
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<h3><a class="anchor" aria-hidden="true" id="cursor-reads-adhere-to-the-dispatch-byte-rate-limiter-setting-pr-9826httpsgithubcomapachepulsarpull9826"></a><a href="#cursor-reads-adhere-to-the-dispatch-byte-rate-limiter-setting-pr-9826httpsgithubcomapachepulsarpull9826" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cursor reads adhere to the dispatch byte rate limiter setting. <a href="https://github.com/apache/pulsar/pull/9826">PR-9826</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When using byte rates, the dispatch rates were not respected (regardless
+of being a namespace or topic policy).</p></li>
+<li><p><strong>Resolution</strong>: Fixed behavior of dispatch byte rate limiter setting. Cursor reads adhere to the setting and no longer cause unexpected results.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="the-ledger-rollover-scheduled-task-runs-as-expected-pr-11226httpsgithubcomapachepulsarpull11226"></a><a href="#the-ledger-rollover-scheduled-task-runs-as-expected-pr-11226httpsgithubcomapachepulsarpull11226" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The ledger rollover scheduled task runs as expected. <a href="https://github.com/apache/pulsar/pull/11226">PR-11226</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: Previously, the ledger rollover scheduled task was executed before reaching the ledger maximum rollover time, which caused the ledger not to roll over in time.</p></li>
+<li><p><strong>Resolution</strong>: Fixed the timing of the ledger rollover schedule, so the task runs only after the ledger is created successfully.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="the-topic-level-retention-policy-works-correctly-when-restarting-a-broker-pr-11136httpsgithubcomapachepulsarpull11136"></a><a href="#the-topic-level-retention-policy-works-correctly-when-restarting-a-broker-pr-11136httpsgithubcomapachepulsarpull11136" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The topic-level retention policy works correctly when restarting a broker. <a href="https://github.com/apache/pulsar/pull/11136">PR-11136</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: Previously, when setting a topic-level retention policy for a topic and then restarting the broker, the topic-level retention policy did not work.</p></li>
+<li><p><strong>Resolution</strong>: Fixed behavior of the policy so it replays all policy messages after initiating <code>policyCacheInitMap</code> and added a retention policy check test when restarting the broker.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="the-lastmessageid-api-call-no-longer-causes-a-memory-leak-pr-10977httpsgithubcomapachepulsarpull10977"></a><a href="#the-lastmessageid-api-call-no-longer-causes-a-memory-leak-pr-10977httpsgithubcomapachepulsarpull10977" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The lastMessageId API call no longer causes a memory leak. <a href="https://github.com/apache/pulsar/pull/10977">PR-10977</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: Previously, there was a memory leak when calling the <code>lastMessageId</code> API, which caused the broker process to be stopped by Kubernetes.</p></li>
+<li><p><strong>Resolution</strong>: Added the missing entry.release() call to PersistentTopic.getLastMessageId to ensure the broker does not run out of memory.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="zookeeper-reads-are-cached-by-brokers-pr-10594httpsgithubcomapachepulsarpull10594"></a><a href="#zookeeper-reads-are-cached-by-brokers-pr-10594httpsgithubcomapachepulsarpull10594" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper reads are cached by brokers. <a href="https://github.com/apache/pulsar/pull/10594">PR-10594</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When performing the admin operation to get the namespace of a tenant, ZooKeeper reads were issued on the ZooKeeper client and not getting cached by the brokers.</p></li>
+<li><p><strong>Resolution</strong>: Fixed ZooKeeper caching when fetching a list of namespaces for a tenant.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="monitoring-threads-that-call-leaderserviceisleader-are-no-longer-blocked-pr-10512httpsgithubcomapachepulsarpull10512"></a><a href="#monitoring-threads-that-call-leaderserviceisleader-are-no-longer-blocked-pr-10512httpsgithubcomapachepulsarpull10512" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring threads that call <code>LeaderService.isLeader()</code> are no longer blocked. <a href="https://github.com/apache/pulsar/pull/10512">PR-10512</a></h3>
+<ul>
+<li><p><strong>Issue</strong>:  When <code>LeaderService</code> changed leadership status, it was locked with a <code>synchronized</code> block, which also blocked other threads calling <code>LeaderService.isLeader()</code>.</p></li>
+<li><p><strong>Resolution</strong>: Fixed the deadlock condition on the monitoring thread so it is not blocked by <code>LeaderService.isLeader() by modifying</code>ClusterServiceCoordinator<code>and</code>WorkerStatsManager<code>to check if it is a leader from</code>MembershipManager`.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="hasmessageavailable-can-read-messages-successfully-pr-10414httpsgithubcomapachepulsarpull10414"></a><a href="#hasmessageavailable-can-read-messages-successfully-pr-10414httpsgithubcomapachepulsarpull10414" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>hasMessageAvailable</code> can read messages successfully. <a href="https://github.com/apache/pulsar/pull/10414">PR-10414</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When <code>hasMessageAvailableAsync</code> returned <code>true</code>, it could not read messages because messages were filtered by <code>acknowledgmentsGroupingTracker</code>.</p></li>
+<li><p><strong>Resolution</strong>: Fixed the race conditions by modifying <code>acknowledgmentsGroupingTracker</code> to filter duplicate messages, and then cleanup the messages when the connection is open.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h2>
+<h3><a class="anchor" aria-hidden="true" id="proxy-supports-creating-partitioned-topics-automatically-pr-8048httpsgithubcomapachepulsarpull8048"></a><a href="#proxy-supports-creating-partitioned-topics-automatically-pr-8048httpsgithubcomapachepulsarpull8048" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy supports creating partitioned topics automatically. <a href="https://github.com/apache/pulsar/pull/8048">PR-8048</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: Proxies were not creating partitions because they were using the current ZooKeeper metadata.</p></li>
+<li><p><strong>Resolution</strong>: Changed the proxy to handle <code>PartitionMetadataRequest</code> by selecting and fetching from an available broker instead of using current ZooKeeper metadata.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar admin</h2>
+<h3><a class="anchor" aria-hidden="true" id="flag-added-to-indicate-whether-or-not-to-create-a-metadata-path-on-replicated-clusters-pr-11140httpsgithubcomapachepulsarpull11140"></a><a href="#flag-added-to-indicate-whether-or-not-to-create-a-metadata-path-on-replicated-clusters-pr-11140httpsgithubcomapachepulsarpull11140" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Flag added to indicate whether or not to create a metadata path on replicated clusters. <a href="https://github.com/apache/pulsar/pull/11140">PR-11140</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When creating a partitioned topic in a replicated namespace, it did not
+create a metadata path <code>/managed-ledgers</code> on replicated clusters.</p></li>
+<li><p><strong>Resolution</strong>: Added a flag (createLocalTopicOnly) to indicate whether or not to create a metadata path for a partitioned topic in replicated clusters.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="a-topic-policy-can-no-longer-be-set-for-a-non-existent-topic-pr-11131httpsgithubcomapachepulsarpull11131"></a><a href="#a-topic-policy-can-no-longer-be-set-for-a-non-existent-topic-pr-11131httpsgithubcomapachepulsarpull11131" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>A topic policy can no longer be set for a non-existent topic. <a href="https://github.com/apache/pulsar/pull/11131">PR-11131</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: Due to a redirect loop in a topic policy, you can set a policy for a non-existing topic or a partition of a partitioned topic.</p></li>
+<li><p><strong>Resolution</strong>: The fix added an authoritative flag for a topic policy to avoid a redirect loop. You can not set a topic policy for a non-existent topic or a partition of a partitioned topic. If you set a topic policy for a partition of a 0-partition topic, it redirects to the broker.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="discovery-service-no-longer-hard-codes-the-topic-domain-as-persistent-pr-10806httpsgithubcomapachepulsarpull10806"></a><a href="#discovery-service-no-longer-hard-codes-the-topic-domain-as-persistent-pr-10806httpsgithubcomapachepulsarpull10806" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Discovery service no longer hard codes the topic domain as persistent. <a href="https://github.com/apache/pulsar/pull/10806">PR-10806</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When using the lookup discovery service for a partitioned non-persistent topic, it returned zero rather than the number of partitions. The Pulsar client tried to connect to the topic as if it were a normal topic.</p></li>
+<li><p><strong>Resolution</strong>: Implemented <code>topicName.getDomain().value()</code> rather than hard coding <code>persistent.</code> Now you can use the discovery service for a partitioned, non-persistent topic successfully.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="other-connectors-can-now-use-the-kinesis-backoff-class-pr-10744httpsgithubcomapachepulsarpull10744"></a><a href="#other-connectors-can-now-use-the-kinesis-backoff-class-pr-10744httpsgithubcomapachepulsarpull10744" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Other connectors can now use the Kinesis <code>Backoff</code> class. <a href="https://github.com/apache/pulsar/pull/10744">PR-10744</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: The Kinesis sink connector <code>Backoff</code> class in the Pulsar client implementation project in combination  with the dependency <code>org.apache.pulsar:pulsar-client-original</code> increased the connector size.</p></li>
+<li><p><strong>Resolution</strong>: Added a new class <code>Backoff</code> in the function io-core project so that the Kinesis sink connector and other connectors can use the class.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
+<h3><a class="anchor" aria-hidden="true" id="a-flow-request-with-zero-permits-can-not-be-sent-pr-10506httpsgithubcomapachepulsarpull10506"></a><a href="#a-flow-request-with-zero-permits-can-not-be-sent-pr-10506httpsgithubcomapachepulsarpull10506" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>A <code>FLOW</code> request with zero permits can not be sent. <a href="https://github.com/apache/pulsar/pull/10506">PR-10506</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When a broker received a <code>FLOW</code> request with zero permits, an exception was thrown and then the connection was closed. This triggered frequent reconnections and caused duplicate or out-of-order messages.</p></li>
+<li><p><strong>Resolution</strong>: Added a validation that verifies the permits of a <code>FLOW</code> request before sending it. If the permit is zero, the <code>FLOW</code> request can not be sent.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="function-and-connector"></a><a href="#function-and-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function and connector</h2>
+<h3><a class="anchor" aria-hidden="true" id="the-kinesis-sink-connector-acknowledges-successful-messages-pr-10769httpsgithubcomapachepulsarpull10769"></a><a href="#the-kinesis-sink-connector-acknowledges-successful-messages-pr-10769httpsgithubcomapachepulsarpull10769" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Kinesis sink connector acknowledges successful messages. <a href="https://github.com/apache/pulsar/pull/10769">PR-10769</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: The Kinesis sink connector did not acknowledge messages after they were sent successfully.</p></li>
+<li><p><strong>Resolution</strong>: Added acknowledgement for the Kinesis sink connector once a message is sent successfully.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="docker"></a><a href="#docker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker</h2>
+<h3><a class="anchor" aria-hidden="true" id="function-name-length-cannot-exceed-52-characters-when-using-kubernetes-runtime-pr-10531httpsgithubcomapachepulsarpull10531"></a><a href="#function-name-length-cannot-exceed-52-characters-when-using-kubernetes-runtime-pr-10531httpsgithubcomapachepulsarpull10531" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function name length cannot exceed 52 characters when using Kubernetes runtime. <a href="https://github.com/apache/pulsar/pull/10531">PR-10531</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: When using Kubernetes runtime, if a function was submitted with a valid length (less than 55 characters), a StatefulSet was created but it was unable to spawn pods.</p></li>
+<li><p><strong>Resolution</strong>: Changed the maximum length of a function name from 55 to 53 characters for Kubernetes runtime. With this fix, the length of a function name can not exceed 52 characters.</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="dependency"></a><a href="#dependency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dependency</h2>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-admin-connection-to-proxy-is-stable-when-tls-is-enabled-pr-10907httpsgithubcomapachepulsarpull10907"></a><a href="#pulsar-admin-connection-to-proxy-is-stable-when-tls-is-enabled-pr-10907httpsgithubcomapachepulsarpull10907" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-admin</code> connection to proxy is stable when TLS is enabled. <a href="https://github.com/apache/pulsar/pull/10907">PR-10907</a></h3>
+<ul>
+<li><p><strong>Issue</strong>: <code>pulsar-admin</code> was unstable over the TLS connection because of the Jetty bug in SSL buffering introduced in Jetty 9.4.39. It caused large function jar uploads to fail frequently.</p></li>
+<li><p><strong>Resolution</strong>: Upgraded Jetty to 9.4.42.v20210604, so that <code>pulsar-admin</code> connection to proxy is stable when TLS is enabled.</p></li>
+</ul>
+<h1><a class="anchor" aria-hidden="true" id="what-is-next"></a><a href="#what-is-next" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is Next?</h1>
+<p>If you are interested in learning more about Pulsar 2.7.3, you can <a href="https://pulsar.apache.org/en/versions/">download 2.7.3</a> and try it out now!</p>
+<p>The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. <a href="https://hopin.com/events/pulsar-summit-europe-2021">Register now</a> and help us make it an even bigger success by spreading the word on social!</p>
+<p>For more information about the Apache Pulsar project and the progress, visit
+the <a href="https://pulsar.apache.org">Pulsar website</a>, follow the project on Twitter
+<a href="https://twitter.com/apache_pulsar">@apache_pulsar</a>, and join <a href="https://apache-pulsar.herokuapp.com/">Pulsar Slack</a>!</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.7.3" data-url="https://pulsar.apache.org/blog/2021/08/11/Apache-Pulsar-2-7-3" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#highlights">Highlights</a></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#cursor-reads-adhere-to-the-dispatch-byte-rate-limiter-setting-pr-9826httpsgithubcomapachepulsarpull9826">Cursor reads adhere to the dispatch byte rate limiter setting. <a href="https://github.com/apache/pulsar/pull/9826">PR-9826</a></a></li><li><a href="#the-ledger-rollover-scheduled-task-runs-as-expected-pr-11226httpsgithubcomapachepulsarpull11226">The ledger rollover scheduled task runs as expected. <a href="https://github.com/apache/pulsar/pull/11226">PR-11226</a></a></li><li><a href="#the-topic-level-retention-policy-works-correctly-when-restarting-a-broker-pr-11136httpsgithubcomapachepulsarpull11136">The topic-level retention policy works correctly when restarting a broker. <a href="https://github.com/apache/pulsar/pull/11136">PR-11136</a></a></li><li><a href="#the-lastmessageid-api-call-no-longer-causes-a-memory-leak-pr-10977httpsgithubcomapachepulsarpull10977">The lastMessageId API call no longer causes a memory leak. <a href="https://github.com/apache/pulsar/pull/10977">PR-10977</a></a></li><li><a href="#zookeeper-reads-are-cached-by-brokers-pr-10594httpsgithubcomapachepulsarpull10594">ZooKeeper reads are cached by brokers. <a href="https://github.com/apache/pulsar/pull/10594">PR-10594</a></a></li><li><a href="#monitoring-threads-that-call-leaderserviceisleader-are-no-longer-blocked-pr-10512httpsgithubcomapachepulsarpull10512">Monitoring threads that call <code>LeaderService.isLeader()</code> are no longer blocked. <a href="https://github.com/apache/pulsar/pull/10512">PR-10512</a></a></li><li><a href="#hasmessageavailable-can-read-messages-successfully-pr-10414httpsgithubcomapachepulsarpull10414"><code>hasMessageAvailable</code> can read messages successfully. <a href="https://github.com/apache/pulsar/pull/10414">PR-10414</a></a></li></ul></li><li><a href="#proxy">Proxy</a><ul class="toc-headings"><li><a href="#proxy-supports-creating-partitioned-topics-automatically-pr-8048httpsgithubcomapachepulsarpull8048">Proxy supports creating partitioned topics automatically. <a href="https://github.com/apache/pulsar/pull/8048">PR-8048</a></a></li></ul></li><li><a href="#pulsar-admin">Pulsar admin</a><ul class="toc-headings"><li><a href="#flag-added-to-indicate-whether-or-not-to-create-a-metadata-path-on-replicated-clusters-pr-11140httpsgithubcomapachepulsarpull11140">Flag added to indicate whether or not to create a metadata path on replicated clusters. <a href="https://github.com/apache/pulsar/pull/11140">PR-11140</a></a></li><li><a href="#a-topic-policy-can-no-longer-be-set-for-a-non-existent-topic-pr-11131httpsgithubcomapachepulsarpull11131">A topic policy can no longer be set for a non-existent topic. <a href="https://github.com/apache/pulsar/pull/11131">PR-11131</a></a></li><li><a href="#discovery-service-no-longer-hard-codes-the-topic-domain-as-persistent-pr-10806httpsgithubcomapachepulsarpull10806">Discovery service no longer hard codes the topic domain as persistent. <a href="https://github.com/apache/pulsar/pull/10806">PR-10806</a></a></li><li><a href="#other-connectors-can-now-use-the-kinesis-backoff-class-pr-10744httpsgithubcomapachepulsarpull10744">Other connectors can now use the Kinesis <code>Backoff</code> class. <a href="https://github.com/apache/pulsar/pull/10744">PR-10744</a></a></li></ul></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#a-flow-request-with-zero-permits-can-not-be-sent-pr-10506httpsgithubcomapachepulsarpull10506">A <code>FLOW</code> request with zero permits can not be sent. <a href="https://github.com/apache/pulsar/pull/10506">PR-10506</a></a></li></ul></li><li><a href="#function-and-connector">Function and connector</a><ul class="toc-headings"><li><a href="#the-kinesis-sink-connector-acknowledges-successful-messages-pr-10769httpsgithubcomapachepulsarpull10769">The Kinesis sink connector acknowledges successful messages. <a href="https://github.com/apache/pulsar/pull/10769">PR-10769</a></a></li></ul></li><li><a href="#docker">Docker</a><ul class="toc-headings"><li><a href="#function-name-length-cannot-exceed-52-characters-when-using-kubernetes-runtime-pr-10531httpsgithubcomapachepulsarpull10531">Function name length cannot exceed 52 characters when using Kubernetes runtime. <a href="https://github.com/apache/pulsar/pull/10531">PR-10531</a></a></li></ul></li><li><a href="#dependency">Dependency</a><ul class="toc-headings"><li><a href="#pulsar-admin-connection-to-proxy-is-stable-when-tls-is-enabled-pr-10907httpsgithubcomapachepulsarpull10907"><code>pulsar-admin</code> connection to proxy is stable when TLS is enabled. <a href="https://github.com/apache/pulsar/pull/10907">PR-10907</a></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

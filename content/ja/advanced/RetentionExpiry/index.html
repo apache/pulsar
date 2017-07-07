@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>メッセージの保存と有効期限</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">メッセージの保存と有効期限</h1>
+        <span class="docs-lead">Pulsarインスタンスに保存されているメッセージの保存期間の管理</span><br />
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>admin</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
+          
+          
+          
+          <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/admin/ClustersBrokers/">PulsarクラスタとBrokerの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/deployment/InstanceSetup/">Pulsarインスタンスのデプロイ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
+          
+          <li><a href="/ja/admin/PropertiesNamespaces/">プロパティとネームスペースの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">expiry</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-expiry">expiry</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-expiry">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>expiry</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">retention</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-retention">retention</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-retention">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>retention</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">backlog</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-backlog">backlog</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-backlog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>backlog</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>は、メッセージの<a href="../../getting-started/ConceptsAndArchitecture#永続ストレージ">永続ストレージ</a>を含むPulsarインスタンスを通過するメッセージを処理する責任を持ちます。デフォルトでは、Brokerは:</p>
+
+<ul>
+  <li><span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>によって<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) の返された全てのメッセージを直ちに削除します。</li>
+  <li><span class="popover-term" tabindex="0" title="Ack未受信のメッセージとは？" data-placement="top" data-content="Consumerに配信されたが、まだConsumerの処理完了が確認できていないメッセージです。" data-toggle="popover" data-trigger="focus">Ack未受信</span>の全てのメッセージを<a href="#バックログクォータ">バックログ</a>に永続的に保存します。</li>
+</ul>
+
+<p>Pulsarでは、<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>レベルでこれらのデフォルトの挙動を上書きできます。方法は次の2通りです:</p>
+
+<ul>
+  <li><a href="#保存ポリシー">保存ポリシー</a>をセットする事で既に<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>から<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>の返されたメッセージを永続的に保存できます。</li>
+  <li><a href="#生存時間">生存時間</a> (TTL) を使用する事で指定された期間内にAckの返されなかったメッセージを削除できます。</li>
+</ul>
+
+<p>Pulsarの<a href="../../admin/AdminInterface">adminインターフェース</a>は保存ポリシーとTTLを<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>レベル (すなわち特定の<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>の内部、かつ特定の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>または<a href="../../getting-started/ConceptsAndArchitecture#globalクラスタ"><code class="highlighter-rouge">global</code></a>クラスタの内部) で管理する事を可能にします。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>保存とTTLを同時に使用しないでください</p>
+</span>
+    
+<p>メッセージの保存ポリシーとTTLは同様の目的を果たすものですので、併用すべきではありません。任意のネームスペースに対してどちらか一方を使用してください。</p>
+
+  </div>
+</div>
+
+<h2 id="保存ポリシー">保存ポリシー</h2>
+
+<p>デフォルトでは、メッセージが<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に届くと<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>によって<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>が返されるまで保存されます。そしてAckが返された時点でメッセージは削除されます。任意の<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>内の全てのトピックに<em>保存ポリシー</em>をセットする事で、この挙動を上書きして既にAckの返されたメッセージであっても保存できるようになります。保存ポリシーを設定する際には<em>サイズ制限</em>または<em>時間制限</em>をセットできます。</p>
+
+<p>例えば、10ギガバイトのサイズ制限をセットしたとすると、そのネームスペース内の全てのトピックのメッセージは<em>たとえAckが返されたとしても</em>サイズ制限に達するまでは保存されます。もし1日という時間制限をセットした場合、ネームスペース内の全てのトピックのメッセージは24時間は保存されます。</p>
+
+<h3 id="デフォルト">デフォルト</h3>
+
+<p><a href="../../reference/Configuration#broker-defaultRetentionTimeInMinutes"><code class="highlighter-rouge">defaultRetentionTimeInMinutes</code></a>と<a href="../../reference/Configuration#broker-defaultRetentionSizeInMB"><code class="highlighter-rouge">defaultRetentionSizeInMB</code></a>の2つの設定パラメータは、<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>全体のメッセージ保存ポリシーのデフォルト値をセットするために使用できます。</p>
+
+<p>これらのパラメータは設定ファイル<a href="../../reference/Configuration#broker"><code class="highlighter-rouge">broker.conf</code></a>に存在します。</p>
+
+<h3 id="保存ポリシーのセット">保存ポリシーのセット</h3>
+
+<p>ネームスペースと、サイズ制限と時間制限のどちらか<em>または両方</em>を指定する事で保存ポリシーをセットできます。</p>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-set-retention"><code class="highlighter-rouge">set-retention</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">-s</code>/<code class="highlighter-rouge">--size</code>を使用してサイズ制限を、<code class="highlighter-rouge">-t</code>/<code class="highlighter-rouge">--time</code>を使用して時間制限を指定してください。</p>
+
+<h5 id="例">例</h5>
+
+<p>ネームスペース<code class="highlighter-rouge">my-prop/my-cluster/my-ns</code>に対して10ギガバイトのサイズ制限をセット:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--size</span> 10G
+</code></pre></div></div>
+
+<p>ネームスペース<code class="highlighter-rouge">my-prop/my-cluster/my-ns</code>に対して3時間の時間制限をセット:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--time</span> 3h
+</code></pre></div></div>
+
+<p>サイズ制限と時間制限の両方をセット:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--size</span> 10G <span class="se">\</span>
+  <span class="nt">--time</span> 3h
+</code></pre></div></div>
+
+<h4 id="rest-api">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">詳細</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">retentionTime</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="c1">// 10分間</span>
+<span class="kt">int</span> <span class="n">retentionSize</span> <span class="o">=</span> <span class="mi">500</span><span class="o">;</span> <span class="c1">// 500メガバイト</span>
+<span class="n">RetentionPolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTime</span><span class="o">,</span> <span class="n">retentionSize</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="保存ポリシーの取得">保存ポリシーの取得</h3>
+
+<p>ネームスペースを指定する事でその保存ポリシーを取得できます。出力は<code class="highlighter-rouge">retentionTimeInMinutes</code>と<code class="highlighter-rouge">retentionSizeInMB</code>という2つのキーを持つJSONオブジェクトとなります。</p>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-get-retention"><code class="highlighter-rouge">get-retention</code></a>サブコマンドを使用してネームスペースを指定してください。</p>
+
+<h5 id="例-1">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-retention my-prop/my-cluster/my-ns
+<span class="o">{</span>
+  <span class="s2">"retentionTimeInMinutes"</span>: 10,
+  <span class="s2">"retentionSizeInMB"</span>: 0
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">詳細</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h2 id="バックログクォータ">バックログクォータ</h2>
+
+<p><em>バックログ</em>は、<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>に保存されたあるトピックに対するAck未受信のメッセージの集合です。Pulsarは全てのAck未受信のメッセージを、それらがConsumerによって処理されてAckが返されるまでの間バックログに保存します。</p>
+
+<p>許容可能なバックログのサイズは<em>バックログクォータ</em>を使用する事で<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>レベルで制御できます。バックログクォータをセットするには次の設定が必要です:</p>
+
+<ul>
+  <li>ネームスペース内の各トピックに対して許容される<em>サイズの閾値</em></li>
+  <li>閾値を超えた場合に<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>が実行するアクションを規定する<em>保存ポリシー</em></li>
+</ul>
+
+<p>利用可能な保存ポリシーは次の通りです:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">ポリシー</th>
+      <th style="text-align: left">アクション</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">producer_request_hold</code></td>
+      <td style="text-align: left">Brokerはproduceリクエストをホールドし、メッセージのペイロードを永続化しなくなります</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">producer_exception</code></td>
+      <td style="text-align: left">Brokerは例外をスローする事でクライアントとの接続を切断します</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">consumer_backlog_eviction</code></td>
+      <td style="text-align: left">Brokerはバックログからメッセージの破棄を開始します</td>
+    </tr>
+  </tbody>
+</table>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>保存ポリシーのタイプの区別に注意してください</p>
+</span>
+    
+<p>既にご理解頂けたかと思いますが、Pulsarには「保存ポリシー」という用語の定義が2つ存在します。1つは既にAck受信済みのメッセージの永続ストレージに適用され、もう1つはバックログに適用されます。</p>
+
+  </div>
+</div>
+
+<p>バックログクォータは<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>レベルで制御され、以下のようにして管理できます:</p>
+
+<h3 id="サイズの閾値とバックログ保存ポリシーをセット">サイズの閾値とバックログ保存ポリシーをセット</h3>
+
+<p>ネームスペース、サイズ制限、ポリシー名を指定する事で、<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>内の全てのトピックに対してサイズの閾値とバックログ保存ポリシーをセットできます。</p>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-set-backlog-quota"><code class="highlighter-rouge">set-backlog-quota</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">-l</code>/<code class="highlighter-rouge">--limit</code>を使用してサイズ制限を、<code class="highlighter-rouge">-p</code>/<code class="highlighter-rouge">--policy</code>を使用して保存ポリシーを指定してください。</p>
+
+<h5 id="例-2">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--limit</span> 2G <span class="se">\</span>
+  <span class="nt">--policy</span> producer_request_hold
+</code></pre></div></div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">詳細</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">long</span> <span class="n">sizeLimit</span> <span class="o">=</span> <span class="mi">2147483648L</span><span class="o">;</span>
+<span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span> <span class="n">policy</span> <span class="o">=</span>
+  <span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span><span class="o">.</span><span class="na">producer_request_hold</span><span class="o">;</span>
+<span class="n">BacklogQuota</span> <span class="n">quota</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">sizeLimit</span><span class="o">,</span> <span class="n">policy</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">quota</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="バックログの閾値と保存ポリシーの取得">バックログの閾値と保存ポリシーの取得</h3>
+
+<p>ネームスペースに適用されたサイズ制限とバックログの保存ポリシーを確認できます。</p>
+
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-get-backlog-quotas"><code class="highlighter-rouge">get-backlog-quotas</code></a>サブコマンドを使用してネームスペースを指定してください。以下は例となります:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-backlog-quotas my-prop/my-cluster/my-ns
+<span class="o">{</span>
+  <span class="s2">"destination_storage"</span>: <span class="o">{</span>
+    <span class="s2">"limit"</span> : 2147483648,
+    <span class="s2">"policy"</span> : <span class="s2">"producer_request_hold"</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="rest-api-3">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuotaMap</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">詳細</a></p>
+
+<h4 id="java-3">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">BacklogQuota</span><span class="o">.</span><span class="na">BacklogQuotaType</span><span class="o">,</span><span class="n">BacklogQuota</span><span class="o">&gt;</span> <span class="n">quotas</span> <span class="o">=</span>
+  <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotas</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="バックログクォータの削除">バックログクォータの削除</h3>
+
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-remove-backlog-quotas"><code class="highlighter-rouge">remove-backlog-quotas</code></a>サブコマンドを使用してネームスペースを指定してください。以下は例となります:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
+</code></pre></div></div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">詳細</a></p>
+
+<h4 id="java-4">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="バックログを空にする">バックログを空にする</h3>
+
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-clear-backlog"><code class="highlighter-rouge">clear-backlog</code></a>サブコマンドを使用してください。</p>
+
+<h5 id="例-3">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces clear-backlog my-prop/my-cluster/my-ns
+</code></pre></div></div>
+
+<p>デフォルトでは、ネームスペースのバックログを本当に空にするかの確認を求められます。<code class="highlighter-rouge">-f</code>/<code class="highlighter-rouge">--force</code>を使用する事で確認を無効化できます。</p>
+
+<h2 id="生存時間-ttl">生存時間 (TTL)</h2>
+
+<p>デフォルトでは、Pulsarは全てのAck未受信メッセージをいつまでも保存します。そのため、大量のメッセージがAck未受信の状態になるとディスク領域の使用量が増大する可能性があります。ディスク領域が問題となる場合は、Ack未受信のメッセージの生存時間 (TTL) をセットする事ができます。</p>
+
+<h3 id="ネームスペースにttlをセット">ネームスペースにTTLをセット</h3>
+
+<h4 id="pulsar-admin-6">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-set-message-ttl"><code class="highlighter-rouge">set-message-ttl</code></a>サブコマンドを使用し、ネームスペースと<code class="highlighter-rouge">-ttl</code>/<code class="highlighter-rouge">--messageTTL</code>を使用してTTL (秒単位) を指定してください。</p>
+
+<h5 id="例-4">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-message-ttl my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--messageTTL</span> 120 <span class="c"># 2分間のTTL</span>
+</code></pre></div></div>
+
+<h4 id="rest-api-5">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">詳細</a></p>
+
+<h4 id="java-5">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">ttlInSeconds</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="ネームスペースのttl設定の取得">ネームスペースのTTL設定の取得</h3>
+
+<h4 id="pulsar-admin-7">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-get-message-ttl"><code class="highlighter-rouge">get-message-ttl</code></a>サブコマンドを使用してネームスペースを指定してください。</p>
+
+<h5 id="例-5">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-message-ttl my-prop/my-cluster/my-ns
+60
+</code></pre></div></div>
+
+<h4 id="rest-api-6">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">詳細</a></p>
+
+<h4 id="java-6">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">get</span>
+</code></pre></div></div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>メッセージの保存と有効期限</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

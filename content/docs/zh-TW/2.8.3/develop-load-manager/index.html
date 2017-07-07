@@ -1,0 +1,276 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Modular load manager · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The *modular load manager*, implemented in  [`ModularLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java), is a flexible alternative to the previously implemented load manager, [`SimpleLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java), which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Modular load manager · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The *modular load manager*, implemented in  [`ModularLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java), is a flexible alternative to the previously implemented load manager, [`SimpleLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java), which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/develop-load-manager">English</a></li><li><a href="/docs/ja/2.8.3/develop-load-manager">日本語</a></li><li><a href="/docs/fr/2.8.3/develop-load-manager">Français</a></li><li><a href="/docs/ko/2.8.3/develop-load-manager">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/develop-load-manager">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Development</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Modular load manager</h1></header><article><div><span><p>The <em>modular load manager</em>, implemented in  <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java"><code>ModularLoadManagerImpl</code></a>, is a flexible alternative to the previously implemented load manager, <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java"><code>SimpleLoadManagerImpl</code></a>, which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.</p>
+<h2><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h2>
+<p>There are two ways that you can enable the modular load manager:</p>
+<ol>
+<li><p>Change the value of the <code>loadManagerClassName</code> parameter in <code>conf/broker.conf</code> from <code>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</code> to <code>org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl</code>.</p></li>
+<li><p>Using the <code>pulsar-admin</code> tool. Here's an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin update-dynamic-config \</span>
+  --config loadManagerClassName \
+  --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
+</code></pre>
+<p>You can use the same method to change back to the original value. In either case, any mistake in specifying the load manager will cause Pulsar to default to <code>SimpleLoadManagerImpl</code>.</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="verification"></a><a href="#verification" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Verification</h2>
+<p>There are a few different ways to determine which load manager is being used:</p>
+<ol>
+<li><p>Use <code>pulsar-admin</code> to examine the <code>loadManagerClassName</code> element:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin brokers get-all-dynamic-config</span>
+{
+ "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
+}
+</code></pre>
+<p>If there is no <code>loadManagerClassName</code> element, then the default load manager is used.</p></li>
+<li><p>Consult a ZooKeeper load report. With the module load manager, the load report in <code>/loadbalance/brokers/...</code> will have many differences. for example the <code>systemResourceUsage</code> sub-elements (<code>bandwidthIn</code>, <code>bandwidthOut</code>, etc.) are now all at the top level. Here is an example load report from the module load manager:</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"bandwidthIn"</span>: {
+    <span class="hljs-attr">"limit"</span>: <span class="hljs-number">10240000.0</span>,
+    <span class="hljs-attr">"usage"</span>: <span class="hljs-number">4.256510416666667</span>
+  },
+  <span class="hljs-attr">"bandwidthOut"</span>: {
+    <span class="hljs-attr">"limit"</span>: <span class="hljs-number">10240000.0</span>,
+    <span class="hljs-attr">"usage"</span>: <span class="hljs-number">5.287239583333333</span>
+  },
+  <span class="hljs-attr">"bundles"</span>: [],
+  <span class="hljs-attr">"cpu"</span>: {
+    <span class="hljs-attr">"limit"</span>: <span class="hljs-number">2400.0</span>,
+    <span class="hljs-attr">"usage"</span>: <span class="hljs-number">5.7353247655435915</span>
+  },
+  <span class="hljs-attr">"directMemory"</span>: {
+    <span class="hljs-attr">"limit"</span>: <span class="hljs-number">16384.0</span>,
+    <span class="hljs-attr">"usage"</span>: <span class="hljs-number">1.0</span>
+  }
+}
+</code></pre>
+<p>With the simple load manager, the load report in <code>/loadbalance/brokers/...</code> will look like this:</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"systemResourceUsage"</span>: {
+    <span class="hljs-attr">"bandwidthIn"</span>: {
+      <span class="hljs-attr">"limit"</span>: <span class="hljs-number">10240000.0</span>,
+      <span class="hljs-attr">"usage"</span>: <span class="hljs-number">0.0</span>
+    },
+    <span class="hljs-attr">"bandwidthOut"</span>: {
+      <span class="hljs-attr">"limit"</span>: <span class="hljs-number">10240000.0</span>,
+      <span class="hljs-attr">"usage"</span>: <span class="hljs-number">0.0</span>
+    },
+    <span class="hljs-attr">"cpu"</span>: {
+      <span class="hljs-attr">"limit"</span>: <span class="hljs-number">2400.0</span>,
+      <span class="hljs-attr">"usage"</span>: <span class="hljs-number">0.0</span>
+    },
+    <span class="hljs-attr">"directMemory"</span>: {
+      <span class="hljs-attr">"limit"</span>: <span class="hljs-number">16384.0</span>,
+      <span class="hljs-attr">"usage"</span>: <span class="hljs-number">1.0</span>
+    },
+    <span class="hljs-attr">"memory"</span>: {
+      <span class="hljs-attr">"limit"</span>: <span class="hljs-number">8192.0</span>,
+      <span class="hljs-attr">"usage"</span>: <span class="hljs-number">3903.0</span>
+    }
+  }
+}
+</code></pre></li>
+<li><p>The command-line <a href="/docs/zh-TW/2.8.3/reference-cli-tools#monitor-brokers">broker monitor</a> will have a different output format depending on which load manager implementation is being used.</p>
+<p>Here is an example from the modular load manager:</p>
+<pre><code class="hljs">===================================================================================================================
+||<span class="hljs-string">SYSTEM         </span>|<span class="hljs-string">CPU %          </span>|<span class="hljs-string">MEMORY %       </span>|<span class="hljs-string">DIRECT %       </span>|<span class="hljs-string">BW IN %        </span>|<span class="hljs-string">BW OUT %       </span>|<span class="hljs-string">MAX %          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">48.33          </span>|<span class="hljs-string">0.01           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">48.33          </span>||
+||<span class="hljs-string">COUNT          </span>|<span class="hljs-string">TOPIC          </span>|<span class="hljs-string">BUNDLE         </span>|<span class="hljs-string">PRODUCER       </span>|<span class="hljs-string">CONSUMER       </span>|<span class="hljs-string">BUNDLE +       </span>|<span class="hljs-string">BUNDLE -       </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">4              </span>|<span class="hljs-string">4              </span>|<span class="hljs-string">0              </span>|<span class="hljs-string">2              </span>|<span class="hljs-string">4              </span>|<span class="hljs-string">0              </span>||
+||<span class="hljs-string">LATEST         </span>|<span class="hljs-string">MSG/S IN       </span>|<span class="hljs-string">MSG/S OUT      </span>|<span class="hljs-string">TOTAL          </span>|<span class="hljs-string">KB/S IN        </span>|<span class="hljs-string">KB/S OUT       </span>|<span class="hljs-string">TOTAL          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>||
+||<span class="hljs-string">SHORT          </span>|<span class="hljs-string">MSG/S IN       </span>|<span class="hljs-string">MSG/S OUT      </span>|<span class="hljs-string">TOTAL          </span>|<span class="hljs-string">KB/S IN        </span>|<span class="hljs-string">KB/S OUT       </span>|<span class="hljs-string">TOTAL          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>||
+||<span class="hljs-string">LONG           </span>|<span class="hljs-string">MSG/S IN       </span>|<span class="hljs-string">MSG/S OUT      </span>|<span class="hljs-string">TOTAL          </span>|<span class="hljs-string">KB/S IN        </span>|<span class="hljs-string">KB/S OUT       </span>|<span class="hljs-string">TOTAL          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>||
+===================================================================================================================
+</code></pre>
+<p>Here is an example from the simple load manager:</p>
+<pre><code class="hljs">===================================================================================================================
+||<span class="hljs-string">COUNT          </span>|<span class="hljs-string">TOPIC          </span>|<span class="hljs-string">BUNDLE         </span>|<span class="hljs-string">PRODUCER       </span>|<span class="hljs-string">CONSUMER       </span>|<span class="hljs-string">BUNDLE +       </span>|<span class="hljs-string">BUNDLE -       </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">4              </span>|<span class="hljs-string">4              </span>|<span class="hljs-string">0              </span>|<span class="hljs-string">2              </span>|<span class="hljs-string">0              </span>|<span class="hljs-string">0              </span>||
+||<span class="hljs-string">RAW SYSTEM     </span>|<span class="hljs-string">CPU %          </span>|<span class="hljs-string">MEMORY %       </span>|<span class="hljs-string">DIRECT %       </span>|<span class="hljs-string">BW IN %        </span>|<span class="hljs-string">BW OUT %       </span>|<span class="hljs-string">MAX %          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.25           </span>|<span class="hljs-string">47.94          </span>|<span class="hljs-string">0.01           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">47.94          </span>||
+||<span class="hljs-string">ALLOC SYSTEM   </span>|<span class="hljs-string">CPU %          </span>|<span class="hljs-string">MEMORY %       </span>|<span class="hljs-string">DIRECT %       </span>|<span class="hljs-string">BW IN %        </span>|<span class="hljs-string">BW OUT %       </span>|<span class="hljs-string">MAX %          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.20           </span>|<span class="hljs-string">1.89           </span>|<span class="hljs-string">               </span>|<span class="hljs-string">1.27           </span>|<span class="hljs-string">3.21           </span>|<span class="hljs-string">3.21           </span>||
+||<span class="hljs-string">RAW MSG        </span>|<span class="hljs-string">MSG/S IN       </span>|<span class="hljs-string">MSG/S OUT      </span>|<span class="hljs-string">TOTAL          </span>|<span class="hljs-string">KB/S IN        </span>|<span class="hljs-string">KB/S OUT       </span>|<span class="hljs-string">TOTAL          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.00           </span>|<span class="hljs-string">0.01           </span>|<span class="hljs-string">0.01           </span>|<span class="hljs-string">0.01           </span>||
+||<span class="hljs-string">ALLOC MSG      </span>|<span class="hljs-string">MSG/S IN       </span>|<span class="hljs-string">MSG/S OUT      </span>|<span class="hljs-string">TOTAL          </span>|<span class="hljs-string">KB/S IN        </span>|<span class="hljs-string">KB/S OUT       </span>|<span class="hljs-string">TOTAL          </span>||
+||<span class="hljs-string">               </span>|<span class="hljs-string">54.84          </span>|<span class="hljs-string">134.48         </span>|<span class="hljs-string">189.31         </span>|<span class="hljs-string">126.54         </span>|<span class="hljs-string">320.96         </span>|<span class="hljs-string">447.50         </span>||
+===================================================================================================================
+</code></pre></li>
+</ol>
+<p>It is important to note that the module load manager is <em>centralized</em>, meaning that all requests to assign a bundle---whether it's been seen before or whether this is the first time---only get handled by the <em>lead</em> broker (which can change over time). To determine the current lead broker, examine the <code>/loadbalance/leader</code> node in ZooKeeper.</p>
+<h2><a class="anchor" aria-hidden="true" id="implementation"></a><a href="#implementation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Implementation</h2>
+<h3><a class="anchor" aria-hidden="true" id="data"></a><a href="#data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Data</h3>
+<p>The data monitored by the modular load manager is contained in the <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/LoadData.java"><code>LoadData</code></a> class. Here, the available data is subdivided into the bundle data and the broker data.</p>
+<h4><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h4>
+<p>The broker data is contained in the <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BrokerData.java"><code>BrokerData</code></a> class. It is further subdivided into two parts, one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker data which is written to ZooKeeper by the leader broker.</p>
+<h5><a class="anchor" aria-hidden="true" id="local-broker-data"></a><a href="#local-broker-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Local Broker Data</h5>
+<p>The local broker data is contained in the class <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/java/org/apache/pulsar/policies/data/loadbalancer/LocalBrokerData.java"><code>LocalBrokerData</code></a> and provides information about the following resources:</p>
+<ul>
+<li>CPU usage</li>
+<li>JVM heap memory usage</li>
+<li>Direct memory usage</li>
+<li>Bandwidth in/out usage</li>
+<li>Most recent total message rate in/out across all bundles</li>
+<li>Total number of topics, bundles, producers, and consumers</li>
+<li>Names of all bundles assigned to this broker</li>
+<li>Most recent changes in bundle assignments for this broker</li>
+</ul>
+<p>The local broker data is updated periodically according to the service configuration &quot;loadBalancerReportUpdateMaxIntervalMinutes&quot;. After any broker updates their local broker data, the leader broker will receive the update immediately via a ZooKeeper watch, where the local data is read from the ZooKeeper node <code>/loadbalance/brokers/&lt;broker host/port&gt;</code></p>
+<h5><a class="anchor" aria-hidden="true" id="historical-broker-data"></a><a href="#historical-broker-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Historical Broker Data</h5>
+<p>The historical broker data is contained in the <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/TimeAverageBrokerData.java"><code>TimeAverageBrokerData</code></a> class.</p>
+<p>In order to reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the long-term data for steady-state decisions. Both time frames maintain the following information:</p>
+<ul>
+<li>Message rate in/out for the entire broker</li>
+<li>Message throughput in/out for the entire broker</li>
+</ul>
+<p>Unlike the bundle data, the broker data does not maintain samples for the global broker message rates and throughputs, which is not expected to remain steady as new bundles are removed or added. Instead, this data is aggregated over the short-term and long-term data for the bundles. See the section on bundle data to understand how that data is collected and maintained.</p>
+<p>The historical broker data is updated for each broker in memory by the leader broker whenever any broker writes their local data to ZooKeeper. Then, the historical data is written to ZooKeeper by the leader broker periodically according to the configuration <code>loadBalancerResourceQuotaUpdateIntervalMinutes</code>.</p>
+<h5><a class="anchor" aria-hidden="true" id="bundle-data"></a><a href="#bundle-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bundle Data</h5>
+<p>The bundle data is contained in the <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BundleData.java"><code>BundleData</code></a>. Like the historical broker data, the bundle data is split into a short-term and a long-term time frame. The information maintained in each time frame:</p>
+<ul>
+<li>Message rate in/out for this bundle</li>
+<li>Message Throughput In/Out for this bundle</li>
+<li>Current number of samples for this bundle</li>
+</ul>
+<p>The time frames are implemented by maintaining the average of these values over a set, limited number of samples, where the samples are obtained through the message rate and throughput values in the local data. Thus, if the update interval for the local data is 2 minutes, the number of short samples is 10 and the number of long samples is 1000, the short-term data is maintained over a period of <code>10 samples * 2 minutes / sample = 20 minutes</code>, while the long-term data is similarly over a period of 2000 minutes. Whenever there are not enough samples to satisfy a given time frame, the average is taken only over the existing samples. When no samples are available, default values are assumed until they are overwritten by the first sample. Currently, the default values are</p>
+<ul>
+<li>Message rate in/out: 50 messages per second both ways</li>
+<li>Message throughput in/out: 50KB per second both ways</li>
+</ul>
+<p>The bundle data is updated in memory on the leader broker whenever any broker writes their local data to ZooKeeper. Then, the bundle data is written to ZooKeeper by the leader broker periodically at the same time as the historical broker data, according to the configuration <code>loadBalancerResourceQuotaUpdateIntervalMinutes</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="traffic-distribution"></a><a href="#traffic-distribution" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Traffic Distribution</h3>
+<p>The modular load manager uses the abstraction provided by <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.java"><code>ModularLoadManagerStrategy</code></a> to make decisions about bundle assignment. The strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the bundle to be assigned. Currently, the only supported strategy is <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.java"><code>LeastLongTermMessageRate</code></a>, though soon users will have the ability to inject their own strategies if desired.</p>
+<h4><a class="anchor" aria-hidden="true" id="least-long-term-message-rate-strategy"></a><a href="#least-long-term-message-rate-strategy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Least Long Term Message Rate Strategy</h4>
+<p>As its name suggests, the least long term message rate strategy attempts to distribute bundles across brokers so that the message rate in the long-term time window for each broker is roughly the same. However, simply balancing load based on message rate does not handle the issue of asymmetric resource burden per message on each broker. Thus, the system resource usages, which are CPU, memory, direct memory, bandwidth in, and bandwidth out, are also considered in the assignment process. This is done by weighting the final message rate according to <code>1 / (overload_threshold - max_usage)</code>, where <code>overload_threshold</code> corresponds to the configuration <code>loadBalancerBrokerOverloadedThresholdPercentage</code> and <code>max_usage</code> is the maximum proportion among the system resources that is being utilized by the candidate broker. This multiplier ensures that machines with are being more heavily taxed by the same message rates will receive less load. In particular, it tries to ensure that if one machine is overloaded, then all machines are approximately overloaded. In the case in which a broker's max usage exceeds the overload threshold, that broker is not considered for bundle assignment. If all brokers are overloaded, the bundle is randomly assigned.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/develop-schema"><span class="arrow-prev">← </span><span>Previous</span></a><a class="docs-next button" href="/docs/zh-TW/2.8.3/reference-terminology"><span>Terminology</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#usage">Usage</a></li><li><a href="#verification">Verification</a></li><li><a href="#implementation">Implementation</a><ul class="toc-headings"><li><a href="#data">Data</a></li><li><a href="#traffic-distribution">Traffic Distribution</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

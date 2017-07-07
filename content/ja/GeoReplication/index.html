@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar ジオレプリケーション</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar ジオレプリケーション</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <h2 id="レプリケーションモデル">レプリケーションモデル</h2>
+
+<p>複数のクラスタを設定されたプロパティはそれらのクラスタ間においてレプリケーションを有効にできます。レプリケーションはネームスペースレベルで利用者が直接管理します。グローバルネームスペース内のすべてのトピックがレプリケートされます。利用者はグローバルネームスペースを作成し、2つあるいはそれ以上のクラスタ間でレプリケートされるよう設定します。そのネームスペース内のトピックに発行されたすべてのメッセージは、設定したすべてのクラスタにレプリケートされます。</p>
+
+<p>メッセージはまずローカルクラスタに永続化され、そして非同期にリモートクラスタに転送されます。</p>
+
+<p>通常時、接続の問題がない場合、メッセージはローカルのConsumerに配信されると同時に即座にレプリケートされます。一般的にend-to-endの配送にかかるレイテンシはリモートの地域間のネットワーク<em>RTT</em> (Round Trip Time; 往復遅延時間) によって定義されます。</p>
+
+<p>アプリケーションはリモートクラスタが到達不可能 (例. ネットワークが分離されている状況) であっても、ProducerとConsumerをどのクラスタにも作ることができます。</p>
+
+<p>サブスクリプションはそれが作成されたクラスタ内に閉じており、クラスタ間で転送されることはありません。</p>
+
+<p><img src="../../img/GeoReplication.png" alt="Replication Diagram" /></p>
+
+<p>上の例ではトピックは<strong><em>Cluster-A</em></strong>, <strong><em>Cluster-B</em></strong>, <strong><em>Cluster-C</em></strong>という3つのクラスタにレプリケートされます。</p>
+
+<p>任意のクラスタにproduceされたすべてのメッセージはすべてのクラスタのすべてのサブスクリプションに配送されます。この例では、<strong><em>C1</em></strong>と<strong><em>C2</em></strong>の両方は<strong><em>P1</em></strong>, <strong><em>P2</em></strong>, <strong><em>P3</em></strong>に発行されたすべてのメッセージを受け取ります。Producerごとのメッセージの順序は保証されます。</p>
+
+<h2 id="レプリケーション設定">レプリケーション設定</h2>
+
+<h3 id="プロパティへの権限付与">プロパティへの権限付与</h3>
+
+<p>クラスタ間のレプリケーションを行うため、テナントにクラスタを利用する権限が必要です。この権限はプロパティ作成時に付与するか、後で更新できます。</p>
+
+<p>作成時、利用したいクラスタを指定します:</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property    <span class="se">\</span>
+        --admin-roles my-admin-role                 <span class="se">\</span>
+        --allowed-clusters us-west,us-east,us-cent
+</code></pre>
+</div>
+
+<p>既存のプロパティの権限を更新する際は、<code class="highlighter-rouge">create</code>の代わりに<code class="highlighter-rouge">update</code>を使用します。</p>
+
+<h3 id="グローバルネームスペースの作成">グローバルネームスペースの作成</h3>
+
+<p>レプリケーションを利用するためには<em>グローバル</em>トピック、すなわちグローバルネームスペースに属し、特定のクラスタに紐付けられていないトピックが必要となります。</p>
+
+<p>グローバルネームスペースは<strong><em>global</em></strong>仮想クラスタの中に作成される必要があります:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
+</code></pre>
+</div>
+
+<p>最初はネームスペースはどのクラスタにも紐付けられていません。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces <span class="nb">set</span>-clusters
+                          my-property/global/my-namespace <span class="se">\</span>
+                          --clusters us-west,us-east,us-cent
+</code></pre>
+</div>
+
+<p>ネームスペースのレプリケーション先クラスタは進行中のトラフィックを中断することなく、いつでも変更が可能です。設定が変更されると即座にすべてのクラスタのレプリケーションチャンネルはセットアップあるいは停止されます。</p>
+
+<h3 id="グローバルトピックの利用">グローバルトピックの利用</h3>
+
+<p>この時点でProducerまたはConsumerを単に作成すれば、自動的にグローバルトピックを作成できます。</p>
+
+<p>一般的に各アプリケーションはローカルクラスタの<code class="highlighter-rouge">serviceUrl</code>を使用します。</p>
+
+<h4 id="選択的レプリケーション">選択的レプリケーション</h4>
+
+<p>デフォルトでは、メッセージはネームスペースに設定されているすべてのクラスタにレプリケートされます。メッセージのレプリケーションリストを指定することでレプリケーション先を制限できます。するとメッセージは一部のクラスタのみにレプリケートされます。</p>
+
+<p>Java APIでは、これは<code class="highlighter-rouge">MessageBuilder</code>において行われます:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">...</span>
+<span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;();</span>
+<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>
+<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-east"</span><span class="o">);</span>
+
+<span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
+              <span class="o">.</span><span class="na">setContent</span><span class="o">(</span><span class="s">"my-payload"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
+              <span class="o">.</span><span class="na">setReplicationClusters</span><span class="o">(</span><span class="n">restrictReplicationTo</span><span class="o">)</span>
+              <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+<span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">message</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h4 id="トピックの統計情報">トピックの統計情報</h4>
+
+<p>グローバルトピックの統計情報は通常のトピックと同じAPIとツールによって取得できます:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
+</code></pre>
+</div>
+
+<p>各クラスタは入力/出力のレプリケーションのレートおよびバックログを含む自身の統計情報をレポートします。</p>
+
+<h4 id="グローバルトピックの削除">グローバルトピックの削除</h4>
+
+<p>複数の地域に存在するグローバルトピックを直接削除はできません。削除の処理は自動的に行われるトピックのガベージコレクションに依存します。</p>
+
+<p>Pulsarではトピックがもう利用されていないとき、すなわちProducerまたはConsumerが一つも接続しておらず、<strong><em>かつ</em></strong>サブスクリプションが存在しないときに自動的に削除されます。</p>
+
+<p>グローバルトピックにおいて、各地域はフォールトトレラントな仕組みを使用して、そのトピックをいつローカルで削除するのが安全かを判断します。</p>
+
+<p>グローバルトピックを削除するために、そのトピックのすべてのProducerとConsumerを閉じ、すべてのレプリケーション先クラスタにおけるローカルなサブスクリプションを削除します。Pulsarがシステム内に有効なサブスクリプションが残っていないと判断すると、そのトピックをガベージコレクトします。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

@@ -1,0 +1,3470 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Pulsarの設定</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsarの設定</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarの設定は<a href="../../getting-started/LocalCluster">インストール</a>される<a href="https://github.com/apache/incubator-pulsar/tree/master/conf"><code class="highlighter-rouge">conf</code></a>ディレクトリ内の一連の設定ファイルにより管理することができます。</p>
+
+<ul>
+  <li><a href="#bookkeeper">BookKeeper</a></li>
+  <li><a href="#broker">Broker</a></li>
+  <li><a href="#クライアント">クライアント</a></li>
+  <li><a href="#サービスディスカバリ">サービスディスカバリ</a></li>
+  <li><a href="#global-zookeeper">Global ZooKeeper</a></li>
+  <li><a href="#log4j">Log4j</a></li>
+  <li><a href="#log4j-shell">Log4j shell</a></li>
+  <li><a href="#スタンドアローン">スタンドアローン</a></li>
+  <li><a href="#websocket">WebSocket</a></li>
+  <li><a href="#zookeeper">ZooKeeper</a></li>
+</ul>
+
+<h2 id="bookkeeper">BookKeeper</h2>
+
+<p><span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>は分散型のログストレージシステムで、Pulsarではメッセージの永続ストレージとして利用しています。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="bookkeeper-bookiePort">
+      <td>bookiePort</td>
+      <td>The port on which the bookie server listens.
+</td>
+      <td>3181</td>
+    </tr>
+    
+    <tr id="bookkeeper-allowLoopback">
+      <td>allowLoopback</td>
+      <td>Whether the bookie is allowed to use a loopback interface as its primary interface (i.e. the interface used to establish its identity). By default, loopback interfaces are not allowed as the primary interface.
+
+Using a loopback interface as the primary interface usually indicates a configuration error. For example, it’s fairly common in some VPS setups to not configure a hostname or to have the hostname resolve to <code class="highlighter-rouge">127.0.0.1</code>. If this is the case, then all bookies in the cluster will establish their identities as <code class="highlighter-rouge">127.0.0.1:3181</code> and only one will be able to join the cluster. For VPSs configured like this, you should explicitly set the listening interface.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="bookkeeper-listeningInterface">
+      <td>listeningInterface</td>
+      <td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.
+</td>
+      <td>eth0</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalDirectory">
+      <td>journalDirectory</td>
+      <td>The directory where Bookkeeper outputs its write-ahead log (WAL)
+</td>
+      <td>data/bookkeeper/journal</td>
+    </tr>
+    
+    <tr id="bookkeeper-ledgerDirectories">
+      <td>ledgerDirectories</td>
+      <td>The directory where Bookkeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by comma, for example <code class="highlighter-rouge">ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>.
+
+Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.
+</td>
+      <td>data/bookkeeper/ledgers</td>
+    </tr>
+    
+    <tr id="bookkeeper-ledgerManagerType">
+      <td>ledgerManagerType</td>
+      <td>The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See <a href="http://bookkeeper.apache.org/docs/r4.4.0/bookkeeperInternals.html">BookKeeper Internals</a> for more info.
+</td>
+      <td>hierarchical</td>
+    </tr>
+    
+    <tr id="bookkeeper-zkLedgersRootPath">
+      <td>zkLedgersRootPath</td>
+      <td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.
+</td>
+      <td>/ledgers</td>
+    </tr>
+    
+    <tr id="bookkeeper-ledgerStorageClass">
+      <td>ledgerStorageClass</td>
+      <td>Ledger storage implementation class
+</td>
+      <td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td>
+    </tr>
+    
+    <tr id="bookkeeper-entryLogFilePreallocationEnabled">
+      <td>entryLogFilePreallocationEnabled</td>
+      <td>Enable or disable entry logger preallocation
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="bookkeeper-logSizeLimit">
+      <td>logSizeLimit</td>
+      <td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.
+</td>
+      <td>2147483648</td>
+    </tr>
+    
+    <tr id="bookkeeper-minorCompactionThreshold">
+      <td>minorCompactionThreshold</td>
+      <td>Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.
+</td>
+      <td>0.2</td>
+    </tr>
+    
+    <tr id="bookkeeper-minorCompactionInterval">
+      <td>minorCompactionInterval</td>
+      <td>Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled.
+</td>
+      <td>3600</td>
+    </tr>
+    
+    <tr id="bookkeeper-majorCompactionThreshold">
+      <td>majorCompactionThreshold</td>
+      <td>The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.
+</td>
+      <td>0.5</td>
+    </tr>
+    
+    <tr id="bookkeeper-majorCompactionInterval">
+      <td>majorCompactionInterval</td>
+      <td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled.
+</td>
+      <td>86400</td>
+    </tr>
+    
+    <tr id="bookkeeper-compactionMaxOutstandingRequests">
+      <td>compactionMaxOutstandingRequests</td>
+      <td>Sets the maximum number of entries that can be compacted without flushing. When compacting, the entries are written to the entrylog and the new offsets are cached in memory. Once the entrylog is flushed the index is updated with the new offsets. This parameter controls the number of entries added to the entrylog before a flush is forced. A higher value for this parameter means more memory will be used for offsets. Each offset consists of 3 longs. This parameter should <em>not</em> be modified unless you’re fully aware of the consequences.
+</td>
+      <td>100000</td>
+    </tr>
+    
+    <tr id="bookkeeper-compactionRate">
+      <td>compactionRate</td>
+      <td>The rate at which compaction will read entries, in adds per second.
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="bookkeeper-isThrottleByBytes">
+      <td>isThrottleByBytes</td>
+      <td>Throttle compaction by bytes or by entries.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="bookkeeper-compactionRateByEntries">
+      <td>compactionRateByEntries</td>
+      <td>The rate at which compaction will read entries, in adds per second.
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="bookkeeper-compactionRateByBytes">
+      <td>compactionRateByBytes</td>
+      <td>Set the rate at which compaction will readd entries. The unit is bytes added per second.
+</td>
+      <td>1000000</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalMaxSizeMB">
+      <td>journalMaxSizeMB</td>
+      <td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.
+</td>
+      <td>2048</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalMaxBackups">
+      <td>journalMaxBackups</td>
+      <td>The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalPreAllocSizeMB">
+      <td>journalPreAllocSizeMB</td>
+      <td>How space to pre-allocate at a time in the journal.
+</td>
+      <td>16</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalWriteBufferSizeKB">
+      <td>journalWriteBufferSizeKB</td>
+      <td>The of the write buffers used for the journal.
+</td>
+      <td>64</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalRemoveFromPageCache">
+      <td>journalRemoveFromPageCache</td>
+      <td>Whether pages should be removed from the page cache after force write.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalAdaptiveGroupWrites">
+      <td>journalAdaptiveGroupWrites</td>
+      <td>Whether to group journal force writes, which optimizes group commit for higher throughput.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalMaxGroupWaitMSec">
+      <td>journalMaxGroupWaitMSec</td>
+      <td>The maximum latency to impose on a journal write to achieve grouping.
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalAlignmentSize">
+      <td>journalAlignmentSize</td>
+      <td>All the journal writes and commits should be aligned to given size
+</td>
+      <td>4096</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalBufferedWritesThreshold">
+      <td>journalBufferedWritesThreshold</td>
+      <td>Maximum writes to buffer to achieve grouping
+</td>
+      <td>524288</td>
+    </tr>
+    
+    <tr id="bookkeeper-journalFlushWhenQueueEmpty">
+      <td>journalFlushWhenQueueEmpty</td>
+      <td>If we should flush the journal when journal queue is empty
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="bookkeeper-numJournalCallbackThreads">
+      <td>numJournalCallbackThreads</td>
+      <td>The number of threads that should handle journal callbacks
+</td>
+      <td>8</td>
+    </tr>
+    
+    <tr id="bookkeeper-rereplicationEntryBatchSize">
+      <td>rereplicationEntryBatchSize</td>
+      <td>The number of max entries to keep in fragment for re-replication
+</td>
+      <td>5000</td>
+    </tr>
+    
+    <tr id="bookkeeper-gcWaitTime">
+      <td>gcWaitTime</td>
+      <td>How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.
+</td>
+      <td>900000</td>
+    </tr>
+    
+    <tr id="bookkeeper-gcOverreplicatedLedgerWaitTime">
+      <td>gcOverreplicatedLedgerWaitTime</td>
+      <td>How long the interval to trigger next garbage collection of overreplicated ledgers, in milliseconds. This should not be run very frequently since we read the metadata for all the ledgers on the bookie from zk.
+</td>
+      <td>86400000</td>
+    </tr>
+    
+    <tr id="bookkeeper-flushInterval">
+      <td>flushInterval</td>
+      <td>How long the interval to flush ledger index pages to disk, in milliseconds. Flushing index files will introduce much random disk I/O. If separating journal dir and ledger dirs each on different devices, flushing would not affect performance. But if putting journal dir and ledger dirs on same device, performance degrade significantly on too frequent flushing. You can consider increment flush interval to get better performance, but you need to pay more time on bookie server restart after failure.
+</td>
+      <td>60000</td>
+    </tr>
+    
+    <tr id="bookkeeper-bookieDeathWatchInterval">
+      <td>bookieDeathWatchInterval</td>
+      <td>Interval to watch whether bookie is dead or not, in milliseconds
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="bookkeeper-zkServers">
+      <td>zkServers</td>
+      <td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.
+</td>
+      <td>localhost:2181</td>
+    </tr>
+    
+    <tr id="bookkeeper-zkTimeout">
+      <td>zkTimeout</td>
+      <td>ZooKeeper client session timeout in milliseconds Bookie server will exit if it received SESSION_EXPIRED because it was partitioned off from ZooKeeper for more than the session timeout JVM garbage collection, disk I/O will cause SESSION_EXPIRED. Increment this value could help avoiding this issue
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="bookkeeper-serverTcpNoDelay">
+      <td>serverTcpNoDelay</td>
+      <td>This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="bookkeeper-openFileLimit">
+      <td>openFileLimit</td>
+      <td>Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="bookkeeper-pageSize">
+      <td>pageSize</td>
+      <td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficent when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.
+</td>
+      <td>8192</td>
+    </tr>
+    
+    <tr id="bookkeeper-pageLimit">
+      <td>pageLimit</td>
+      <td>How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain bettern performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="bookkeeper-readOnlyModeEnabled">
+      <td>readOnlyModeEnabled</td>
+      <td>If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="bookkeeper-diskUsageThreshold">
+      <td>diskUsageThreshold</td>
+      <td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).
+</td>
+      <td>0.95</td>
+    </tr>
+    
+    <tr id="bookkeeper-diskCheckInterval">
+      <td>diskCheckInterval</td>
+      <td>Disk check interval in milli seconds, interval to check the ledger dirs usage.
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="bookkeeper-auditorPeriodicCheckInterval">
+      <td>auditorPeriodicCheckInterval</td>
+      <td>Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.
+</td>
+      <td>604800</td>
+    </tr>
+    
+    <tr id="bookkeeper-auditorPeriodicBookieCheckInterval">
+      <td>auditorPeriodicBookieCheckInterval</td>
+      <td>The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.
+</td>
+      <td>86400</td>
+    </tr>
+    
+    <tr id="bookkeeper-numAddWorkerThreads">
+      <td>numAddWorkerThreads</td>
+      <td>number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="bookkeeper-numReadWorkerThreads">
+      <td>numReadWorkerThreads</td>
+      <td>number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.
+</td>
+      <td>8</td>
+    </tr>
+    
+    <tr id="bookkeeper-maxPendingReadRequestsPerThread">
+      <td>maxPendingReadRequestsPerThread</td>
+      <td>If read workers threads are enabled, limit the number of pending requests, to avoid the executor queue to grow indefinitely.
+</td>
+      <td>2500</td>
+    </tr>
+    
+    <tr id="bookkeeper-readBufferSizeBytes">
+      <td>readBufferSizeBytes</td>
+      <td>The number of bytes we should use as capacity for <code class="highlighter-rouge">BufferedReadChannel</code>.
+</td>
+      <td>4096</td>
+    </tr>
+    
+    <tr id="bookkeeper-writeBufferSizeBytes">
+      <td>writeBufferSizeBytes</td>
+      <td>The number of bytes used as capacity for the write buffer
+</td>
+      <td>65536</td>
+    </tr>
+    
+    <tr id="bookkeeper-useHostNameAsBookieID">
+      <td>useHostNameAsBookieID</td>
+      <td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When <code class="highlighter-rouge">false</code>, bookie will use its ipaddress for the registration.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="bookkeeper-statsProviderClass">
+      <td>statsProviderClass</td>
+      <td>
+</td>
+      <td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td>
+    </tr>
+    
+    <tr id="bookkeeper-prometheusStatsHttpPort">
+      <td>prometheusStatsHttpPort</td>
+      <td>
+</td>
+      <td>8000</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_writeCacheMaxSizeMb">
+      <td>dbStorage_writeCacheMaxSizeMb</td>
+      <td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub
+</td>
+      <td>512</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_readAheadCacheMaxSizeMb">
+      <td>dbStorage_readAheadCacheMaxSizeMb</td>
+      <td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens
+</td>
+      <td>256</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_readAheadCacheBatchSize">
+      <td>dbStorage_readAheadCacheBatchSize</td>
+      <td>How many entries to pre-fill in cache after a read cache miss
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_blockCacheSize">
+      <td>dbStorage_rocksDB_blockCacheSize</td>
+      <td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases
+</td>
+      <td>268435456</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_writeBufferSizeMB">
+      <td>dbStorage_rocksDB_writeBufferSizeMB</td>
+      <td>
+</td>
+      <td>64</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_sstSizeInMB">
+      <td>dbStorage_rocksDB_sstSizeInMB</td>
+      <td>
+</td>
+      <td>64</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_blockSize">
+      <td>dbStorage_rocksDB_blockSize</td>
+      <td>
+</td>
+      <td>65536</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_bloomFilterBitsPerKey">
+      <td>dbStorage_rocksDB_bloomFilterBitsPerKey</td>
+      <td>
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_numLevels">
+      <td>dbStorage_rocksDB_numLevels</td>
+      <td>
+</td>
+      <td>-1</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_numFilesInLevel0">
+      <td>dbStorage_rocksDB_numFilesInLevel0</td>
+      <td>
+</td>
+      <td>4</td>
+    </tr>
+    
+    <tr id="bookkeeper-dbStorage_rocksDB_maxSizeInLevel1MB">
+      <td>dbStorage_rocksDB_maxSizeInLevel1MB</td>
+      <td>
+</td>
+      <td>256</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="broker">Broker</h2>
+
+<p>Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>は<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>から受信するメッセージの処理、<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>へのメッセージのディスパッチ、<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>間でのデータの複製などを担当しています。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="broker-enablePersistentTopics">
+      <td>enablePersistentTopics</td>
+      <td>Whether persistent topics are enabled on the broker
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-enableNonPersistentTopics">
+      <td>enableNonPersistentTopics</td>
+      <td>Whether non-persistent topics are enabled on the broker
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-functionsWorkerEnabled">
+      <td>functionsWorkerEnabled</td>
+      <td>Whether the Pulsar Functions worker service is enabled in the broker
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-zookeeperServers">
+      <td>zookeeperServers</td>
+      <td>Zookeeper quorum connection string
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-globalZookeeperServers">
+      <td>globalZookeeperServers</td>
+      <td>Global Zookeeper quorum connection string
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-brokerServicePort">
+      <td>brokerServicePort</td>
+      <td>Broker data port
+</td>
+      <td>6650</td>
+    </tr>
+    
+    <tr id="broker-brokerServicePortTls">
+      <td>brokerServicePortTls</td>
+      <td>Broker data port for TLS
+</td>
+      <td>6651</td>
+    </tr>
+    
+    <tr id="broker-webServicePort">
+      <td>webServicePort</td>
+      <td>Port to use to server HTTP request
+</td>
+      <td>8080</td>
+    </tr>
+    
+    <tr id="broker-webServicePortTls">
+      <td>webServicePortTls</td>
+      <td>Port to use to server HTTPS request
+</td>
+      <td>8443</td>
+    </tr>
+    
+    <tr id="broker-webSocketServiceEnabled">
+      <td>webSocketServiceEnabled</td>
+      <td>Enable the WebSocket API service in broker
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-bindAddress">
+      <td>bindAddress</td>
+      <td>Hostname or IP address the service binds on, default is 0.0.0.0.
+</td>
+      <td>0.0.0.0</td>
+    </tr>
+    
+    <tr id="broker-advertisedAddress">
+      <td>advertisedAddress</td>
+      <td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code class="highlighter-rouge">InetAddress.getLocalHost().getHostName()</code> is used.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-clusterName">
+      <td>clusterName</td>
+      <td>Name of the cluster to which this broker belongs to
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationEnabled">
+      <td>brokerDeduplicationEnabled</td>
+      <td>Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationMaxNumberOfProducers">
+      <td>brokerDeduplicationMaxNumberOfProducers</td>
+      <td>The maximum number of producers for which information will be stored for deduplication purposes.
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationEntriesInterval">
+      <td>brokerDeduplicationEntriesInterval</td>
+      <td>The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationProducerInactivityTimeoutMinutes">
+      <td>brokerDeduplicationProducerInactivityTimeoutMinutes</td>
+      <td>The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
+</td>
+      <td>360</td>
+    </tr>
+    
+    <tr id="broker-zooKeeperSessionTimeoutMillis">
+      <td>zooKeeperSessionTimeoutMillis</td>
+      <td>Zookeeper session timeout in milliseconds
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="broker-brokerShutdownTimeoutMs">
+      <td>brokerShutdownTimeoutMs</td>
+      <td>Time to wait for broker graceful shutdown. After this time elapses, the process will be killed
+</td>
+      <td>3000</td>
+    </tr>
+    
+    <tr id="broker-backlogQuotaCheckEnabled">
+      <td>backlogQuotaCheckEnabled</td>
+      <td>Enable backlog quota check. Enforces action on topic when the quota is reached
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-backlogQuotaCheckIntervalInSeconds">
+      <td>backlogQuotaCheckIntervalInSeconds</td>
+      <td>How often to check for topics that have reached the quota
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="broker-backlogQuotaDefaultLimitGB">
+      <td>backlogQuotaDefaultLimitGB</td>
+      <td>Default per-topic backlog quota limit
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="broker-brokerDeleteInactiveTopicsEnabled">
+      <td>brokerDeleteInactiveTopicsEnabled</td>
+      <td>Enable the deletion of inactive topics
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-brokerDeleteInactiveTopicsFrequencySeconds">
+      <td>brokerDeleteInactiveTopicsFrequencySeconds</td>
+      <td>How often to check for inactive topics
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="broker-messageExpiryCheckIntervalInMinutes">
+      <td>messageExpiryCheckIntervalInMinutes</td>
+      <td>How frequently to proactively check and purge expired messages
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="broker-brokerServiceCompactionMonitorIntervalInSeconds">
+      <td>brokerServiceCompactionMonitorIntervalInSeconds</td>
+      <td>Interval between checks to see if topics with compaction policies need to be compacted
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="broker-activeConsumerFailoverDelayTimeMillis">
+      <td>activeConsumerFailoverDelayTimeMillis</td>
+      <td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-clientLibraryVersionCheckEnabled">
+      <td>clientLibraryVersionCheckEnabled</td>
+      <td>Enable check for minimum allowed client library version
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-clientLibraryVersionCheckAllowUnversioned">
+      <td>clientLibraryVersionCheckAllowUnversioned</td>
+      <td>Allow client libraries with no version information
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-statusFilePath">
+      <td>statusFilePath</td>
+      <td>Path for the file used to determine the rotation status for the broker when responding to service discovery health checks
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-preferLaterVersions">
+      <td>preferLaterVersions</td>
+      <td>If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-tlsEnabled">
+      <td>tlsEnabled</td>
+      <td>Enable TLS
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-tlsCertificateFilePath">
+      <td>tlsCertificateFilePath</td>
+      <td>Path for the TLS certificate file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-tlsKeyFilePath">
+      <td>tlsKeyFilePath</td>
+      <td>Path for the TLS private key file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>Path for the trusted TLS certificate file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td>Accept untrusted TLS certificate from client
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-maxUnackedMessagesPerConsumer">
+      <td>maxUnackedMessagesPerConsumer</td>
+      <td>Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="broker-maxUnackedMessagesPerSubscription">
+      <td>maxUnackedMessagesPerSubscription</td>
+      <td>Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction
+</td>
+      <td>200000</td>
+    </tr>
+    
+    <tr id="broker-maxConcurrentLookupRequest">
+      <td>maxConcurrentLookupRequest</td>
+      <td>Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="broker-maxConcurrentTopicLoadRequest">
+      <td>maxConcurrentTopicLoadRequest</td>
+      <td>Max number of concurrent topic loading request broker allows to control number of zk-operations
+</td>
+      <td>5000</td>
+    </tr>
+    
+    <tr id="broker-authenticationEnabled">
+      <td>authenticationEnabled</td>
+      <td>Enable authentication
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-authenticationProviders">
+      <td>authenticationProviders</td>
+      <td>Autentication provider name list, which is comma separated list of class names
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-authorizationEnabled">
+      <td>authorizationEnabled</td>
+      <td>Enforce authorization
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-superUserRoles">
+      <td>superUserRoles</td>
+      <td>Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-brokerClientAuthenticationPlugin">
+      <td>brokerClientAuthenticationPlugin</td>
+      <td>Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-brokerClientAuthenticationParameters">
+      <td>brokerClientAuthenticationParameters</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-athenzDomainNames">
+      <td>athenzDomainNames</td>
+      <td>Supported Athenz provider domain names(comma separated) for authentication
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientAuthenticationPlugin">
+      <td>bookkeeperClientAuthenticationPlugin</td>
+      <td>Authentication plugin to use when connecting to bookies
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientAuthenticationParametersName">
+      <td>bookkeeperClientAuthenticationParametersName</td>
+      <td>BookKeeper auth plugin implementatation specifics parameters name and values
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientAuthenticationParameters">
+      <td>bookkeeperClientAuthenticationParameters</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientTimeoutInSeconds">
+      <td>bookkeeperClientTimeoutInSeconds</td>
+      <td>Timeout for BK add / read operations
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientSpeculativeReadTimeoutInMillis">
+      <td>bookkeeperClientSpeculativeReadTimeoutInMillis</td>
+      <td>Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientHealthCheckEnabled">
+      <td>bookkeeperClientHealthCheckEnabled</td>
+      <td>Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won’t be created on these bookies
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientHealthCheckIntervalSeconds">
+      <td>bookkeeperClientHealthCheckIntervalSeconds</td>
+      <td>
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientHealthCheckErrorThresholdPerInterval">
+      <td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td>
+      <td>
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientHealthCheckQuarantineTimeInSeconds">
+      <td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td>
+      <td>
+</td>
+      <td>1800</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientRackawarePolicyEnabled">
+      <td>bookkeeperClientRackawarePolicyEnabled</td>
+      <td>Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientRegionawarePolicyEnabled">
+      <td>bookkeeperClientRegionawarePolicyEnabled</td>
+      <td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientReorderReadSequenceEnabled">
+      <td>bookkeeperClientReorderReadSequenceEnabled</td>
+      <td>Enable/disable reordering read sequence on reading entries.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-bookkeeperClientIsolationGroups">
+      <td>bookkeeperClientIsolationGroups</td>
+      <td>Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-managedLedgerDefaultEnsembleSize">
+      <td>managedLedgerDefaultEnsembleSize</td>
+      <td>Number of bookies to use when creating a ledger
+</td>
+      <td>2</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerDefaultWriteQuorum">
+      <td>managedLedgerDefaultWriteQuorum</td>
+      <td>Number of copies to store for each message
+</td>
+      <td>2</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerDefaultAckQuorum">
+      <td>managedLedgerDefaultAckQuorum</td>
+      <td>Number of guaranteed copies (acks to wait before write is complete)
+</td>
+      <td>2</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerCacheSizeMB">
+      <td>managedLedgerCacheSizeMB</td>
+      <td>Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it’s shared across all the topics running  in the same broker
+</td>
+      <td>1024</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerCacheEvictionWatermark">
+      <td>managedLedgerCacheEvictionWatermark</td>
+      <td>Threshold to which bring down the cache level when eviction is triggered
+</td>
+      <td>0.9</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerDefaultMarkDeleteRateLimit">
+      <td>managedLedgerDefaultMarkDeleteRateLimit</td>
+      <td>Rate limit the amount of writes per second generated by consumer acking the messages
+</td>
+      <td>1.0</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerMaxEntriesPerLedger">
+      <td>managedLedgerMaxEntriesPerLedger</td>
+      <td>Max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered on these conditions:
+<ul>
+  <li>Either the max rollover time has been reached</li>
+  <li>or max entries have been written to the ledged and at least min-time has passed</li>
+</ul>
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerMinLedgerRolloverTimeMinutes">
+      <td>managedLedgerMinLedgerRolloverTimeMinutes</td>
+      <td>Minimum time between ledger rollover for a topic
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerMaxLedgerRolloverTimeMinutes">
+      <td>managedLedgerMaxLedgerRolloverTimeMinutes</td>
+      <td>Maximum time before forcing a ledger rollover for a topic
+</td>
+      <td>240</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerCursorMaxEntriesPerLedger">
+      <td>managedLedgerCursorMaxEntriesPerLedger</td>
+      <td>Max number of entries to append to a cursor ledger
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerCursorRolloverTimeInSeconds">
+      <td>managedLedgerCursorRolloverTimeInSeconds</td>
+      <td>Max time before triggering a rollover on a cursor ledger
+</td>
+      <td>14400</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerMaxUnackedRangesToPersist">
+      <td>managedLedgerMaxUnackedRangesToPersist</td>
+      <td>Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-autoSkipNonRecoverableData">
+      <td>autoSkipNonRecoverableData</td>
+      <td>Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerEnabled">
+      <td>loadBalancerEnabled</td>
+      <td>Enable load balancer
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerPlacementStrategy">
+      <td>loadBalancerPlacementStrategy</td>
+      <td>Strategy to assign a new bundle
+</td>
+      <td>weightedRandomSelection</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerReportUpdateThresholdPercentage">
+      <td>loadBalancerReportUpdateThresholdPercentage</td>
+      <td>Percentage of change to trigger load report update
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerReportUpdateMaxIntervalMinutes">
+      <td>loadBalancerReportUpdateMaxIntervalMinutes</td>
+      <td>maximum interval to update load report
+</td>
+      <td>15</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerHostUsageCheckIntervalMinutes">
+      <td>loadBalancerHostUsageCheckIntervalMinutes</td>
+      <td>Frequency of report to collect
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerSheddingIntervalMinutes">
+      <td>loadBalancerSheddingIntervalMinutes</td>
+      <td>Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerSheddingGracePeriodMinutes">
+      <td>loadBalancerSheddingGracePeriodMinutes</td>
+      <td>Prevent the same topics to be shed and moved to other broker more that once within this timeframe
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerBrokerMaxTopics">
+      <td>loadBalancerBrokerMaxTopics</td>
+      <td>Usage threshold to allocate max number of topics to broker
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerBrokerUnderloadedThresholdPercentage">
+      <td>loadBalancerBrokerUnderloadedThresholdPercentage</td>
+      <td>Usage threshold to determine a broker as under-loaded
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerBrokerOverloadedThresholdPercentage">
+      <td>loadBalancerBrokerOverloadedThresholdPercentage</td>
+      <td>Usage threshold to determine a broker as over-loaded
+</td>
+      <td>85</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerResourceQuotaUpdateIntervalMinutes">
+      <td>loadBalancerResourceQuotaUpdateIntervalMinutes</td>
+      <td>Interval to update namespace bundle resource quotat
+</td>
+      <td>15</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerBrokerComfortLoadLevelPercentage">
+      <td>loadBalancerBrokerComfortLoadLevelPercentage</td>
+      <td>Usage threshold to determine a broker is having just right level of load
+</td>
+      <td>65</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerAutoBundleSplitEnabled">
+      <td>loadBalancerAutoBundleSplitEnabled</td>
+      <td>enable/disable namespace bundle auto split
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerNamespaceBundleMaxTopics">
+      <td>loadBalancerNamespaceBundleMaxTopics</td>
+      <td>maximum topics in a bundle, otherwise bundle split will be triggered
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerNamespaceBundleMaxSessions">
+      <td>loadBalancerNamespaceBundleMaxSessions</td>
+      <td>maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerNamespaceBundleMaxMsgRate">
+      <td>loadBalancerNamespaceBundleMaxMsgRate</td>
+      <td>maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerNamespaceBundleMaxBandwidthMbytes">
+      <td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td>
+      <td>maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered
+</td>
+      <td>100</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerNamespaceMaximumBundles">
+      <td>loadBalancerNamespaceMaximumBundles</td>
+      <td>maximum number of bundles in a namespace
+</td>
+      <td>128</td>
+    </tr>
+    
+    <tr id="broker-replicationMetricsEnabled">
+      <td>replicationMetricsEnabled</td>
+      <td>Enable replication metrics
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="broker-replicationConnectionsPerBroker">
+      <td>replicationConnectionsPerBroker</td>
+      <td>Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.
+</td>
+      <td>16</td>
+    </tr>
+    
+    <tr id="broker-replicationProducerQueueSize">
+      <td>replicationProducerQueueSize</td>
+      <td>Replicator producer queue size
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-replicatorPrefix">
+      <td>replicatorPrefix</td>
+      <td>Replicator prefix used for replicator producer name and cursor name
+</td>
+      <td>pulsar.repl</td>
+    </tr>
+    
+    <tr id="broker-replicationTlsEnabled">
+      <td>replicationTlsEnabled</td>
+      <td>Enable TLS when talking with other clusters to replicate messages
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-defaultRetentionTimeInMinutes">
+      <td>defaultRetentionTimeInMinutes</td>
+      <td>Default message retention time
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="broker-defaultRetentionSizeInMB">
+      <td>defaultRetentionSizeInMB</td>
+      <td>Default retention size
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="broker-keepAliveIntervalSeconds">
+      <td>keepAliveIntervalSeconds</td>
+      <td>How often to check whether the connections are still alive
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="broker-brokerServicePurgeInactiveFrequencyInSeconds">
+      <td>brokerServicePurgeInactiveFrequencyInSeconds</td>
+      <td>How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="broker-loadManagerClassName">
+      <td>loadManagerClassName</td>
+      <td>Name of load manager to use
+</td>
+      <td>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerOffloadDriver">
+      <td>managedLedgerOffloadDriver</td>
+      <td>Driver to use to offload old data to long term storage (Possible values: S3)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-managedLedgerOffloadMaxThreads">
+      <td>managedLedgerOffloadMaxThreads</td>
+      <td>Maximum number of thread pool threads for ledger offloading
+</td>
+      <td>2</td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadRegion">
+      <td>s3ManagedLedgerOffloadRegion</td>
+      <td>For Amazon S3 ledger offload, AWS region
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadBucket">
+      <td>s3ManagedLedgerOffloadBucket</td>
+      <td>For Amazon S3 ledger offload, Bucket to place offloaded ledger into
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadServiceEndpoint">
+      <td>s3ManagedLedgerOffloadServiceEndpoint</td>
+      <td>For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadMaxBlockSizeInBytes">
+      <td>s3ManagedLedgerOffloadMaxBlockSizeInBytes</td>
+      <td>For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum)
+</td>
+      <td>67108864</td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadReadBufferSizeInBytes">
+      <td>s3ManagedLedgerOffloadReadBufferSizeInBytes</td>
+      <td>For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)
+</td>
+      <td>1048576</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="クライアント">クライアント</h2>
+
+<p>CLIツール<a href="../CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a>は、Pulsarへのメッセージの発行と<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>からのメッセージの受信ができます。このツールはクライアントライブラリの代わりに利用できます。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="client-webServiceUrl">
+      <td>webServiceUrl</td>
+      <td>The web URL for the cluster.
+</td>
+      <td>http://localhost:8080/</td>
+    </tr>
+    
+    <tr id="client-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>The Pulsar protocol URL for the cluster.
+</td>
+      <td>pulsar://localhost:6650/</td>
+    </tr>
+    
+    <tr id="client-authPlugin">
+      <td>authPlugin</td>
+      <td>The authentication plugin.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-authParams">
+      <td>authParams</td>
+      <td>The authentication parameters for the cluster, as a comma-separated string.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-useTls">
+      <td>useTls</td>
+      <td>Whether or not TLS authentication will be enforced in the cluster.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="client-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="サービスディスカバリ">サービスディスカバリ</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="discovery-zookeeperServers">
+      <td>zookeeperServers</td>
+      <td>Zookeeper quorum connection string (comma-separated)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="discovery-globalZookeeperServers">
+      <td>globalZookeeperServers</td>
+      <td>Global zookeeper quorum connection string (comma-separated)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="discovery-zookeeperSessionTimeoutMs">
+      <td>zookeeperSessionTimeoutMs</td>
+      <td>ZooKeeper session timeout
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="discovery-servicePort">
+      <td>servicePort</td>
+      <td>Port to use to server binary-proto request
+</td>
+      <td>6650</td>
+    </tr>
+    
+    <tr id="discovery-servicePortTls">
+      <td>servicePortTls</td>
+      <td>Port to use to server binary-proto-tls request
+</td>
+      <td>6651</td>
+    </tr>
+    
+    <tr id="discovery-webServicePort">
+      <td>webServicePort</td>
+      <td>Port that discovery service listen on
+</td>
+      <td>8080</td>
+    </tr>
+    
+    <tr id="discovery-webServicePortTls">
+      <td>webServicePortTls</td>
+      <td>Port to use to server HTTPS request
+</td>
+      <td>8443</td>
+    </tr>
+    
+    <tr id="discovery-bindOnLocalhost">
+      <td>bindOnLocalhost</td>
+      <td>Control whether to bind directly on localhost rather than on normal hostname
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="discovery-authenticationEnabled">
+      <td>authenticationEnabled</td>
+      <td>Enable authentication
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="discovery-authenticationProviders">
+      <td>authenticationProviders</td>
+      <td>Authentication provider name list, which is comma separated list of class names (comma-separated)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="discovery-authorizationEnabled">
+      <td>authorizationEnabled</td>
+      <td>Enforce authorization
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="discovery-superUserRoles">
+      <td>superUserRoles</td>
+      <td>Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="discovery-tlsEnabled">
+      <td>tlsEnabled</td>
+      <td>Enable TLS
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="discovery-tlsCertificateFilePath">
+      <td>tlsCertificateFilePath</td>
+      <td>Path for the TLS certificate file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="discovery-tlsKeyFilePath">
+      <td>tlsKeyFilePath</td>
+      <td>Path for the TLS private key file
+</td>
+      <td></td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="global-zookeeper">Global ZooKeeper</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+  </tbody>
+</table>
+
+<h2 id="log4j">Log4j</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="log4j-pulsar.root.logger">
+      <td>pulsar.root.logger</td>
+      
+      <td>WARN,CONSOLE</td>
+    </tr>
+    
+    <tr id="log4j-pulsar.log.dir">
+      <td>pulsar.log.dir</td>
+      
+      <td>logs</td>
+    </tr>
+    
+    <tr id="log4j-pulsar.log.file">
+      <td>pulsar.log.file</td>
+      
+      <td>pulsar.log</td>
+    </tr>
+    
+    <tr id="log4j-log4j.rootLogger">
+      <td>log4j.rootLogger</td>
+      
+      <td>${pulsar.root.logger}</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.CONSOLE">
+      <td>log4j.appender.CONSOLE</td>
+      
+      <td>org.apache.log4j.ConsoleAppender</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.CONSOLE.Threshold">
+      <td>log4j.appender.CONSOLE.Threshold</td>
+      
+      <td>DEBUG</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.CONSOLE.layout">
+      <td>log4j.appender.CONSOLE.layout</td>
+      
+      <td>org.apache.log4j.PatternLayout</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.CONSOLE.layout.ConversionPattern">
+      <td>log4j.appender.CONSOLE.layout.ConversionPattern</td>
+      
+      <td>%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.ROLLINGFILE">
+      <td>log4j.appender.ROLLINGFILE</td>
+      
+      <td>org.apache.log4j.DailyRollingFileAppender</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.ROLLINGFILE.Threshold">
+      <td>log4j.appender.ROLLINGFILE.Threshold</td>
+      
+      <td>DEBUG</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.ROLLINGFILE.File">
+      <td>log4j.appender.ROLLINGFILE.File</td>
+      
+      <td>${pulsar.log.dir}/${pulsar.log.file}</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.ROLLINGFILE.layout">
+      <td>log4j.appender.ROLLINGFILE.layout</td>
+      
+      <td>org.apache.log4j.PatternLayout</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.ROLLINGFILE.layout.ConversionPattern">
+      <td>log4j.appender.ROLLINGFILE.layout.ConversionPattern</td>
+      
+      <td>%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.TRACEFILE">
+      <td>log4j.appender.TRACEFILE</td>
+      
+      <td>org.apache.log4j.FileAppender</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.TRACEFILE.Threshold">
+      <td>log4j.appender.TRACEFILE.Threshold</td>
+      
+      <td>TRACE</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.TRACEFILE.File">
+      <td>log4j.appender.TRACEFILE.File</td>
+      
+      <td>pulsar-trace.log</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.TRACEFILE.layout">
+      <td>log4j.appender.TRACEFILE.layout</td>
+      
+      <td>org.apache.log4j.PatternLayout</td>
+    </tr>
+    
+    <tr id="log4j-log4j.appender.TRACEFILE.layout.ConversionPattern">
+      <td>log4j.appender.TRACEFILE.layout.ConversionPattern</td>
+      
+      <td>%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="log4j-shell">Log4j shell</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="log4j-shell-bookkeeper.root.logger">
+      <td>bookkeeper.root.logger</td>
+      
+      <td>ERROR,CONSOLE</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.rootLogger">
+      <td>log4j.rootLogger</td>
+      
+      <td>${bookkeeper.root.logger}</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.appender.CONSOLE">
+      <td>log4j.appender.CONSOLE</td>
+      
+      <td>org.apache.log4j.ConsoleAppender</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.appender.CONSOLE.Threshold">
+      <td>log4j.appender.CONSOLE.Threshold</td>
+      
+      <td>DEBUG</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.appender.CONSOLE.layout">
+      <td>log4j.appender.CONSOLE.layout</td>
+      
+      <td>org.apache.log4j.PatternLayout</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.appender.CONSOLE.layout.ConversionPattern">
+      <td>log4j.appender.CONSOLE.layout.ConversionPattern</td>
+      
+      <td>%d{ABSOLUTE} %-5p %m%n</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.logger.org.apache.zookeeper">
+      <td>log4j.logger.org.apache.zookeeper</td>
+      
+      <td>ERROR</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.logger.org.apache.bookkeeper">
+      <td>log4j.logger.org.apache.bookkeeper</td>
+      
+      <td>ERROR</td>
+    </tr>
+    
+    <tr id="log4j-shell-log4j.logger.org.apache.bookkeeper.bookie.BookieShell">
+      <td>log4j.logger.org.apache.bookkeeper.bookie.BookieShell</td>
+      
+      <td>INFO</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="スタンドアローン">スタンドアローン</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="standalone-zookeeperServers">
+      <td>zookeeperServers</td>
+      <td>The quorum connection string for local ZooKeeper
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-globalZookeeperServers">
+      <td>globalZookeeperServers</td>
+      <td>The quorum connection string for global ZooKeeper
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-brokerServicePort">
+      <td>brokerServicePort</td>
+      <td>The port on which the standalone broker listens for connections
+</td>
+      <td>6650</td>
+    </tr>
+    
+    <tr id="standalone-webServicePort">
+      <td>webServicePort</td>
+      <td>THe port used by the standalone broker for HTTP requests
+</td>
+      <td>8080</td>
+    </tr>
+    
+    <tr id="standalone-bindAddress">
+      <td>bindAddress</td>
+      <td>The hostname or IP address on which the standalone service binds
+</td>
+      <td>0.0.0.0</td>
+    </tr>
+    
+    <tr id="standalone-advertisedAddress">
+      <td>advertisedAddress</td>
+      <td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code class="highlighter-rouge">InetAddress.getLocalHost().getHostName()</code> is used.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-clusterName">
+      <td>clusterName</td>
+      <td>The name of the cluster that this broker belongs to.
+</td>
+      <td>standalone</td>
+    </tr>
+    
+    <tr id="standalone-zooKeeperSessionTimeoutMillis">
+      <td>zooKeeperSessionTimeoutMillis</td>
+      <td>The ZooKeeper session timeout, in milliseconds.
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="standalone-brokerShutdownTimeoutMs">
+      <td>brokerShutdownTimeoutMs</td>
+      <td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.
+</td>
+      <td>3000</td>
+    </tr>
+    
+    <tr id="standalone-backlogQuotaCheckEnabled">
+      <td>backlogQuotaCheckEnabled</td>
+      <td>Enable the backlog quota check, which enforces a specified action when the quota is reached.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-backlogQuotaCheckIntervalInSeconds">
+      <td>backlogQuotaCheckIntervalInSeconds</td>
+      <td>How often to check for topics that have reached the backlog quota.
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="standalone-backlogQuotaDefaultLimitGB">
+      <td>backlogQuotaDefaultLimitGB</td>
+      <td>The default per-topic backlog quota limit.
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="standalone-brokerDeleteInactiveTopicsEnabled">
+      <td>brokerDeleteInactiveTopicsEnabled</td>
+      <td>Enable the deletion of inactive topics.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-brokerDeleteInactiveTopicsFrequencySeconds">
+      <td>brokerDeleteInactiveTopicsFrequencySeconds</td>
+      <td>How often to check for inactive topics, in seconds.
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="standalone-messageExpiryCheckIntervalInMinutes">
+      <td>messageExpiryCheckIntervalInMinutes</td>
+      <td>How often to proactively check and purged expired messages.
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="standalone-activeConsumerFailoverDelayTimeMillis">
+      <td>activeConsumerFailoverDelayTimeMillis</td>
+      <td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="standalone-clientLibraryVersionCheckEnabled">
+      <td>clientLibraryVersionCheckEnabled</td>
+      <td>Enable checks for minimum allowed client library version.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-clientLibraryVersionCheckAllowUnversioned">
+      <td>clientLibraryVersionCheckAllowUnversioned</td>
+      <td>Allow client libraries with no version information
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-statusFilePath">
+      <td>statusFilePath</td>
+      <td>The path for the file used to determine the rotation status for the broker when responding to service discovery health checks
+</td>
+      <td>/usr/local/apache/htdocs</td>
+    </tr>
+    
+    <tr id="standalone-maxUnackedMessagesPerConsumer">
+      <td>maxUnackedMessagesPerConsumer</td>
+      <td>The maximum number of unacknowledged messages allowed to be received by consumers on a shared subscription. The broker will stop sending messages to a consumer once this limit is reached or until the consumer begins acknowledging messages. A value of 0 disables the unacked message limit check and thus allows consumers to receive messages without any restrictions.
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="standalone-maxUnackedMessagesPerSubscription">
+      <td>maxUnackedMessagesPerSubscription</td>
+      <td>The same as above, except per subscription rather than per consumer.
+</td>
+      <td>200000</td>
+    </tr>
+    
+    <tr id="standalone-authenticationEnabled">
+      <td>authenticationEnabled</td>
+      <td>Enable authentication for the broker.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-authenticationProviders">
+      <td>authenticationProviders</td>
+      <td>A comma-separated list of class names for authentication providers.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-authorizationEnabled">
+      <td>authorizationEnabled</td>
+      <td>Enforce authorization in brokers.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-superUserRoles">
+      <td>superUserRoles</td>
+      <td>Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-brokerClientAuthenticationPlugin">
+      <td>brokerClientAuthenticationPlugin</td>
+      <td>The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-brokerClientAuthenticationParameters">
+      <td>brokerClientAuthenticationParameters</td>
+      <td>The parameters that go along with the plugin specified using <a href="#standalone-brokerClientAuthenticationPlugin"><code class="highlighter-rouge">brokerClientAuthenticationPlugin</code></a>.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-athenzDomainNames">
+      <td>athenzDomainNames</td>
+      <td>Supported Athenz authentication provider domain names as a comma-separated list.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientAuthenticationPlugin">
+      <td>bookkeeperClientAuthenticationPlugin</td>
+      <td>Authentication plugin to be used when connecting to bookies (BookKeeper servers).
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientAuthenticationParametersName">
+      <td>bookkeeperClientAuthenticationParametersName</td>
+      <td>BookKeeper authentication plugin implementation parameters and values.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientAuthenticationParameters">
+      <td>bookkeeperClientAuthenticationParameters</td>
+      <td>Parameters associated with the <a href="#standalone-bookkeeperClientAuthenticationParametersName"><code class="highlighter-rouge">bookkeeperClientAuthenticationParametersName</code></a>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientTimeoutInSeconds">
+      <td>bookkeeperClientTimeoutInSeconds</td>
+      <td>Timeout for BookKeeper add and read operations.
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientSpeculativeReadTimeoutInMillis">
+      <td>bookkeeperClientSpeculativeReadTimeoutInMillis</td>
+      <td>Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientHealthCheckEnabled">
+      <td>bookkeeperClientHealthCheckEnabled</td>
+      <td>Enable bookie health checks.
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientHealthCheckIntervalSeconds">
+      <td>bookkeeperClientHealthCheckIntervalSeconds</td>
+      <td>The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.
+</td>
+      <td>60</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientHealthCheckErrorThresholdPerInterval">
+      <td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td>
+      <td>Error threshold for health checks.
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientHealthCheckQuarantineTimeInSeconds">
+      <td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td>
+      <td>If bookies have more than the allowed number of failures within the time interval specified by <a href="#"><code class="highlighter-rouge">bookkeeperClientHealthCheckIntervalSeconds</code></a>
+</td>
+      <td>1800</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientRackawarePolicyEnabled">
+      <td>bookkeeperClientRackawarePolicyEnabled</td>
+      <td>
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientRegionawarePolicyEnabled">
+      <td>bookkeeperClientRegionawarePolicyEnabled</td>
+      <td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientReorderReadSequenceEnabled">
+      <td>bookkeeperClientReorderReadSequenceEnabled</td>
+      <td>Enable/disable reordering read sequence on reading entries.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-bookkeeperClientIsolationGroups">
+      <td>bookkeeperClientIsolationGroups</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerDefaultEnsembleSize">
+      <td>managedLedgerDefaultEnsembleSize</td>
+      <td>
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerDefaultWriteQuorum">
+      <td>managedLedgerDefaultWriteQuorum</td>
+      <td>
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerDefaultAckQuorum">
+      <td>managedLedgerDefaultAckQuorum</td>
+      <td>
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerCacheSizeMB">
+      <td>managedLedgerCacheSizeMB</td>
+      <td>
+</td>
+      <td>1024</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerCacheEvictionWatermark">
+      <td>managedLedgerCacheEvictionWatermark</td>
+      <td>
+</td>
+      <td>0.9</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerDefaultMarkDeleteRateLimit">
+      <td>managedLedgerDefaultMarkDeleteRateLimit</td>
+      <td>
+</td>
+      <td>0.1</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerMaxEntriesPerLedger">
+      <td>managedLedgerMaxEntriesPerLedger</td>
+      <td>
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerMinLedgerRolloverTimeMinutes">
+      <td>managedLedgerMinLedgerRolloverTimeMinutes</td>
+      <td>
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerMaxLedgerRolloverTimeMinutes">
+      <td>managedLedgerMaxLedgerRolloverTimeMinutes</td>
+      <td>
+</td>
+      <td>240</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerCursorMaxEntriesPerLedger">
+      <td>managedLedgerCursorMaxEntriesPerLedger</td>
+      <td>
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="standalone-managedLedgerCursorRolloverTimeInSeconds">
+      <td>managedLedgerCursorRolloverTimeInSeconds</td>
+      <td>
+</td>
+      <td>14400</td>
+    </tr>
+    
+    <tr id="standalone-autoSkipNonRecoverableData">
+      <td>autoSkipNonRecoverableData</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerEnabled">
+      <td>loadBalancerEnabled</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerPlacementStrategy">
+      <td>loadBalancerPlacementStrategy</td>
+      <td>
+</td>
+      <td>weightedRandomSelection</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerReportUpdateThresholdPercentage">
+      <td>loadBalancerReportUpdateThresholdPercentage</td>
+      <td>
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerReportUpdateMaxIntervalMinutes">
+      <td>loadBalancerReportUpdateMaxIntervalMinutes</td>
+      <td>
+</td>
+      <td>15</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerHostUsageCheckIntervalMinutes">
+      <td>loadBalancerHostUsageCheckIntervalMinutes</td>
+      <td>
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerSheddingIntervalMinutes">
+      <td>loadBalancerSheddingIntervalMinutes</td>
+      <td>
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerSheddingGracePeriodMinutes">
+      <td>loadBalancerSheddingGracePeriodMinutes</td>
+      <td>
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerBrokerMaxTopics">
+      <td>loadBalancerBrokerMaxTopics</td>
+      <td>
+</td>
+      <td>50000</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerBrokerUnderloadedThresholdPercentage">
+      <td>loadBalancerBrokerUnderloadedThresholdPercentage</td>
+      <td>
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerBrokerOverloadedThresholdPercentage">
+      <td>loadBalancerBrokerOverloadedThresholdPercentage</td>
+      <td>
+</td>
+      <td>85</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerResourceQuotaUpdateIntervalMinutes">
+      <td>loadBalancerResourceQuotaUpdateIntervalMinutes</td>
+      <td>
+</td>
+      <td>15</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerBrokerComfortLoadLevelPercentage">
+      <td>loadBalancerBrokerComfortLoadLevelPercentage</td>
+      <td>
+</td>
+      <td>65</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerAutoBundleSplitEnabled">
+      <td>loadBalancerAutoBundleSplitEnabled</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerNamespaceBundleMaxTopics">
+      <td>loadBalancerNamespaceBundleMaxTopics</td>
+      <td>
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerNamespaceBundleMaxSessions">
+      <td>loadBalancerNamespaceBundleMaxSessions</td>
+      <td>
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerNamespaceBundleMaxMsgRate">
+      <td>loadBalancerNamespaceBundleMaxMsgRate</td>
+      <td>
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerNamespaceBundleMaxBandwidthMbytes">
+      <td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td>
+      <td>
+</td>
+      <td>100</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerNamespaceMaximumBundles">
+      <td>loadBalancerNamespaceMaximumBundles</td>
+      <td>
+</td>
+      <td>128</td>
+    </tr>
+    
+    <tr id="standalone-replicationMetricsEnabled">
+      <td>replicationMetricsEnabled</td>
+      <td>
+</td>
+      <td>true</td>
+    </tr>
+    
+    <tr id="standalone-replicationConnectionsPerBroker">
+      <td>replicationConnectionsPerBroker</td>
+      <td>
+</td>
+      <td>16</td>
+    </tr>
+    
+    <tr id="standalone-replicationProducerQueueSize">
+      <td>replicationProducerQueueSize</td>
+      <td>
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="standalone-defaultRetentionTimeInMinutes">
+      <td>defaultRetentionTimeInMinutes</td>
+      <td>
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="standalone-defaultRetentionSizeInMB">
+      <td>defaultRetentionSizeInMB</td>
+      <td>
+</td>
+      <td>0</td>
+    </tr>
+    
+    <tr id="standalone-keepAliveIntervalSeconds">
+      <td>keepAliveIntervalSeconds</td>
+      <td>
+</td>
+      <td>30</td>
+    </tr>
+    
+    <tr id="standalone-brokerServicePurgeInactiveFrequencyInSeconds">
+      <td>brokerServicePurgeInactiveFrequencyInSeconds</td>
+      <td>
+</td>
+      <td>60</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="websocket">WebSocket</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="websocket-globalZookeeperServers">
+      <td>globalZookeeperServers</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-zooKeeperSessionTimeoutMillis">
+      <td>zooKeeperSessionTimeoutMillis</td>
+      <td>
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="websocket-serviceUrl">
+      <td>serviceUrl</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-serviceUrlTls">
+      <td>serviceUrlTls</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-brokerServiceUrlTls">
+      <td>brokerServiceUrlTls</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-webServicePort">
+      <td>webServicePort</td>
+      <td>
+</td>
+      <td>8080</td>
+    </tr>
+    
+    <tr id="websocket-webServicePortTls">
+      <td>webServicePortTls</td>
+      <td>
+</td>
+      <td>8443</td>
+    </tr>
+    
+    <tr id="websocket-bindAddress">
+      <td>bindAddress</td>
+      <td>
+</td>
+      <td>0.0.0.0</td>
+    </tr>
+    
+    <tr id="websocket-clusterName">
+      <td>clusterName</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-authenticationEnabled">
+      <td>authenticationEnabled</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="websocket-authenticationProviders">
+      <td>authenticationProviders</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-authorizationEnabled">
+      <td>authorizationEnabled</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="websocket-superUserRoles">
+      <td>superUserRoles</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-brokerClientAuthenticationPlugin">
+      <td>brokerClientAuthenticationPlugin</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-brokerClientAuthenticationParameters">
+      <td>brokerClientAuthenticationParameters</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-tlsEnabled">
+      <td>tlsEnabled</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="websocket-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="websocket-tlsCertificateFilePath">
+      <td>tlsCertificateFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-tlsKeyFilePath">
+      <td>tlsKeyFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="websocket-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h2 id="zookeeper">ZooKeeper</h2>
+
+<p><span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>はPulsarの広範囲で重要な構成や調整に関わるタスクを処理します。ZooKeeperのデフォルト設定ファイルは<code class="highlighter-rouge">conf/zookeeper.conf</code>にあります。以下のパラメータが利用可能です:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="zookeeper-tickTime">
+      <td>tickTime</td>
+      <td>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.
+</td>
+      <td>2000</td>
+    </tr>
+    
+    <tr id="zookeeper-initLimit">
+      <td>initLimit</td>
+      <td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="zookeeper-syncLimit">
+      <td>syncLimit</td>
+      <td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="zookeeper-dataDir">
+      <td>dataDir</td>
+      <td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.
+</td>
+      <td>data/zookeeper</td>
+    </tr>
+    
+    <tr id="zookeeper-clientPort">
+      <td>clientPort</td>
+      <td>The port on which the ZooKeeper server will listen for connections.
+</td>
+      <td>2181</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.snapRetainCount">
+      <td>autopurge.snapRetainCount</td>
+      <td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).
+</td>
+      <td>3</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.purgeInterval">
+      <td>autopurge.purgeInterval</td>
+      <td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="zookeeper-maxClientCnxns">
+      <td>maxClientCnxns</td>
+      <td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.
+</td>
+      <td>60</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<p>上記表のパラメータに加えて、PulsarのためにZooKeeperを設定するにはZooKeeperクラスタにおける各ノードの<code class="highlighter-rouge">conf/zookeeper.conf</code>ファイルに対して<code class="highlighter-rouge">server.N</code>の行を追加してください。<code class="highlighter-rouge">N</code>はZooKeeperノードの番号です。 以下は3つのノードでのZooKeeperクラスタの例です:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>ZooKeeperの設定のより完全で包括的な説明は<a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper管理者ガイド</a>を参照することを強くお勧めします。</p>
+
+  </div>
+</div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsarの設定</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

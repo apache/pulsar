@@ -1,0 +1,1385 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-TW/next/admin-api-overview). The current Java client version is **2.9.1**."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-TW/next/admin-api-overview). The current Java client version is **2.9.1**."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/next/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/next/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/client-libraries-java">English</a></li><li><a href="/docs/ja/next/client-libraries-java">日本語</a></li><li><a href="/docs/fr/next/client-libraries-java">Français</a></li><li><a href="/docs/ko/next/client-libraries-java">한국어</a></li><li><a href="/docs/zh-CN/next/client-libraries-java">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Client Libraries</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/standalone">在本地運行Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/standalone-docker">在Docker中運行Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-messaging">信息傳送</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-clients">客戶端</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-replication">基於地理位置的備份複製</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-multi-tenancy">多租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-authentication">認證和授權</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-topic-compaction">Toipc 壓實</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/schema-get-started">開始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/schema-understand">了解 Schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/schema-evolution-compatibility">Schema 進化和相容</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/schema-manage">管理 Schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-quickstart">開始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-use">使用方式</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/sql-getting-started">查詢資料</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/sql-deployment-configurations"> 配置和部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-policy-and-supported-versions">Security Policy and Supported Versions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-dotnet">C#</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java client</h1></header><article><div><span><p>You can use a Pulsar Java client to create the Java <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of messages and to perform <a href="/docs/zh-TW/next/admin-api-overview">administrative tasks</a>. The current Java client version is <strong>2.9.1</strong>.</p>
+<p>All the methods in <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of a Java client are thread-safe.</p>
+<p>Javadoc for the Pulsar client is divided into two domains by package as follows.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Package</th><th style="text-align:left">Description</th><th style="text-align:left">Maven Artifact</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="/api/client/2.9.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left"><a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/">The producer and consumer API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.9.1%7Cjar">org.apache.pulsar:pulsar-client:2.9.1</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/admin/2.9.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">The Java <a href="/docs/zh-TW/next/admin-api-overview">admin API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.9.1%7Cjar">org.apache.pulsar:pulsar-client-admin:2.9.1</a></td></tr>
+<tr><td style="text-align:left"><code>org.apache.pulsar.client.all</code></td><td style="text-align:left">Include both <code>pulsar-client</code> and <code>pulsar-client-admin</code></td></tr>
+</tbody>
+</table>
+<p>Both <code>pulsar-client</code> and <code>pulsar-client-admin</code> are shaded packages and they shade dependencies independently. Consequently, the applications using both <code>pulsar-client</code> and <code>pulsar-client-admin</code> have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules.<br>
+In this case, you can use <code>pulsar-client-all</code>, which shades dependencies only one time and reduces the size of dependencies. | <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C2.9.1%7Cjar">org.apache.pulsar:pulsar-client-all:2.9.1</a>     |</p>
+<p>This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see <a href="/docs/zh-TW/next/admin-api-overview">Pulsar admin interface</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.9.1%7Cjar">Maven Central</a>. To use the latest version, add the <code>pulsar-client</code> library to your build configuration.</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<ul>
+<li><p><a href="https://search.maven.org/artifact/org.apache.pulsar/pulsar-client"><code>pulsar-client</code></a> and <a href="https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-admin"><code>pulsar-client-admin</code></a> shade dependencies via <a href="https://maven.apache.org/plugins/maven-shade-plugin/">maven-shade-plugin</a> to avoid conflicts of the underlying dependency packages (such as Netty). If you do not want to manage dependency conflicts manually, you can use them.</p></li>
+<li><p><a href="https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-original"><code>pulsar-client-original</code></a> and <a href="https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-admin-original"><code>pulsar-client-admin-original</code></a> <strong>does not</strong> shade dependencies. If you want to manage dependencies manually, you can use them.</p></li>
+</ul>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
+<p>If you use Maven, add the following information to the <code>pom.xml</code> file.</p>
+<pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.9.1<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
+<p>If you use Gradle, add the following information to the <code>build.gradle</code> file.</p>
+<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.9.1'</span>
+
+dependencies {
+    compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-client'</span>, <span class="hljs-string">version:</span> pulsarVersion
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/zh-TW/next/develop-binary-protocol">Pulsar protocol</a> URL.</p>
+<p>You can assign Pulsar protocol URLs to specific clusters and use the <code>pulsar</code> scheme. The default port is <code>6650</code>. The following is an example of <code>localhost</code>.</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6650
+</code></pre>
+<p>If you have multiple brokers, the URL is as follows.</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6550,localhost:6651,localhost:6652
+</code></pre>
+<p>A URL for a production Pulsar cluster is as follows.</p>
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
+</code></pre>
+<p>If you use <a href="/docs/zh-TW/next/security-tls-authentication">TLS</a> authentication, the URL is as follows.</p>
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
+<p>You can instantiate a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object using just a URL for the target Pulsar <a href="/docs/zh-TW/next/reference-terminology#cluster">cluster</a> like this:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .build();
+</code></pre>
+<p>If you have multiple brokers, you can initiate a PulsarClient like this:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650,localhost:6651,localhost:6652"</span>)
+        .build();
+</code></pre>
+<blockquote>
+<h3><a class="anchor" aria-hidden="true" id="default-broker-urls-for-standalone-clusters"></a><a href="#default-broker-urls-for-standalone-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Default broker URLs for standalone clusters</h3>
+<p>If you run a cluster in <a href="/docs/zh-TW/next/standalone">standalone mode</a>, the broker is available at the <code>pulsar://localhost:6650</code> URL by default.</p>
+</blockquote>
+<p>If you create a client, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
+<p>| Name | Type |</p>
+<div style="width:260px">
+  Description
+</div>
+<p>| Default |---|---|---|--- <code>serviceUrl</code> | String | Service URL provider for Pulsar service | None <code>authPluginClassName</code> | String | Name of the authentication plugin | None <code>authParams</code> | String | Parameters for the authentication plugin</p>
+<p><strong>Example</strong>  <br>
+key1:val1,key2:val2|None <code>operationTimeoutMs</code>|long|<code>operationTimeoutMs</code>|Operation timeout |30000 <code>statsIntervalSeconds</code>|long|Interval between each stats information</p>
+<p>Stats is activated with positive <code>statsInterval</code></p>
+<p>Set <code>statsIntervalSeconds</code> to 1 second at least. |60 <code>numIoThreads</code>| int| The number of threads used for handling connections to brokers | 1 <code>numListenerThreads</code>|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the &quot;listener&quot; model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 <code>useTcpNoDelay</code>| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true <code>useTls</code> |boolean |Whether to use TLS encryption on the connection| false <code>tlsTrustCertsFilePath</code> |string |Path to the trusted TLS certificate file|None <code>tlsAllowInsecureConnection</code>|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false <code>tlsHostnameVerificationEnable</code> |boolean | Whether to enable TLS hostname verification|false <code>concurrentLookupRequest</code>|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 <code>maxLookupRequest</code>|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 <code>maxNumberOfRejectedRequestPerConnection</code>|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 <code>keepAliveIntervalSeconds</code>|int|Seconds of keeping alive interval for each client broker connection|30 <code>connectionTimeoutMs</code>|int|Duration of waiting for a connection to a broker to be established</p>
+<p>If the duration passes without a response from a broker, the connection attempt is dropped|10000 <code>requestTimeoutMs</code>|int|Maximum duration for completing a request |60000 <code>defaultBackoffIntervalNanos</code>|int| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); <code>maxBackoffIntervalNanos</code>|long|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30) <code>socks5ProxyAddress</code>|SocketAddress|SOCKS5 proxy address | None <code>socks5ProxyUsername</code>|string|SOCKS5 proxy username | None <code>socks5ProxyPassword</code>|string|SOCKS5 proxy password | None</p>
+<p>Check out the Javadoc for the <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ class for a full list of configurable parameters.</p>
+<blockquote>
+<p>In addition to client-level configuration, you can also apply <a href="#configure-producer">producer</a> and <a href="#configure-consumer">consumer</a> specific configuration as described in sections below.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="client-memory-allocator-configuration"></a><a href="#client-memory-allocator-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client memory allocator configuration</h3>
+<p>You can set the client memory allocator configurations through Java properties.</p>
+<p>| Property | Type |</p>
+<div>
+  Description
+</div>
+<p>| Default | Available values |---|---|---|---|--- <code>pulsar.allocator.pooled</code> | String | If set to <code>true</code>, the client uses a direct memory pool. </br> If set to <code>false</code>, the client uses a heap memory without pool | true |</p>
+<ul>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.exit_on_oom</code> | String | Whether to exit the JVM when OOM happens | false |</p></li>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.leak_detection</code> | String | Service URL provider for Pulsar service | Disabled |</p></li>
+<li><p>Disabled</p></li>
+<li><p>Simple</p></li>
+<li><p>Advanced</p></li>
+<li><p>Paranoid
+<code>pulsar.allocator.out_of_memory_policy</code> | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap |</p></li>
+<li><p>ThrowException</p></li>
+<li><p>FallbackToHeap</p></li>
+</ul>
+<p><strong>Example</strong>:</p>
+<pre><code class="hljs">-Dpulsar.allocator.pooled=true
+-Dpulsar.allocator.exit_on_oom=false
+-Dpulsar.allocator.leak_detection=Disabled
+-Dpulsar.allocator.out_of_memory_policy=ThrowException
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="cluster-level-failover"></a><a href="#cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster-level failover</h3>
+<p>This chapter describes the concept, benefits, use cases, constraints, usage, working principles, and more information about the cluster-level failover. It contains the following sections:</p>
+<ul>
+<li><p><a href="#what-is-cluster-level-failover">What is cluster-level failover?</a></p>
+<ul>
+<li><p><a href="#concept-of-cluster-level-failover">Concept of cluster-level failover</a></p></li>
+<li><p><a href="#why-use-cluster-level-failover">Why use cluster-level failover?</a></p></li>
+<li><p><a href="#when-to-use-cluster-level-failover">When to use cluster-level failover?</a></p></li>
+<li><p><a href="#when-cluster-level-failover-is-triggered">When cluster-level failover is triggered?</a></p></li>
+<li><p><a href="#why-does-cluster-level-failover-fail">Why does cluster-level failover fail?</a></p></li>
+<li><p><a href="#what-are-the-limitations-of-cluster-level-failover">What are the limitations of cluster-level failover?</a></p></li>
+<li><p><a href="#what-are-the-relationships-between-cluster-level-failover-and-geo-replication">What are the relationships between cluster-level failover and geo-replication?</a></p></li>
+</ul></li>
+<li><p><a href="#how-to-use-cluster-level-failover">How to use cluster-level failover?</a></p></li>
+<li><p><a href="#how-does-cluster-level-failover-work">How does cluster-level failover work?</a></p></li>
+</ul>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="what-is-cluster-level-failover"></a><a href="#what-is-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is cluster-level failover</h4>
+</blockquote>
+<p>This chapter helps you better understand the concept of cluster-level failover.</p>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="concept-of-cluster-level-failover"></a><a href="#concept-of-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Concept of cluster-level failover</h5>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2710-tab-2711" class="nav-link active" data-group="group_2710" data-tab="tab-group-2710-content-2711">Automatic cluster-level failover</div><div id="tab-group-2710-tab-2712" class="nav-link" data-group="group_2710" data-tab="tab-group-2710-content-2712">Controlled cluster-level failover</div></div><div class="tab-content"><div id="tab-group-2710-content-2711" class="tab-pane active" data-group="group_2710" tabindex="-1"><div><span><p>Automatic cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters automatically and seamlessly when it detects a failover event based on the configured detecting policy set by <strong>users</strong>.</p>
+<p><img src="/docs/assets/cluster-level-failover-1.png" alt="Automatic cluster-level failover"></p>
+</span></div></div><div id="tab-group-2710-content-2712" class="tab-pane" data-group="group_2710" tabindex="-1"><div><span><p>Controlled cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters. The switchover is manually set by <strong>administrators</strong>.</p>
+<p><img src="/docs/assets/cluster-level-failover-2.png" alt="Controlled cluster-level failover"></p>
+</span></div></div></div></div>
+<p>Once the primary cluster functions again, Pulsar clients can switch back to the primary cluster. Most of the time users won’t even notice a thing. Users can keep using applications and services without interruptions or timeouts.</p>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="why-use-cluster-level-failover"></a><a href="#why-use-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Why use cluster-level failover?</h5>
+</blockquote>
+<p>The cluster-level failover provides fault tolerance, continuous availability, and high availability together. It brings a number of benefits, including but not limited to:</p>
+<ul>
+<li><p>Reduced cost: services can be switched and recovered automatically with no data loss.</p></li>
+<li><p>Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.</p></li>
+<li><p>Improved stability and robustness: it ensures continuous performance and minimizes service downtime.</p></li>
+</ul>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="when-to-use-cluster-level-failover"></a><a href="#when-to-use-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>When to use cluster-level failover?</h5>
+</blockquote>
+<p>The cluster-level failover protects your environment in a number of ways, including but not limited to:</p>
+<ul>
+<li><p>Disaster recovery: cluster-level failover can automatically and seamlessly transfer the production workload on a primary cluster to one or several backup clusters, which ensures minimum data loss and reduced recovery time.</p></li>
+<li><p>Planned migration: if you want to migrate production workloads from an old cluster to a new cluster, you can improve the migration efficiency with cluster-level failover. For example, you can test whether the data migration goes smoothly in case of a failover event, identify possible issues and risks before the migration.</p></li>
+</ul>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="when-cluster-level-failover-is-triggered"></a><a href="#when-cluster-level-failover-is-triggered" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>When cluster-level failover is triggered?</h5>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2713-tab-2714" class="nav-link active" data-group="group_2713" data-tab="tab-group-2713-content-2714">Automatic cluster-level failover</div><div id="tab-group-2713-tab-2715" class="nav-link" data-group="group_2713" data-tab="tab-group-2713-content-2715">Controlled cluster-level failover</div></div><div class="tab-content"><div id="tab-group-2713-content-2714" class="tab-pane active" data-group="group_2713" tabindex="-1"><div><span><p>Automatic cluster-level failover is triggered when Pulsar clients cannot connect to the primary cluster for a prolonged period of time. This can be caused by any number of reasons including, but not limited to:</p>
+<ul>
+<li><p>Network failure: internet connection is lost.</p></li>
+<li><p>Power failure: shutdown time of a primary cluster exceeds time limits.</p></li>
+<li><p>Service error: errors occur on a primary cluster (for example, the primary cluster does not function because of time limits).</p></li>
+<li><p>Crashed storage space: the primary cluster does not have enough storage space, but the corresponding storage space on the backup server functions normally.</p></li>
+</ul>
+</span></div></div><div id="tab-group-2713-content-2715" class="tab-pane" data-group="group_2713" tabindex="-1"><div><span><p>Controlled cluster-level failover is triggered when administrators set the switchover manually.</p>
+</span></div></div></div></div>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="why-does-cluster-level-failover-fail"></a><a href="#why-does-cluster-level-failover-fail" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Why does cluster-level failover fail?</h5>
+</blockquote>
+<p>Obviously, the cluster-level failover does not succeed if the backup cluster is unreachable by active Pulsar clients. This can happen for many reasons, including but not limited to:</p>
+<ul>
+<li><p>Power failure: the backup cluster is shut down or does not function normally.</p></li>
+<li><p>Crashed storage space: primary and backup clusters do not have enough storage space.</p></li>
+<li><p>If the failover is initiated, but no cluster can assume the role of an available cluster due to errors, and the primary cluster is not able to provide service normally.</p></li>
+<li><p>If you manually initiate a switchover, but services cannot be switched to the backup cluster server, then the system will attempt to switch services back to the primary cluster.</p></li>
+<li><p>Fail to authenticate or authorize between 1) primary and backup clusters, or 2) between two backup clusters.</p></li>
+</ul>
+<blockquote>
+<h5><a class="anchor" aria-hidden="true" id="what-are-the-limitations-of-cluster-level-failover"></a><a href="#what-are-the-limitations-of-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What are the limitations of cluster-level failover?</h5>
+</blockquote>
+<p>Currently, cluster-level failover can perform probes to prevent data loss, but it can not check the status of backup clusters. If backup clusters are not healthy, you cannot produce or consume data.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="what-are-the-relationships-between-cluster-level-failover-and-geo-replication"></a><a href="#what-are-the-relationships-between-cluster-level-failover-and-geo-replication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What are the relationships between cluster-level failover and geo-replication?</h4>
+</blockquote>
+<p>The cluster-level failover is an extension of <a href="/docs/zh-TW/next/concepts-replication">geo-replication</a> to improve stability and robustness. The cluster-level failover depends on geo-replication, and they have some <strong>differences</strong> as below.</p>
+<p>Influence |Cluster-level failover|Geo-replication |---|---|--- Do administrators have heavy workloads?|No or maybe.</p>
+<ul>
+<li><p>For the <strong>automatic</strong> cluster-level failover, the cluster switchover is triggered automatically based on the policies set by <strong>users</strong>.</p></li>
+<li><p>For the <strong>controlled</strong> cluster-level failover, the switchover is triggered manually by <strong>administrators</strong>.|Yes.</p></li>
+</ul>
+<p>If a cluster fails, immediate administration intervention is required.| Result in data loss?|No.</p>
+<p>For both <strong>automatic</strong> and <strong>controlled</strong> cluster-level failover, if the failed primary cluster doesn't replicate messages immediately to the backup cluster, the Pulsar client can't consume the non-replicated messages. After the primary cluster is restored and the Pulsar client switches back, the non-replicated data can still be consumed by the Pulsar client. Consequently, the data is not lost.</p>
+<ul>
+<li><p>For the <strong>automatic</strong> cluster-level failover, services can be switched and recovered automatically with no data loss.</p></li>
+<li><p>For the <strong>controlled</strong> cluster-level failover, services can be switched and recovered manually and data loss may happen.|Yes.</p></li>
+</ul>
+<p>Pulsar clients and DNS systems have caches. When administrators switch the DNS from a primary cluster to a backup cluster, it takes some time for cache trigger timeout, which delays client recovery time and fails to produce or consume messages. Result in Pulsar client failure? |No or maybe.</p>
+<ul>
+<li><p>For <strong>automatic</strong> cluster-level failover, services can be switched and recovered automatically and the Pulsar client does not fail.</p></li>
+<li><p>For <strong>controlled</strong> cluster-level failover, services can be switched and recovered manually, but the Pulsar client fails before administrators can take action. |Same as above.</p></li>
+</ul>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="how-to-use-cluster-level-failover"></a><a href="#how-to-use-cluster-level-failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How to use cluster-level failover</h4>
+</blockquote>
+<p>This section guides you through every step on how to configure cluster-level failover.</p>
+<p><strong>提示</strong></p>
+<ul>
+<li><p>You should configure cluster-level failover only when the cluster contains sufficient resources to handle all possible consequences. Workload intensity on the backup cluster may increase significantly.</p></li>
+<li><p>Connect clusters to an uninterruptible power supply (UPS) unit to reduce the risk of unexpected power loss.</p></li>
+</ul>
+<p><strong>Requirements</strong></p>
+<ul>
+<li><p>Pulsar client 2.10 or later versions.</p></li>
+<li><p>For backup clusters:</p>
+<ul>
+<li><p>The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.</p></li>
+<li><p>The number of ZooKeeper nodes should be equal to or greater than 3.</p></li>
+</ul></li>
+<li><p><strong>Turn on geo-replication</strong> between the primary cluster and any dependent cluster (primary to backup or backup to backup) to prevent data loss.</p></li>
+<li><p>Set <code>replicateSubscriptionState</code> to <code>true</code> when creating consumers.</p></li>
+</ul>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2716-tab-2717" class="nav-link active" data-group="group_2716" data-tab="tab-group-2716-content-2717">Automatic cluster-level failover</div><div id="tab-group-2716-tab-2718" class="nav-link" data-group="group_2716" data-tab="tab-group-2716-content-2718">Controlled cluster-level failover</div></div><div class="tab-content"><div id="tab-group-2716-content-2717" class="tab-pane active" data-group="group_2716" tabindex="-1"><div><span><p>This is an example of how to construct a Java Pulsar client to use automatic cluster-level failover. The switchover is triggered automatically.</p>
+<pre><code class="hljs">  private PulsarClient getAutoFailoverClient() throws PulsarClientException {<br /><br />        ServiceUrlProvider failover = AutoClusterFailover.builder()<br />                .primary(&quot;pulsar://localhost:6650&quot;)<br />                .secondary(Collections.singletonList(&quot;pulsar://other1:6650&quot;,&quot;pulsar://other2:6650&quot;))<br />                .failoverDelay(30, TimeUnit.SECONDS)<br />                .switchBackDelay(60, TimeUnit.SECONDS)<br />                .checkInterval(1000, TimeUnit.MILLISECONDS)<br />                .secondaryTlsTrustCertsFilePath(&quot;/path/to/ca.cert.pem&quot;)<br />    .secondaryAuthentication(&quot;org.apache.pulsar.client.impl.auth.AuthenticationTls&quot;,<br />&quot;tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem&quot;)<br /><br />                .build();<br /><br />        PulsarClient pulsarClient = PulsarClient.builder()<br />                .build();<br /><br />        failover.initialize(pulsarClient);<br />        return pulsarClient;<br />    }<br /></code></pre>
+<p>Configure the following parameters:</p>
+<p>Parameter|Default value|Required?|Description |---|---|---|--- <code>primary</code>|N/A|Yes|Service URL of the primary cluster. <code>secondary</code>|N/A|Yes|Service URL(s) of one or several backup clusters.</p>
+<p>You can specify several backup clusters using a comma-separated list.</p>
+<p>Note that:</p>
+<ul>
+<li>The backup cluster is chosen in the sequence shown in the list.</li>
+<li>If all backup clusters are available, the Pulsar client chooses the first backup cluster. <code>failoverDelay</code>|N/A|Yes|The delay before the Pulsar client switches from the primary cluster to the backup cluster.</li>
+</ul>
+<p>Automatic failover is controlled by a probe task:</p>
+<ol>
+<li>The probe task first checks the health status of the primary cluster.</li>
+<li>If the probe task finds the continuous failure time of the primary cluster exceeds <code>failoverDelayMs</code>, it switches the Pulsar client to the backup cluster. <code>switchBackDelay</code>|N/A|Yes|The delay before the Pulsar client switches from the backup cluster to the primary cluster.</li>
+</ol>
+<p>Automatic failover switchover is controlled by a probe task:</p>
+<ol>
+<li>After the Pulsar client switches from the primary cluster to the backup cluster, the probe task continues to check the status of the primary cluster.</li>
+<li>If the primary cluster functions well and continuously remains active longer than <code>switchBackDelay</code>, the Pulsar client switches back to the primary cluster. <code>checkInterval</code>|30s|No|Frequency of performing a probe task (in seconds). <code>secondaryTlsTrustCertsFilePath</code>|N/A|No|Path to the trusted TLS certificate file of the backup cluster. <code>secondaryAuthentication</code>|N/A|No|Authentication of the backup cluster.</li>
+</ol>
+</span></div></div><div id="tab-group-2716-content-2718" class="tab-pane" data-group="group_2716" tabindex="-1"><div><span><p>This is an example of how to construct a Java Pulsar client to use controlled cluster-level failover. The switchover is triggered by administrators manually.</p>
+<p><strong>Note</strong>: you can have one or several backup clusters but can only specify one.</p>
+<pre><code class="hljs"> public PulsarClient getControlledFailoverClient() throws IOException {<br />Map&lt;String, String&gt; header = new HashMap&lt;&gt;(); <br />  header.put(“service_user_id”, “my-user”);<br />  header.put(“service_password”, “tiger”);<br />  header.put(“clusterA”, “tokenA”);<br />  header.put(“clusterB”, “tokenB”);<br /><br />  ServiceUrlProvider provider = <br />      ControlledClusterFailover.builder()<br />        .defaultServiceUrl(&quot;pulsar://localhost:6650&quot;)<br />        .checkInterval(1, TimeUnit.MINUTES)<br />        .urlProvider(&quot;http://localhost:8080/test&quot;)<br />        .urlProviderHeader(header)<br />        .build();<br /><br />  PulsarClient pulsarClient = <br />     PulsarClient.builder()<br />      .build();<br /><br />  provider.initialize(pulsarClient);<br />  return pulsarClient;<br />}<br /></code></pre>
+<p>Parameter|Default value|Required?|Description |---|---|---|--- <code>defaultServiceUrl</code>|N/A|Yes|Pulsar service URL. <code>checkInterval</code>|30s|No|Frequency of performing a probe task (in seconds). <code>urlProvider</code>|N/A|Yes|URL provider service. <code>urlProviderHeader</code>|N/A|No|<code>urlProviderHeader</code> is a map containing tokens and credentials.</p>
+<p>If you enable authentication or authorization between Pulsar clients and primary and backup clusters, you need to provide <code>urlProviderHeader</code>.</p>
+<p>Here is an example of how <code>urlProviderHeader</code> works.</p>
+<p><img src="/docs/assets/cluster-level-failover-3.png" alt="How urlProviderHeader works"></p>
+<p>Assume that you want to connect Pulsar client 1 to cluster A.</p>
+<ol>
+<li><p>Pulsar client 1 sends the token <em>t1</em> to the URL provider service.</p></li>
+<li><p>The URL provider service returns the credential <em>c1</em> and the cluster A URL to the Pulsar client.</p>
+<p>The URL provider service manages all tokens and credentials. It returns different credentials based on different tokens and different target cluster URLs to different Pulsar clients.</p>
+<p><strong>Note</strong>: <strong>the credential must be in a JSON file and contain parameters as shown</strong>.</p>
+<pre><code class="hljs"> {<br /> &quot;serviceUrl&quot;: &quot;pulsar+ssl://target:6651&quot;, <br /> &quot;tlsTrustCertsFilePath&quot;: &quot;/security/ca.cert.pem&quot;,<br /> &quot;authPluginClassName&quot;:&quot;org.apache.pulsar.client.impl.auth.AuthenticationTls&quot;,<br /> &quot;authParamsString&quot;: &quot; \&quot;tlsCertFile\&quot;: \&quot;/security/client.cert.pem\&quot; <br />     \&quot;tlsKeyFile\&quot;: \&quot;/security/client-pk8.pem\&quot; &quot;<br /> }<br /></code></pre></li>
+<li><p>Pulsar client 1 connects to cluster A using credential <em>c1</em>.</p></li>
+</ol>
+</span></div></div></div></div>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="how-does-cluster-level-failover-work"></a><a href="#how-does-cluster-level-failover-work" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How does cluster-level failover work?</h4>
+</blockquote>
+<p>This chapter explains the working process of cluster-level failover. For more implementation details, see <a href="https://github.com/apache/pulsar/issues/13315">PIP-121</a>.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2719-tab-2720" class="nav-link active" data-group="group_2719" data-tab="tab-group-2719-content-2720">Automatic cluster-level failover</div><div id="tab-group-2719-tab-2721" class="nav-link" data-group="group_2719" data-tab="tab-group-2719-content-2721">Controlled cluster-level failover</div></div><div class="tab-content"><div id="tab-group-2719-content-2720" class="tab-pane active" data-group="group_2719" tabindex="-1"><div><span><p>In automatic failover cluster, the primary cluster and backup cluster are aware of each other's availability. The automatic failover cluster performs the following actions without administrator intervention:</p>
+<ol>
+<li><p>The Pulsar client runs a probe task at intervals defined in <code>checkInterval</code>.</p></li>
+<li><p>If the probe task finds the failure time of the primary cluster exceeds the time set in the <code>failoverDelay</code> parameter, it searches backup clusters for an available healthy cluster.</p>
+<p>2a) If there are healthy backup clusters, the Pulsar client switches to a backup cluster in the order defined in <code>secondary</code>.</p>
+<p>2b) If there is no healthy backup cluster, the Pulsar client does not perform the switchover, and the probe task continues to look for an available backup cluster.</p></li>
+<li><p>The probe task checks whether the primary cluster functions well or not.</p>
+<p>3a) If the primary cluster comes back and the continuous healthy time exceeds the time set in <code>switchBackDelay</code>, the Pulsar client switches back to the primary cluster.</p>
+<p>3b) If the primary cluster does not come back, the Pulsar client does not perform the switchover.</p></li>
+</ol>
+<p><img src="/docs/assets/cluster-level-failover-4.png" alt="Workflow of automatic failover cluster"></p>
+</span></div></div><div id="tab-group-2719-content-2721" class="tab-pane" data-group="group_2719" tabindex="-1"><div><span><ol>
+<li><p>The Pulsar client runs a probe task at intervals defined in <code>checkInterval</code>.</p></li>
+<li><p>The probe task fetches the service URL configuration from the URL provider service, which is configured by <code>urlProvider</code>.</p>
+<p>2a) If the service URL configuration is changed, the probe task switches to the target cluster without checking the health status of the target cluster.</p>
+<p>2b) If the service URL configuration is not changed, the Pulsar client does not perform the switchover.</p></li>
+<li><p>If the Pulsar client switches to the target cluster, the probe task continues to fetch service URL configuration from the URL provider service at intervals defined in <code>checkInterval</code>.</p>
+<p>3a) If the service URL configuration is changed, the probe task switches to the target cluster without checking the health status of the target cluster.</p>
+<p>3b) If the service URL configuration is not changed, it does not perform the switchover.</p></li>
+</ol>
+<p><img src="/docs/assets/cluster-level-failover-5.png" alt="Workflow of controlled failover cluster"></p>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h2>
+<p>In Pulsar, producers write messages to topics. Once you've instantiated a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object (as in the section <a href="#client-configuration">above</a>), you can create a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
+ for a specific Pulsar <a href="/docs/zh-TW/next/reference-terminology#topic">topic</a>.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .create();
+
+<span class="hljs-comment">// You can then send messages to the broker and topic you specified:</span>
+producer.send(<span class="hljs-string">"My message"</span>.getBytes());
+</code></pre>
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message <a href="#schema">schema</a>.</p>
+<pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .create();
+stringProducer.send(<span class="hljs-string">"My message"</span>);
+</code></pre>
+<blockquote>
+<p>Make sure that you close your producers, consumers, and clients when you do not need them.</p>
+<pre><code class="hljs css language-java">producer.close();
+consumer.close();
+client.close();
+</code></pre>
+<p>Close operations can also be asynchronous:</p>
+<pre><code class="hljs css language-java">producer.closeAsync()
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>))
+   .exceptionally((ex) -&gt; {
+       System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
+       <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+   });
+</code></pre>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="configure-producer"></a><a href="#configure-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure producer</h3>
+<p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, the default configuration of producer is used.</p>
+<p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
+<p>Name| Type |</p>
+<div style="width:300px">
+  Description
+</div>| Default |\---|\---|\---|\--- 
+<p><code>topicName</code>| string| Topic name| null| <code>producerName</code>| string|Producer name| null <code>sendTimeoutMs</code>| long|Message send timeout in ms.<br>
+If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error occurs.|30000 <code>blockIfQueueFull</code>|boolean|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.<br>
+If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
+<p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false <code>maxPendingMessages</code>| int|The maximum size of a queue holding pending messages.</p>
+<p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/zh-TW/next/reference-terminology#broker">broker</a>.</p>
+<p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|int|The maximum number of pending messages across partitions.</p>
+<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-TW/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
+Apply the logic only when setting no key on messages.<br>
+Available options are as follows:</p>
+<ul>
+<li><code>pulsar.RoundRobinDistribution</code>: round robin</li>
+<li><code>pulsar.UseSinglePartition</code>: publish all messages to a single partition</li>
+<li><code>pulsar.CustomPartition</code>: a custom partitioning scheme|<code>pulsar.RoundRobinDistribution</code>
+<code>hashingScheme</code>| HashingScheme|Hashing function determining the partition where you publish a particular message (<strong>partitioned topics only</strong>).<br>
+Available options are as follows:</li>
+</ul>
+<ul>
+<li><code>pulsar.JavastringHash</code>: the equivalent of <code>string.hashCode()</code> in Java</li>
+<li><code>pulsar.Murmur3_32Hash</code>: applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function</li>
+<li><code>pulsar.BoostHash</code>: applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library |
+<code>HashingScheme.JavastringHash</code> <code>cryptoFailureAction</code>| ProducerCryptoFailureAction|Producer should take action when encryption fails.</li>
+</ul>
+<ul>
+<li><p><strong>FAIL</strong>: if encryption fails, unencrypted messages fail to send.</p></li>
+<li><p><strong>SEND</strong>: if encryption fails, unencrypted messages are sent. |
+<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> |int|The maximum number of messages permitted in a batch.|1000 <code>batchingEnabled</code>| boolean|Enable batching of messages. |true <code>chunkingEnabled</code> | boolean | Enable chunking of messages. |false <code>compressionType</code>|CompressionType|Message data compression type used by a producer.<br>
+Available options:</p></li>
+<li><p><a href="https://github.com/lz4/lz4"><code>LZ4</code></a></p></li>
+<li><p><a href="https://zlib.net/"><code>ZLIB</code></a></p>
+<ul>
+<li><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a></li>
+<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression
+<code>initialSubscriptionName</code>|string|Use this configuration to automatically create an initial subscription when creating a topic. If this field is not set, the initial subscription is not created.|null</p>
+You can configure parameters if you do not want to use the default configuration.</li>
+</ul>
+<p>For a full list, see the Javadoc for the <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
+ class. The following is an example.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+    .topic(<span class="hljs-string">"my-topic"</span>)
+    .batchingMaxPublishDelay(<span class="hljs-number">10</span>, TimeUnit.MILLISECONDS)
+    .sendTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
+    .blockIfQueueFull(<span class="hljs-keyword">true</span>)
+    .create();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="message-routing"></a><a href="#message-routing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message routing</h3>
+<p>When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the <a href="/docs/zh-TW/next/cookbooks-partitioned">Partitioned Topics cookbook</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="async-send"></a><a href="#async-send" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Async send</h3>
+<p>You can publish messages <a href="/docs/zh-TW/next/concepts-messaging#send-modes">asynchronously</a> using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.</p>
+<p>The following is an example.</p>
+<pre><code class="hljs css language-java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
+    System.out.println(<span class="hljs-string">"Message with ID "</span> + msgId + <span class="hljs-string">" successfully sent"</span>);
+});
+</code></pre>
+<p>As you can see from the example above, async send operations return a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+ wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="configure-messages"></a><a href="#configure-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure messages</h3>
+<p>In addition to a value, you can set additional items on a given message:</p>
+<pre><code class="hljs css language-java">producer.newMessage()
+    .key(<span class="hljs-string">"my-message-key"</span>)
+    .value(<span class="hljs-string">"my-async-message"</span>.getBytes())
+    .property(<span class="hljs-string">"my-key"</span>, <span class="hljs-string">"my-value"</span>)
+    .property(<span class="hljs-string">"my-other-key"</span>, <span class="hljs-string">"my-other-value"</span>)
+    .send();
+</code></pre>
+<p>You can terminate the builder chain with <code>sendAsync()</code> and get a future return.</p>
+<h3><a class="anchor" aria-hidden="true" id="enable-chunking"></a><a href="#enable-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable chunking</h3>
+<p>Message <a href="/docs/zh-TW/next/concepts-messaging#chunking">chunking</a> enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
+<p>The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+        .topic(topic)
+        .enableChunking(<span class="hljs-keyword">true</span>)
+        .enableBatching(<span class="hljs-keyword">false</span>)
+        .create();
+</code></pre>
+<p>By default, producer chunks the large message based on max message size (<code>maxMessageSize</code>) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration <code>chunkMaxMessageSize</code>.</p>
+<blockquote>
+<p><strong>Note:</strong> To enable chunking, you need to disable batching (<code>enableBatching</code>=<code>false</code>) concurrently.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h2>
+<p>In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new <a href="/docs/zh-TW/next/reference-terminology#consumer">consumer</a> by first instantiating a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object and passing it a URL for a Pulsar broker (as <a href="#client-configuration">above</a>).</p>
+<p>Once you've instantiated a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object, you can create a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+ by specifying a <a href="/docs/zh-TW/next/reference-terminology#topic">topic</a> and a <a href="/docs/zh-TW/next/concepts-messaging#subscription-types">subscription</a>.</p>
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+        .subscribe();
+</code></pre>
+<p>The <code>subscribe</code> method will auto subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a <code>while</code> loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then <a href="/docs/zh-TW/next/reference-terminology#acknowledgment-ack">acknowledges</a> that the message has been processed. If the processing logic fails, you can use <a href="/docs/zh-TW/next/reference-terminology#acknowledgment-ack">negative acknowledgement</a> to redeliver the message later.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+  <span class="hljs-comment">// Wait for a message</span>
+  Message msg = consumer.receive();
+
+  <span class="hljs-keyword">try</span> {
+      <span class="hljs-comment">// Do something with the message</span>
+      System.out.println(<span class="hljs-string">"Message received: "</span> + <span class="hljs-keyword">new</span> String(msg.getData()));
+
+      <span class="hljs-comment">// Acknowledge the message so that it can be deleted by the message broker</span>
+      consumer.acknowledge(msg);
+  } <span class="hljs-keyword">catch</span> (Exception e) {
+      <span class="hljs-comment">// Message failed to process, redeliver later</span>
+      consumer.negativeAcknowledge(msg);
+  }
+}
+</code></pre>
+<p>If you don't want to block your main thread and rather listen constantly for new messages, consider using a <code>MessageListener</code>.</p>
+<pre><code class="hljs css language-java">MessageListener myMessageListener = (consumer, msg) -&gt; {
+  <span class="hljs-keyword">try</span> {
+      System.out.println(<span class="hljs-string">"Message received: "</span> + <span class="hljs-keyword">new</span> String(msg.getData()));
+      consumer.acknowledge(msg);
+  } <span class="hljs-keyword">catch</span> (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic(<span class="hljs-string">"my-topic"</span>)
+     .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+     .messageListener(myMessageListener)
+     .subscribe();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configure-consumer"></a><a href="#configure-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure consumer</h3>
+<p>If you instantiate a <code>Consumer</code> object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.</p>
+<p>When you create a consumer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
+<p>Name|Type |</p>
+<p><div style="width:300px">
+Description
+</div>
+| Default |---|---|---|--- <code>topicNames</code>| Set<String>| Topic name| Sets.newTreeSet() <code>topicsPattern</code>|Pattern| Topic pattern |None <code>subscriptionName</code>|String| Subscription name| None <code>subscriptionType</code>|SubscriptionType| Subscription type<br>
+Four subscription types are available:</p>
+<ul>
+<li>Exclusive</li>
+<li>Failover</li>
+<li>Shared</li>
+<li>Key_Shared|SubscriptionType.Exclusive
+<code>receiverQueueSize</code> |int | Size of a consumer's receiver queue.</li>
+</ul>
+<p>For example, the number of messages accumulated by a consumer before an application calls <code>Receive</code>.</p>
+<p>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000 <code>acknowledgementsGroupTimeMicros</code>|long|Group a consumer acknowledgment for a specified time.</p>
+<p>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.</p>
+<p>Setting a group time of 0 sends out acknowledgments immediately.</p>
+<p>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) <code>negativeAckRedeliveryDelayMicros</code>|long|Delay to wait before redelivering messages that failed to be processed.</p>
+<p>When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) <code>maxTotalReceiverQueueSizeAcrossPartitions</code>|int |The max total receiver queue size across partitions.</p>
+<p>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 <code>consumerName</code>|String|Consumer name|null <code>ackTimeoutMillis</code>|long|Timeout of unacked messages|0 <code>tickDurationMillis</code>|long|Granularity of the ack-timeout redelivery.</p>
+<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 <code>priorityLevel</code>|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type.</p>
+<p>The broker follows descending priorities. For example, 0=max-priority, 1, 2,...</p>
+<p>In Shared subscription type, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
+<p><strong>範例 1</strong>  <br>
+If a subscription has consumerA with <code>priorityLevel</code> 0 and consumerB with <code>priorityLevel</code> 1, then the broker <strong>only dispatches messages to consumerA until it runs out permits</strong> and then starts dispatching messages to consumerB.</p>
+<p><strong>範例 2</strong>  <br>
+Consumer Priority, Level, Permits<br>
+C1, 0, 2<br>
+C2, 0, 1<br>
+C3, 0, 1<br>
+C4, 1, 2<br>
+C5, 1, 1</p>
+<p>Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 <code>cryptoFailureAction</code>|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.</p></li>
+</ul>
+<pre><code class="hljs">* **FAIL**: this is the default option to fail messages until crypto succeeds.
+* **DISCARD**:silently acknowledge and not deliver message to an application.
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
+  
+The decompression of message fails.   
+  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
+  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `properties`|SortedMap&lt;String, String&gt;|A name or value property of this consumer.  
+  
+`properties` is application defined metadata attached to a consumer.   
+  
+When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap&lt;&gt;() `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
+  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
+  
+Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).   
+  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `subscriptionInitialPosition`|SubscriptionInitialPosition|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest `patternAutoDiscoveryPeriod`|int|Topic auto discovery period when using a pattern for topic's consumer.  
+  
+The default and minimum value is 1 minute.|1 `regexSubscriptionMode`|RegexSubscriptionMode|When subscribing to a topic using a regular expression, you can pick a certain type of topics.  
+  
+
+
+* **PersistentOnly**: only subscribe to persistent topics.
+* **NonPersistentOnly**: only subscribe to non-persistent topics.
+* **AllTopics**: subscribe to both persistent and non-persistent topics.|RegexSubscriptionMode.PersistentOnly 
+`deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.  
+  
+By default, some messages are probably redelivered many times, even to the extent that it never stops.  
+  
+By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.  
+  
+You can enable the dead letter mechanism by setting `deadLetterPolicy`.  
+  
+**Example**  
+  
+`client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())&lt;br /&gt;.subscribe();`  
+  
+Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.  
+  
+To set a custom dead letter topic name:  
+`client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br /&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br /&gt;.subscribe();`  
+  
+When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
+  
+**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
+
+You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
+
+The following is an example.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .ackTimeout(10, TimeUnit.SECONDS)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe();
+```
+
+### Async receive
+
+The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](/docs/zh-TW/next/concepts-messaging#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
+
+The following is an example.
+
+```java
+CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
+```
+
+Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+### Batch receive
+
+Use `batchReceive` to receive multiple messages for each call.
+
+The following is an example.
+
+```java
+Messages messages = consumer.batchReceive();
+for (Object message : messages) {
+  // do something
+}
+consumer.acknowledge(messages)
+```
+
+&gt; Note:
+&gt; 
+&gt; Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
+&gt; 
+&gt; The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
+&gt; 
+&gt; ```java
+&gt; Consumer consumer = client.newConsumer()
+&gt;         .topic(&quot;my-topic&quot;)
+&gt;         .subscriptionName(&quot;my-subscription&quot;)
+&gt;         .batchReceivePolicy(BatchReceivePolicy.builder()
+&gt;              .maxNumMessages(100)
+&gt;              .maxNumBytes(1024 * 1024)
+&gt;              .timeout(200, TimeUnit.MILLISECONDS)
+&gt;              .build())
+&gt;         .subscribe();
+&gt; ```
+&gt; 
+&gt; The default batch receive policy is:
+&gt; 
+&gt; ```java
+&gt; BatchReceivePolicy.builder()
+&gt;     .maxNumMessage(-1)
+&gt;     .maxNumBytes(10 * 1024 * 1024)
+&gt;     .timeout(100, TimeUnit.MILLISECONDS)
+&gt;     .build();
+&gt; ```
+
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` and `autoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. The `expireTimeOfIncompleteChunkedMessage` parameter decides the time interval to expire incomplete chunks if the consumer fails to receive all chunks of a message within the specified time period.
+
+The following is an example of how to configure message chunking.
+
+```java
+Consumer&lt;byte[]&gt; consumer = client.newConsumer()
+        .topic(topic)
+        .subscriptionName(&quot;test&quot;)
+        .autoAckOldestChunkedMessageOnQueueFull(true)
+        .maxPendingChunkedMessage(100)
+        .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
+        .subscribe();
+```
+
+### Negative acknowledgment redelivery backoff
+
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
+
+```java
+Consumer consumer =  client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(60 * 1000)
+                .build())
+        .subscribe();
+```
+
+### Acknowledgement timeout redelivery backoff
+
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number of times the messages is retried.
+
+```java
+Consumer consumer =  client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .ackTimeout(10, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(60000)
+                .multiplier(2)
+                .build())
+        .subscribe();
+```
+
+The message redelivery behavior should be as follows.
+
+| Redelivery count | Redelivery delay |
+|:---------------- |:---------------- |
+| 1                | 10 + 1 seconds   |
+| 2                | 10 + 2 seconds   |
+| 3                | 10 + 4 seconds   |
+| 4                | 10 + 8 seconds   |
+| 5                | 10 + 16 seconds  |
+| 6                | 10 + 32 seconds  |
+| 7                | 10 + 60 seconds  |
+| 8                | 10 + 60 seconds  |
+
+&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+
+### 多主題訂閱
+
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](/docs/zh-TW/next/concepts-messaging#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
+
+The followings are some examples.
+
+```java
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
+        .subscriptionName(subscription);
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile(&quot;public/default/.*&quot;);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(allTopicsInNamespace)
+        .subscribe();
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile(&quot;public/default/foo.*&quot;);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(someTopicsInNamespace)
+        .subscribe();
+```
+
+In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
+
+```java
+Pattern pattern = Pattern.compile(&quot;public/default/.*&quot;);
+pulsarClient.newConsumer()
+        .subscriptionName(&quot;my-sub&quot;)
+        .topicsPattern(pattern)
+        .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+        .subscribe();
+```
+
+&gt; **Note**  
+&gt; By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
+
+You can also subscribe to an explicit list of topics (across namespaces if you wish):
+
+```java
+List&lt;String&gt; topics = Arrays.asList(
+        &quot;topic-1&quot;,
+        &quot;topic-2&quot;,
+        &quot;topic-3&quot;
+);
+
+Consumer multiTopicConsumer = consumerBuilder
+        .topics(topics)
+        .subscribe();
+
+// Alternatively:
+Consumer multiTopicConsumer = consumerBuilder
+        .topic(
+            &quot;topic-1&quot;,
+            &quot;topic-2&quot;,
+            &quot;topic-3&quot;
+        )
+        .subscribe();
+```
+
+You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
+
+```java
+Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
+consumerBuilder
+        .topics(topics)
+        .subscribeAsync()
+        .thenAccept(this::receiveMessageFromConsumer);
+
+private void receiveMessageFromConsumer(Object consumer) {
+    ((Consumer)consumer).receiveAsync().thenAccept(message -&gt; {
+                // Do something with the received message
+                receiveMessageFromConsumer(consumer);
+            });
+}
+```
+
+### Subscription types
+
+Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
+
+A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
+
+Different subscription types have different message distribution types. This section describes the differences of subscription types and how to use them.
+
+In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
+
+```java
+Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
+        .topic(&quot;my-topic&quot;)
+        .enableBatching(false)
+        .create();
+// 3 messages with &quot;key-1&quot;, 3 messages with &quot;key-2&quot;, 2 messages with &quot;key-3&quot; and 2 messages with &quot;key-4&quot;
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-1&quot;).send();
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-2&quot;).send();
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-3&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-1&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-2&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-3&quot;).send();
+producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-1&quot;).send();
+producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-2&quot;).send();
+producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-1&quot;).send();
+producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-2&quot;).send();
+```
+
+#### Exclusive
+
+Create a new consumer and subscribe with the `Exclusive` subscription type.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe()
+```
+
+Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
+
+&gt; Note:
+&gt; 
+&gt; If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.
+
+#### Failover
+
+Create new consumers and subscribe with the`Failover` subscription type.
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Failover)
+        .subscribe()
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Failover)
+        .subscribe()
+//conumser1 is the active consumer, consumer2 is the standby consumer.
+//consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
+
+
+```
+
+Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
+
+If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    
+
+consumer2 will receive:
+
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+&gt; Note:
+&gt; 
+&gt; If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
+
+#### Shared
+
+Create new consumers and subscribe with `Shared` subscription type.
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Shared)
+        .subscribe()
+
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Shared)
+        .subscribe()
+//Both consumer1 and consumer 2 is active consumers.
+```
+
+In Shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+
+If a broker dispatches only one message at a time, consumer1 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    
+
+consumer2 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+`Shared` subscription is different from `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+
+#### Key_shared
+
+This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .subscribe()
+
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .subscribe()
+//Both consumer1 and consumer2 are active consumers.
+```
+
+Just like in `Shared` subscription, all consumers in `Key_Shared` subscription type can attach to the same subscription. But `Key_Shared` subscription type is different from the `Shared` subscription. In `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+
+consumer1 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    
+
+consumer2 receives the following information.
+
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
+
+```java
+Producer producer = client.newProducer()
+        .topic(&quot;my-topic&quot;)
+        .batcherBuilder(BatcherBuilder.KEY_BASED)
+        .create();
+```
+
+Or the producer can disable batching.
+
+```java
+Producer producer = client.newProducer()
+        .topic(&quot;my-topic&quot;)
+        .enableBatching(false)
+        .create();
+```
+
+&gt; Note:
+&gt; 
+&gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+
+## Reader
+
+With the [reader interface](/docs/zh-TW/next/concepts-clients#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+
+The following is an example.
+
+```java
+byte[] msgIdBytes = // Some message ID byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(id)
+        .create();
+
+while (true) {
+    Message message = reader.readNext();
+    // Process message
+}
+```
+
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader iterates over each message in the topic after the message is identified by `msgIdBytes` (how that value is obtained depends on the application).
+
+The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
+
+### Configure reader
+
+When you create a reader, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
+
+| Name | Type|
+
+&lt;div style=&quot;width:300px&quot;&gt;
+  Description
+&lt;/div&gt;
+| Default |\---|\---|\---|\--- `topicName`|String|Topic name. |None `receiverQueueSize`|int|Size of a consumer's receiver queue.  
+  
+For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
+  
+A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 `readerListener`|ReaderListener&lt;T&gt;|A listener that is called for message received.|None `readerName`|String|Reader name.|null `subscriptionName`|String| Subscription name|When there is a single topic, the default subscription name is `&quot;reader-&quot; + 10-digit UUID`.  
+When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. `subscriptionRolePrefix`|String|Prefix of subscription role. |null `cryptoKeyReader`|CryptoKeyReader|Interface that abstracts the access to a key store.|null `cryptoFailureAction`|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.  
+
+
+* **FAIL**: this is the default option to fail messages until crypto succeeds.
+* **DISCARD**: silently acknowledge and not deliver message to an application.
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
+  
+The message decompression fails.   
+  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
+  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
+  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
+  
+`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
+  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `resetIncludeHead`|boolean|If set to true, the first message to be returned is the one specified by `messageId`.  
+  
+If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
+
+### Sticky key range reader
+
+In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+
+The following is an example to create a sticky key range reader.
+
+```java
+pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
+        .create();
+```
+
+Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+
+## TableView
+
+The TableView interface serves an encapsulated access pattern, providing a continuously updated key-value map view of the compacted topic data. Messages without keys will be ignored.
+
+With TableView, Pulsar clients can fetch all the message updates from a topic and construct a map with the latest values of each key. These values can then be used to build a local cache of data. In addition, you can register consumers with the TableView by specifying a listener to perform a scan of the map and then receive notifications when new messages are received. Consequently, event handling can be triggered to serve use cases, such as event-driven applications and message monitoring.
+
+&gt; **Note:** Each TableView uses one Reader instance per partition, and reads the topic starting from the compacted view by default. It is highly recommended to enable automatic compaction by [configuring the topic compaction policies](/docs/zh-TW/next/cookbooks-compaction#configuring-compaction-to-run-automatically) for the given topic or namespace. More frequent compaction results in shorter startup times because less data is replayed to reconstruct the TableView of the topic.
+
+The following figure illustrates the dynamic construction of a TableView updated with newer values of each key. ![TableView](/docs/assets/tableview.png)
+
+### Configure TableView
+
+The following is an example of how to configure a TableView.
+
+```java
+TableView&lt;String&gt; tv = client.newTableViewBuilder(Schema.STRING)
+  .topic(&quot;my-tableview&quot;)
+  .create()
+```
+
+You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
+
+| Name | Type| Required? |
+
+&lt;div style=&quot;width:300px&quot;&gt;
+  Description
+&lt;/div&gt;
+| Default                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------- |
+| `topic` | string | yes | The topic name of the TableView. | N/A                                             |
+| `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds) |
+
+### Register listeners
+
+You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform operations for all existing messages by using `forEach`.
+
+The following is an example of how to register listeners with TableView.
+
+```java
+// Register listeners for all existing and incoming messages
+tv.forEachAndListen((key, value) -&gt; /*operations on all existing and incoming messages*/)
+
+// Register action for all existing messages
+tv.forEach((key, value) -&gt; /*operations on all existing messages*/)
+```
+
+## Schema
+
+In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-TW/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+
+```java
+Producer&lt;byte[]&gt; producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer&lt;byte[]&gt;` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](/docs/zh-TW/next/reference-terminology#topic).
+
+### AvroBaseStructSchema example
+
+Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer&lt;SensorReading&gt;` (or `Consumer&lt;SensorReading&gt;`) like this:
+
+```java
+Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic(&quot;sensor-readings&quot;)
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+    
+    ```java
+    Producer&lt;byte[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
+        .topic(&quot;some-raw-bytes-topic&quot;)
+        .create();
+    ```
+    
+    Or, equivalently:
+    
+    ```java
+    Producer&lt;byte[]&gt; bytesProducer = client.newProducer()
+        .topic(&quot;some-raw-bytes-topic&quot;)
+        .create();
+    ```
+
+* `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
+    
+    ```java
+    Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+        .topic(&quot;some-string-topic&quot;)
+        .create();
+    ```
+
+* Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
+    
+    ```java
+    Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
+        .topic(&quot;some-pojo-topic&quot;)
+        .create();
+    ```
+
+* Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+    
+    ```java
+    Producer&lt;MyProtobuf&gt; protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+        .topic(&quot;some-protobuf-topic&quot;)
+        .create();
+    ```
+
+* Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
+    
+    ```java
+    Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+        .topic(&quot;some-avro-topic&quot;)
+        .create();
+    ```
+
+### ProtobufNativeSchema example
+
+For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](/docs/zh-TW/next/schema-understand#complex-type).
+
+## Authentication
+
+Pulsar currently supports three authentication schemes: [TLS](/docs/zh-TW/next/security-tls-authentication), [Athenz](/docs/zh-TW/next/security-athenz), and [Oauth2](/docs/zh-TW/next/security-oauth2). You can use the Pulsar Java client with all of them.
+
+### TLS Authentication
+
+To use [TLS](/docs/zh-TW/next/security-tls-authentication), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+
+The following is an example.
+
+```java
+Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
+authParams.put(&quot;tlsCertFile&quot;, &quot;/path/to/client-cert.pem&quot;);
+authParams.put(&quot;tlsKeyFile&quot;, &quot;/path/to/client-key.pem&quot;);
+
+Authentication tlsAuth = AuthenticationFactory
+        .create(AuthenticationTls.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
+        .enableTls(true)
+        .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
+        .authentication(tlsAuth)
+        .build();
+```
+
+### Athenz
+
+To use [Athenz](/docs/zh-TW/next/security-athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+
+* `tenantDomain`
+* `tenantService`
+* `providerDomain`
+* `privateKey`
+
+You can also set an optional `keyId`. The following is an example.
+
+```java
+Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
+authParams.put(&quot;tenantDomain&quot;, &quot;shopping&quot;); // Tenant domain name
+authParams.put(&quot;tenantService&quot;, &quot;some_app&quot;); // Tenant service name
+authParams.put(&quot;providerDomain&quot;, &quot;pulsar&quot;); // Provider domain name
+authParams.put(&quot;privateKey&quot;, &quot;file:///path/to/private.pem&quot;); // Tenant private key path
+authParams.put(&quot;keyId&quot;, &quot;v1&quot;); // Key id for the tenant private key (optional, default: &quot;0&quot;)
+
+Authentication athenzAuth = AuthenticationFactory
+        .create(AuthenticationAthenz.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
+        .enableTls(true)
+        .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
+        .authentication(athenzAuth)
+        .build();
+```
+
+&gt; #### Supported pattern formats
+&gt; 
+&gt; The `privateKey` parameter supports the following three pattern formats: * `file:///path/to/file` * `file:/path/to/file` * `data:application/x-pem-file;base64,&lt;base64-encoded value&gt;`
+
+### Oauth2
+
+The following example shows how to use [Oauth2](/docs/zh-TW/next/security-oauth2) as an authentication provider for the Pulsar Java client.
+
+You can use the factory method to configure authentication for Pulsar Java client.
+
+```java
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
+    .authentication(
+        AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
+    .build();
+```
+
+In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
+
+```java
+Authentication auth = AuthenticationFactory
+    .create(AuthenticationOAuth2.class.getName(), &quot;{&quot;type&quot;:&quot;client_credentials&quot;,&quot;privateKey&quot;:&quot;...&quot;,&quot;issuerUrl&quot;:&quot;...&quot;,&quot;audience&quot;:&quot;...&quot;}&quot;);
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
+    .authentication(auth)
+    .build();
+```</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/client-libraries"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li><li><a href="#client-memory-allocator-configuration">Client memory allocator configuration</a></li><li><a href="#cluster-level-failover">Cluster-level failover</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li><li><a href="#message-routing">Message routing</a></li><li><a href="#async-send">Async send</a></li><li><a href="#configure-messages">Configure messages</a></li><li><a href="#enable-chunking">Enable chunking</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#configure-consumer">Configure consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:next"]}
+              });
+            </script></body></html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Architecture Overview · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](/docs/ko/2.8.3/concepts-replication) data amongst themselves."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Architecture Overview · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](/docs/ko/2.8.3/concepts-replication) data amongst themselves."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/concepts-architecture-overview">English</a></li><li><a href="/docs/ja/2.8.3/concepts-architecture-overview">日本語</a></li><li><a href="/docs/fr/2.8.3/concepts-architecture-overview">Français</a></li><li><a href="/docs/zh-CN/2.8.3/concepts-architecture-overview">中文</a></li><li><a href="/docs/zh-TW/2.8.3/concepts-architecture-overview">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Concepts and Architecture</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Architecture Overview</h1></header><article><div><span><p>At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can <a href="/docs/ko/2.8.3/concepts-replication">replicate</a> data amongst themselves.</p>
+<p>Pulsar 클러스터의 내부:</p>
+<ul>
+<li>하나 이상의 브로커는 프로듀서로부터 들어오는 메시지들을 처리하고 로드밸런싱하여 소지자에게 전송 합니다. 다양항 조정 작업들을 처리하기 위해 구성 된 저장소와 상호 작용하고 BookKeeper 인스턴스 (일명 Bookies) 에 메시지를 저장합니다. 그리고 클러스터에 특화 된 특정 작업 등을 위해 ZooKeeper 클러스터에 의존합니다.</li>
+<li>하나 이상의 bookies로 구성된 BookKeeper 클러스터는 메시지의 <a href="#persistent-storage">영구 저장</a>을 처리합니다.</li>
+<li>A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.</li>
+</ul>
+<p>아래 다이어그램은 Pulsar 클러스터를 보여줍니다:</p>
+<p><img src="/docs/assets/pulsar-system-architecture.png" alt="Pulsar architecture diagram"></p>
+<p>보다 광범위한 인스턴스 수준에서, 인스턴스 전체에 ZooKeeper 클러스터는 <a href="/docs/ko/2.8.3/concepts-replication">geo-replication</a>와 같은 여러 클러스터와 관련된 조정 작업을 처리합니다.</p>
+<h2><a class="anchor" aria-hidden="true" id="브로커"></a><a href="#브로커" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>브로커</h2>
+<p>Pulsar 메시지 브로커는 다른 두 가지 주요 구성 요소를 실행하는 책임이 있는 stateless 컴포넌트 입니다:</p>
+<ul>
+<li>An HTTP server that exposes a <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
+ API for both administrative tasks and <a href="/docs/ko/2.8.3/concepts-clients#client-setup-phase">topic lookup</a> for producers and consumers. The producers connect to the brokers to publish messages and the consumers connect to the brokers to consume the messages.</li>
+<li>디스패처: 비동기 TCP 서버인 디스패처는 사용자 정의 <a href="/docs/ko/2.8.3/develop-binary-protocol">이진 프로토콜</a>을 통해 모든 데이터 전송에 사용됩니다.</li>
+</ul>
+<p>Messages are typically dispatched out of a <a href="#managed-ledgers">managed ledger</a> cache for the sake of performance, <em>unless</em> the backlog exceeds the cache size. Backlog가 캐시에 비해 너무 커지면 브로커는 BookKeeper에서 엔트리(레코드) 를 읽기 시작합니다.</p>
+<p>마지막으로, 글로벌 topic에 대한 geo-replication을 지원하기 위해 브로커는 로컬 영역에 공개 된 엔트리(레코드)를 테일링하고 Pulsar <a href="/docs/ko/2.8.3/client-libraries-java">Java client library</a>를 사용하여 리모드 리전 클러스터에 리-퍼블리싱하는 리플리케이터를 관리합니다.</p>
+<blockquote>
+<p>Pulsar 브로커 관리에 대한 가이드는 <a href="/docs/ko/2.8.3/admin-api-brokers">brokers</a> 가이드를 참조하십시오.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="클러스터"></a><a href="#클러스터" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>클러스터</h2>
+<p>A Pulsar instance consists of one or more Pulsar <em>clusters</em>. Clusters, in turn, consist of:</p>
+<ul>
+<li>하나 이상의 Pulsar <a href="#brokers">브로커</a></li>
+<li>클러스터 수준 구성 및 조정에 사용되는 ZooKeeper 쿼럼</li>
+<li>메시지의 <a href="#persistent-storage">영구 저장소</a>로 사용되는 bookies 앙상블(Bookeeper)</li>
+</ul>
+<p>클러스터는 <a href="/docs/ko/2.8.3/concepts-replication">geo-replication</a>을 사용하여 스스로 메시지를 복제 할 수 있습니다.</p>
+<blockquote>
+<p>Pulsar 클러스터 관리에 대한 가이드는 <a href="/docs/ko/2.8.3/admin-api-clusters">클러스터</a> 가이드를 참조하십시오.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="metadata-store"></a><a href="#metadata-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metadata store</h2>
+<p>The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses <a href="https://zookeeper.apache.org/">Apache ZooKeeper</a> for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and <a href="https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage">BookKeeper metadata store</a>. If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.</p>
+<p>In a Pulsar instance:</p>
+<ul>
+<li>구성(configuration) 저장소인 쿼럼(Zookeeper) 은 테넌트, 네임 스페이스 및 전체적으로 일관성이 필요한 다른 엔터티에 대한 구성을 저장합니다.</li>
+<li>Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration store</h2>
+<p>The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.</p>
+<h2><a class="anchor" aria-hidden="true" id="persistent-storage"></a><a href="#persistent-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Persistent storage</h2>
+<p>Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.</p>
+<p>이 전송 보증을 제공하기 위하여는 컨슈머에게 승인 된 메시지가 전달되기 전까지 승인되지 않은 메시지가 내구성있는 방식으로 저장되어야합니다. This mode of messaging is commonly called <em>persistent messaging</em>. Pulsar에서는 모든 메시지의 N 개 사본이 디스크에 저장 및 동기화됩니다. 예: 각 서버에 미러링 된 <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> 볼륨이있는 두 서버에서 4 개의 사본.</p>
+<h3><a class="anchor" aria-hidden="true" id="apache-bookkeeper"></a><a href="#apache-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apache BookKeeper</h3>
+<p>Pulsar는 영구 메시지 저장을 위해 <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>라는 시스템을 사용합니다. BookKeeper는 Pulsar에 여러 가지 중요한 이점을 제공하는 분산 <a href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead log</a> (WAL) 시스템입니다.</p>
+<ul>
+<li>It enables Pulsar to utilize many independent logs, called <a href="#ledgers">ledgers</a>. Multiple ledgers can be created for topics over time.</li>
+<li>이것은 엔트리(레코드) 복제를 처리하는 순차적 데이터를 위한 매우 효율적인 저장소를 제공합니다.</li>
+<li>다양한 시스템 오류가있는 경우 원장(ledgers) 의 읽기 일관성을 보장합니다.</li>
+<li>Bookies에 걸쳐 I/O의 균일 한 분배를 제공합니다.</li>
+<li>It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.</li>
+<li>Bookies는 동시에 읽고 쓰는 수천 개의 원장(ledgers) 을 처리하도록 설계 되었습니다. 여러 디스크 장치--저널용 하나와 일반 저장소용 하나--를 사용함으로써, Bookies는 읽기 작업의 영향을 지속적인 쓰기 작업의 대기 시간과 분리 할 수 ​​있습니다.</li>
+</ul>
+<p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. 커서는 소비자의 <a href="/docs/ko/2.8.3/reference-terminology#subscription">구독</a> 위치입니다. Pulsar는 BookKeeper를 사용하여 확장 가능한 방식으로 <a href="/docs/ko/2.8.3/reference-terminology#consumer">consumers</a> 위치를 저장 할 수 있습니다. Pulsar는 BookKeeper를 사용하여 확장 가능한 방식으로 컨슈머 위치를 저장 할 수 있습니다.</p>
+<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
+<pre><code class="hljs css language-http">persistent://my-tenant/my-namespace/my-topic
+</code></pre>
+<blockquote>
+<p>Pulsar는 또한 임시 (<a href="/docs/ko/2.8.3/concepts-messaging#non-persistent-topics">비 지속적</a>) 메시지 저장을 지원합니다.</p>
+</blockquote>
+<p>아래 다이어그램에서 브로커와 bookies가 어떻게 상호 작용하는지에 대한 그림을 볼 수 있습니다.</p>
+<p><img src="/docs/assets/broker-bookie.png" alt="Brokers and bookies"></p>
+<h3><a class="anchor" aria-hidden="true" id="ledgers"></a><a href="#ledgers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledgers</h3>
+<p>원장(ledger) 은 여러 BookKeeper 스토리지 노드 또는 bookies에 할당 된 단일 작성기가있는 추가 전용 데이터 구조입니다. 원장 엔트리(레코드) 은 여러 bookies로 복제됩니다. 원장 자체에는 매우 간단한 의미구조가 있습니다:</p>
+<ul>
+<li>Pulsar 브로커는 원장을 생성하고 원장에 엔트리를 추가 한 후 원장을 닫을 수 있습니다.</li>
+<li>원장이 닫히면 --명시 적으로 또는 기록기 프로세스가 충돌하여-- 읽기 전용 모드로만 열 수 있습니다.</li>
+<li>마지막으로, 원장의 엔트리가 더 이상 필요하지 않으면 전체 원장을 시스템에서 삭제 할 수 있습니다 (모든 bookies에서).</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="ledger-read-consistency"></a><a href="#ledger-read-consistency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledger read consistency</h4>
+<p>Bookkeeper의 주요 장점은 장애가있는 경우 원장의 읽기 일관성을 보장한다는 것 입니다. Ledger은 단일 프로세스로만 작성 되므로 해당 프로세스는 합의를 얻지 않고도 엔트리를 매우 효율적으로 추가 할 수 있습니다. 장애가 발생하면 ledger은 복구 프로세스를 거쳐 ledger의 상태를 마무리하고 로그에 마지막으로 커밋 된 엔트리를 설정합니다. 그후, ledger의 모든 리더(reader) 는 동일한 내용을 볼 수 있습니다.</p>
+<h4><a class="anchor" aria-hidden="true" id="managed-ledgers"></a><a href="#managed-ledgers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed ledgers</h4>
+<p>Given that Bookkeeper ledgers provide a single log abstraction, a library was developed on top of the ledger called the <em>managed ledger</em> that represents the storage layer for a single topic. Managed ledger은 메시지 스트림의 추상화로, 스트림의 끝에 엔트리를 지속적으로 추가하는 단일 기록기 프로세스가 있으며 이 스트림을 소비하는 여러 커서가 있으며 각 커서에는 고유한 소비 위치가 있습니다.</p>
+<p>Internally, a single managed ledger uses multiple BookKeeper ledgers to store the data. There are two reasons to have multiple ledgers:</p>
+<ol>
+<li>실패 후, 원래 ledger는 더 이상 쓸 수 없으며 새 ledger을 만들어야 합니다.</li>
+<li>A ledger can be deleted when all cursors have consumed the messages it contains. This allows for periodic rollover of ledgers.</li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="journal-storage"></a><a href="#journal-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Journal storage</h3>
+<p>In BookKeeper, <em>journal</em> files contain BookKeeper transaction logs. <a href="#ledgers">Ledger</a>를 업데이트하기 전에, bookie는 업데이트를 설명하는 트랜잭션이 영구 (비 휘발성) 스토리지에 기록 되도록 해야합니다. Bookie가 시작 되거나 이전 저널 파일이 저널 파일 크기 임계 값 (<a href="/docs/ko/2.8.3/reference-configuration#bookkeeper-journalMaxSizeMB"><code>journalMaxSizeMB</code></a> 매개 변수를 사용하여 구성 됨)에 도달하면 새 저널 파일이 작성 됩니다.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-proxy"></a><a href="#pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy</h2>
+<p>Pulsar 클라이언트가 Pulsar <a href="#clusters">클러스터</a> 와 상호 작용하는 한 가지 방법은 Pulsar 메시지 <a href="#brokers">브로커</a>에 직접 연결하는 것입니다. 그러나 클라이언트가 브로커 주소에 직접 액세스 할 수 없기 때문에 이러한 종류의 직접 연결은 불가능하거나 바람직하지 않은 경우도 있습니다. 예를 들어 클라우드 환경이나 <a href="https://kubernetes.io">Kubernetes</a> 또는 유사한 플랫폼에서 Pulsar를 실행하는 경우 브로커에 직접 클라이언트를 연결할 수 없습니다.</p>
+<p>The <strong>Pulsar proxy</strong> provides a solution to this problem by acting as a single gateway for all of the brokers in a cluster. Pulsar proxy를 실행하는 경우 (선택 사항 임) Pulsar 클러스터와의 모든 클라이언트 연결은 브로커와 통신하지 않고 프록시를 통과합니다.</p>
+<blockquote>
+<p>성능 및 내결함성을 위해 원하는 만큼 Pulsar proxy 인스턴스를 실행 할 수 있습니다.</p>
+</blockquote>
+<p>구조적으로 Pulsar proxy는 ZooKeeper에서 필요한 모든 정보를 얻습니다. 시스템에서 프록시를 시작할 때, 각 인스턴스 클러스터와 전체 구성 저장소 클러스터에 ZooKeeper 연결 문자열만 제공하면 됩니다. Here's an example:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar proxy \
+  --zookeeper-servers zk-0,zk-1,zk-2 \
+  --configuration-store-servers zk-0,zk-1,zk-2
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-proxy-docs"></a><a href="#pulsar-proxy-docs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy docs</h4>
+<p>Pulsar 프록시 사용에 대한 설명서는 <a href="/docs/ko/2.8.3/administration-proxy">Pulsar 프록시 관리자 설명서</a>를 참조하십시오.</p>
+</blockquote>
+<p>Pulsar proxy에 대해 알아야 할 중요한 사항:</p>
+<ul>
+<li>Connecting clients don't need to provide <em>any</em> specific configuration to use the Pulsar proxy. 서비스 URL에 사용 된 IP를 업데이트하는 것 외에 (예: Pulsar 프록시를 통해로드 밸런서를 실행하는 경우) 기존 애플리케이션의 클라이언트 구성을 업데이트 할 필요가 없습니다.</li>
+<li>Pulsar proxy에서 <a href="/docs/ko/2.8.3/security-tls-transport">TLS 암호화</a> 및 <a href="/docs/ko/2.8.3/security-tls-authentication">인증</a>지원</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
+<p>Pulsar 브로커에 연결하는 <a href="/docs/ko/2.8.3/client-libraries">클라이언트</a>는 단일 URL을 사용하여 전체 Pulsar 인스턴스와 통신 할 수 있어야합니다. Pulsar는 <a href="/docs/ko/2.8.3/deploy-bare-metal#service-discovery-setup">Pulsar 인스턴스 배포</a> 가이드의 지침을 사용하여 설정할 수있는 기본 제공 서비스 검색 메커니즘을 제공합니다.</p>
+<p>원하는 경우 고유 한 서비스 검색 시스템을 사용할 수 있습니다. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as <code>http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
+<p>아래 다이어그램은 Pulsar 서비스 검색을 보여줍니다:</p>
+<p><img src="/docs/assets/pulsar-service-discovery.png" alt="alt-text"></p>
+<p>이 다이어그램에서 Pulsar 클러스터는 단일 DNS 이름인 <code>pulsar-cluster.acme.com</code>을 통해 주소를 지정할 수 있습니다. 예를 들어 <a href="/docs/ko/2.8.3/client-libraries-python">Python</a> 클라이언트는 다음과 같이이 Pulsar 클러스터에 액세스 할 수 있습니다:</p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client
+
+client = Client(<span class="hljs-string">'pulsar://pulsar-cluster.acme.com:6650'</span>)
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.8.3/concepts-messaging"><span class="arrow-prev">← </span><span>메시징</span></a><a class="docs-next button" href="/docs/ko/2.8.3/concepts-clients"><span>Clients</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#브로커">브로커</a></li><li><a href="#클러스터">클러스터</a></li><li><a href="#metadata-store">Metadata store</a></li><li><a href="#configuration-store">Configuration store</a></li><li><a href="#persistent-storage">Persistent storage</a><ul class="toc-headings"><li><a href="#apache-bookkeeper">Apache BookKeeper</a></li><li><a href="#ledgers">Ledgers</a></li><li><a href="#journal-storage">Journal storage</a></li></ul></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#service-discovery">Service discovery</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

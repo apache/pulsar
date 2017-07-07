@@ -1,0 +1,368 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy and manage functions worker · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="在使用 Pulsar Functions 前，需要学习如何设置 Pulsar Functions worker，以及如何[配置 Functions 运行时](/docs/zh-CN/2.8.3/functions-runtime)。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Deploy and manage functions worker · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="在使用 Pulsar Functions 前，需要学习如何设置 Pulsar Functions worker，以及如何[配置 Functions 运行时](/docs/zh-CN/2.8.3/functions-runtime)。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-worker">English</a></li><li><a href="/docs/ja/2.8.3/functions-worker">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-worker">Français</a></li><li><a href="/docs/ko/2.8.3/functions-worker">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/functions-worker">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy and manage functions worker</h1></header><article><div><span><p>在使用 Pulsar Functions 前，需要学习如何设置 Pulsar Functions worker，以及如何<a href="/docs/zh-CN/2.8.3/functions-runtime">配置 Functions 运行时</a>。</p>
+<p>Pulsar <code>functions-worker</code> is a logic component to run Pulsar Functions in cluster mode. 有两种不同的选择，你可以选择一种你需要的方式:</p>
+<ul>
+<li><a href="#run-functions-worker-with-brokers">与 broker 一起运行</a></li>
+<li>在不同的 broker 中<a href="#run-functions-worker-separately">单独运行</a></li>
+</ul>
+<blockquote>
+<p>Note<br>
+The <code>--- Service Urls---</code> lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="与-brokers-一起运行-functions-worker"></a><a href="#与-brokers-一起运行-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>与 brokers 一起运行 Functions-worker</h2>
+<p>The following diagram illustrates the deployment of functions-workers running along with brokers.</p>
+<p><img src="/docs/assets/functions-worker-corun.png" alt="assets/functions-worker-corun.png"></p>
+<p>To enable functions-worker running as part of a broker, you need to set <code>functionsWorkerEnabled</code> to <code>true</code> in the <code>broker.conf</code> file.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>如果<code>functionsWorkerEnabled</code>设置为 <code>true</code>，Functions-worker 会作为 broker 的一部分运行。 You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
+<p>在与 broker 一起运行 Functions-worker 时，需要先配置 Functions-worker，再与 broker 一起启动。</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-functions-worker-以与-brokers-一起运行"></a><a href="#配置-functions-worker-以与-brokers-一起运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Functions-Worker 以与 brokers 一起运行</h3>
+<p>在这个模式下，让 <code>functions-worker</code> 在 broker 上运行，其大多数配置已经继承了 broker 的配置(如配置存储设置，权限配置等等)。</p>
+<p>Pay attention to the following required settings when configuring functions-worker in this mode.</p>
+<ul>
+<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 对于生产环境部署，为确保其高可用性，需设置为大于 <code>2</code> 。</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. 如果设置为 <code>true</code>，需要确保通过 <code>bin/pulsar initialize-cluster-metadata</code> 命令对其进行了初始化。</li>
+</ul>
+<p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
+<ul>
+<li><code>bookkeeperClientAuthenticationPlugin</code>：BookKeeper 客户端身份验证插件的名称。</li>
+<li><code>bookkeeperClientAuthenticationParametersName</code>：BookKeeper 客户端身份验证插件的参数名称。</li>
+<li><code>bookkeeperClientAuthenticationParameters</code>：BookKeeper 客户端身份验证插件的参数。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="配置和-broker-共同运行的-stateful-functions"></a><a href="#配置和-broker-共同运行的-stateful-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置和 broker 共同运行的 Stateful-Functions</h3>
+<p>如果想使用 Stateful-Functions 相关的函数(例如，<code>putState()</code> 和 <code>queryState()</code> 相关的接口)，参考以下步骤。</p>
+<ol>
+<li><p>Enable the <strong>streamStorage</strong> service in the BookKeeper.</p>
+<p>现在服务使用的是 NAR 包，所以需要在 <code>bookkeeper.conf</code> 中进行配置。</p>
+<pre><code class="hljs css language-text">extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+</code></pre>
+<p>在启动 bookie 后，使用以下方法检查 streamStorage 服务是否正常启动。</p>
+<p>输入:</p>
+<pre><code class="hljs css language-shell">telnet localhost 4181
+</code></pre>
+<p>输出:</p>
+<pre><code class="hljs css language-text">Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+</code></pre></li>
+<li><p>在 <code>functions_worker.yml</code> 中打开此功能。</p></li>
+</ol>
+<pre><code class="hljs">```text
+stateStorageServiceUrl: bk://&lt;bk-service-url&gt;:4181
+```
+
+`bk-service-url` is the service URL pointing to the BookKeeper table service.
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="同时运行-functions-worker-和-broker"></a><a href="#同时运行-functions-worker-和-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>同时运行 Functions-worker 和 broker</h3>
+<p>Once you have configured the <code>functions_worker.yml</code> file, you can start or restart your broker.</p>
+<p>And then you can use the following command to verify if <code>functions-worker</code> is running well.</p>
+<pre><code class="hljs css language-bash">curl &lt;broker-ip&gt;:8080/admin/v2/worker/cluster
+</code></pre>
+<p>After entering the command above, a list of active function workers in the cluster is returned. 会输出类似以下的内容：</p>
+<pre><code class="hljs css language-json">[{<span class="hljs-attr">"workerId"</span>:<span class="hljs-string">"&lt;worker-id&gt;"</span>,<span class="hljs-attr">"workerHostname"</span>:<span class="hljs-string">"&lt;worker-hostname&gt;"</span>,<span class="hljs-attr">"port"</span>:<span class="hljs-number">8080</span>}]
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="单独运行-functions-worker"></a><a href="#单独运行-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单独运行 Functions-worker</h2>
+<p>This section illustrates how to run <code>functions-worker</code> as a separate process in separate machines.</p>
+<p><img src="/docs/assets/functions-worker-separated.png" alt="assets/functions-worker-separated.png"></p>
+<blockquote>
+<p>Note<br>
+In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>false</code>, so you won't start <code>functions-worker</code> with brokers by mistake. 当想通过访问 <code>functions-worker</code> 来管理 functions 时，<code>pulsar-admin</code> 客户端工具或者其他客户端应该用 <code>workerHostname</code> 和 <code>workerPort</code> 这些配置在 <a href="#worker-parameters">Worker parameters</a> 中的参数来生成一个 <code>--admin-url</code>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="配置-functions-worker-以单独运行"></a><a href="#配置-functions-worker-以单独运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Functions-Worker 以单独运行</h3>
+<p>To run function-worker separately, you have to configure the following parameters.</p>
+<h4><a class="anchor" aria-hidden="true" id="worker-参数"></a><a href="#worker-参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Worker 参数</h4>
+<ul>
+<li><code>workerId</code>：类型为字符串。 它是整个集群是唯一的，用于标识每台 worker 机器</li>
+<li><code>workerHostname</code>：worker 计算机的主机名。</li>
+<li><code>workerPort</code>：worker 服务器的监听端口。 在未进行自定义时，请使用其默认值。</li>
+<li><code>workerPortTls</code>：worker 服务器监听的 TLS 端口。 在未进行自定义时，请使用其默认值。</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="function-包参数"></a><a href="#function-包参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function 包参数</h4>
+<ul>
+<li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值为 <code>1</code> 。</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="function-元数据参数"></a><a href="#function-元数据参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function 元数据参数</h4>
+<ul>
+<li><code>pulsarServiceUrl</code>：broker 集群的 Pulsar 服务 URL。</li>
+<li><code>pulsarWebServiceUrl</code>: The Pulsar web service URL for your broker cluster.</li>
+<li><code>pulsarFunctionsCluster</code>：设置 Pulsar 集群名称 (与 <code>clusterName</code> 在 broker 配置中的设置相同)。</li>
+</ul>
+<p>If authentication is enabled for your broker cluster, you <em>should</em> configure the authentication plugin and parameters for the functions worker to communicate with the brokers.</p>
+<ul>
+<li><code>clientAuthenticationPlugin</code></li>
+<li><code>clientAuthenticationParameters</code></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="安全设置"></a><a href="#安全设置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安全设置</h4>
+<p>If you want to enable security on functions workers, you <em>should</em>:</p>
+<ul>
+<li><a href="#enable-tls-transport-encryption">Enable TLS transport encryption</a></li>
+<li><a href="#enable-authentication-provider">启用身份验证提供程序</a></li>
+<li><a href="#enable-authorization-provider">启用授权提供程序</a></li>
+<li><a href="#enable-end-to-end-encryption">启用端到端加密</a></li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="enable-tls-transport-encryption"></a><a href="#enable-tls-transport-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable TLS transport encryption</h5>
+<p>To enable TLS transport encryption, configure the following settings.</p>
+<pre><code class="hljs"><span class="hljs-string">useTLS:</span> <span class="hljs-literal">true</span>
+<span class="hljs-string">pulsarServiceUrl:</span> pulsar+<span class="hljs-string">ssl:</span><span class="hljs-comment">//localhost:6651/</span>
+<span class="hljs-string">pulsarWebServiceUrl:</span> <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443</span>
+<span class="hljs-symbol">
+tlsEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-string">tlsCertificateFilePath:</span> <span class="hljs-regexp">/path/</span>to/functions-worker.cert.pem
+<span class="hljs-string">tlsKeyFilePath:</span>         <span class="hljs-regexp">/path/</span>to/functions-worker.key-pk8.pem
+<span class="hljs-string">tlsTrustCertsFilePath:</span>  <span class="hljs-regexp">/path/</span>to/ca.cert.pem
+
+<span class="hljs-comment">//  Pulsar 客户端用于和 Pulsar broker 可靠通信所需的证书的存放路径。</span>
+<span class="hljs-string">brokerClientTrustCertsFilePath:</span> <span class="hljs-regexp">/path/</span>to/ca.cert.pem
+</code></pre>
+<p>For details on TLS encryption, refer to <a href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a>.</p>
+<h5><a class="anchor" aria-hidden="true" id="启用身份验证提供程序"></a><a href="#启用身份验证提供程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用身份验证提供程序</h5>
+<p>要在函数 worker 启用身份验证，你需要配置以下信息。</p>
+<blockquote>
+<p>Note<br>
+Substitute the <em>providers list</em> with the providers you want to enable.</p>
+</blockquote>
+<pre><code class="hljs"><span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationProviders:</span> <span class="hljs-string">[</span> <span class="hljs-string">provider1,</span> <span class="hljs-string">provider2</span> <span class="hljs-string">]</span>
+</code></pre>
+<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings. 查看 <a href="/docs/zh-CN/2.8.3/security-tls-authentication">TLS 认证</a> 可以了解到详细的信息。</p>
+<pre><code class="hljs">brokerClientAuthenticationPlugin: org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.impl</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.AuthenticationTls</span>
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin<span class="hljs-selector-class">.cert</span><span class="hljs-selector-class">.pem</span>,tlsKeyFile:/path/to/admin<span class="hljs-selector-class">.key-pk8</span><span class="hljs-selector-class">.pem</span>
+
+authenticationEnabled: true
+authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.authentication.AuthenticationProviderTls'</span>]
+</code></pre>
+<p>For <em>SASL Authentication</em> provider, add <code>saslJaasClientAllowedIds</code> and <code>saslJaasBrokerSectionName</code> under <code>properties</code> if needed.</p>
+<pre><code class="hljs"><span class="hljs-symbol">properties:</span>
+<span class="hljs-symbol">  saslJaasClientAllowedIds:</span> .*pulsar.*
+<span class="hljs-symbol">  saslJaasBrokerSectionName:</span> Broker
+</code></pre>
+<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. 更多详细信息，请参阅 <a href="/docs/zh-CN/2.8.3/security-jwt">Token Authentication</a>。 注意：秘钥文件必须是 DER 编码</p>
+<pre><code class="hljs"><span class="hljs-attribute">properties</span>:
+  <span class="hljs-attribute">tokenSecretKey</span>:       <span class="hljs-attribute">file</span>:<span class="hljs-comment">//my/secret.key </span>
+  # If using public/private
+  # <span class="hljs-attribute">tokenPublicKey</span>:     <span class="hljs-attribute">file</span>:<span class="hljs-comment">///path/to/public.key </span>
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="启用授权提供程序"></a><a href="#启用授权提供程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用授权提供程序</h5>
+<p>如果需要启用函数 Worker 授权机制，你必须配置<code>authorizationEnabled</code>，<code>authorizationProvider</code>和<code>configurationStoreServers</code>。 The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authorizationProvider:</span> <span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
+<span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">&lt;configuration-store-servers&gt;</span>
+</code></pre>
+<p>You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">superUserRoles:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role1</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role2</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role3</span>
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="启用端到端加密"></a><a href="#启用端到端加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用端到端加密</h5>
+<p>你可以使用应用程序配置的公钥私钥对进行加密。 只有拥有有效密钥的消费者可以解密加密过的消息。</p>
+<p>要启用 Functions Worker 端到端加密，可以在命令行使用 <code>--producer-config</code> 进行配置，更多信息可以参考 <a href="/docs/zh-CN/2.8.3/security-encryption">here</a>。</p>
+<p>将 <code>CryptoConfig</code> 的相关配置信息包含到 <code>ProducerConfig</code> 中。 关于 <code>CryptoConfig</code> 的具体可配置字段信息如下：</p>
+<pre><code class="hljs css language-text">public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+}
+</code></pre>
+<ul>
+<li><code>producerCryptoFailureAction</code>: 在生产者加密数据失败时，执行 <code>FAIL</code>，<code>SEND</code> 其中之一的操作。</li>
+<li><code>consumerCryptoFailureAction</code>: 在消费者解密数据失败时，执行 <code>FAIL</code>, <code>DISCARD</code>, <code>CONSME</code> 其中之一的操作。</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="bookkeeper-身份验证"></a><a href="#bookkeeper-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper 身份验证</h4>
+<p>如果要开启 BooKeeper 集群的身份认证，你必须配置以下 Bookeeper 认证选项：</p>
+<ul>
+<li><code>bookkeeperClientAuthenticationPlugin</code>：BookKeeper 客户端身份验证插件的名称。</li>
+<li><code>bookkeeperClientAuthenticationParametersName</code>：BookKeeper 客户端身份验证插件的参数名称。</li>
+<li><code>bookkeeperClientAuthenticationParameters</code>：BookKeeper 客户端身份验证插件的参数。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="启动-functions-worker"></a><a href="#启动-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 Functions-worker</h3>
+<p>一旦配置完 <code>functions_worker.yml</code> 文件，可以后台启动 <code>functions-worker</code> ，使用 <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a> 命令，结合 <a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> 客户端工具进行：</p>
+<pre><code class="hljs css language-bash">bin/pulsar-daemon start <span class="hljs-built_in">functions</span>-worker
+</code></pre>
+<p>也可以前台启动 <code>functions-worker</code> ，结合 <code>pulsar</code> 客户端工具进行：</p>
+<pre><code class="hljs css language-bash">bin/pulsar <span class="hljs-built_in">functions</span>-worker
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="为-functions-workers-配置-proxies"></a><a href="#为-functions-workers-配置-proxies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>为 Functions-workers 配置 Proxies</h3>
+<p>When you are running <code>functions-worker</code> in a separate cluster, the admin rest endpoints are split into two clusters. <code>functions</code>, <code>function-worker</code>, <code>source</code> and <code>sink</code> endpoints are now served by the <code>functions-worker</code> cluster, while all the other remaining endpoints are served by the broker cluster. Hence you need to configure your <code>pulsar-admin</code> to use the right service URL accordingly.</p>
+<p>In order to address this inconvenience, you can start a proxy cluster for routing the admin rest requests accordingly. Hence you will have one central entry point for your admin service.</p>
+<p>If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the <a href="http://pulsar.apache.org/docs/en/administration-proxy/">instructions</a> to start proxies.</p>
+<p><img src="/docs/assets/functions-worker-separated-proxy.png" alt="assets/functions-worker-separated.png"></p>
+<p>To enable routing functions related admin requests to <code>functions-worker</code> in a proxy, you can edit the <code>proxy.conf</code> file to modify the following settings:</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionWorkerWebServiceURL</span>=&lt;pulsar-functions-worker-web-service-url&gt;
+<span class="hljs-attr">functionWorkerWebServiceURLTLS</span>=&lt;pulsar-functions-worker-web-service-url&gt;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="对比与-broker-一起运行和单独运行"></a><a href="#对比与-broker-一起运行和单独运行" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>对比与 Broker 一起运行和单独运行</h2>
+<p>As described above, you can run Function-worker with brokers, or run it separately. And it is more convenient to run functions-workers along with brokers. However, running functions-workers in a separate cluster provides better resource isolation for running functions in <code>Process</code> or <code>Thread</code> mode.</p>
+<p>Use which mode for your cases, refer to the following guidelines to determine.</p>
+<p>Use the <code>Run-with-Broker</code> mode in the following cases:</p>
+<ul>
+<li>a）在 <code>Process</code> 或 <code>Thread</code> 模式下运行 functions，则不需要进行资源隔离；</li>
+<li>b）在 Kubernetes 上配置 functions-worker 以运行 fucntions（Kubernetes 解决了资源隔离问题）。</li>
+</ul>
+<p>Use the <code>Run-separately</code> mode in the following cases:</p>
+<ul>
+<li>a) 没有 Kubernetes 集群；</li>
+<li>b) 不想单独运行 functions 或 brokers。</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="故障排除"></a><a href="#故障排除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>故障排除</h2>
+<p><strong>Error message: Namespace missing local cluster name in clusters list</strong></p>
+<pre><code class="hljs">Failed <span class="hljs-keyword">to</span> <span class="hljs-builtin-name">get</span> partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException<span class="hljs-variable">$BrokerMetadataException</span>: Namespace missing local cluster name <span class="hljs-keyword">in</span> clusters list: <span class="hljs-attribute">local_cluster</span>=xyz <span class="hljs-attribute">ns</span>=public/functions clusters=[standalone]
+</code></pre>
+<p>The error message prompts when either of the cases occurs:</p>
+<ul>
+<li>a) broker 是以 <code>functionsWorkerEnabled=true</code> 开始的，但是未在 <code>conf/functions_worker.yaml</code> 文件中将 <code>pulsarFunctionsCluster</code> 设置为正确的集群；</li>
+<li>b) 当一个集群中的 brokers 运行良好，而另一个集群中的 brokers 运行有问题时，用 <code>functionsWorkerEnabled=true</code> 建立一个 Pulsar 集群的跨机房副本。</li>
+</ul>
+<p><strong>Workaround</strong></p>
+<p>If any of these cases happens, follow the instructions below to fix the problem:</p>
+<ol>
+<li><p>Disable Functions Worker by setting <code>functionsWorkerEnabled=false</code>, and restart brokers.</p></li>
+<li><p>获取 <code>public/functions</code> 命名空间的当前集群列表。</p></li>
+</ol>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces get-clusters public/<span class="hljs-built_in">functions</span>
+</code></pre>
+<ol start="3">
+<li>检查集群是否在集群列表中。 如果集群不在列表中，则将其添加到列表中，并更新列表。</li>
+</ol>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-clusters --clusters &lt;existing-clusters&gt;,&lt;new-cluster&gt; public/<span class="hljs-built_in">functions</span>
+</code></pre>
+<ol start="4">
+<li><p>After setting the cluster successfully, enable functions worker by setting <code>functionsWorkerEnabled=true</code>.</p></li>
+<li><p>Set the correct cluster name in <code>pulsarFunctionsCluster</code> in the <code>conf/functions_worker.yml</code> file, and restart brokers.</p></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/functions-runtime"><span class="arrow-prev">← </span><span>设置：配置 Pulsar Functions 运行时</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/functions-develop"><span>操作：开发</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#与-brokers-一起运行-functions-worker">与 brokers 一起运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以与-brokers-一起运行">配置 Functions-Worker 以与 brokers 一起运行</a></li><li><a href="#配置和-broker-共同运行的-stateful-functions">配置和 broker 共同运行的 Stateful-Functions</a></li><li><a href="#同时运行-functions-worker-和-broker">同时运行 Functions-worker 和 broker</a></li></ul></li><li><a href="#单独运行-functions-worker">单独运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以单独运行">配置 Functions-Worker 以单独运行</a></li><li><a href="#启动-functions-worker">启动 Functions-worker</a></li><li><a href="#为-functions-workers-配置-proxies">为 Functions-workers 配置 Proxies</a></li></ul></li><li><a href="#对比与-broker-一起运行和单独运行">对比与 Broker 一起运行和单独运行</a></li><li><a href="#故障排除">故障排除</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Window Functions Context · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Java SDK provides access to a **window context object** that can be used by a window function. This context object provides a wide variety of information and functionality for Pulsar window functions as below."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Window Functions Context · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Java SDK provides access to a **window context object** that can be used by a window function. This context object provides a wide variety of information and functionality for Pulsar window functions as below."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/window-functions-context">English</a></li><li><a href="/docs/ja/2.8.3/window-functions-context">日本語</a></li><li><a href="/docs/ko/2.8.3/window-functions-context">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/window-functions-context">中文</a></li><li><a href="/docs/zh-TW/2.8.3/window-functions-context">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Window Functions Context</h1></header><article><div><span><p>Java SDK provides access to a <strong>window context object</strong> that can be used by a window function. This context object provides a wide variety of information and functionality for Pulsar window functions as below.</p>
+<ul>
+<li><p><a href="#spec">Spec</a></p>
+<ul>
+<li>Names of all input topics and the output topic associated with the function.</li>
+<li>Tenant and namespace associated with the function.</li>
+<li>Pulsar window function name, ID, and version.</li>
+<li>ID of the Pulsar function instance running the window function.</li>
+<li>Number of instances that invoke the window function.</li>
+<li>Built-in type or custom class name of the output schema.</li>
+</ul></li>
+<li><p><a href="#logger">Logger</a></p>
+<ul>
+<li>Logger object used by the window function, which can be used to create window function log messages.</li>
+</ul></li>
+<li><p><a href="#user-config">User config</a></p>
+<ul>
+<li>Access to arbitrary user configuration values.</li>
+</ul></li>
+<li><p><a href="#routing">Routing</a></p>
+<ul>
+<li>Routing is supported in Pulsar window functions. Pulsar window functions send messages to arbitrary topics as per the <code>publish</code> interface.</li>
+</ul></li>
+<li><p><a href="#metrics">Metrics</a></p>
+<ul>
+<li>Interface for recording metrics.</li>
+</ul></li>
+<li><p><a href="#state-storage">State storage</a></p>
+<ul>
+<li>Interface for storing and retrieving state in <a href="#state-storage">state storage</a>.</li>
+</ul></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="spec"></a><a href="#spec" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Spec</h2>
+<p>Spec contains the basic information of a function.</p>
+<h3><a class="anchor" aria-hidden="true" id="get-input-topics"></a><a href="#get-input-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get input topics</h3>
+<p>The <code>getInputTopics</code> method gets the <strong>name list</strong> of all input topics.</p>
+<p>This example demonstrates how to get the name list of all input topics in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInputTopicsWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Collection&lt;String&gt; inputTopics = context.getInputTopics();
+        System.out.println(inputTopics);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-output-topic"></a><a href="#get-output-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get output topic</h3>
+<p>The <code>getOutputTopic</code> method gets the <strong>name of a topic</strong> to which the message is sent.</p>
+<p>This example demonstrates how to get the name of an output topic in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputTopicWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String outputTopic = context.getOutputTopic();
+        System.out.println(outputTopic);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-tenant"></a><a href="#get-tenant" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get tenant</h3>
+<p>The <code>getTenant</code> method gets the tenant name associated with the window function.</p>
+<p>This example demonstrates how to get the tenant name in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetTenantWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String tenant = context.getTenant();
+        System.out.println(tenant);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-namespace"></a><a href="#get-namespace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get namespace</h3>
+<p>The <code>getNamespace</code> method gets the namespace associated with the window function.</p>
+<p>This example demonstrates how to get the namespace in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNamespaceWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String ns = context.getNamespace();
+        System.out.println(ns);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-function-name"></a><a href="#get-function-name" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function name</h3>
+<p>The <code>getFunctionName</code> method gets the window function name.</p>
+<p>This example demonstrates how to get the function name in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNameOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionName = context.getFunctionName();
+        System.out.println(functionName);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-function-id"></a><a href="#get-function-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function ID</h3>
+<p>The <code>getFunctionId</code> method gets the window function ID.</p>
+<p>This example demonstrates how to get the function ID in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetFunctionIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionID = context.getFunctionId();
+        System.out.println(functionID);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-function-version"></a><a href="#get-function-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get function version</h3>
+<p>The <code>getFunctionVersion</code> method gets the window function version.</p>
+<p>This example demonstrates how to get the function version of a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetVersionOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionVersion = context.getFunctionVersion();
+        System.out.println(functionVersion);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-instance-id"></a><a href="#get-instance-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get instance ID</h3>
+<p>The <code>getInstanceId</code> method gets the instance ID of a window function.</p>
+<p>This example demonstrates how to get the instance ID in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInstanceIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">int</span> instanceId = context.getInstanceId();
+        System.out.println(instanceId);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-num-instances"></a><a href="#get-num-instances" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get num instances</h3>
+<p>The <code>getNumInstances</code> method gets the number of instances that invoke the window function.</p>
+<p>This example demonstrates how to get the number of instances in a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNumInstancesWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">int</span> numInstances = context.getNumInstances();
+        System.out.println(numInstances);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="get-output-schema-type"></a><a href="#get-output-schema-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get output schema type</h3>
+<p>The <code>getOutputSchemaType</code> method gets the built-in type or custom class name of the output schema.</p>
+<p>This example demonstrates how to get the output schema type of a Java window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputSchemaTypeWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String schemaType = context.getOutputSchemaType();
+        System.out.println(schemaType);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="logger"></a><a href="#logger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Logger</h2>
+<p>Pulsar window functions using Java SDK has access to an <a href="https://www.slf4j.org/">SLF4j</a> <a href="https://www.slf4j.org/api/org/apache/log4j/Logger.html"><code>Logger</code></a> object that can be used to produce logs at the chosen log level.</p>
+<p>This example logs either a <code>WARNING</code>-level or <code>INFO</code>-level log based on whether the incoming string contains the word <code>danger</code> or not in a Java function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Collection;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Record;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowContext;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowFunction;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggingWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Logger log = context.getLogger();
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; record : inputs) {
+            log.info(record + <span class="hljs-string">"-window-log"</span>);
+        }
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<p>If you need your function to produce logs, specify a log topic when creating or running the function.</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar my-functions.jar \
+  --classname my.package.LoggingFunction \
+  --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
+  <span class="hljs-comment"># Other function configs</span>
+</code></pre>
+<p>You can access all logs produced by <code>LoggingFunction</code> via the <code>persistent://public/default/logging-function-logs</code> topic.</p>
+<h2><a class="anchor" aria-hidden="true" id="metrics"></a><a href="#metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metrics</h2>
+<p>Pulsar window functions can publish arbitrary metrics to the metrics interface which can be queried.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.</p>
+</blockquote>
+<p>You can record metrics using the context object on a per-key basis.</p>
+<p>This example sets a metric for the <code>process-count</code> key and a different metric for the <code>elevens-count</code> key every time the function processes a message in a Java function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Collection;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Record;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowContext;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowFunction;
+
+
+<span class="hljs-comment">/**
+ * Example function that wants to keep track of
+ * the event time of each message sent.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserMetricWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; record : inputs) {
+            <span class="hljs-keyword">if</span> (record.getEventTime().isPresent()) {
+                context.recordMetric(<span class="hljs-string">"MessageEventTime"</span>, record.getEventTime().get().doubleValue());
+            }
+        }
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="user-config"></a><a href="#user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User config</h2>
+<p>When you run or update Pulsar Functions that are created using SDK, you can pass arbitrary key/value pairs to them with the <code>--user-config</code> flag. Key/value pairs <strong>must</strong> be specified as JSON.</p>
+<p>This example passes a user configured key/value to a function.</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --name word-filter \
+ --user-config <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span> \
+  <span class="hljs-comment"># Other function configs</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="api"></a><a href="#api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API</h3>
+<p>You can use the following APIs to get user-defined information for window functions.</p>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigmap"></a><a href="#getuserconfigmap" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigMap</h4>
+<p><code>getUserConfigMap</code> API gets a map of all user-defined key/value configurations for the window function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * Get a map of all user-defined key/value configs for the function.
+     *
+     * <span class="hljs-doctag">@return</span> The full map of user-defined config values
+     */</span>
+    <span class="hljs-function">Map&lt;String, Object&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigvalue"></a><a href="#getuserconfigvalue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValue</h4>
+<p>The <code>getUserConfigValue</code> API gets a user-defined key/value.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * Get any user-defined key/value.
+     *
+     * <span class="hljs-doctag">@param</span> key The key
+     * <span class="hljs-doctag">@return</span> The Optional value specified by the user for that key.
+     */</span>
+    <span class="hljs-function">Optional&lt;Object&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigvalueordefault"></a><a href="#getuserconfigvalueordefault" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValueOrDefault</h4>
+<p>The <code>getUserConfigValueOrDefault</code> API gets a user-defined key/value or a default value if none is present.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * Get any user-defined key/value or a default value if none is present.
+     *
+     * <span class="hljs-doctag">@param</span> key
+     * <span class="hljs-doctag">@param</span> defaultValue
+     * <span class="hljs-doctag">@return</span> Either the user config value associated with a given key or a supplied default value
+     */</span>
+    <span class="hljs-function">Object <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, Object defaultValue)</span></span>;
+</code></pre>
+<p>This example demonstrates how to access key/value pairs provided to Pulsar window functions.</p>
+<p>Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON).</p>
+<blockquote>
+<p><strong>Tip</strong></p>
+<p>For all key/value pairs passed to Java window functions, both the <code>key</code> and the <code>value</code> are <code>String</code>. To set the value to be a different type, you need to deserialize it from the <code>String</code> type.</p>
+</blockquote>
+<p>This example passes a key/value pair in a Java window function.</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+   --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span> \
+  <span class="hljs-comment"># Other function configs</span>
+</code></pre>
+<p>This example accesses values in a Java window function.</p>
+<p>The <code>UserConfigFunction</code> function logs the string <code>&quot;The word of the day is verdure&quot;</code> every time the function is invoked (which means every time a message arrives). The user config of <code>word-of-the-day</code> is changed <strong>only</strong> when the function is updated with a new config value via multiple ways, such as the command line tool or REST API.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">import</span> java.util.Optional;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserConfigWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Optional&lt;Object&gt; whatToWrite = context.getUserConfigValue(<span class="hljs-string">"WhatToWrite"</span>);
+        <span class="hljs-keyword">if</span> (whatToWrite.get() != <span class="hljs-keyword">null</span>) {
+            <span class="hljs-keyword">return</span> (String)whatToWrite.get();
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"Not a nice way"</span>;
+        }
+    }
+
+}
+</code></pre>
+<p>If no value is provided, you can access the entire user config map or set a default value.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Get the whole config map</span>
+Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
+
+<span class="hljs-comment">// Get value or resort to default</span>
+String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"word-of-the-day"</span>, <span class="hljs-string">"perspicacious"</span>);
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="routing"></a><a href="#routing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing</h2>
+<p>You can use the <code>context.publish()</code> interface to publish as many results as you want.</p>
+<p>This example shows that the <code>PublishFunction</code> class uses the built-in function in the context to publish messages to the <code>publishTopic</code> in a Java function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PublishWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String publishTopic = (String) context.getUserConfigValueOrDefault(<span class="hljs-string">"publish-topic"</span>, <span class="hljs-string">"publishtopic"</span>);
+        String output = String.format(<span class="hljs-string">"%s!"</span>, input);
+        context.publish(publishTopic, output);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
+<p>Pulsar window functions use <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> as a state storage interface. Apache Pulsar installation (including the standalone installation) includes the deployment of BookKeeper bookies.</p>
+<p>Apache Pulsar integrates with Apache BookKeeper <code>table service</code> to store the <code>state</code> for functions. For example, the <code>WordCount</code> function can store its <code>counters</code> state into BookKeeper table service via Pulsar Functions state APIs.</p>
+<p>States are key-value pairs, where the key is a string and the value is arbitrary binary data—counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function and shared between instances of that function.</p>
+<p>Currently, Pulsar window functions expose Java API to access, update, and manage states. These APIs are available in the context object when you use Java SDK functions.</p>
+<table>
+<thead>
+<tr><th>API Java</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>incrCounter</code></td><td>Increases a built-in distributed counter referred by key.</td></tr>
+<tr><td><code>getCounter</code></td><td>Gets the counter value for the key.</td></tr>
+<tr><td><code>putState</code></td><td>Updates the state value for the key.</td></tr>
+</tbody>
+</table>
+<p>You can use the following APIs to access, update, and manage states in Java window functions.</p>
+<h4><a class="anchor" aria-hidden="true" id="incrcounter"></a><a href="#incrcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounter</h4>
+<p>The <code>incrCounter</code> API increases a built-in distributed counter referred by key.</p>
+<p>Applications use the <code>incrCounter</code> API to change the counter of a given <code>key</code> by the given <code>amount</code>. If the <code>key</code> does not exist, a new key is created.</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * Increment the builtin distributed counter referred by key
+     * <span class="hljs-doctag">@param</span> key The name of the key
+     * <span class="hljs-doctag">@param</span> amount The amount to be incremented
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getcounter"></a><a href="#getcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getCounter</h4>
+<p>The <code>getCounter</code> API gets the counter value for the key.</p>
+<p>Applications uses the <code>getCounter</code> API to retrieve the counter of a given <code>key</code> changed by the <code>incrCounter</code> API.</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * Retrieve the counter value for the key.
+     *
+     * <span class="hljs-doctag">@param</span> key name of the key
+     * <span class="hljs-doctag">@return</span> the amount of the counter value for this key
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
+</code></pre>
+<p>Except the <code>getCounter</code> API, Pulsar also exposes a general key/value API (<code>putState</code>) for functions to store general key/value state.</p>
+<h4><a class="anchor" aria-hidden="true" id="putstate"></a><a href="#putstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>putState</h4>
+<p>The <code>putState</code> API updates the state value for the key.</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * Update the state value for the key.
+     *
+     * <span class="hljs-doctag">@param</span> key name of the key
+     * <span class="hljs-doctag">@param</span> value state value of the key
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
+</code></pre>
+<p>This example demonstrates how applications store states in Pulsar window functions.</p>
+<p>The logic of the <code>WordCountWindowFunction</code> is simple and straightforward.</p>
+<ol>
+<li><p>The function first splits the received string into multiple words using regex <code>\\.</code>.</p></li>
+<li><p>For each <code>word</code>, the function increments the corresponding <code>counter</code> by 1 via <code>incrCounter(key, amount)</code>.</p></li>
+</ol>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+
+<span class="hljs-keyword">import</span> java.util.Arrays;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">WordCountWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; input : inputs) {
+            Arrays.asList(input.getValue().split(<span class="hljs-string">"\\."</span>)).forEach(word -&gt; context.incrCounter(word, <span class="hljs-number">1</span>));
+        }
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+
+    }
+}
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.8.3/functions-cli"><span class="arrow-prev">← </span><span>Référence: CLI</span></a><a class="docs-next button" href="/docs/fr/2.8.3/io-overview"><span>Overview</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#spec">Spec</a><ul class="toc-headings"><li><a href="#get-input-topics">Get input topics</a></li><li><a href="#get-output-topic">Get output topic</a></li><li><a href="#get-tenant">Get tenant</a></li><li><a href="#get-namespace">Get namespace</a></li><li><a href="#get-function-name">Get function name</a></li><li><a href="#get-function-id">Get function ID</a></li><li><a href="#get-function-version">Get function version</a></li><li><a href="#get-instance-id">Get instance ID</a></li><li><a href="#get-num-instances">Get num instances</a></li><li><a href="#get-output-schema-type">Get output schema type</a></li></ul></li><li><a href="#logger">Logger</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#user-config">User config</a><ul class="toc-headings"><li><a href="#api">API</a></li></ul></li><li><a href="#routing">Routing</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,754 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/reference-metrics">English</a></li><li><a href="/docs/ja/2.8.3/reference-metrics">日本語</a></li><li><a href="/docs/fr/2.8.3/reference-metrics">Français</a></li><li><a href="/docs/ko/2.8.3/reference-metrics">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/reference-metrics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>参考</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Metrics</h1></header><article><div><span><style type="text/css">
+  table{
+    font-size: 80%;
+  }
+</style>
+<p>Pulsar 以 Prometheus 的格式暴露如下度量值。 你可以用这些度量值监视你的集群。</p>
+<ul>
+<li><a href="#zookeeper">ZooKeeper</a></li>
+<li><a href="#bookkeeper">BookKeeper</a></li>
+<li><a href="#broker">Broker</a></li>
+<li><a href="#pulsar-functions">Pulsar Functions</a></li>
+<li><a href="#proxy">代理</a></li>
+<li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
+<li><a href="#pulsar-transaction">Pulsar transaction</a></li>
+</ul>
+<p>可以使用下列类型的度量值：</p>
+<ul>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: 累计度量，代表一个单调递增的计数器。 值默认会增加。 你可以将值重置为零或重新启动你的集群。</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: 本指标代表一个可以随意增加或减少的数值。</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: 直方图样本观测 (通常是请求持续时间和响应大小) ，并将它们计入可配置的 bucket 中。 <code>_bucket</code> 后缀是用参数 <code>{le=&quot;&lt; upper inclusive bound&gt;&quot;}</code> 配置的直方图桶内的观察次数。 <code>_count</code> 后缀是以时间序列显示的观察次数，其行为就像计数器。 <code>_sum</code> 后缀是观察到的值的总量，也作为时间序列显示并像计数器一样。 这些后缀由 <code>_*</code> 在本文档中指明。</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: 与直方图类似的总结样本观察 (通常是请求持续时间和响应大小)。 但它同时也提供了总观测次数以及所有观测值的总和，它会在滑动的时间窗口上计算可配置的分位数。</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
+<p>ZooKeeper 度量值会暴露在端口 <code>8000</code> 的 &quot;/metrics&quot;下。 您可以通过conf/zookeeper.conf配置 <code>metricsProvider.httpPort</code> 来使用另一个端口。</p>
+<p>ZooKeeper 从 3.6.0 开始提供了一个新的 Metrics System，更详细的指标可以参考 <a href="https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html">ZooKeeper Monitor Guide</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
+<p>BookKeeper 度量值会暴露在端口 <code>8000</code> 的&quot;/metrics&quot;下。 你可以通过更新 <code>bookkeeper.conf</code> 配置文件中的 <code>prometheusStatsHttpPort</code> 来更改端口。</p>
+<h3><a class="anchor" aria-hidden="true" id="服务器度量值"></a><a href="#服务器度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务器度量值</h3>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_SERVER_STATUS</td><td>计量表</td><td>bookie 服务器的服务状态。<br><ul><li>1: bookie 正运行于可写入模式。</li><li>0: bookie 正运行于只读模式。</li></ul></td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_count</td><td>计数器</td><td>The total number of ADD_ENTRY requests received at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_count</td><td>计数器</td><td>The total number of READ_ENTRY requests received at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookie_WRITE_BYTES</td><td>计数器</td><td>The total number of bytes written to the bookie.</td></tr>
+<tr><td>bookie_READ_BYTES</td><td>计数器</td><td>The total number of bytes read from the bookie.</td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_REQUEST</td><td>总结</td><td>The summary of request latency of ADD_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_REQUEST</td><td>总结</td><td>The summary of request latency of READ_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="日志度量值"></a><a href="#日志度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>日志度量值</h3>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_journal_JOURNAL_SYNC_count</td><td>计数器</td><td>bookie 中日志 fsync 操作的总次数。 <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookie_journal_JOURNAL_QUEUE_SIZE</td><td>计量表</td><td>日志队列中待处理的请求总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE</td><td>计量表</td><td>在强制写入队列中等待的强制写入 (fsync) 请求总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_CB_QUEUE_SIZE</td><td>计量表</td><td>回调队列中待处理的回调总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>总结</td><td>在日志中添加条目的请求延迟的总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_SYNC</td><td>总结</td><td>同步数据到日志磁盘的 fsync 延迟的总数。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="存储度量值"></a><a href="#存储度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>存储度量值</h3>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>bookie_ledgers_count</td><td>计量表</td><td>bookie 中存储的 ledger 总数。</td></tr>
+<tr><td>bookie_entries_count</td><td>计量表</td><td>bookie 中存储的条目总数。</td></tr>
+<tr><td>bookie_write_cache_size</td><td>计量表</td><td>bookie 的写缓存大小（以字节为单位）。</td></tr>
+<tr><td>bookie_read_cache_size</td><td>计量表</td><td>bookie 的读缓存大小（以字节为单位）。</td></tr>
+<tr><td>bookie_DELETED_LEDGER_COUNT</td><td>计数器</td><td>bookie 被启动以来被删除的 ledger 总数。</td></tr>
+<tr><td>bookie_ledger_writable_dirs</td><td>计量表</td><td>bookie 中可写入目录的数量。</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<p>broker 度量值会暴露在端口 <code>8080</code> 的&quot;/metrics&quot;下。 你可以通过更新 <code>broker.conf</code> 配置文件中的 <code>webServicePort</code> 来更改端口。</p>
+<p>broker 暴露的所有度量值会带有 <code>cluster=${pulsar_cluster}</code> 标签。 Pulsar 集群的名称是 <code>${pulsar_cluster}</code> 的值，也就是你在 <code>broker.conf</code> 文件中所设置的。</p>
+<p>如下的度量值对 broker 可用：</p>
+<ul>
+<li><a href="#zookeeper">ZooKeeper</a>
+<ul>
+<li><a href="#server-metrics">服务器度量值</a></li>
+<li><a href="#request-metrics">请求度量值</a></li>
+</ul></li>
+<li><a href="#bookkeeper">BookKeeper</a>
+<ul>
+<li><a href="#server-metrics-1">服务器度量值</a></li>
+<li><a href="#journal-metrics">日志度量值</a></li>
+<li><a href="#storage-metrics">存储度量值</a></li>
+</ul></li>
+<li><a href="#broker">Broker</a>
+<ul>
+<li><a href="#namespace-metrics">命名空间度量值</a>
+<ul>
+<li><a href="#replication-metrics">复制度量值</a></li>
+</ul></li>
+<li><a href="#topic-metrics">主题度量值</a>
+<ul>
+<li><a href="#replication-metrics-1">复制度量值</a></li>
+</ul></li>
+<li><a href="#managedledgercache-metrics">ManagedLedgerCache 度量值</a></li>
+<li><a href="#managedledger-metrics">ManagedLedger 度量值</a></li>
+<li><a href="#loadbalancing-metrics">LoadBalancing 度量值</a>
+<ul>
+<li><a href="#bundleunloading-metrics">BundleUnloading 度量值</a></li>
+<li><a href="#bundlesplit-metrics">BundleSplit 度量值</a></li>
+</ul></li>
+<li><a href="#subscription-metrics">Subscription metrics</a></li>
+<li><a href="#consumer-metrics">Consumer metrics</a></li>
+<li><a href="#managed-ledger-bookie-client-metrics">托管的 ledger bookie 客户端度量值</a></li>
+<li><a href="#token-metrics">Token metrics</a></li>
+<li><a href="#authentication-metrics">Authentication metrics</a></li>
+<li><a href="#connection-metrics">连接指标</a></li>
+<li><a href="#jetty-metrics">Jetty metrics</a></li>
+</ul></li>
+<li><a href="#pulsar-functions">Pulsar Functions</a></li>
+<li><a href="#proxy">代理</a></li>
+<li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
+<li><a href="#pulsar-transaction">Pulsar transaction</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="命名空间度量值"></a><a href="#命名空间度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间度量值</h3>
+<blockquote>
+<p>命名空间度量值只有在 <code>exposeTopicLevelMetricsInPrometheus</code> 被设为 <code>false</code> 时才暴露。</p>
+</blockquote>
+<p>所有命名空间度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_topics_count</td><td>计量表</td><td>命名空间下由此 broker 拥有的 Pulsar 主题数。</td></tr>
+<tr><td>pulsar_subscriptions_count</td><td>计量表</td><td>命名空间下由此 broker 服务的 Pulsar 订阅数。</td></tr>
+<tr><td>pulsar_producers_count</td><td>计量表</td><td>命名空间下连接到此 broker 的活动生产者数。</td></tr>
+<tr><td>pulsar_consumers_count</td><td>计量表</td><td>命名空间下连接到此 broker 的活动消费者数。</td></tr>
+<tr><td>pulsar_rate_in</td><td>计量表</td><td>命名空间下的所有消息进入此 broker 的频率（消息/秒）。</td></tr>
+<tr><td>pulsar_rate_out</td><td>计量表</td><td>命名空间下的所有消息从此 broker 发出的频率（消息/秒）。</td></tr>
+<tr><td>pulsar_throughput_in</td><td>计量表</td><td>命名空间下数据进入此 broker 的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_throughput_out</td><td>计量表</td><td>命名空间下数据由此 broker 发出的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_storage_size</td><td>计量表</td><td>命名空间下由此 broker 拥有的主题的总存储大小 (字节)。</td></tr>
+<tr><td>pulsar_storage_backlog_size</td><td>计量表</td><td>命名空间下由此 broker 拥有的总积压大小 (消息)。</td></tr>
+<tr><td>pulsar_storage_offloaded_size</td><td>计量表</td><td>此命名空间中已卸载到层级存储的数据总量(字节)。</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>计量表</td><td>此命名空间写入到存储的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>计量表</td><td>此命名空间从存储中读取的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>计量表</td><td>被延迟派发的总消息批处理(条目)数。</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>直方图</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="复制度量值"></a><a href="#复制度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>复制度量值</h4>
+<p>如果一个命名空间被配置为在多个Pulsar集群中复制，当<code>replicationMetricsEnabled</code> 启用时，相应的复制度量值也会暴露出来。</p>
+<p>所有的复制度量值也带有 <code>remoteCluster=${pulsar_remote_cluster}</code> 标签。</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_replication_rate_in</td><td>计量表</td><td>命名空间从远程集群进行复制的总消息频率（消息/秒）。</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>计量表</td><td>命名空间复制到远程集群的总消息频率（消息/秒）。</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>计量表</td><td>命名空间从远程集群进行复制的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>计量表</td><td>命名空间复制到远程集群的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_replication_backlog</td><td>计量表</td><td>命名空间复制到远程集群的总积压量（消息）。</td></tr>
+<tr><td>pulsar_replication_rate_expired</td><td>计量表</td><td>消息过期总速率(消息/秒)。</td></tr>
+<tr><td>pulsar_replication_connected_count</td><td>计量表</td><td>复制-订阅者的数量，正在运行以复制到远程集群。</td></tr>
+<tr><td>pulsar_replication_delay_in_seconds</td><td>计量表</td><td>消息从生产到即将复制的时间（秒为单位）</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="主题度量值"></a><a href="#主题度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>主题度量值</h3>
+<blockquote>
+<p>主题度量值只有在 <code>exposeTopicLevelMetricsInPrometheus</code> 被设为 <code>true</code> 时才暴露。</p>
+</blockquote>
+<p>所有主题度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> 是主题名。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_subscriptions_count</td><td>计量表</td><td>主题下由此 broker 服务的 Pulsar 订阅数。</td></tr>
+<tr><td>pulsar_producers_count</td><td>计量表</td><td>主题下连接到此 broker 的活动生产者数。</td></tr>
+<tr><td>pulsar_consumers_count</td><td>计量表</td><td>主题下连接到此 broker 的活动消费者数。</td></tr>
+<tr><td>pulsar_rate_in</td><td>计量表</td><td>主题下的所有消息进入此 broker 的频率（消息/秒）。</td></tr>
+<tr><td>pulsar_rate_out</td><td>计量表</td><td>主题下的所有消息从此 broker 发出的频率（消息/秒）。</td></tr>
+<tr><td>pulsar_throughput_in</td><td>计量表</td><td>主题下数据进入此 broker 的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_throughput_out</td><td>计量表</td><td>主题下数据由此 broker 发出的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_storage_size</td><td>计量表</td><td>主题下由此 broker 拥有的主题的总存储大小 (字节)。</td></tr>
+<tr><td>pulsar_storage_backlog_size</td><td>计量表</td><td>主题下由此 broker 拥有的总积压大小 (消息)。</td></tr>
+<tr><td>pulsar_storage_offloaded_size</td><td>计量表</td><td>此主题中已卸载到层级存储的数据总量(字节)。</td></tr>
+<tr><td>pulsar_storage_backlog_quota_limit</td><td>计量表</td><td>此主题中限制积压定额的数据总量(字节)。</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>计量表</td><td>此主题写入到存储的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>计量表</td><td>此主题从存储中读取的总消息批处理(条目)数 (消息批处理/秒)。</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>计量表</td><td>被延迟派发的总消息批处理(条目)数。</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>直方图</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> 可用的阈值： <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>直方图</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+<tr><td>pulsar_in_bytes_total</td><td>计数器</td><td>The total number of messages in bytes received for this topic.</td></tr>
+<tr><td>pulsar_in_messages_total</td><td>计数器</td><td>The total number of messages received for this topic.</td></tr>
+<tr><td>pulsar_out_bytes_total</td><td>计数器</td><td>The total number of messages in bytes read from this topic.</td></tr>
+<tr><td>pulsar_out_messages_total</td><td>计数器</td><td>The total number of messages read from this topic.</td></tr>
+<tr><td>pulsar_compaction_removed_event_count</td><td>计量表</td><td>The total number of removed events of the compaction.</td></tr>
+<tr><td>pulsar_compaction_succeed_count</td><td>计量表</td><td>The total number of successes of the compaction.</td></tr>
+<tr><td>pulsar_compaction_failed_count</td><td>计量表</td><td>The total number of failures of the compaction.</td></tr>
+<tr><td>pulsar_compaction_duration_time_in_mills</td><td>计量表</td><td>The duration time of the compaction.</td></tr>
+<tr><td>pulsar_compaction_read_throughput</td><td>计量表</td><td>The read throughput of the compaction.</td></tr>
+<tr><td>pulsar_compaction_write_throughput</td><td>计量表</td><td>The write throughput of the compaction.</td></tr>
+<tr><td>pulsar_compaction_latency_le_*</td><td>直方图</td><td>The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_compaction_latency_le_1: &lt;= 1ms</li><li>pulsar_compaction_latency_le_5: &lt;= 5ms</li><li>pulsar_compaction_latency_le_10: &lt;= 10ms</li><li>pulsar_compaction_latency_le_20: &lt;= 20ms</li><li>pulsar_compaction_latency_le_50: &lt;= 50ms</li><li>pulsar_compaction_latency_le_100: &lt;= 100ms</li><li>pulsar_compaction_latency_le_200: &lt;= 200ms</li><li>pulsar_compaction_latency_le_1000: &lt;= 1s</li><li>pulsar_compaction_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_compaction_compacted_entries_count</td><td>计量表</td><td>The total number of the compacted entries.</td></tr>
+<tr><td>pulsar_compaction_compacted_entries_size</td><td>计量表</td><td>The total size of the compacted entries.</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="复制度量值-1"></a><a href="#复制度量值-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>复制度量值</h4>
+<p>如果主题所属的命名空间被配置为在多个Pulsar集群中复制，当<code>replicationMetricsEnabled</code> 启用时，相应的复制度量值也会暴露出来。</p>
+<p>所有的复制度量值带有 <code>remoteCluster=${pulsar_remote_cluster}</code> 标签。</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_replication_rate_in</td><td>计量表</td><td>主题从远程集群进行复制的总消息频率（消息/秒）。</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>计量表</td><td>主题复制到远程集群的总消息频率（消息/秒）。</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>计量表</td><td>主题从远程集群进行复制的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>计量表</td><td>主题复制到远程集群的总吞吐量（字节/秒）。</td></tr>
+<tr><td>pulsar_replication_backlog</td><td>计量表</td><td>主题复制到远程集群的总积压量（消息）。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managedledgercache-度量值"></a><a href="#managedledgercache-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedgerCache 度量值</h3>
+<p>所有 ManagedLedgerCache 度量值都带有以下标签：</p>
+<ul>
+<li>集群: cluster=${pulsar_cluster}。 ${pulsar_cluster} 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_cache_evictions</td><td>计量表</td><td>在过去 1 分钟内的缓存驱逐数。</td></tr>
+<tr><td>pulsar_ml_cache_hits_rate</td><td>计量表</td><td>每秒缓存命中数。</td></tr>
+<tr><td>pulsar_ml_cache_hits_throughput</td><td>计量表</td><td>从缓存中取出的数据量，以字节/秒为单位</td></tr>
+<tr><td>pulsar_ml_cache_misses_rate</td><td>计量表</td><td>每秒缓存失效数</td></tr>
+<tr><td>pulsar_ml_cache_misses_throughput</td><td>计量表</td><td>从缓存中取出的数据量，以字节/秒为单位</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations</td><td>计量表</td><td>直接场地（direct arena）中当前活动的分配数</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_huge</td><td>计量表</td><td>直接场地（direct arena）中当前活动的大型（huge）分配数</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_normal</td><td>计量表</td><td>直接场地（direct arena）中当前活动的正常（normal）分配数</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_small</td><td>计量表</td><td>直接场地（direct arena）中当前活动的小型（small）分配数</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_tiny</td><td>计量表</td><td>直接场地（direct arena）中当前活动的超小型（tiny）分配数</td></tr>
+<tr><td>pulsar_ml_cache_pool_allocated</td><td>计量表</td><td>直接场地（direct arena）中为 chunk 列表分配的总内存</td></tr>
+<tr><td>pulsar_ml_cache_pool_used</td><td>计量表</td><td>直接场地（direct arena）中 chunk 列表使用的总内存</td></tr>
+<tr><td>pulsar_ml_cache_used_size</td><td>计量表</td><td>用于存储条目负载的字节大小</td></tr>
+<tr><td>pulsar_ml_count</td><td>计量表</td><td>当前打开的托管 ledger 数量。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managedledger-度量值"></a><a href="#managedledger-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedger 度量值</h3>
+<p>所有 managedLedger 度量值都带有以下标签：</p>
+<ul>
+<li>集群: cluster=${pulsar_cluster}。 ${pulsar_cluster} 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li>命名空间: namespace=${pulsar_namespace}。 ${pulsar_namespace} 是命名空间名称。</li>
+<li>分位数: quantile=${quantile}. 分位数是只提供给 <code>直方图</code> 的类型度量值，代表了给定 Bucket 的阈值。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_AddEntryBytesRate</td><td>计量表</td><td>添加消息的字节/秒频率</td></tr>
+<tr><td>pulsar_ml_AddEntryErrors</td><td>计量表</td><td>失败的 addEntry 请求数</td></tr>
+<tr><td>pulsar_ml_AddEntryLatencyBuckets</td><td>直方图</td><td>The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side<br> Available quantile: <br><ul><li> quantile=&quot;0.0_0.5&quot; 是 AddEntryLatency 介于 (0.0ms, 0.5ms]</li> <li>quantile=&quot;0.5_1.0&quot; 是 AddEntryLatency 介于 (0.5ms, 1.0ms]</li><li>quantile=&quot;1.0_5.0&quot; 是 AddEntryLatency 介于 (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; 是 AddEntryLatency 介于 (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; 是 AddEntryLatency 介于 (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; 是 AddEntryLatency 介于 (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; 是 AddEntryLatency 介于 (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; 是 AddEntryLatency 介于 (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; 是 AddEntryLatency 介于 (200ms, 1s]</li></ul></td></tr>
+<tr><td>pulsar_ml_AddEntryLatencyBuckets_OVERFLOW</td><td>计量表</td><td>The number of times the AddEntryLatency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_AddEntryMessagesRate</td><td>计量表</td><td>The msg/s rate of messages added</td></tr>
+<tr><td>pulsar_ml_AddEntrySucceed</td><td>计量表</td><td>The number of addEntry requests that succeeded</td></tr>
+<tr><td>pulsar_ml_EntrySizeBuckets</td><td>直方图</td><td>The added entry size of a ledger with a given quantile.<br> Available quantile: <br><ul><li>quantile=&quot;0.0_128.0&quot; 是 EntrySize 介于 (0byte, 128byte]</li><li>quantile=&quot;128.0_512.0&quot; 是 EntrySize 介于 (128byte, 512byte]</li><li>quantile=&quot;512.0_1024.0&quot; 是 EntrySize 介于 (512byte, 1KB]</li><li>quantile=&quot;1024.0_2048.0&quot; 是 EntrySize 介于 (1KB, 2KB]</li><li>quantile=&quot;2048.0_4096.0&quot; 是 EntrySize 介于 (2KB, 4KB]</li><li>quantile=&quot;4096.0_16384.0&quot; 是 EntrySize 介于 (4KB, 16KB]</li><li>quantile=&quot;16384.0_102400.0&quot; 是 EntrySize 介于 (16KB, 100KB]</li><li>quantile=&quot;102400.0_1232896.0&quot; 是 EntrySize 介于 (100KB, 1MB]</li></ul></td></tr>
+<tr><td>pulsar_ml_EntrySizeBuckets_OVERFLOW</td><td>计量表</td><td>The number of times the EntrySize is larger than 1MB</td></tr>
+<tr><td>pulsar_ml_LedgerSwitchLatencyBuckets</td><td>直方图</td><td>The ledger switch latency with a given quantile. <br> 可用的分位数: <br><ul><li>quantile=&quot;0.0_0.5&quot; 是 EntrySize 介于 (0ms, 0.5ms]</li><li>quantile=&quot;0.5_1.0&quot; 是 EntrySize 介于 (0.5ms, 1ms]</li><li>quantile=&quot;1.0_5.0&quot; 是 EntrySize 介于 (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; 是 EntrySize 介于 (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; 是 EntrySize 介于 (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; 是 EntrySize 介于 (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; 是 EntrySize 介于 (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; 是 EntrySize 介于 (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; 是 EntrySize 介于 (200ms, 1000ms]</li></ul></td></tr>
+<tr><td>pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW</td><td>计量表</td><td>The number of times the ledger switch latency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_LedgerAddEntryLatencyBuckets</td><td>直方图</td><td>The latency for bookie client to persist a ledger entry from broker to BookKeeper service with a given quantile (threshold). <br /> Available quantile: <br /><ul><li> quantile=&quot;0.0_0.5&quot; is LedgerAddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile=&quot;0.5_1.0&quot; is LedgerAddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile=&quot;1.0_5.0&quot; is LedgerAddEntryLatency between (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; is LedgerAddEntryLatency between (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; is LedgerAddEntryLatency between (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; is LedgerAddEntryLatency between (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; is LedgerAddEntryLatency between (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; is LedgerAddEntryLatency between (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; is LedgerAddEntryLatency between (200ms, 1s]</li></ul></td></tr>
+<tr><td>pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW</td><td>计量表</td><td>The number of times the LedgerAddEntryLatency is longer than 1 second</td></tr>
+<tr><td>pulsar_ml_MarkDeleteRate</td><td>计量表</td><td>The rate of mark-delete ops/s</td></tr>
+<tr><td>pulsar_ml_NumberOfMessagesInBacklog</td><td>计量表</td><td>The number of backlog messages for all the consumers</td></tr>
+<tr><td>pulsar_ml_ReadEntriesBytesRate</td><td>计量表</td><td>The bytes/s rate of messages read</td></tr>
+<tr><td>pulsar_ml_ReadEntriesErrors</td><td>计量表</td><td>The number of readEntries requests that failed</td></tr>
+<tr><td>pulsar_ml_ReadEntriesRate</td><td>计量表</td><td>The msg/s rate of messages read</td></tr>
+<tr><td>pulsar_ml_ReadEntriesSucceeded</td><td>计量表</td><td>The number of readEntries requests that succeeded</td></tr>
+<tr><td>pulsar_ml_StoredMessagesSize</td><td>计量表</td><td>The total size of the messages in active ledgers (accounting for the multiple copies stored)</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="托管游标确认状态的统计信息"></a><a href="#托管游标确认状态的统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>托管游标确认状态的统计信息</h3>
+<p>确认状态（acknowledgment state）首先会被持久化到 ledger 中。 当确认状态无法被持久化到 ledger 中时，它们将被持久化到 ZooKeeper。 To track the stats of acknowledgment, you can configure the metrics for the managed cursor.</p>
+<p>All the cursor acknowledgment state metrics are labelled with the following labels:</p>
+<ul>
+<li><p>namespace: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</p></li>
+<li><p>ledger_name: <code>ledger_name=${pulsar_ledger_name}</code>. <code>${pulsar_ledger_name}</code> is the ledger name.</p></li>
+<li><p>cursor_name: <code>ledger_name=${pulsar_cursor_name}</code>. <code>${pulsar_cursor_name}</code> is the cursor name.</p></li>
+</ul>
+<p>Name    |Type   |Description |---|---|--- brk_ml_cursor_persistLedgerSucceed(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of acknowledgment states that is persistent to a ledger.| brk_ml_cursor_persistLedgerErrors(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.| brk_ml_cursor_persistZookeeperSucceed(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of acknowledgment states that is persistent to ZooKeeper. brk_ml_cursor_persistZookeeperErrors(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper. brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace=&quot;&quot;, ledger_name=&quot;&quot;, cursor_name:&quot;&quot;)|Gauge|The number of non-contiguous deleted messages ranges.</p>
+<h3><a class="anchor" aria-hidden="true" id="loadbalancing-度量值"></a><a href="#loadbalancing-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LoadBalancing 度量值</h3>
+<p>所有负载均衡度量值都带有以下标签：</p>
+<ul>
+<li>集群: cluster=${pulsar_cluster}。 ${pulsar_cluster} 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li>broker: broker=${broker}. ${broker} 是 broker 的 IP 地址</li>
+<li>度量值: metric=&quot;loadBalancing&quot;。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bandwidth_in_usage</td><td>计量表</td><td>Broker 入站带宽使用量(百分比)。</td></tr>
+<tr><td>pulsar_lb_bandwidth_out_usage</td><td>计量表</td><td>Broker 出站带宽使用量(百分比)。</td></tr>
+<tr><td>pulsar_lb_cpu_usage</td><td>计量表</td><td>Broker cpu 的使用率（百分比）。</td></tr>
+<tr><td>pulsar_lb_directMemory_usage</td><td>计量表</td><td>Broker 进程的直接内存使用量（ 百分比 ）</td></tr>
+<tr><td>pulsar_lb_memory_usage</td><td>计量表</td><td>Broker 进程的内存使用量（ 百分比 ）</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundleunloading-度量值"></a><a href="#bundleunloading-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleUnloading 度量值</h4>
+<p>所有 bundleUnloading 度量值都带有以下标签：</p>
+<ul>
+<li>集群: cluster=${pulsar_cluster}。 ${pulsar_cluster} 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li>度量值: metric=&quot;bundleUnloading&quot;。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_unload_broker_count</td><td>计数器</td><td>在本次 bundle 卸载中卸载的 broker 计数</td></tr>
+<tr><td>pulsar_lb_unload_bundle_count</td><td>计数器</td><td>在本次 bundle 卸载中卸载的 bundle 计数</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundlesplit-度量值"></a><a href="#bundlesplit-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleSplit 度量值</h4>
+<p>所有 bundleUnloading 度量值都带有以下标签：</p>
+<ul>
+<li>集群: cluster=${pulsar_cluster}。 ${pulsar_cluster} 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li>度量值: metric=&quot;bundlesSplit&quot;。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bundles_split_count</td><td>计数器</td><td>在本次 bundle 切分检查中切分的 bundle 计数</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="subscription-metrics"></a><a href="#subscription-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription metrics</h3>
+<blockquote>
+<p>订阅度量值只有在 <code>exposeTopicLevelMetricsInPrometheus</code> 被设为 <code>true</code> 时才暴露。</p>
+</blockquote>
+<p>All the subscription metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> 是主题名。</li>
+<li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_subscription_back_log</td><td>计量表</td><td>The total backlog of a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_delayed</td><td>计量表</td><td>The total number of messages are delayed to be dispatched for a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_msg_rate_redeliver</td><td>计量表</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_subscription_unacked_messages</td><td>计量表</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>计量表</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_subscription_msg_rate_out</td><td>计量表</td><td>The total message dispatch rate for a subscription (messages/second).</td></tr>
+<tr><td>pulsar_subscription_msg_throughput_out</td><td>计量表</td><td>The total message dispatch throughput for a subscription (bytes/second).</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consumer-metrics"></a><a href="#consumer-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer metrics</h3>
+<blockquote>
+<p>消费者度量值只有当 <code>exposeTopicLevelMetricsInPrometheus</code> 和 <code>exposeConsumerLevelMetricsInPrometheus</code> 都设为 <code>true</code> 时才暴露。</p>
+</blockquote>
+<p>All the consumer metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> 是主题名。</li>
+<li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
+<li><em>consumer_name</em>: <code>consumer_name=${consumer_name}</code>. <code>${consumer_name}</code> is the topic consumer name.</li>
+<li><em>consumer_id</em>: <code>consumer_id=${consumer_id}</code>. <code>${consumer_id}</code> is the topic consumer id.</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_consumer_msg_rate_redeliver</td><td>计量表</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_consumer_unacked_messages</td><td>计量表</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
+<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>计量表</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_consumer_msg_rate_out</td><td>计量表</td><td>The total message dispatch rate for a consumer (messages/second).</td></tr>
+<tr><td>pulsar_consumer_msg_throughput_out</td><td>计量表</td><td>The total message dispatch throughput for a consumer (bytes/second).</td></tr>
+<tr><td>pulsar_consumer_available_permits</td><td>计量表</td><td>The available permits for for a consumer.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="托管的-ledger-bookie-客户端度量值"></a><a href="#托管的-ledger-bookie-客户端度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>托管的 ledger bookie 客户端度量值</h3>
+<p>所有的托管 ledger bookie 客户端度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_*</td><td>计量表</td><td>调度程序执行器已执行完成的任务数。 <br>由 <code>broker.conf</code> 中 <code>managedLedgerNumerThrad</code> 配置的调度器线程数所决定的度量值数。 <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_*</td><td>计量表</td><td>在调度器执行者队列中排队的任务数量。 <br>由 <code>broker.conf</code> 中 <code>managedLedgerNumerThrad</code> 配置的调度器线程数所决定的度量值数。 <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_*</td><td>计量表</td><td>调度程序执行器接收的任务数。 <br>由 <code>broker.conf</code> 中 <code>managedLedgerNumerThrad</code> 配置的调度器线程数所决定的度量值数。 <br></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution</td><td>总结</td><td>按毫秒计算的调度器任务执行延迟。</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued</td><td>总结</td><td>按毫秒计算的调度器任务排队延迟。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="token-metrics"></a><a href="#token-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Token metrics</h3>
+<p>All the token metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_expired_token_count</td><td>计数器</td><td>在 Pulsar 中过期令牌的数量。</td></tr>
+<tr><td>pulsar_expiring_token_minutes</td><td>直方图</td><td>剩余的令牌在几分钟内到期。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="authentication-metrics"></a><a href="#authentication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication metrics</h3>
+<p>All the authentication metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>provider_name</em>: <code>provider_name=${provider_name}</code>. <code>${provider_name}</code> is the class name of the authentication provider.</li>
+<li><em>auth_method</em>: <code>auth_method=${auth_method}</code>. <code>${auth_method}</code> is the authentication method of the authentication provider.</li>
+<li><em>reason</em>: <code>reason=${reason}</code>. <code>${reason}</code> is the reason for failing authentication operation. (This label is only for <code>pulsar_authentication_failures_count</code>.)</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_authentication_success_count</td><td>计数器</td><td>成功认证操作的数量。</td></tr>
+<tr><td>pulsar_authentication_failures_count</td><td>计数器</td><td>失败的认证操作的数量。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="连接指标"></a><a href="#连接指标" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接指标</h3>
+<p>All the connection metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>broker</em>: <code>broker=${advertised_address}</code>. <code>${advertised_address}</code> is the advertised address of the broker.</li>
+<li><em>metric</em>: <code>metric=${metric}</code>. <code>${metric}</code> is the connection metric collective name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_active_connections</td><td>计量表</td><td>活跃连接的数量。</td></tr>
+<tr><td>pulsar_connection_created_total_count</td><td>计量表</td><td>连接总数。</td></tr>
+<tr><td>pulsar_connection_create_succes_count</td><td>计量表</td><td>成功创建连接的数量。</td></tr>
+<tr><td>pulsar_connection_create_fail_count</td><td>计量表</td><td>连接失败的数量。</td></tr>
+<tr><td>pulsar_connection_closed_total_count</td><td>计量表</td><td>已关闭连接的总数。</td></tr>
+<tr><td>pulsar_broker_throttled_connection</td><td>计量表</td><td>阻塞连接的数量。</td></tr>
+<tr><td>pulsar_broker_throtled_connections_global_limit</td><td>计量表</td><td>由于连接的数量限制而导致的阻塞的连接数量。</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="jetty-metrics"></a><a href="#jetty-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Jetty metrics</h3>
+<blockquote>
+<p>对于与brokers分开运行的function-worker，只有当<code>includeStandardPrometheusMetrics</code>被设置为<code>true</code>时，其Jetty指标才会被暴露。</p>
+</blockquote>
+<p>所有 jetty 度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>jetty_requests_total</td><td>计数器</td><td>请求数量。</td></tr>
+<tr><td>jetty_requests_activity</td><td>计量表</td><td>当前活跃的请求数量。</td></tr>
+<tr><td>jetty_requests_active_max</td><td>计量表</td><td>一次活跃请求的最大数量。</td></tr>
+<tr><td>jetty_request_time_max_seconds</td><td>计量表</td><td>处理请求的最大时间。</td></tr>
+<tr><td>jetty_request_time_seconds_total</td><td>计数器</td><td>在所有请求处理中花费的总时间。</td></tr>
+<tr><td>jetty_dispatched_total</td><td>计数器</td><td>调度数量。</td></tr>
+<tr><td>jetty_dispatched_activity</td><td>计量表</td><td>当前活跃的调度数量。</td></tr>
+<tr><td>jetty_dispatched_active_max</td><td>计量表</td><td>正在处理的最大活动调度数。</td></tr>
+<tr><td>jetty_dispatched_time_max</td><td>计量表</td><td>调度处理花费的最大时间。</td></tr>
+<tr><td>jetty_dispatched_time_seconds_total</td><td>计数器</td><td>调度处理的总时间。</td></tr>
+<tr><td>jetty_async_requests_total</td><td>计数器</td><td>异步请求总数。</td></tr>
+<tr><td>jetty_async_requests_waiting</td><td>计量表</td><td>目前等待中的异步请求。</td></tr>
+<tr><td>jetty_async_requests_waiting_max</td><td>计量表</td><td>等待异步请求的最大数量。</td></tr>
+<tr><td>jetty_async_appailches_total</td><td>计数器</td><td>已被异步派发的请求数。</td></tr>
+<tr><td>jetty_expires_total</td><td>计数器</td><td>已经过期的异步请求数量。</td></tr>
+<tr><td>jetty_responses_total</td><td>计数器</td><td>响应的数量，按状态代码标示。 <code>code</code> 标签可以是 &quot;1. xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, 或者&quot;5xx&quot;.</td></tr>
+<tr><td>jetty_stats_seconds</td><td>计量表</td><td>收集统计资料的时间，以秒为单位。</td></tr>
+<tr><td>jetty_responses_bytes_total</td><td>计数器</td><td>所有响应的字节总数.</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h2>
+<p>所有 Pulsar Functions 度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_function_processed_successfully_total</td><td>计数器</td><td>成功处理的消息总数。</td></tr>
+<tr><td>pulsar_function_processed_successfully_total_1min</td><td>计数器</td><td>在过去 1 分钟内成功处理的消息总数。</td></tr>
+<tr><td>pulsar_function_system_exceptions_total</td><td>计数器</td><td>系统异常总数。</td></tr>
+<tr><td>pulsar_function_system_exceptions_total_1min</td><td>计数器</td><td>在过去 1 分钟内的系统异常总数。</td></tr>
+<tr><td>pulsar_function_user_exceptions_total</td><td>计数器</td><td>用户异常总数。</td></tr>
+<tr><td>pulsar_function_user_exceptions_total_1min</td><td>计数器</td><td>在过去 1 分钟内的用户异常总数。</td></tr>
+<tr><td>pulsar_function_process_latency_ms</td><td>总结</td><td>进程延迟，以毫秒计。</td></tr>
+<tr><td>pulsar_function_process_latency_ms_1min</td><td>总结</td><td>在过去 1 分钟内的进程延迟，以毫秒计。</td></tr>
+<tr><td>pulsar_function_last_invocation</td><td>计量表</td><td>该函数最后一次调用的时间戳。</td></tr>
+<tr><td>pulsar_function_received_total</td><td>计数器</td><td>从源接收的消息总数。</td></tr>
+<tr><td>pulsar_function_received_total_1min</td><td>计数器</td><td>在过去 1 分钟内从源接收的消息总数。</td></tr>
+<tr><td>pulsar_function_user_metric_</td><td>总数</td><td>用户定义的指标。</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="连接器"></a><a href="#连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接器</h2>
+<p>所有 Pulsar 连接器指标都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> 是命名空间名称。</li>
+</ul>
+<p>Connector metrics contain <strong>source</strong> metrics and <strong>sink</strong> metrics.</p>
+<ul>
+<li><p><strong>Source</strong> metrics</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<p>pulsar_source_written_total|Counter|写入Pulsar topic 的记录总数。 pulsar_source_written_total_1min|Counter|在最后1分钟内写入Pulsar topic 的记录总数。 pulsar_source_receed_total|Counter|从 source 收到的记录总数。 pulsar_source_receed_total_1min|Counter|在最后1分钟内从 source 收到的记录总数。 pulsar_source_last_invocation|Gauge|最后一次调用 source 的时间戳。 pulsar_source_source_exception|Gauge|一个 source 的异常。 pulsar_source_source_exceptions_total|Counter| source 异常的总数。 pulsar_source_source_exceptions_total_1min|Counter|在最后1分钟内的source 异常总数。 pulsar_source_system_exception|Gauge|系统异常代码。 pulsar_source_system_exceptions_total|Counter|系统异常的总数。 pulsar_source_system_exceptions_total_1min|Counter|在最后1分钟内的系统异常总数。 pulsar_source_user_metric_| 总数|用户定义的指标。</p>
+<ul>
+<li><p><strong>Sink</strong> metrics</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul>
+<p>pulsar_sink_written_total|Counter|由 sink 处理的记录总数。 pulsar_sink_written_total_1min|Counter| 在最后1分钟内由 sink 处理的记录总数。 pulsar_sink_receed_total_1min|Counter| 过去 1 分钟内从 Pulsar topic 收到的消息总数。 pulsar_sink_receed_total|Counter| 一个 sink 从Pulsar topic 收到的记录总数。 pulsar_sink_last_invocation|Gauge|上次调用 sink 的时间戳。 pulsar_sink_sink_exception|Gauge| 来自 Sink 的异常 pulsar_sink_sink_exceptions_total|计数器异常总数。 pulsar_sink_sink_exceptions_total_1min|Counter|在最后1分钟内 sink 的异常总数。 pulsar_sink_system_exception|Gauge|系统异常代码。 pulsar_sink_system_exceptions_total|计数器|系统异常的总数。 pulsar_sink_system_exceptions_total_1min|Counter|在最后1分钟内的系统异常总数。 pulsar_sink_user_metric_| 总数|用户定义的指标。</p>
+<h2><a class="anchor" aria-hidden="true" id="代理"></a><a href="#代理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>代理</h2>
+<p>所有代理度量值都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>kubernetes_pod_name</em>: <code>kubernetes_pod_name=${kubernetes_pod_name}</code>. <code>${kubernetes_pod_name}</code> 是 kubernetes pod 名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_proxy_active_connections</td><td>计量表</td><td>代理中当前活动的连接数量。</td></tr>
+<tr><td>pulsar_proxy_new_connections</td><td>计数器</td><td>代理中正在打开的连接的计数器。</td></tr>
+<tr><td>pulsar_proxy_rejected_connections</td><td>计数器</td><td>由于阈值而拒绝的连接计数器。</td></tr>
+<tr><td>pulsar_proxy_binary_ops</td><td>计数器</td><td>代理操作计数器。</td></tr>
+<tr><td>pulsar_proxy_binary_bytes</td><td>计数器</td><td>代理字节计数器。</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h2>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>split_bytes_read</td><td>计数器</td><td>从 BookKeeper 读取的字节数。</td></tr>
+<tr><td>split_num_messages_deserialized</td><td>计数器</td><td>反序列化的消息数量。</td></tr>
+<tr><td>split_num_record_deserialized</td><td>计数器</td><td>反序列化的记录数量。</td></tr>
+<tr><td>split_bytes_read_per_query</td><td>总结</td><td>每个查询中读取的字节总数.</td></tr>
+<tr><td>split_entry_deserialize_time</td><td>总结</td><td>用于对条目进行反序列化的时间。</td></tr>
+<tr><td>split_entry_deserialize_time_per_query</td><td>总结</td><td>用于对每个查询中的条目进行反序列化的时间。</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time</td><td>总结</td><td>由于队列为空而等待从条目队列获取条目花费的时间。</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time_per_query</td><td>总结</td><td>从每个查询的条目队列中等待获取条目的总时间。</td></tr>
+<tr><td>split_message_queue_dequeue_wait_time_per_query</td><td>总结</td><td>每个查询中由于队列为空而等待从消息队列中移除所花的时间。</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time</td><td>总结</td><td>由于消息队列已满，等待进入消息队列的时间。</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time_per_query</td><td>总结</td><td>每个查询中由于消息队列已满，等待进入消息队列的时间。</td></tr>
+<tr><td>split_num_entries_per_batch</td><td>总结</td><td>每个批处理的条目数。</td></tr>
+<tr><td>split_num_entries_per_query</td><td>总结</td><td>每个查询的条目数。</td></tr>
+<tr><td>split_num_messages_deserialized_per_entry</td><td>总结</td><td>每个条目反序列化的消息数量。</td></tr>
+<tr><td>split_num_messages_deserialized_per_query</td><td>总结</td><td>每个查询反序列化的消息数量。</td></tr>
+<tr><td>split_read_attempts</td><td>总结</td><td>读取尝试次数(如果队列已满会失败)。</td></tr>
+<tr><td>split_read_attempts_per_query</td><td>总结</td><td>每个查询的读取尝试次数。</td></tr>
+<tr><td>split_read_latency_per_batch</td><td>总结</td><td>每个批处理的读取延迟。</td></tr>
+<tr><td>split_read_latency_per_query</td><td>总结</td><td>每个查询的总读取延迟。</td></tr>
+<tr><td>split_record_deserialize_time</td><td>总结</td><td>将消息反序列化到记录花费的时间。 例如，Avro、JSON 等等。</td></tr>
+<tr><td>split_record_deserialize_time_per_query</td><td>总结</td><td>每个查询将消息反序列化到记录花费的时间。</td></tr>
+<tr><td>split_total_execution_time</td><td>总结</td><td>总执行时间。</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-transaction"></a><a href="#pulsar-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar transaction</h2>
+<p>所有transaction指标都带有以下标签：</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+<li><em>coordinator_id</em>: <code>coordinator_id=${coordinator_id}</code>. <code>${coordinator_id}</code> 是Coordinator id。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_txn_active_count</td><td>计量表</td><td>活动的事务数量。</td></tr>
+<tr><td>pulsar_txn_created_count</td><td>计数器</td><td>创建的事务次数。</td></tr>
+<tr><td>pulsar_txn_committed_count</td><td>计数器</td><td>提交的事务数量。</td></tr>
+<tr><td>pulsar_txn_abuted_count</td><td>计数器</td><td>该协调器的中止事务的数量。</td></tr>
+<tr><td>pulsar_txn_timeout_count</td><td>计数器</td><td>超时事务数量。</td></tr>
+<tr><td>pulsar_txn_append_log_count</td><td>计数器</td><td>附加事务日志的数量。</td></tr>
+<tr><td>pulsar_txn_execution_latency_le_*</td><td>直方图</td><td>事务执行延迟。 <br> 可用的延迟如下所示： <br><ul><li> latency=&quot;10&quot; 是 (0ms, 10ms] 之间的事务执行延迟</li> <li>latency=&quot;20&quot; 是 (10ms, 20ms] 之间的事务执行延迟</li><li>latency=&quot;50&quot; 是 (20 ms, 50ms] 之间的事务执行延迟</li><li>latency=&quot;100&quot; 是 (50ms, 100ms] 之间的事务执行延迟</li><li>latency=&quot;500&quot; 是 (50ms, 500ms] 之间的事务执行延迟</li><li>latency=&quot;1000&quot; 是 (500ms, 1000ms] 之间的事务执行延迟</li><li>latency=&quot;5000&quot; 是 (1s, 5s] 之间的事务执行延迟</li><li>latency=&quot;15000&quot; 是 (5s, 15s] 之间的事务执行延迟</li><li>latency=&quot;30000&quot; 是 (15s, 30s] 之间的事务执行延迟</li></li><li>latency=&quot;60000&quot; 是 (30s, 60s] 之间的事务执行延迟</li><li>latency=&quot;300000&quot; 是 (1m, 5m] 之间的事务执行延迟</li><li>latency=&quot;1500000&quot; 是 (5m, 15m] 之间的事务执行延迟</li><li>latency=&quot;3000000&quot; 是 (15m, 30m] 之间的事务执行延迟</li><li>latency=&quot;overflow&quot; 是 (30m, ∞] 之间的事务执行延迟</li></ul></td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#托管游标确认状态的统计信息">托管游标确认状态的统计信息</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#连接指标">连接指标</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#连接器">连接器</a></li><li><a href="#代理">代理</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

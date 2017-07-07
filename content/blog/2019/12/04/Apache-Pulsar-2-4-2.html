@@ -1,0 +1,193 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.4.2 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.4.2 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2"/><meta property="og:description" content="We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2019/12/04/Apache-Pulsar-2-4-2">Apache Pulsar 2.4.2</a></h1><p class="post-meta">December 4, 2019</p><div class="authorBlock"><p class="post-authorName"><a href="https://twitter.com/wolf4j1" target="_blank" rel="noreferrer noopener">Xiaolong Ran</a></p></div></header><div><span><p>We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.</p>
+<p>For detailed changes related to 2.4.2 release, refer to <b><a href="/release-notes/#2.4.2">release notes</a></b>.</p>
+<p>I will highlight some improvements and bug fixes in this blog.</p>
+<!--truncate-->
+<h2><a class="anchor" aria-hidden="true" id="use-classloaders-to-load-java-functions"></a><a href="#use-classloaders-to-load-java-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use classLoaders to load Java functions</h2>
+<p>In Pulsar 2.4.2, windowed functions can work well whether Java Functions instances use shaded JAR or classLoaders, and functionClassLoader is set correctly when the <code>--output-serde-classname</code> option is enabled.</p>
+<p>Before Pulsar 2.4.2, Java Functions instances are started with a shaded JAR, and different classLoaders are used to load the internal Pulsar code, user code, and the interfaces that the two interacts with each other. This change results in two issues:</p>
+<ul>
+<li>The windowed functions do not work well if Java Functions instances use classLoaders.</li>
+<li>When using the <code>--output-serde-classname</code> option, functionClassLoader is not set correctly.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="start-broker-with-functions-worker"></a><a href="#start-broker-with-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Broker with Functions worker</h2>
+<p>In Pulsar 2.4.2, we can start Broker with Functions worker when broker client is enabled with TLS. Before Pulsar 2.4.2, when we run Functions worker with the broker, it checks whether TLS is enabled in the <code>function_worker.yml</code> file. If TLS is enabled, it uses TLS port. However, when TLS is enabled on Functions worker, it checks the <code>broker.conf</code>. Since Functions worker runs with the broker, it makes sense to check the <code>broker.conf</code> as the single source of truth about whether or not to use TLS.</p>
+<h2><a class="anchor" aria-hidden="true" id="add-error-code-and-error-message-when-a-key-does-not-exist"></a><a href="#add-error-code-and-error-message-when-a-key-does-not-exist" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add error code and error message when a key does not exist</h2>
+<p>In Pulsar Functions, BookKeeper is supported to store the state of Functions. When users attempt to fetch a key that does not exist from function state, an NPE(NullPointerException) error occurs. In Pulsar 2.4.2, we add error code and error message for the case when a key does not exist.</p>
+<h2><a class="anchor" aria-hidden="true" id="deduplication"></a><a href="#deduplication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deduplication</h2>
+<p>Deduplication removes messages based on the the largest sequence ID that pre-persisted. If an error is persisted to BookKeeper, a retry attempt is “deduplicated” with no message ever getting persisted. In version 2.4.2, we fix the issue from the following two aspects:</p>
+<ul>
+<li>Double check the pending messages and return error to the producer when the duplication status is uncertain. For example, when a message is still pending.</li>
+<li>Sync back the lastPushed map with the lastStored map after failures.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="consume-data-from-the-earliest-location"></a><a href="#consume-data-from-the-earliest-location" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consume data from the earliest location</h2>
+<p>In Pulsar 2.4.2, we add <code>--subs-position</code> for Pulsar Sinks, so users can consume data from the latest and earliest locations. Before 2.4.2 release, data in topics is consumed from the latest location in Pulsar Sinks by default, and users can not consume the earliest data in sink topic.</p>
+<h2><a class="anchor" aria-hidden="true" id="close-previous-dispatcher-when-the-subscription-type-changes"></a><a href="#close-previous-dispatcher-when-the-subscription-type-changes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Close previous dispatcher when the subscription type changes</h2>
+<p>In Pulsar 2.4.2, when the type of a subscription changes, a new dispatcher is created, and the old dispatcher is closed, thus avoiding memory leaks. Before 2.4.2, when the subscription type of a topic changes, a new dispatcher is created and the old one is discarded, yet not closed, which causes memory leaks. If the cursor is not durable, the subscription is closed and removed from the topic when all consumers are removed. The dispatcher should be closed at this time. Otherwise, RateLimiter instances are not garbage collected, which results in a memory leak.</p>
+<h2><a class="anchor" aria-hidden="true" id="select-an-active-consumer-based-on-the-subscription-order"></a><a href="#select-an-active-consumer-based-on-the-subscription-order" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Select an active consumer based on the subscription order</h2>
+<p>In Pulsar 2.4.2, the active consumer is selected based on the subscription order. The first consumer in the consumer list is selected as an active consumer without sorting. Before 2.4.2, the active consumer is selected based on the priority level and consumer name. In this case, the active consumer joins and leaves, and no consumer is actually elected as &quot;active&quot; or consumes messages.</p>
+<h2><a class="anchor" aria-hidden="true" id="remove-failed-stale-producer-from-the-connection"></a><a href="#remove-failed-stale-producer-from-the-connection" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Remove failed stale producer from the connection</h2>
+<p>In Pulsar 2.4.2, failed producer is removed correctly from the connection. Before Pulsar 2.4.2, broker cannot clean up the old failed producer correctly from the connection. When broker tries to clean up <code>producer-future</code> in the failed producer, it removes the newly created <code>producer-future</code> rather than the old failed producer, and the following error occurs in broker.</p>
+<pre><code class="hljs css language-text">17:22:00.700 [pulsar-io-21-26] WARN  org.apache.pulsar.broker.service.ServerCnx - [/1.1.1.1:1111][453] Producer with id persistent://prop/cluster/ns/topic is already present on the connection  
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="add-new-apis-for-schema"></a><a href="#add-new-apis-for-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add new APIs for schema</h2>
+<p>In Pulsar 2.4.2, we add the following APIs for schema:</p>
+<ul>
+<li><code>getAllVersions</code>: return the list of schema versions for a given topic.</li>
+<li><code>testCompatibility</code>: be able to test the compatibility for a schema without registering it.</li>
+<li><code>getVersionBySchema</code>: provide a schema definition and provide the schema version for it.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="expose-getlastmessageid-method-in-consumerimpl"></a><a href="#expose-getlastmessageid-method-in-consumerimpl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Expose <code>getLastMessageId()</code> method in consumerImpl</h2>
+<p>In Pulsar 2.4.2, we expose <code>getLastMessageId()</code> method in consumerImpl. It benefits users when they want to know the lag messages, or only consume messages before the current time.</p>
+<h2><a class="anchor" aria-hidden="true" id="add-new-send-interface-in-cgo"></a><a href="#add-new-send-interface-in-cgo" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add new <code>send()</code> interface in C++/Go</h2>
+<p>In Pulsar 2.4.2, we add new <code>send()</code> interface in C++/Go, so the <code>MessageID</code> will be returned to users. The logic is consistent with that in Java. In Java client, the <code>MessageId send(byte[] message)</code> returns <code>MessageId</code> for users.</p>
+<h2><a class="anchor" aria-hidden="true" id="consumer-background-tasks-are-cancelled-after-subscription-failures"></a><a href="#consumer-background-tasks-are-cancelled-after-subscription-failures" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer background tasks are cancelled after subscription failures</h2>
+<p>In Pulsar 2.4.2, we ensure that consumer background tasks are cancelled after subscription failures. Before 2.4.2, some background consumer tasks are started in the ConsumerImpl constructor though these tasks are not cancelled if the consumer creation fails, leaving active references to these objects.</p>
+<h2><a class="anchor" aria-hidden="true" id="delete-topics-attached-with-regex-consumers"></a><a href="#delete-topics-attached-with-regex-consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete topics attached with regex consumers</h2>
+<p>In Pulsar 2.4.2, we can delete topics attached with a regex consumer. The followings are detailed methods.</p>
+<ul>
+<li>Add a flag in CommandSubscribe so that a regex consumer will never trigger the creation of a topic.</li>
+<li>Subscribe to a non-existing topic. When a specific error occurs, the consumer is interpreted as a permanent failure and thus stopping retrying.</li>
+</ul>
+<p>Before 2.4.2, it's not possible to delete topics when there is a regex consumer attached to them. The reason is that the regex consumer will immediately reconnect and re-create the topic.</p>
+<h2><a class="anchor" aria-hidden="true" id="reference"></a><a href="#reference" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reference</h2>
+<p>Download Pulsar 2.4.2 <a href="https://pulsar.apache.org/en/download/">here</a>.</p>
+<p>If you have any questions or suggestions, contact us with mailing lists or slack.</p>
+<ul>
+<li><a href="mailto:users@pulsar.apache.org">users@pulsar.apache.org</a></li>
+<li><a href="mailto:dev@pulsar.apache.org">dev@pulsar.apache.org</a></li>
+<li>Pulsar slack channel: <a href="https://apache-pulsar.slack.com/">https://apache-pulsar.slack.com/</a></li>
+<li>You can self-register at <a href="https://apache-pulsar.herokuapp.com/">https://apache-pulsar.herokuapp.com/</a></li>
+</ul>
+<p>Looking forward to your contributions to <a href="https://github.com/apache/pulsar">Pulsar</a>.</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.4.2" data-url="https://pulsar.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#use-classloaders-to-load-java-functions">Use classLoaders to load Java functions</a></li><li><a href="#start-broker-with-functions-worker">Start Broker with Functions worker</a></li><li><a href="#add-error-code-and-error-message-when-a-key-does-not-exist">Add error code and error message when a key does not exist</a></li><li><a href="#deduplication">Deduplication</a></li><li><a href="#consume-data-from-the-earliest-location">Consume data from the earliest location</a></li><li><a href="#close-previous-dispatcher-when-the-subscription-type-changes">Close previous dispatcher when the subscription type changes</a></li><li><a href="#select-an-active-consumer-based-on-the-subscription-order">Select an active consumer based on the subscription order</a></li><li><a href="#remove-failed-stale-producer-from-the-connection">Remove failed stale producer from the connection</a></li><li><a href="#add-new-apis-for-schema">Add new APIs for schema</a></li><li><a href="#expose-getlastmessageid-method-in-consumerimpl">Expose <code>getLastMessageId()</code> method in consumerImpl</a></li><li><a href="#add-new-send-interface-in-cgo">Add new <code>send()</code> interface in C++/Go</a></li><li><a href="#consumer-background-tasks-are-cancelled-after-subscription-failures">Consumer background tasks are cancelled after subscription failures</a></li><li><a href="#delete-topics-attached-with-regex-consumers">Delete topics attached with regex consumers</a></li><li><a href="#reference">Reference</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

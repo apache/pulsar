@@ -1,0 +1,222 @@
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Setting up a local standalone cluster · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Setting up a local standalone cluster · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/staging/index.html"/><meta property="og:description" content="For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/staging/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="stylesheet" href="/staging/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/staging/js/custom.js"></script><link rel="stylesheet" href="/staging/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/staging/ja"><img class="logo" src="/staging/img/pulsar.svg" alt="Apache Pulsar"/></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/staging/docs/ja/standalone" target="_self">Documentation</a></li><li class=""><a href="/staging/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/staging/docs/ja/client-libraries" target="_self">Client libraries</a></li><li class=""><a href="/staging/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/staging/img/language.svg"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/staging/docs/en/standalone">English</a></li><li><a href="/staging/docs/zh-CN/standalone">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>Getting started</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting started</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/staging/docs/ja/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-permissions">Persmissions</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/admin-api-partitioned-topics">Partitioned topics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul><li class="navListItem"><a class="navItem" href="/staging/docs/ja/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/staging/docs/ja/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              const headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A') {
+                  document.body.classList.remove('tocActive');
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Setting up a local standalone cluster</h1></header><article><div><span><p>For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-in-production"></a><a href="#pulsar-in-production" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar in production?</h4>
+<p>If you're looking to run a full production Pulsar installation, see the <a href="/staging/docs/ja/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h2>
+<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. In order to use Pulsar, you'll need to install <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">Java 8</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="installing-pulsar"></a><a href="#installing-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Pulsar</h2>
+<p>To get started running Pulsar, download a binary tarball release in one of the following ways:</p>
+<ul>
+<li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
+<ul>
+<li><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz" download>Pulsar 2.1.0-incubating binary release</a></li>
+</ul></li>
+<li><p>from the Pulsar <a href="/staging/download">downloads page</a></p></li>
+<li><p>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>Once the tarball is downloaded, untar it and <code>cd</code> into the resulting directory:</p>
+<pre><code class="hljs css languages- bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="what-your-package-contains"></a><a href="#what-your-package-contains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What your package contains</h2>
+<p>The Pulsar binary package initially contains the following directories:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/staging/docs/ja/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="/staging/docs/ja/pulsar-admin"><code>pulsar-admin</code></a></td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Configuration files for Pulsar, including for <a href="/staging/docs/ja/reference-configuration#broker">broker configuration</a>, <a href="/staging/docs/ja/reference-configuration#zookeeper">ZooKeeper configuration</a>, and more</td></tr>
+<tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">A Java JAR file containing example <a href="/staging/docs/ja/functions-overview">Pulsar Functions</a></td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">License files, in <code>.txt</code> form, for various components of the Pulsar <a href="developing-codebase.md">codebase</a></td></tr>
+</tbody>
+</table>
+<p>These directories will be created once you begin running Pulsar:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Directory</th><th style="text-align:left">Contains</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">The data storage directory used by ZooKeeper and BookKeeper</td></tr>
+<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">Artifacts created for <a href="/staging/docs/ja/functions-overview">Pulsar Functions</a></td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">Logs created by the installation</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="installing-builtin-connectors"></a><a href="#installing-builtin-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Builtin Connectors</h2>
+<p>Since release <code>2.1.0-incubating</code>, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors. If you would like to enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
+<ul>
+<li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
+<ul>
+<li><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz" download>Pulsar IO Connectors 2.1.0-incubating release</a></li>
+</ul></li>
+<li><p>from the Pulsar <a href="/staging/download">downloads page</a></p></li>
+<li><p>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as <code>connectors</code> in the pulsar directory:</p>
+<pre><code class="hljs css languages- bash">$ tar xvfz /path/to/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-io-connectors-2.1.0-incubating` <span class="hljs-keyword">in</span> the pulsar directory
+// <span class="hljs-keyword">then</span> copy the connectors
+
+$ <span class="hljs-built_in">cd</span> apache-pulsar-io-connectors-2.1.0-incubating/connectors connectors
+
+$ ls connectors
+pulsar-io-aerospike-{{pulsar.version}}.nar
+pulsar-io-cassandra-{{pulsar.version}}.nar 
+pulsar-io-kafka-{{pulsar.version}}.nar     
+pulsar-io-kinesis-{{pulsar.version}}.nar   
+pulsar-io-rabbitmq-{{pulsar.version}}.nar  
+pulsar-io-twitter-{{pulsar.version}}.nar
+...
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="notes"></a><a href="#notes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NOTES</h4>
+<p>If you are running Pulsar in a bare mental cluster, you need to make sure <code>connectors</code> tarball is unzipped in every broker's pulsar directory (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).</p>
+<p>If you are <a href="/staging/docs/ja/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/staging/docs/ja/deploy-kubernetes">K8S</a> or <a href="/staging/docs/ja/deploy-dcos">DCOS</a>), you can use <code>apachepulsar/pulsar-all</code> image instead of <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/staging/docs/ja/io-overview#working-with-connectors">all builtin connectors</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="starting-the-cluster"></a><a href="#starting-the-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the cluster</h2>
+<p>Once you have an up-to-date local copy of the release, you can start up a local cluster using the <a href="/staging/docs/ja/reference-cli-tools#pulsar"><code>pulsar</code></a> command, which is stored in the <code>bin</code> directory, and specifying that you want to start up Pulsar in standalone mode:</p>
+<pre><code class="hljs css languages- bash">$ bin/pulsar standalone
+</code></pre>
+<p>If Pulsar has been successfully started, you should see <code>INFO</code>-level log messages like this:</p>
+<pre><code class="hljs css languages- bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
+2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
+2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="automatically-created-namespace"></a><a href="#automatically-created-namespace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Automatically created namespace</h4>
+<p>When you start a local standalone cluster, Pulsar will automatically create a <code>public/default</code> <a href="/staging/docs/ja/concepts-messaging#namespaces">namespace</a> that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see <a href="/staging/docs/ja/concepts-messaging#topics">Topics</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="testing-your-cluster-setup"></a><a href="#testing-your-cluster-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing your cluster setup</h2>
+<p>Pulsar provides a CLI tool called <a href="/staging/docs/ja/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> that enables you to do things like send messages to a Pulsar topic in a running cluster. This command will send a simple message saying <code>hello-pulsar</code> to the <code>my-topic</code> topic:</p>
+<pre><code class="hljs css languages- bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
+</code></pre>
+<p>If the message has been successfully published to the topic, you should see a confirmation like this in the <code>pulsar-client</code> logs:</p>
+<pre><code class="hljs">13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="no-need-to-explicitly-create-new-topics"></a><a href="#no-need-to-explicitly-create-new-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No need to explicitly create new topics</h4>
+<p>You may have noticed that we did not explicitly create the <code>my-topic</code> topic to which we sent the <code>hello-pulsar</code> message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="using-pulsar-clients-locally"></a><a href="#using-pulsar-clients-locally" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using Pulsar clients locally</h2>
+<p>Pulsar currently offers client libraries for <a href="/staging/docs/ja/client-libraries-java">Java</a>, <a href="/staging/docs/ja/client-libraries-python">Python</a>, and <a href="/staging/docs/ja/client-libraries-cpp">C++</a>. If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:</p>
+<ul>
+<li><code>http://localhost:8080</code></li>
+<li><code>pulsar://localhost:6650</code></li>
+</ul>
+<p>Here's an example producer for a Pulsar topic using the <a href="/staging/docs/ja/client-libraries-java">Java</a> client:</p>
+<pre><code class="hljs css languages- java">String localClusterUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+
+PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer().topic(<span class="hljs-string">"my-topic"</span>).create();
+</code></pre>
+<p>Here's an example <a href="/staging/docs/ja/client-libraries-python">Python</a> producer:</p>
+<pre><code class="hljs css languages- python"><span class="hljs-keyword">import</span> pulsar
+
+client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+producer = client.create_producer(<span class="hljs-string">'my-topic'</span>)
+</code></pre>
+<p>Finally, here's an example <a href="/staging/docs/ja/client-libraries-cpp">C++</a> producer:</p>
+<pre><code class="hljs css languages- cpp"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+Producer producer;
+Result result = client.createProducer(<span class="hljs-string">"my-topic"</span>, producer);
+<span class="hljs-keyword">if</span> (result != ResultOk) {
+    LOG_ERROR(<span class="hljs-string">"Error creating producer: "</span> &lt;&lt; result);
+    <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+}
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/staging/docs/ja/pulsar-2.0">← Pulsar 2.0</a><a class="docs-next button" href="/staging/docs/ja/standalone-docker">Start a standalone cluster with Docker →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#system-requirements">System requirements</a></li><li><a href="#installing-pulsar">Installing Pulsar</a></li><li><a href="#what-your-package-contains">What your package contains</a></li><li><a href="#installing-builtin-connectors">Installing Builtin Connectors</a></li><li><a href="#starting-the-cluster">Starting the cluster</a></li><li><a href="#testing-your-cluster-setup">Testing your cluster setup</a></li><li><a href="#using-pulsar-clients-locally">Using Pulsar clients locally</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/staging/contact">Contact</a></li>' +
+            '<li><a href="/staging/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/staging/resources">Resources</a></li>' +
+            '<li><a href="/staging/team">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span><span><script src="/staging/js/pjax-api.min.js"></script><script>window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>

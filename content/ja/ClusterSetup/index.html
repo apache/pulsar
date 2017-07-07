@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsarクラスタのセットアップ</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a class="active" href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsarクラスタのセットアップ</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <!-- TOC depthFrom:2 depthTo:4 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+<ul>
+  <li><a href="#セットアップ">セットアップ</a>
+    <ul>
+      <li><a href="#システム要件">システム要件</a></li>
+      <li><a href="#コンポーネント">コンポーネント</a>
+        <ul>
+          <li><a href="#zookeeper">ZooKeeper</a></li>
+          <li><a href="#global-zookeeper">Global ZooKeeper</a></li>
+          <li><a href="#クラスタのメタデータの初期化">クラスタのメタデータの初期化</a></li>
+          <li><a href="#bookkeeper">BookKeeper</a></li>
+          <li><a href="#broker">Broker</a></li>
+          <li><a href="#service-discovery">Service Discovery</a></li>
+          <li><a href="#adminクライアントと検証">adminクライアントと検証</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><a href="#モニタリング">モニタリング</a></li>
+</ul>
+
+<!-- /TOC -->
+
+<h2 id="セットアップ">セットアップ</h2>
+
+<h3 id="システム要件">システム要件</h3>
+
+<p>サポートされるプラットフォーム:</p>
+<ul>
+  <li>Linux</li>
+  <li>MacOS X</li>
+</ul>
+
+<p>必要なソフトウェア:</p>
+<ul>
+  <li>Java 1.8</li>
+</ul>
+
+<h3 id="コンポーネント">コンポーネント</h3>
+
+<h4 id="zookeeper">ZooKeeper</h4>
+
+<p>全てのZKサーバをクォーラム構成に追加します。
+全てのZKサーバの <code class="highlighter-rouge">conf/zookeeper.conf</code> を編集し、以下の行を追加してください:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>server.1=zk1.us-west.example.com:2888:3888
+server.2=zk2.us-west.example.com:2888:3888
+server.3=zk3.us-west.example.com:2888:3888
+...
+</code></pre>
+</div>
+
+<p>全てのホストでZKサービスを開始します:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre>
+</div>
+
+<h4 id="global-zookeeper">Global ZooKeeper</h4>
+
+<p>参加者と全てのオブサーバを追加する事でグローバルクォーラムを構成します。</p>
+
+<h5 id="単一クラスタのpulsarインスタンス">単一クラスタのPulsarインスタンス</h5>
+
+<p>単一クラスタでPulsarインスタンスをデプロイする場合、
+Global ZooKeeperは_ローカル_のZKクォーラムと同じマシンにデプロイし、異なるTCPポートで実行させる事ができます。
+<code class="highlighter-rouge">conf/global_zookeeper.conf</code> にサーバを追加し、ポート <code class="highlighter-rouge">2184</code> でサービスを開始してください:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>clientPort=2184
+server.1=zk1.us-west.example.com:2185:2186
+server.2=zk2.us-west.example.com:2185:2186
+server.3=zk3.us-west.example.com:2185:2186
+...
+</code></pre>
+</div>
+
+<h5 id="複数クラスタのpulsarインスタンス">複数クラスタのPulsarインスタンス</h5>
+
+<p>異なる地理的地域に分散したクラスタを持つグローバルなPulsarインスタンスをデプロイする場合、
+Global ZooKeeperは地域全体の障害や分断に耐え得る高い可用性と強い一貫性を持つメタデータストアとして機能します。</p>
+
+<p>ここで重要な点は、ZKクォーラムのメンバが少なくとも3つの地域にまたがって存在しており、
+他の地域がオブザーバとして動作している事を確認する事です。</p>
+
+<p>この場合も、Global ZooKeeperサーバの負荷は非常に低いため、
+ローカルのZooKeeperクォーラムに使用されているのと同じホストを共有させる事ができます。</p>
+
+<p>例として、クラスタ <code class="highlighter-rouge">us-west</code>, <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code> を持つPulsarインスタンスを仮定します。
+また、各クラスタには次のような名前のローカルZKサーバがあるものとします。</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre>
+</div>
+
+<p>このシナリオでは、少数のクラスタからクォーラムの参加者を選び、そのほかの全てをZKのオブザーバにします。
+例えば、7台のサーバから成るクォーラムを形成するには、<code class="highlighter-rouge">us-west</code>から3台、<code class="highlighter-rouge">us-central</code>から2台、<code class="highlighter-rouge">us-east</code>から2台のサーバを選択できます。</p>
+
+<p>これによって、これらの地域の内1つに到達できなくてもGlobal ZooKeeperへの書き込みが保証されます。</p>
+
+<p>全てのサーバにおけるZKの設定は次のようになります:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>clientPort=2184
+server.1=zk1.us-west.example.com:2185:2186
+server.2=zk2.us-west.example.com:2185:2186
+server.3=zk3.us-west.example.com:2185:2186
+server.4=zk1.us-central.example.com:2185:2186
+server.5=zk2.us-central.example.com:2185:2186
+server.6=zk3.us-central.example.com:2185:2186:observer
+server.7=zk1.us-east.example.com:2185:2186
+server.8=zk2.us-east.example.com:2185:2186
+server.9=zk3.us-east.example.com:2185:2186:observer
+server.10=zk1.eu-central.example.com:2185:2186:observer
+server.11=zk2.eu-central.example.com:2185:2186:observer
+server.12=zk3.eu-central.example.com:2185:2186:observer
+server.13=zk1.ap-south.example.com:2185:2186:observer
+server.14=zk2.ap-south.example.com:2185:2186:observer
+server.15=zk3.ap-south.example.com:2185:2186:observer
+</code></pre>
+</div>
+
+<p>さらに、ZKのオブザーバは次のように設定する必要があります:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>peerType=observer
+</code></pre>
+</div>
+
+<h5 id="サービスの開始">サービスの開始</h5>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre>
+</div>
+
+<h4 id="クラスタのメタデータの初期化">クラスタのメタデータの初期化</h4>
+
+<p>新しいクラスタをセットアップする場合、最初に初期化する必要のあるメタデータがいくつか存在します。
+次のコマンドでPulsarのメタデータだけではなくBookKeeperの準備も行う事ができます。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata --cluster us-west <span class="se">\</span>
+                                         --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
+                                         --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
+                                         --service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+                                         --service-url-tls https://pulsar.us-west.example.com:8443/
+</code></pre>
+</div>
+
+<h4 id="bookkeeper">BookKeeper</h4>
+
+<p>Bookieホストはディスク上にデータを保存する責任があり、良好なパフォーマンスを確保するためには適切なハードウェア構成を持つ事が非常に重要です。</p>
+
+<p>キャパシティには2つの重要な側面があります:</p>
+
+<ul>
+  <li>読み書きに対するディスクI/Oのキャパシティ</li>
+  <li>ストレージのキャパシティ</li>
+</ul>
+
+<p>Bookieに書き込まれたエントリは、Pulsar BrokerにAck (確認応答) を返す前に常にディスク上で同期されます。
+書き込みのレイテンシを低くするために、BookKeeperは複数のデバイスを使用するように設計されています:</p>
+
+<ul>
+  <li>
+    <p>耐久性を確保するための_Journal_</p>
+
+    <ul>
+      <li>シーケンシャルな書き込みに対しては、このデバイスで高速な_fsync_操作が可能である事が重要です。
+通常、小型で高速なSSDか、RAIDコントローラとバッテリバックアップ式のライトキャッシュを備えたHDDが適しています。
+どちらのソリューションもfsyncのレイテンシは~0.4 msに達します。</li>
+    </ul>
+  </li>
+  <li>
+    <p><em>“Ledgerストレージデバイス”</em></p>
+
+    <ul>
+      <li>これは全てのConsumerがメッセージのAckを返すまでの間データが格納される場所です。
+書き込みはバックグラウンドで行われるため、書き込みI/Oはそれほど重要ではありません。
+読み込みはほとんどのタイプでシーケンシャルに行われ、一部のConsumerがバックログからメッセージを取り出している場合にのみ発生します。
+一般的な構成では、大量のデータを保存できるようにRAIDコントローラを備えた複数のHDDを使用します。</li>
+    </ul>
+  </li>
+</ul>
+
+<h5 id="設定">設定</h5>
+
+<p><code class="highlighter-rouge">conf/bookkeeper.conf</code> の設定の必要最小限の変更は次の通りです:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Change to point to journal disk mount point</span>
+<span class="nv">journalDirectory</span><span class="o">=</span>data/bookkeeper/journal
+
+<span class="c"># Point to ledger storage disk mount point</span>
+<span class="nv">ledgerDirectories</span><span class="o">=</span>data/bookkeeper/ledgers
+
+<span class="c"># Point to local ZK quorum</span>
+<span class="nv">zkServers</span><span class="o">=</span>zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
+
+<span class="c"># Change the ledger manager type</span>
+<span class="nv">ledgerManagerType</span><span class="o">=</span>hierarchical
+</code></pre>
+</div>
+
+<p>Apache BookKeeperの詳細なドキュメントは http://bookkeeper.apache.org/ を参照してください。</p>
+
+<h5 id="サービスの開始-1">サービスの開始</h5>
+
+<p>Bookieを起動します:</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
+</code></pre>
+</div>
+
+<p>Bookieが正常に動作している事を確認します:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre>
+</div>
+
+<p>これによってローカルのBookieに新しいLedgerが作成され、少数のエントリを書き込み、それらを読み込んで最後にLedgerを削除します。</p>
+
+<h4 id="broker">Broker</h4>
+
+<p>Pulsar Brokerはローカルディスクを使用しないため特別なハードウェアの検討を必要としません。
+ソフトウェアが十分に利用できる高速なCPUと10GbpsのNICが推奨されます。</p>
+
+<p><code class="highlighter-rouge">conf/broker.conf</code> の最小限の設定変更は次の通りです:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Local ZK servers</span>
+<span class="nv">zookeeperServers</span><span class="o">=</span>zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+
+<span class="c"># Global Zookeeper quorum connection string. Here we just need to specify the</span>
+<span class="c"># servers located in the same cluster</span>
+<span class="nv">globalZookeeperServers</span><span class="o">=</span>zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+
+<span class="nv">clusterName</span><span class="o">=</span>us-west
+</code></pre>
+</div>
+
+<h5 id="brokerサービスの開始">Brokerサービスの開始</h5>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start broker
+</code></pre>
+</div>
+
+<h4 id="service-discovery">Service Discovery</h4>
+
+<p>Service Discoveryコンポーネントは、クライアントが使用する単一のURLを提供するために使用されます。</p>
+
+<p>利用者は提供されたディスカバリサービスか、何らかの他の方法を使用できます。
+唯一の要件は、クライアントが <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080/</code> にHTTPリクエストを送信した時、
+それが (DNSやIP、HTTPリダイレクトなどを通して) アクティブなBroker 1台に優先度なしでリダイレクトされなければならない事です。</p>
+
+<p>Pulsarに含まれるディスカバリサービスはHTTPリダイレクトで動作し、ZooKeeper上のアクティブなBrokerのリストを管理します。</p>
+
+<p><code class="highlighter-rouge">conf/discovery.conf</code> にZKサーバを追記してください:</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Zookeeper quorum connection string</span>
+<span class="nv">zookeeperServers</span><span class="o">=</span>zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+
+<span class="c"># Global zookeeper quorum connection string</span>
+<span class="nv">globalZookeeperServers</span><span class="o">=</span>zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+</code></pre>
+</div>
+
+<p>サービスを開始します:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ bin/pulsar-daemon start discovery
+</code></pre>
+</div>
+
+<h4 id="adminクライアントと検証">adminクライアントと検証</h4>
+
+<p>この時点で、クラスタを利用する準備が整ったはずです。
+adminクライアントとして機能するクライアントマシンを構成できるようになりました。</p>
+
+<p>クライアントホストの <code class="highlighter-rouge">conf/client.conf</code> を編集して正しいサービスURLを指定してください:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">serviceUrl</span><span class="o">=</span>http://pulsar.us-west.example.com:8080/
+</code></pre>
+</div>
+
+<h5 id="新しいテナントの準備">新しいテナントの準備</h5>
+
+<p>新しいテナントがシステムを利用できるようにするためには、新しいプロパティを作成しなければいけません。
+通常、この作業はPulsarクラスタの管理者または自動化されたツールによって行われます:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create <span class="nb">test</span> <span class="se">\</span>
+                --allowed-clusters us-west <span class="se">\</span>
+                --admin-roles <span class="nb">test</span>-admin-role
+</code></pre>
+</div>
+
+<p>これによって、ロール <code class="highlighter-rouge">test-admin-role</code> 持つユーザは、クラスタ <code class="highlighter-rouge">us-west</code> のみの利用を許可されたプロパティ <code class="highlighter-rouge">test</code> の構成を管理できるようになります。</p>
+
+<p>ここから、テナントは自身のリソースを自身で管理できます。</p>
+
+<p>最初のステップはネームスペースの作成です。
+ネームスペースは多くのトピックを含む事のできる管理単位です。
+一般的なプラクティスは、単一のテナントから異なる用途ごとにネームスペースを作成する事です。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+</code></pre>
+</div>
+
+<h5 id="producerとconsumerのテスト">ProducerとConsumerのテスト</h5>
+
+<p>これでメッセージを送受信するための全ての準備が整いました。
+システムをテストする最も簡単な方法は、<code class="highlighter-rouge">pulsar-perf</code> クライアントツールです。</p>
+
+<p>たった今作成したネームスペースの中のトピックを使用しましょう。
+トピックはProducerまたはConsumerがそのトピックを初めて使用する時に自動的に作成されます。</p>
+
+<p>今回の場合、トピック名は次のようになります:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<p>トピック上にサブスクリプションを作成し、メッセージを待ち受けるConsumerを起動します:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<p>固定レートでメッセージを発行し、10秒ごとに統計情報をレポートするProducerを起動します:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<p>トピックの統計情報をレポートするには次のようにします:</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="モニタリング">モニタリング</h2>
+
+<h3 id="brokerの統計情報">Brokerの統計情報</h3>
+
+<p>Pulsar Brokerのメトリクスは複数のBrokerから収集され、JSON形式で送出されます。</p>
+
+<p>メトリクスには主に2つのタイプが存在します:</p>
+
+<ul>
+  <li>個別のトピックの統計情報を含む、Destinationダンプ
+    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
+</code></pre>
+    </div>
+  </li>
+  <li>Brokerの情報とネームスペースレベルで集約されたトピックの統計情報を含む、Brokerメトリクス
+    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>全てのメッセージレートは1分ごとに更新されます。</p>
+
+<h3 id="bookkeeperの統計情報">BookKeeperの統計情報</h3>
+
+<p>BookKeeperで動作する統計フレームワークがいくつか存在しており、<code class="highlighter-rouge">conf/bookkeeper.conf</code> の <code class="highlighter-rouge">statsProviderClass</code> の値を変更する事で有効化できます。</p>
+
+<p>上記の手順に従うと、<code class="highlighter-rouge">DataSketchesMetricsProvider</code> が有効になります。
+これはレイテンシの分位値をレートや数と共に計算するための非常に効果的な方法を備えます。</p>
+
+<p>統計情報は一定期間ごとにJSONファイルにダンプされ、毎回上書きされます。</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">statsProviderClass</span><span class="p">=</span><span class="s">org.apache.bokkeeper.stats.datasketches.DataSketchesMetricsProvider</span>
+<span class="py">dataSketchesMetricsJsonFileReporter</span><span class="p">=</span><span class="s">data/bookie-stats.json</span>
+<span class="py">dataSketchesMetricsUpdateIntervalSeconds</span><span class="p">=</span><span class="s">60</span>
+</code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

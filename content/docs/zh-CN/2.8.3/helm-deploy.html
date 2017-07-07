@@ -1,0 +1,404 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy Pulsar cluster using Helm · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="在运行 `helm install`之前, 你需要决定如何运行 Pulsar。 可以使用 Helm 的 `--set option.name=value` 命令行参数配置选项。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Deploy Pulsar cluster using Helm · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="在运行 `helm install`之前, 你需要决定如何运行 Pulsar。 可以使用 Helm 的 `--set option.name=value` 命令行参数配置选项。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/helm-deploy">English</a></li><li><a href="/docs/ja/2.8.3/helm-deploy">日本語</a></li><li><a href="/docs/fr/2.8.3/helm-deploy">Français</a></li><li><a href="/docs/ko/2.8.3/helm-deploy">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/helm-deploy">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Kubernetes (Helm)</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy Pulsar cluster using Helm</h1></header><article><div><span><p>在运行 <code>helm install</code>之前, 你需要决定如何运行 Pulsar。 可以使用 Helm 的 <code>--set option.name=value</code> 命令行参数配置选项。</p>
+<h2><a class="anchor" aria-hidden="true" id="选择配置选项"></a><a href="#选择配置选项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>选择配置选项</h2>
+<p>在每个部分，收集与 <code>helm install</code> 命令合并使用的选项。</p>
+<h3><a class="anchor" aria-hidden="true" id="kubernetes-命名空间"></a><a href="#kubernetes-命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes 命名空间</h3>
+<p>默认情况下，Pulsar Helm chart 安装到 <code>pulsar</code> 命名空间。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">namespace:</span> <span class="hljs-string">pulsar</span>
+</code></pre>
+<p>要将其安装到 Kubernetes 的其它命名空间，可以在 <code>helm install</code> 命令中添加一下选项。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> namespace=&lt;different-k8s-namespace&gt;
+</code></pre>
+<p>默认情况下，Pulsar Helm chart 不会创建命名空间。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">namespaceCreate:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>可以在 <code>helm install</code> 命令中添加以下选项让 Pulsar Helm chart 自动创建 Kubernetes 命名空间。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> namespaceCreate=<span class="hljs-literal">true</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="持久化"></a><a href="#持久化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>持久化</h3>
+<p>默认情况下，Pulsar Helm chart 会创建持久卷声明，并期望动态提供者创建底层持久卷。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">volumes:</span>
+  <span class="hljs-attr">persistence:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># 设置使用本地持久卷</span>
+  <span class="hljs-comment"># 启用本地持久卷之前应当要安装 local provisioner</span>
+  <span class="hljs-attr">local_storage:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>要使用本地持久卷作为 Helm 的持久化存储，你可以安装 <a href="#install-local-storage-provisioner">local storage provisioner</a> ，并在 <code>helm install</code> 命令中添加以下选项。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> volumes.local_storage=<span class="hljs-literal">true</span>
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>在安装 Pulsar 的生产实例前，需规划好存储设置以避免额外的存储迁移工作。 因为在首次安装后，若想改变存储设置，必须手动编辑 Kubernetes 对象。</p>
+</blockquote>
+<p>Pulsar Helm chart 是为生产用途设计的。 要在开发环境（如 Minikube）中使用，可以在 <code>helm install</code> 命令中添加以下选项来禁用持久化。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> volumes.persistence=<span class="hljs-literal">false</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="亲和性"></a><a href="#亲和性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>亲和性</h3>
+<p>默认情况下，<code>anti-affinity</code> 已经启用，以确保同一个组件的 pod 可以在不同的节点运行。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">affinity:</span>
+  <span class="hljs-attr">anti_affinity:</span> <span class="hljs-literal">true</span>
+</code></pre>
+<p>要在开发环境（如 Minikube）中使用 Pulsar Helm chart，可以在 <code>helm install</code> 命令中添加以下选项来禁用 <code>antiaffinity</code>。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> affinity.anti_affinity=<span class="hljs-literal">false</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="组件"></a><a href="#组件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>组件</h3>
+<p>Pulsar Helm chart 是为生产用途设计的。 它部署了一个生产就绪的 Pulsar 集群，集群包括 Pulsar 核心组件和监控组件。</p>
+<p>通过打开 / 关闭操作可以自定义组件的部署。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 组件</span>
+<span class="hljs-comment">##</span>
+<span class="hljs-comment">## 控制集群要部署哪些 Apache Pulsar 组件</span>
+<span class="hljs-attr">components:</span>
+  <span class="hljs-comment"># zookeeper</span>
+  <span class="hljs-attr">zookeeper:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># bookkeeper</span>
+  <span class="hljs-attr">bookkeeper:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># bookkeeper - autorecovery</span>
+  <span class="hljs-attr">autorecovery:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># broker</span>
+  <span class="hljs-attr">broker:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># functions</span>
+  <span class="hljs-attr">functions:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># proxy</span>
+  <span class="hljs-attr">proxy:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># toolset</span>
+  <span class="hljs-attr">toolset:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># pulsar manager</span>
+  <span class="hljs-attr">pulsar_manager:</span> <span class="hljs-literal">true</span>
+
+<span class="hljs-comment">## 监控组件</span>
+<span class="hljs-comment">##</span>
+<span class="hljs-comment">## 控制集群要部署哪些监控组件</span>
+<span class="hljs-attr">monitoring:</span>
+  <span class="hljs-comment"># monitoring - prometheus</span>
+  <span class="hljs-attr">prometheus:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-comment"># monitoring - grafana</span>
+  <span class="hljs-attr">grafana:</span> <span class="hljs-literal">true</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="docker-镜像"></a><a href="#docker-镜像" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Docker 镜像</h3>
+<p>Pulsar Helm chart 旨在实现受控升级。 所以它可以为不同组件配置独立的镜像版本。 可以设置各个组件来自定义设置镜像。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment">## 镜像</span>
+<span class="hljs-comment">##</span>
+<span class="hljs-comment">## 控制每个组件要使用什么镜像</span>
+<span class="hljs-attr">images:</span>
+  <span class="hljs-attr">zookeeper:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">bookie:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">autorecovery:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">broker:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">proxy:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">functions:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-all</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">2.5</span><span class="hljs-number">.0</span>
+  <span class="hljs-attr">prometheus:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">prom/prometheus</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-string">v1.6.3</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">grafana:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">streamnative/apache-pulsar-grafana-dashboard-k8s</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-number">0.0</span><span class="hljs-number">.4</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-attr">pulsar_manager:</span>
+    <span class="hljs-attr">repository:</span> <span class="hljs-string">apachepulsar/pulsar-manager</span>
+    <span class="hljs-attr">tag:</span> <span class="hljs-string">v0.1.0</span>
+    <span class="hljs-attr">pullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+    <span class="hljs-attr">hasCommand:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="tls"></a><a href="#tls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS</h3>
+<p>可以配置 Pulsar Helm chart 来开启 TLS（Transport Layer Security），以保护各个组件之间的流量。 在开启 TLS 之前，需要为所需组件提供 TLS 证书。</p>
+<h4><a class="anchor" aria-hidden="true" id="使用-cert-manager-提供-tls-证书"></a><a href="#使用-cert-manager-提供-tls-证书" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 cert-manager 提供 TLS 证书</h4>
+<p>要使用 <code>cert-manager</code> 提供 TLS 证书，需要在安装 Pulsar Helm chart 之前先安装 <a href="#install-cert-manager">cert-manager</a>。 在成功安装 cert-manager 后，可以将 <code>certs.internal_issuer.enabled</code> 设置为 <code>true</code>。 因此，Pulsar Helm chart 可以使用 <code>cert-manager</code> 来为配置的组件生成类型为 <code>selfsigning</code> 的 TLS 证书。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">certs:</span>
+  <span class="hljs-attr">internal_issuer:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">component:</span> <span class="hljs-string">internal-cert-issuer</span>
+    <span class="hljs-attr">type:</span> <span class="hljs-string">selfsigning</span>
+</code></pre>
+<p>也可以配置下列字段来自定义生成的 TLS 证书。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tls:</span>
+  <span class="hljs-comment"># common settings for generating certs</span>
+  <span class="hljs-attr">common:</span>
+    <span class="hljs-comment"># 90d</span>
+    <span class="hljs-attr">duration:</span> <span class="hljs-string">2160h</span>
+    <span class="hljs-comment"># 15d</span>
+    <span class="hljs-attr">renewBefore:</span> <span class="hljs-string">360h</span>
+    <span class="hljs-attr">organization:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">pulsar</span>
+    <span class="hljs-attr">keySize:</span> <span class="hljs-number">4096</span>
+    <span class="hljs-attr">keyAlgorithm:</span> <span class="hljs-string">rsa</span>
+    <span class="hljs-attr">keyEncoding:</span> <span class="hljs-string">pkcs8</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="enable-tls"></a><a href="#enable-tls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable TLS</h4>
+<p>安装 <code>cert-manager</code> 之后，可以将 <code>tls.enabled</code> 设置为 <code>true</code> 来为整个集群启用 TLS 加密。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tls:</span>
+  <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>也可以配置是否为各个组件启用 TLS 加密。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tls:</span>
+  <span class="hljs-comment"># proxy 的证书生成设置</span>
+  <span class="hljs-attr">proxy:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-proxy</span>
+  <span class="hljs-comment"># broker 的证书生成设置</span>
+  <span class="hljs-attr">broker:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-broker</span>
+  <span class="hljs-comment"># bookie 的证书生成设置</span>
+  <span class="hljs-attr">bookie:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-bookie</span>
+  <span class="hljs-comment"># zookeeper 的证书生成设置</span>
+  <span class="hljs-attr">zookeeper:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-zookeeper</span>
+  <span class="hljs-comment"># 自动恢复功能的证书生成设置</span>
+  <span class="hljs-attr">autorecovery:</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-recovery</span>
+  <span class="hljs-comment"># toolset 的证书生成设置</span>
+  <span class="hljs-attr">toolset:</span>
+    <span class="hljs-attr">cert_name:</span> <span class="hljs-string">tls-toolset</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="认证"></a><a href="#认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>认证</h3>
+<p>认证是默认禁用的。 可以将 <code>auth.authentication.enabled</code> 设置为 <code>true</code> 来启用。 目前，Pulsar Helm chart 仅支持 JWT 认证。 可以将 <code>auth.authentication.provider</code> 设置为 <code>jwt</code> 来使用 JWT 认证。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-comment"># 启用或禁用 broker 认证和授权。</span>
+<span class="hljs-attr">auth:</span>
+  <span class="hljs-attr">authentication:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">provider:</span> <span class="hljs-string">"jwt"</span>
+    <span class="hljs-attr">jwt:</span>
+      <span class="hljs-comment"># 启用 JWT 认证</span>
+      <span class="hljs-comment"># 如果令牌是由密钥生成的，将 usingSecretKey 设置为 true。</span>
+      <span class="hljs-comment"># 如果令牌是由私钥生成的，将 usingSecretKey 设置为 false。</span>
+      <span class="hljs-attr">usingSecretKey:</span> <span class="hljs-literal">false</span>
+  <span class="hljs-attr">superUsers:</span>
+    <span class="hljs-comment"># broker 间通信</span>
+    <span class="hljs-attr">broker:</span> <span class="hljs-string">"broker-admin"</span>
+    <span class="hljs-comment"># proxy 与 broker 通信</span>
+    <span class="hljs-attr">proxy:</span> <span class="hljs-string">"proxy-admin"</span>
+    <span class="hljs-comment"># pulsar-admin 客户端与 broker/proxy 通信</span>
+    <span class="hljs-attr">client:</span> <span class="hljs-string">"admin"</span>
+</code></pre>
+<p>要启用认证，可以运行 <a href="#prepare-the-helm-release">准备 helm</a> 来为字段 <code>auth.superUsers</code>中指定的 3 个超级用户生成秘钥和令牌。 生成的秘钥和超级用户令牌会上传并存储为 Kubernetes 秘钥，并以 <code>&lt;pulsar-release-name&gt;-token-</code> 为前缀。 可以通过下面这条命令找到这些秘钥。</p>
+<pre><code class="hljs css language-bash">kubectl get secrets -n &lt;k8s-namespace&gt;
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="授权"></a><a href="#授权" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>授权</h3>
+<p>授权是默认禁用的。 只有启用了认证才能启用授权。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">auth:</span>
+  <span class="hljs-attr">authorization:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>可以在 <code>helm install</code> 命令中添加以下选项来启用授权。</p>
+<pre><code class="hljs css language-bash">--<span class="hljs-built_in">set</span> auth.authorization.enabled=<span class="hljs-literal">true</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="cpu-和-ram-资源要求"></a><a href="#cpu-和-ram-资源要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CPU 和 RAM 资源要求</h3>
+<p>默认情况下，Pulsar Helm chart 组件的资源请求和副本数量足以满足小型的生产部署。 如果部署了非生产实例，可以减小默认值来适配更小规模的集群。</p>
+<p>收集了所有配置选项后，便可以在安装 Pulsar Helm chart 之前安装依赖的 chart。</p>
+<h2><a class="anchor" aria-hidden="true" id="install-dependent-charts"></a><a href="#install-dependent-charts" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install dependent charts</h2>
+<h3><a class="anchor" aria-hidden="true" id="安装本地存储配置器"></a><a href="#安装本地存储配置器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装本地存储配置器</h3>
+<p>要使用本地持久化卷作为持久化存储，需要为 <a href="https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/"> 本地持久化卷 </a> 安装存储配置器。</p>
+<p>最简单的方法之一是使用与 Pulsar Helm chart 一起提供的本地存储配置器。</p>
+<pre><code class="hljs">helm repo <span class="hljs-keyword">add</span> streamnative https://charts.streamnative.io
+helm repo <span class="hljs-keyword">update</span>
+helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner streamnative/<span class="hljs-keyword">local</span>-<span class="hljs-keyword">storage</span>-provisioner
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="安装证书管理器cert-manager"></a><a href="#安装证书管理器cert-manager" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装证书管理器（cert-manager）</h3>
+<p>Pulsar Helm chart 使用 <a href="https://github.com/jetstack/cert-manager">cert-manager</a> 来自动提供和管理 TLS 证书。 需要先安装 cert-manager 才能为 broker 和 proxy 启用 TLS 加密。</p>
+<p>关于安装 cert-manager 的细节，参考 <a href="https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm"> 官方说明 </a>。</p>
+<p>我们还提供了 bash 脚本 <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh">install-cert-manager.sh</a> 来安装 cert-manager 到命名空间 <code>cert-manager</code>中。</p>
+<pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
+<span class="hljs-built_in">cd</span> pulsar-helm-chart
+./scripts/cert-manager/install-cert-manager.sh
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="准备-helm"></a><a href="#准备-helm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>准备 Helm</h2>
+<p>在安装所有依赖的 chart 并收集了所有的配置选项后，便可以运行 <a href="https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh">prepare_helm_release.sh</a> 来准备 Helm。</p>
+<pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-helm-chart
+<span class="hljs-built_in">cd</span> pulsar-helm-chart
+./scripts/pulsar/prepare_helm_release.sh -n &lt;k8s-namespace&gt; -k &lt;helm-release-name&gt;
+</code></pre>
+<p><code>prepare_helm_release</code> 创建了下列资源：</p>
+<ul>
+<li>用于安装 Pulsar 的 Kubernetes 命名空间。</li>
+<li>三个超级用户： <code>broker-admin</code>、<code>proxy-admin</code>、 <code>admin</code> 的 JWT 密钥和令牌。 默认情况下，会生成一个非对称的公钥 / 私钥对。 也可以指定 <code>--symmetric</code> 来生成对称的密钥。
+<ul>
+<li><code>proxy-admin</code> role is used for proxies to communicate to brokers.</li>
+<li><code>broker-admin</code> role is used for inter-broker communications.</li>
+<li><code>admin</code> role is used by the admin tools.</li>
+</ul></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="使用-helm-来部署-pulsar-集群"></a><a href="#使用-helm-来部署-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Helm 来部署 Pulsar 集群</h2>
+<p>完成下列三个步骤后，便可安装 Helm。</p>
+<ul>
+<li>收集所有的配置选项。</li>
+<li>安装依赖的 chart。</li>
+<li>准备 Helm。</li>
+</ul>
+<p>在本例中，我们将 Helm 命名为 <code>pulsar</code>。</p>
+<pre><code class="hljs css language-bash">helm repo add apache https://pulsar.apache.org/charts
+helm repo update
+helm install pulsar apache/pulsar \
+    --timeout 10m \
+    --<span class="hljs-built_in">set</span> initialize=<span class="hljs-literal">true</span> \
+    --<span class="hljs-built_in">set</span> [your configuration options]
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>第一次部署需要添加 <code>--set initialize=true</code> 选项来初始化 bookie 和 Pulsar 集群元数据。</p>
+</blockquote>
+<p>也可以使用 <code>--version &lt;installation version&gt;</code> 选项指定安装的 Pulsar Helm chart 版本。</p>
+<h2><a class="anchor" aria-hidden="true" id="监控部署"></a><a href="#监控部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监控部署</h2>
+<p>部署 Pulsar 集群后将输出已安装的资源。 该可能需要 5-10 分钟的时间。</p>
+<p>可以运行 <code>helm status pulsar</code> 命令来查看部署的状态，若部署正在进行，也可以在另一个终端执行该命令查看状态。</p>
+<h2><a class="anchor" aria-hidden="true" id="访问-pulsar-集群"></a><a href="#访问-pulsar-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>访问 Pulsar 集群</h2>
+<p>默认值将为下列资源创建 <code>ClusterIP</code>，可以用来和集群交互。</p>
+<ul>
+<li>Proxy: You can use the IP address to produce and consume messages to the installed Pulsar cluster.</li>
+<li>Pulsar Manager：可以通过链接 <code>http://&lt;pulsar-manager-ip&gt;:9527</code> 访问 Pulsar Manager UI。</li>
+<li>Grafana Dashboard: You can access the Grafana dashboard at <code>http://&lt;grafana-dashboard-ip&gt;:3000</code>.</li>
+</ul>
+<p>运行下面的命令查询这些组件的 IP 地址：</p>
+<pre><code class="hljs css language-bash">kubectl get service -n &lt;k8s-namespace&gt;
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/helm-install"><span class="arrow-prev">← </span><span>安装</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/helm-upgrade"><span>升级</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#选择配置选项">选择配置选项</a><ul class="toc-headings"><li><a href="#kubernetes-命名空间">Kubernetes 命名空间</a></li><li><a href="#持久化">持久化</a></li><li><a href="#亲和性">亲和性</a></li><li><a href="#组件">组件</a></li><li><a href="#docker-镜像">Docker 镜像</a></li><li><a href="#tls">TLS</a></li><li><a href="#认证">认证</a></li><li><a href="#授权">授权</a></li><li><a href="#cpu-和-ram-资源要求">CPU 和 RAM 资源要求</a></li></ul></li><li><a href="#install-dependent-charts">Install dependent charts</a><ul class="toc-headings"><li><a href="#安装本地存储配置器">安装本地存储配置器</a></li><li><a href="#安装证书管理器cert-manager">安装证书管理器（cert-manager）</a></li></ul></li><li><a href="#准备-helm">准备 Helm</a></li><li><a href="#使用-helm-来部署-pulsar-集群">使用 Helm 来部署 Pulsar 集群</a></li><li><a href="#监控部署">监控部署</a></li><li><a href="#访问-pulsar-集群">访问 Pulsar 集群</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

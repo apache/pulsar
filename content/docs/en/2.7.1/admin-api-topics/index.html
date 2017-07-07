@@ -1,0 +1,828 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Manage topics · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:"/><meta name="docsearch:version" content="2.7.1"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Manage topics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.7.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/2.7.1/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/2.7.1/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/2.7.1/admin-api-topics">日本語</a></li><li><a href="/docs/fr/2.7.1/admin-api-topics">Français</a></li><li><a href="/docs/ko/2.7.1/admin-api-topics">한국어</a></li><li><a href="/docs/zh-CN/2.7.1/admin-api-topics">中文</a></li><li><a href="/docs/zh-TW/2.7.1/admin-api-topics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/tiered-storage-azure">Azure BlobStore offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/transactions">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/transactions-guarantee">Transactions Guarantee</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/transactions-api">Transactions API</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-permissions">Permissions</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/en/2.7.1/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.7.1/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/admin-api-topics.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Manage topics</h1></header><article><div><span><p>Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:</p>
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
+</code></pre>
+<p>Non-persistent topics are used in applications that only consume real-time published messages and do not need persistent guarantee. In this way, it reduces message-publish latency by removing overhead of persisting messages. The topic name structure for non-persistent topics is:</p>
+<pre><code class="hljs css language-shell">non-persistent://tenant/namespace/topic
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="manage-topic-resources"></a><a href="#manage-topic-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Manage topic resources</h2>
+<p>Whether it is persistent or non-persistent topic, you can obtain the topic resources through <code>pulsar-admin</code> tool, REST API and Java.</p>
+<blockquote>
+<p><strong>Note</strong>    <br>
+In REST API, <code>:schema</code> stands for persistent or non-persistent. <code>:tenant</code>, <code>:namespace</code>, <code>:x</code> are variables, replace them with the real tenant, namespace, and <code>x</code> names when using them.<br>
+Take <a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+ as an example, to get the list of persistent topics in REST API, use <code>https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace</code>. To get the list of non-persistent topics in REST API, use <code>https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace</code>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="list-of-topics"></a><a href="#list-of-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>List of topics</h3>
+<p>You can get the list of topics under a given namespace in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10175-tab-10176" class="nav-link active" data-group="group_10175" data-tab="tab-group-10175-content-10176">pulsar-admin</div><div id="tab-group-10175-tab-10177" class="nav-link" data-group="group_10175" data-tab="tab-group-10175-content-10177">REST API</div><div id="tab-group-10175-tab-10178" class="nav-link" data-group="group_10175" data-tab="tab-group-10175-content-10178">Java</div></div><div class="tab-content"><div id="tab-group-10175-content-10176" class="tab-pane active" data-group="group_10175" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list \</span><br />  my-tenant/my-namespace<br /></code></pre>
+</span></div></div><div id="tab-group-10175-content-10177" class="tab-pane" data-group="group_10175" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-10175-content-10178" class="tab-pane" data-group="group_10175" tabindex="-1"><div><span><pre><code class="hljs css language-java">String namespace = <span class="hljs-string">"my-tenant/my-namespace"</span>;<br />admin.topics().getList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="grant-permission"></a><a href="#grant-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Grant permission</h3>
+<p>You can grant permissions on a client role to perform specific actions on a given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10179-tab-10180" class="nav-link active" data-group="group_10179" data-tab="tab-group-10179-content-10180">pulsar-admin</div><div id="tab-group-10179-tab-10181" class="nav-link" data-group="group_10179" data-tab="tab-group-10179-content-10181">REST API</div><div id="tab-group-10179-tab-10182" class="nav-link" data-group="group_10179" data-tab="tab-group-10179-content-10182">Java</div></div><div class="tab-content"><div id="tab-group-10179-content-10180" class="tab-pane active" data-group="group_10179" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics grant-permission \</span><br />  --actions produce,consume --role application1 \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10179-content-10181" class="tab-pane" data-group="group_10179" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/grantPermissionsOnTopic?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role</i></a>
+</p>
+</span></div></div><div id="tab-group-10179-content-10182" class="tab-pane" data-group="group_10179" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String role = <span class="hljs-string">"test-role"</span>;<br />Set&lt;AuthAction&gt; actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);<br />admin.topics().grantPermission(topic, role, actions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-permission"></a><a href="#get-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get permission</h3>
+<p>You can fetch permission in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10183-tab-10184" class="nav-link active" data-group="group_10183" data-tab="tab-group-10183-content-10184">pulsar-admin</div><div id="tab-group-10183-tab-10185" class="nav-link" data-group="group_10183" data-tab="tab-group-10183-content-10185">REST API</div><div id="tab-group-10183-tab-10186" class="nav-link" data-group="group_10183" data-tab="tab-group-10183-content-10186">Java</div></div><div class="tab-content"><div id="tab-group-10183-content-10184" class="tab-pane active" data-group="group_10183" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics permissions \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br />{<br />    "application1": [<br />        "consume",<br />        "produce"<br />    ]<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-10183-content-10185" class="tab-pane" data-group="group_10183" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPermissionsOnTopic?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions</i></a>
+</p>
+</span></div></div><div id="tab-group-10183-content-10186" class="tab-pane" data-group="group_10183" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getPermissions(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="revoke-permission"></a><a href="#revoke-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Revoke permission</h3>
+<p>You can revoke a permission granted on a client role in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10187-tab-10188" class="nav-link active" data-group="group_10187" data-tab="tab-group-10187-content-10188">pulsar-admin</div><div id="tab-group-10187-tab-10189" class="nav-link" data-group="group_10187" data-tab="tab-group-10187-content-10189">REST API</div><div id="tab-group-10187-tab-10190" class="nav-link" data-group="group_10187" data-tab="tab-group-10187-content-10190">Java</div></div><div class="tab-content"><div id="tab-group-10187-content-10188" class="tab-pane active" data-group="group_10187" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics revoke-permission \</span><br />  --role application1 \<br />  persistent://test-tenant/ns1/tp1 \<br /><br />{<br />  "application1": [<br />    "consume",<br />    "produce"<br />  ]<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-10187-content-10189" class="tab-pane" data-group="group_10187" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/revokePermissionsOnTopic?version=2.7.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role</i></a>
+</p>
+</span></div></div><div id="tab-group-10187-content-10190" class="tab-pane" data-group="group_10187" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String role = <span class="hljs-string">"test-role"</span>;<br />admin.topics().revokePermissions(topic, role);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="delete-topic"></a><a href="#delete-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete topic</h3>
+<p>You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producers is connected to the topic.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10191-tab-10192" class="nav-link active" data-group="group_10191" data-tab="tab-group-10191-content-10192">pulsar-admin</div><div id="tab-group-10191-tab-10193" class="nav-link" data-group="group_10191" data-tab="tab-group-10191-content-10193">REST API</div><div id="tab-group-10191-tab-10194" class="nav-link" data-group="group_10191" data-tab="tab-group-10191-content-10194">Java</div></div><div class="tab-content"><div id="tab-group-10191-content-10192" class="tab-pane active" data-group="group_10191" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics delete \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10191-content-10193" class="tab-pane" data-group="group_10191" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTopic?version=2.7.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-10191-content-10194" class="tab-pane" data-group="group_10191" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="unload-topic"></a><a href="#unload-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unload topic</h3>
+<p>You can unload a topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10195-tab-10196" class="nav-link active" data-group="group_10195" data-tab="tab-group-10195-content-10196">pulsar-admin</div><div id="tab-group-10195-tab-10197" class="nav-link" data-group="group_10195" data-tab="tab-group-10195-content-10197">REST API</div><div id="tab-group-10195-tab-10198" class="nav-link" data-group="group_10195" data-tab="tab-group-10195-content-10198">Java</div></div><div class="tab-content"><div id="tab-group-10195-content-10196" class="tab-pane active" data-group="group_10195" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics unload \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10195-content-10197" class="tab-pane" data-group="group_10195" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/unloadTopic?version=2.7.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/unload</i></a>
+</p>
+</span></div></div><div id="tab-group-10195-content-10198" class="tab-pane" data-group="group_10195" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().unload(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-stats"></a><a href="#get-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get stats</h3>
+<p>You can check the following statistics of a given non-partitioned topic.</p>
+<ul>
+<li><p><strong>msgRateIn</strong>: The sum of all local and replication publishers' publish rates (msg/s).</p></li>
+<li><p><strong>msgThroughputIn</strong>: The sum of all local and replication publishers' publish rates (bytes/s).</p></li>
+<li><p><strong>msgRateOut</strong>: The sum of all local and replication consumers' dispatch rates(msg/s).</p></li>
+<li><p><strong>msgThroughputOut</strong>: The sum of all local and replication consumers' dispatch rates (bytes/s).</p></li>
+<li><p><strong>averageMsgSize</strong>: The average size (in bytes) of messages published within the last interval.</p></li>
+<li><p><strong>storageSize</strong>: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.</p></li>
+<li><p><strong>publishers</strong>: The list of all local publishers into the topic. The list ranges from zero to thousands.</p>
+<ul>
+<li><p><strong>msgRateIn</strong>: The total rate of messages (msg/s) published by this publisher.</p></li>
+<li><p><strong>msgThroughputIn</strong>: The total throughput (bytes/s) of the messages published by this publisher.</p></li>
+<li><p><strong>averageMsgSize</strong>: The average message size in bytes from this publisher within the last interval.</p></li>
+<li><p><strong>producerId</strong>: The internal identifier for this producer on this topic.</p></li>
+<li><p><strong>producerName</strong>: The internal identifier for this producer, generated by the client library.</p></li>
+<li><p><strong>address</strong>: The IP address and source port for the connection of this producer.</p></li>
+<li><p><strong>connectedSince</strong>: The timestamp when this producer is created or reconnected last time.</p></li>
+</ul></li>
+<li><p><strong>subscriptions</strong>: The list of all local subscriptions to the topic.</p>
+<ul>
+<li><p><strong>my-subscription</strong>: The name of this subscription. It is defined by the client.</p>
+<ul>
+<li><p><strong>msgRateOut</strong>: The total rate of messages (msg/s) delivered on this subscription.</p></li>
+<li><p><strong>msgThroughputOut</strong>: The total throughput (bytes/s) delivered on this subscription.</p></li>
+<li><p><strong>msgBacklog</strong>: The number of messages in the subscription backlog.</p></li>
+<li><p><strong>type</strong>: The subscription type.</p></li>
+<li><p><strong>msgRateExpired</strong>: The rate at which messages were discarded instead of dispatched from this subscription due to TTL.</p></li>
+<li><p><strong>lastExpireTimestamp</strong>: The timestamp of the last message expire execution.</p></li>
+<li><p><strong>lastConsumedFlowTimestamp</strong>: The timestamp of the last flow command received.</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>: The latest timestamp of all the consumed timestamp of the consumers.</p></li>
+<li><p><strong>lastAckedTimestamp</strong>: The latest timestamp of all the acked timestamp of the consumers.</p></li>
+<li><p><strong>consumers</strong>: The list of connected consumers for this subscription.</p>
+<ul>
+<li><p><strong>msgRateOut</strong>: The total rate of messages (msg/s) delivered to the consumer.</p></li>
+<li><p><strong>msgThroughputOut</strong>: The total throughput (bytes/s) delivered to the consumer.</p></li>
+<li><p><strong>consumerName</strong>: The internal identifier for this consumer, generated by the client library.</p></li>
+<li><p><strong>availablePermits</strong>: The number of messages that the consumer has space for in the client library's listen queue. <code>0</code> means the client library's queue is full and <code>receive()</code> isn't being called. A non-zero value means this consumer is ready for dispatched messages.</p></li>
+<li><p><strong>unackedMessages</strong>: The number of unacknowledged messages for the consumer.</p></li>
+<li><p><strong>blockedConsumerOnUnackedMsgs</strong>: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>: The timestamp when the consumer reads a message the last time.</p></li>
+<li><p><strong>lastAckedTimestamp</strong>: The timestamp when the consumer acknowledges a message the last time.</p></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p>
+<ul>
+<li><p><strong>msgRateIn</strong>: The total rate (msg/s) of messages received from the remote cluster.</p></li>
+<li><p><strong>msgThroughputIn</strong>: The total throughput (bytes/s) received from the remote cluster.</p></li>
+<li><p><strong>msgRateOut</strong>: The total rate of messages (msg/s) delivered to the replication-subscriber.</p></li>
+<li><p><strong>msgThroughputOut</strong>: The total throughput (bytes/s) delivered to the replication-subscriber.</p></li>
+<li><p><strong>msgRateExpired</strong>: The total rate of messages (msg/s) expired.</p></li>
+<li><p><strong>replicationBacklog</strong>: The number of messages pending to be replicated to remote cluster.</p></li>
+<li><p><strong>connected</strong>: Whether the outbound replicator is connected.</p></li>
+<li><p><strong>replicationDelayInSeconds</strong>: How long the oldest message has been waiting to be sent through the connection, if connected is <code>true</code>.</p></li>
+<li><p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster's publisher connection to this broker.</p></li>
+<li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.</p></li>
+<li><p><strong>outboundConnection</strong>: The address of the outbound replication connection.</p></li>
+<li><p><strong>outboundConnectedSince</strong>: The timestamp of establishing outbound connection.</p></li>
+</ul></li>
+</ul>
+<p>The following is an example of a topic status.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
+  <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">1232439.816728665</span>,
+  <span class="hljs-attr">"storageSize"</span>: <span class="hljs-number">135532389160</span>,
+  <span class="hljs-attr">"publishers"</span>: [
+    {
+      <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">57.855383881403576</span>,
+      <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">558994.7078932219</span>,
+      <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">613135</span>,
+      <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"producerName"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"address"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-literal">null</span>
+    }
+  ],
+  <span class="hljs-attr">"subscriptions"</span>: {
+    <span class="hljs-attr">"my-topic_subscription"</span>: {
+      <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span>: <span class="hljs-number">116632</span>,
+      <span class="hljs-attr">"type"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"msgRateExpired"</span>: <span class="hljs-number">36.98245516804671</span>,
+      <span class="hljs-attr">"consumers"</span>: []
+    }
+  },
+  <span class="hljs-attr">"replication"</span>: {}
+}
+</code></pre>
+<p>To get the status of a topic, you can use the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10199-tab-10200" class="nav-link active" data-group="group_10199" data-tab="tab-group-10199-content-10200">pulsar-admin</div><div id="tab-group-10199-tab-10201" class="nav-link" data-group="group_10199" data-tab="tab-group-10199-content-10201">REST API</div><div id="tab-group-10199-tab-10202" class="nav-link" data-group="group_10199" data-tab="tab-group-10199-content-10202">Java</div></div><div class="tab-content"><div id="tab-group-10199-content-10200" class="tab-pane active" data-group="group_10199" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10199-content-10201" class="tab-pane" data-group="group_10199" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getStats?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/stats</i></a>
+</p>
+</span></div></div><div id="tab-group-10199-content-10202" class="tab-pane" data-group="group_10199" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-internal-stats"></a><a href="#get-internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get internal stats</h3>
+<p>You can get the detailed statistics of a topic.</p>
+<ul>
+<li><p><strong>entriesAddedCounter</strong>: Messages published since this broker loaded this topic.</p></li>
+<li><p><strong>numberOfEntries</strong>: The total number of messages being tracked.</p></li>
+<li><p><strong>totalSize</strong>: The total storage size in bytes of all messages.</p></li>
+<li><p><strong>currentLedgerEntries</strong>: The count of messages written to the ledger that is currently open for writing.</p></li>
+<li><p><strong>currentLedgerSize</strong>: The size in bytes of messages written to the ledger that is currently open for writing.</p></li>
+<li><p><strong>lastLedgerCreatedTimestamp</strong>: The time when the last ledger is created.</p></li>
+<li><p><strong>lastLedgerCreationFailureTimestamp:</strong> The time when the last ledger failed.</p></li>
+<li><p><strong>waitingCursorsCount</strong>: The number of cursors that are &quot;caught up&quot; and waiting for a new message to be published.</p></li>
+<li><p><strong>pendingAddEntriesCount</strong>: The number of messages that complete (asynchronous) write requests.</p></li>
+<li><p><strong>lastConfirmedEntry</strong>: The ledgerid:entryid of the last message that is written successfully. If the entryid is <code>-1</code>, then the ledger is open, yet no entries are written.</p></li>
+<li><p><strong>state</strong>: The state of this ledger for writing. The state <code>LedgerOpened</code> means that a ledger is open for saving published messages.</p></li>
+<li><p><strong>ledgers</strong>: The ordered list of all ledgers for this topic holding messages.</p>
+<ul>
+<li><p><strong>ledgerId</strong>: The ID of this ledger.</p></li>
+<li><p><strong>entries</strong>: The total number of entries belong to this ledger.</p></li>
+<li><p><strong>size</strong>: The size of messages written to this ledger (in bytes).</p></li>
+<li><p><strong>offloaded</strong>: Whether this ledger is offloaded.</p></li>
+</ul></li>
+<li><p><strong>compactedLedger</strong>: The ledgers holding un-acked messages after topic compaction.</p>
+<ul>
+<li><p><strong>ledgerId</strong>: The ID of this ledger.</p></li>
+<li><p><strong>entries</strong>: The total number of entries belong to this ledger.</p></li>
+<li><p><strong>size</strong>: The size of messages written to this ledger (in bytes).</p></li>
+<li><p><strong>offloaded</strong>: Whether this ledger is offloaded. The value is <code>false</code> for the compacted topic ledger.</p></li>
+</ul></li>
+<li><p><strong>cursors</strong>: The list of all cursors on this topic. Each subscription in the topic stats has a cursor.</p>
+<ul>
+<li><p><strong>markDeletePosition</strong>: All messages before the markDeletePosition are acknowledged by the subscriber.</p></li>
+<li><p><strong>readPosition</strong>: The latest position of subscriber for reading message.</p></li>
+<li><p><strong>waitingReadOp</strong>: This is true when the subscription has read the latest message published to the topic and is waiting for new messages to be published.</p></li>
+<li><p><strong>pendingReadOps</strong>: The counter for how many outstanding read requests to the BookKeepers in progress.</p></li>
+<li><p><strong>messagesConsumedCounter</strong>: The number of messages this cursor has acked since this broker loaded this topic.</p></li>
+<li><p><strong>cursorLedger</strong>: The ledger being used to persistently store the current markDeletePosition.</p></li>
+<li><p><strong>cursorLedgerLastEntry</strong>: The last entryid used to persistently store the current markDeletePosition.</p></li>
+<li><p><strong>individuallyDeletedMessages</strong>: If acknowledges are being done out of order, the ranges of messages acknowledged between the markDeletePosition and the read-position shows.</p></li>
+<li><p><strong>lastLedgerSwitchTimestamp</strong>: The last time the cursor ledger is rolled over.</p></li>
+<li><p><strong>state</strong>: The state of the cursor ledger: <code>Open</code> means you have a cursor ledger for saving updates of the markDeletePosition.</p></li>
+</ul></li>
+</ul>
+<p>The following is an example of the detailed statistics of a topic.</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
+    <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
+    <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
+    <span class="hljs-attr">"currentLedgerEntries"</span>: <span class="hljs-number">3233</span>,
+    <span class="hljs-attr">"currentLedgerSize"</span>: <span class="hljs-number">331482</span>,
+    <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>: <span class="hljs-string">"2016-06-29 03:00:23.825"</span>,
+    <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>: <span class="hljs-literal">null</span>,
+    <span class="hljs-attr">"waitingCursorsCount"</span>: <span class="hljs-number">1</span>,
+    <span class="hljs-attr">"pendingAddEntriesCount"</span>: <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"lastConfirmedEntry"</span>: <span class="hljs-string">"324711539:3232"</span>,
+    <span class="hljs-attr">"state"</span>: <span class="hljs-string">"LedgerOpened"</span>,
+    <span class="hljs-attr">"ledgers"</span>: [
+        {
+            <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
+            <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">true</span>
+        }
+    ],
+    <span class="hljs-attr">"compactedLedger"</span>: {
+        <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711540</span>,
+        <span class="hljs-attr">"entries"</span>: <span class="hljs-number">10</span>,
+        <span class="hljs-attr">"size"</span>: <span class="hljs-number">100</span>,
+        <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">false</span>
+    },
+    <span class="hljs-attr">"cursors"</span>: {
+        <span class="hljs-attr">"my-subscription"</span>: {
+            <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
+            <span class="hljs-attr">"readPosition"</span>: <span class="hljs-string">"324711539:3233"</span>,
+            <span class="hljs-attr">"waitingReadOp"</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-attr">"pendingReadOps"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-attr">"messagesConsumedCounter"</span>: <span class="hljs-number">20449501</span>,
+            <span class="hljs-attr">"cursorLedger"</span>: <span class="hljs-number">324702104</span>,
+            <span class="hljs-attr">"cursorLedgerLastEntry"</span>: <span class="hljs-number">21</span>,
+            <span class="hljs-attr">"individuallyDeletedMessages"</span>: <span class="hljs-string">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span>,
+            <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>: <span class="hljs-string">"2016-06-29 01:30:19.313"</span>,
+            <span class="hljs-attr">"state"</span>: <span class="hljs-string">"Open"</span>
+        }
+    }
+}
+</code></pre>
+<p>To get the internal status of a topic, you can use the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10203-tab-10204" class="nav-link active" data-group="group_10203" data-tab="tab-group-10203-content-10204">pulsar-admin</div><div id="tab-group-10203-tab-10205" class="nav-link" data-group="group_10203" data-tab="tab-group-10203-content-10205">REST API</div><div id="tab-group-10203-tab-10206" class="nav-link" data-group="group_10203" data-tab="tab-group-10203-content-10206">Java</div></div><div class="tab-content"><div id="tab-group-10203-content-10204" class="tab-pane active" data-group="group_10203" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats-internal \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10203-content-10205" class="tab-pane" data-group="group_10203" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getInternalStats?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/internalStats</i></a>
+</p>
+</span></div></div><div id="tab-group-10203-content-10206" class="tab-pane" data-group="group_10203" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getInternalStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="peek-messages"></a><a href="#peek-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Peek messages</h3>
+<p>You can peek a number of messages for a specific subscription of a given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10207-tab-10208" class="nav-link active" data-group="group_10207" data-tab="tab-group-10207-content-10208">pulsar-admin</div><div id="tab-group-10207-tab-10209" class="nav-link" data-group="group_10207" data-tab="tab-group-10207-content-10209">REST API</div><div id="tab-group-10207-tab-10210" class="nav-link" data-group="group_10207" data-tab="tab-group-10207-content-10210">Java</div></div><div class="tab-content"><div id="tab-group-10207-content-10208" class="tab-pane active" data-group="group_10207" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics peek-messages \</span><br />  --count 10 --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /><br />Message ID: 315674752:0<br />Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }<br />msg-payload<br /></code></pre>
+</span></div></div><div id="tab-group-10207-content-10209" class="tab-pane" data-group="group_10207" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation?version=2.7.1/peekNthMessage&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition</i></a>
+</p>
+</span></div></div><div id="tab-group-10207-content-10210" class="tab-pane" data-group="group_10207" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;<br />admin.topics().peekMessages(topic, subName, numMessages);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-message-by-id"></a><a href="#get-message-by-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get message by ID</h3>
+<p>You can fetch the message with the given ledger ID and entry ID in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10211-tab-10212" class="nav-link active" data-group="group_10211" data-tab="tab-group-10211-content-10212">pulsar-admin</div><div id="tab-group-10211-tab-10213" class="nav-link" data-group="group_10211" data-tab="tab-group-10211-content-10213">REST API</div><div id="tab-group-10211-tab-10214" class="nav-link" data-group="group_10211" data-tab="tab-group-10211-content-10214">Java</div></div><div class="tab-content"><div id="tab-group-10211-content-10212" class="tab-pane active" data-group="group_10211" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> ./bin/pulsar-admin topics get-message-by-id \</span><br />  persistent://public/default/my-topic \<br />  -l 10 -e 0<br /></code></pre>
+</span></div></div><div id="tab-group-10211-content-10213" class="tab-pane" data-group="group_10211" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getMessageById?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId</i></a>
+</p>
+</span></div></div><div id="tab-group-10211-content-10214" class="tab-pane" data-group="group_10211" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br /><span class="hljs-keyword">long</span> ledgerId = <span class="hljs-number">10</span>;<br /><span class="hljs-keyword">long</span> entryId = <span class="hljs-number">10</span>;<br />admin.topics().getMessageById(topic, ledgerId, entryId);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="skip-messages"></a><a href="#skip-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Skip messages</h3>
+<p>You can skip a number of messages for a specific subscription of a given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10215-tab-10216" class="nav-link active" data-group="group_10215" data-tab="tab-group-10215-content-10216">pulsar-admin</div><div id="tab-group-10215-tab-10217" class="nav-link" data-group="group_10215" data-tab="tab-group-10215-content-10217">REST API</div><div id="tab-group-10215-tab-10218" class="nav-link" data-group="group_10215" data-tab="tab-group-10215-content-10218">Java</div></div><div class="tab-content"><div id="tab-group-10215-content-10216" class="tab-pane active" data-group="group_10215" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics skip \</span><br />  --count 10 --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10215-content-10217" class="tab-pane" data-group="group_10215" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/skipMessages?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages</i></a>
+</p>
+</span></div></div><div id="tab-group-10215-content-10218" class="tab-pane" data-group="group_10215" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;<br />admin.topics().skipMessages(topic, subName, numMessages);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="skip-all-messages"></a><a href="#skip-all-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Skip all messages</h3>
+<p>You can skip all the old messages for a specific subscription of a given topic.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10219-tab-10220" class="nav-link active" data-group="group_10219" data-tab="tab-group-10219-content-10220">pulsar-admin</div><div id="tab-group-10219-tab-10221" class="nav-link" data-group="group_10219" data-tab="tab-group-10219-content-10221">REST API</div><div id="tab-group-10219-tab-10222" class="nav-link" data-group="group_10219" data-tab="tab-group-10219-content-10222">Java</div></div><div class="tab-content"><div id="tab-group-10219-content-10220" class="tab-pane active" data-group="group_10219" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics skip-all \</span><br />  --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10219-content-10221" class="tab-pane" data-group="group_10219" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/skipAllMessages?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all</i></a>
+</p>
+</span></div></div><div id="tab-group-10219-content-10222" class="tab-pane" data-group="group_10219" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().skipAllMessages(topic, subName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reset cursor</h3>
+<p>You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10223-tab-10224" class="nav-link active" data-group="group_10223" data-tab="tab-group-10223-content-10224">pulsar-admin</div><div id="tab-group-10223-tab-10225" class="nav-link" data-group="group_10223" data-tab="tab-group-10223-content-10225">REST API</div><div id="tab-group-10223-tab-10226" class="nav-link" data-group="group_10223" data-tab="tab-group-10223-content-10226">Java</div></div><div class="tab-content"><div id="tab-group-10223-content-10224" class="tab-pane active" data-group="group_10223" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics reset-cursor \</span><br />  --subscription my-subscription --time 10 \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-10223-content-10225" class="tab-pane" data-group="group_10223" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/resetCursor?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp</i></a>
+</p>
+</span></div></div><div id="tab-group-10223-content-10226" class="tab-pane" data-group="group_10223" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">long</span> timestamp = <span class="hljs-number">2342343L</span>;<br />admin.topics().skipAllMessages(topic, subName, timestamp);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="lookup-of-topic"></a><a href="#lookup-of-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Lookup of topic</h3>
+<p>You can locate the broker URL which is serving the given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10227-tab-10228" class="nav-link active" data-group="group_10227" data-tab="tab-group-10227-content-10228">pulsar-admin</div><div id="tab-group-10227-tab-10229" class="nav-link" data-group="group_10227" data-tab="tab-group-10227-content-10229">REST API</div><div id="tab-group-10227-tab-10230" class="nav-link" data-group="group_10227" data-tab="tab-group-10227-content-10230">Java</div></div><div class="tab-content"><div id="tab-group-10227-content-10228" class="tab-pane active" data-group="group_10227" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics lookup \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> "pulsar://broker1.org.com:4480"<br /></code></pre>
+</span></div></div><div id="tab-group-10227-content-10229" class="tab-pane" data-group="group_10227" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/lookup/v2/topic/:schema/:tenant:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-10227-content-10230" class="tab-pane" data-group="group_10227" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.lookup().lookupDestination(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-bundle"></a><a href="#get-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get bundle</h3>
+<p>You can check the range of the bundle which contains given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10231-tab-10232" class="nav-link active" data-group="group_10231" data-tab="tab-group-10231-content-10232">pulsar-admin</div><div id="tab-group-10231-tab-10233" class="nav-link" data-group="group_10231" data-tab="tab-group-10231-content-10233">REST API</div><div id="tab-group-10231-tab-10234" class="nav-link" data-group="group_10231" data-tab="tab-group-10231-content-10234">Java</div></div><div class="tab-content"><div id="tab-group-10231-content-10232" class="tab-pane active" data-group="group_10231" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics bundle-range \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> "0x00000000_0xffffffff"<br /></code></pre>
+</span></div></div><div id="tab-group-10231-content-10233" class="tab-pane" data-group="group_10231" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle</i></a>
+</p>
+</span></div></div><div id="tab-group-10231-content-10234" class="tab-pane" data-group="group_10231" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.lookup().getBundleRange(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-subscriptions"></a><a href="#get-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get subscriptions</h3>
+<p>You can check all subscription names for a given topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10235-tab-10236" class="nav-link active" data-group="group_10235" data-tab="tab-group-10235-content-10236">pulsar-admin</div><div id="tab-group-10235-tab-10237" class="nav-link" data-group="group_10235" data-tab="tab-group-10235-content-10237">REST API</div><div id="tab-group-10235-tab-10238" class="nav-link" data-group="group_10235" data-tab="tab-group-10235-content-10238">Java</div></div><div class="tab-content"><div id="tab-group-10235-content-10236" class="tab-pane active" data-group="group_10235" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics subscriptions \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> my-subscription<br /></code></pre>
+</span></div></div><div id="tab-group-10235-content-10237" class="tab-pane" data-group="group_10235" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getSubscriptions?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions</i></a>
+</p>
+</span></div></div><div id="tab-group-10235-content-10238" class="tab-pane" data-group="group_10235" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getSubscriptions(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="last-message-id"></a><a href="#last-message-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Last Message Id</h3>
+<p>You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10239-tab-10240" class="nav-link active" data-group="group_10239" data-tab="tab-group-10239-content-10240">pulsar-admin</div><div id="tab-group-10239-tab-10241" class="nav-link" data-group="group_10239" data-tab="tab-group-10239-content-10241">REST API</div><div id="tab-group-10239-tab-10242" class="nav-link" data-group="group_10239" data-tab="tab-group-10239-content-10242">Java</div></div><div class="tab-content"><div id="tab-group-10239-content-10240" class="tab-pane active" data-group="group_10239" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics last-message-id topic-name<br /></code></pre>
+</span></div></div><div id="tab-group-10239-content-10241" class="tab-pane" data-group="group_10239" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=2.7.1&amp;apiVersion=v2"><b>Get</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=2.7.1</i></a>
+</p>
+</span></div></div><div id="tab-group-10239-content-10242" class="tab-pane" data-group="group_10239" tabindex="-1"><div><span><pre><code class="hljs css language-Java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getLastMessage(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="configure-deduplication-snapshot-interval"></a><a href="#configure-deduplication-snapshot-interval" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure deduplication snapshot interval</h3>
+<h4><a class="anchor" aria-hidden="true" id="get-deduplication-snapshot-interval"></a><a href="#get-deduplication-snapshot-interval" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get deduplication snapshot interval</h4>
+<p>To get the topic-level deduplication snapshot interval, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10243-tab-10244" class="nav-link active" data-group="group_10243" data-tab="tab-group-10243-content-10244">Pulsar-admin API</div><div id="tab-group-10243-tab-10245" class="nav-link" data-group="group_10243" data-tab="tab-group-10243-content-10245">REST API</div><div id="tab-group-10243-tab-10246" class="nav-link" data-group="group_10243" data-tab="tab-group-10243-content-10246">Java API</div></div><div class="tab-content"><div id="tab-group-10243-content-10244" class="tab-pane active" data-group="group_10243" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-deduplication-snapshot-interval</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-10243-content-10245" class="tab-pane" data-group="group_10243" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10243-content-10246" class="tab-pane" data-group="group_10243" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getDeduplicationSnapshotInterval(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="set-deduplication-snapshot-interval"></a><a href="#set-deduplication-snapshot-interval" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set deduplication snapshot interval</h4>
+<p>To set the topic-level deduplication snapshot interval, use one of the following methods.</p>
+<blockquote>
+<p><strong>Prerequisite</strong> <code>brokerDeduplicationEnabled</code> must be set to <code>true</code>.</p>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10247-tab-10248" class="nav-link active" data-group="group_10247" data-tab="tab-group-10247-content-10248">Pulsar-admin API</div><div id="tab-group-10247-tab-10249" class="nav-link" data-group="group_10247" data-tab="tab-group-10247-content-10249">REST API</div><div id="tab-group-10247-tab-10250" class="nav-link" data-group="group_10247" data-tab="tab-group-10247-content-10250">Java API</div></div><div class="tab-content"><div id="tab-group-10247-content-10248" class="tab-pane active" data-group="group_10247" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-deduplication-snapshot-interval</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-10247-content-10249" class="tab-pane" data-group="group_10247" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+<pre><code class="hljs css language-json">{<br />  <span class="hljs-attr">"interval"</span>: <span class="hljs-number">1000</span><br />}<br /></code></pre>
+</span></div></div><div id="tab-group-10247-content-10250" class="tab-pane" data-group="group_10247" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setDeduplicationSnapshotInterval(topic, <span class="hljs-number">1000</span>)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="remove-deduplication-snapshot-interval"></a><a href="#remove-deduplication-snapshot-interval" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Remove deduplication snapshot interval</h4>
+<p>To remove the topic-level deduplication snapshot interval, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10251-tab-10252" class="nav-link active" data-group="group_10251" data-tab="tab-group-10251-content-10252">Pulsar-admin API</div><div id="tab-group-10251-tab-10253" class="nav-link" data-group="group_10251" data-tab="tab-group-10251-content-10253">REST API</div><div id="tab-group-10251-tab-10254" class="nav-link" data-group="group_10251" data-tab="tab-group-10251-content-10254">Java API</div></div><div class="tab-content"><div id="tab-group-10251-content-10252" class="tab-pane active" data-group="group_10251" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-deduplication-<span class="hljs-keyword">snapshot</span>-<span class="hljs-type">interval</span> <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-10251-content-10253" class="tab-pane" data-group="group_10251" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10251-content-10254" class="tab-pane" data-group="group_10251" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeDeduplicationSnapshotInterval(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="configure-inactive-topic-policies"></a><a href="#configure-inactive-topic-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure inactive topic policies</h3>
+<h4><a class="anchor" aria-hidden="true" id="get-inactive-topic-policies"></a><a href="#get-inactive-topic-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get inactive topic policies</h4>
+<p>To get the topic-level inactive topic policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10255-tab-10256" class="nav-link active" data-group="group_10255" data-tab="tab-group-10255-content-10256">Pulsar-admin API</div><div id="tab-group-10255-tab-10257" class="nav-link" data-group="group_10255" data-tab="tab-group-10255-content-10257">REST API</div><div id="tab-group-10255-tab-10258" class="nav-link" data-group="group_10255" data-tab="tab-group-10255-content-10258">Java API</div></div><div class="tab-content"><div id="tab-group-10255-content-10256" class="tab-pane active" data-group="group_10255" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-inactive-topic-policies</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-10255-content-10257" class="tab-pane" data-group="group_10255" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10255-content-10258" class="tab-pane" data-group="group_10255" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getInactiveTopicPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="set-inactive-topic-policies"></a><a href="#set-inactive-topic-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set inactive topic policies</h4>
+<p>To set the topic-level inactive topic policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10259-tab-10260" class="nav-link active" data-group="group_10259" data-tab="tab-group-10259-content-10260">Pulsar-admin API</div><div id="tab-group-10259-tab-10261" class="nav-link" data-group="group_10259" data-tab="tab-group-10259-content-10261">REST API</div><div id="tab-group-10259-tab-10262" class="nav-link" data-group="group_10259" data-tab="tab-group-10259-content-10262">Java API</div></div><div class="tab-content"><div id="tab-group-10259-content-10260" class="tab-pane active" data-group="group_10259" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-inactive-topic-policies</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-10259-content-10261" class="tab-pane" data-group="group_10259" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10259-content-10262" class="tab-pane" data-group="group_10259" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="remove-inactive-topic-policies"></a><a href="#remove-inactive-topic-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Remove inactive topic policies</h4>
+<p>To remove the topic-level inactive topic policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10263-tab-10264" class="nav-link active" data-group="group_10263" data-tab="tab-group-10263-content-10264">Pulsar-admin API</div><div id="tab-group-10263-tab-10265" class="nav-link" data-group="group_10263" data-tab="tab-group-10263-content-10265">REST API</div><div id="tab-group-10263-tab-10266" class="nav-link" data-group="group_10263" data-tab="tab-group-10263-content-10266">Java API</div></div><div class="tab-content"><div id="tab-group-10263-content-10264" class="tab-pane active" data-group="group_10263" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-inactive-topic-policies <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-10263-content-10265" class="tab-pane" data-group="group_10263" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10263-content-10266" class="tab-pane" data-group="group_10263" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeInactiveTopicPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="configure-offload-policies"></a><a href="#configure-offload-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure offload policies</h3>
+<h4><a class="anchor" aria-hidden="true" id="get-offload-policies"></a><a href="#get-offload-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get offload policies</h4>
+<p>To get the topic-level offload policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10267-tab-10268" class="nav-link active" data-group="group_10267" data-tab="tab-group-10267-content-10268">Pulsar-admin API</div><div id="tab-group-10267-tab-10269" class="nav-link" data-group="group_10267" data-tab="tab-group-10267-content-10269">REST API</div><div id="tab-group-10267-tab-10270" class="nav-link" data-group="group_10267" data-tab="tab-group-10267-content-10270">Java API</div></div><div class="tab-content"><div id="tab-group-10267-content-10268" class="tab-pane active" data-group="group_10267" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-offload-policies</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-10267-content-10269" class="tab-pane" data-group="group_10267" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10267-content-10270" class="tab-pane" data-group="group_10267" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getOffloadPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="set-offload-policies"></a><a href="#set-offload-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set offload policies</h4>
+<p>To set the topic-level offload policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10271-tab-10272" class="nav-link active" data-group="group_10271" data-tab="tab-group-10271-content-10272">Pulsar-admin API</div><div id="tab-group-10271-tab-10273" class="nav-link" data-group="group_10271" data-tab="tab-group-10271-content-10273">REST API</div><div id="tab-group-10271-tab-10274" class="nav-link" data-group="group_10271" data-tab="tab-group-10271-content-10274">Java API</div></div><div class="tab-content"><div id="tab-group-10271-content-10272" class="tab-pane active" data-group="group_10271" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-offload-policies</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-10271-content-10273" class="tab-pane" data-group="group_10271" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10271-content-10274" class="tab-pane" data-group="group_10271" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setOffloadPolicies(topic, offloadPolicies)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="remove-offload-policies"></a><a href="#remove-offload-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Remove offload policies</h4>
+<p>To remove the topic-level offload policies, use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10275-tab-10276" class="nav-link active" data-group="group_10275" data-tab="tab-group-10275-content-10276">Pulsar-admin API</div><div id="tab-group-10275-tab-10277" class="nav-link" data-group="group_10275" data-tab="tab-group-10275-content-10277">REST API</div><div id="tab-group-10275-tab-10278" class="nav-link" data-group="group_10275" data-tab="tab-group-10275-content-10278">Java API</div></div><div class="tab-content"><div id="tab-group-10275-content-10276" class="tab-pane active" data-group="group_10275" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-offload-policies <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-10275-content-10277" class="tab-pane" data-group="group_10275" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-10275-content-10278" class="tab-pane" data-group="group_10275" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeOffloadPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="manage-non-partitioned-topics"></a><a href="#manage-non-partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Manage non-partitioned topics</h2>
+<p>You can use Pulsar <a href="/docs/en/2.7.1/admin-api-overview">admin API</a> to create, delete and check status of non-partitioned topics.</p>
+<h3><a class="anchor" aria-hidden="true" id="create"></a><a href="#create" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create</h3>
+<p>Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.</p>
+<p>By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set <code>brokerDeleteInactiveTopicsEnabled</code> to <code>false</code>. To change the frequency of checking inactive topics, set <code>brokerDeleteInactiveTopicsFrequencySeconds</code> to a specific value.</p>
+<p>For more information about the two parameters, see <a href="/docs/en/2.7.1/reference-configuration#broker">here</a>.</p>
+<p>You can create non-partitioned topics in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10279-tab-10280" class="nav-link active" data-group="group_10279" data-tab="tab-group-10279-content-10280">pulsar-admin</div><div id="tab-group-10279-tab-10281" class="nav-link" data-group="group_10279" data-tab="tab-group-10279-content-10281">REST API</div><div id="tab-group-10279-tab-10282" class="nav-link" data-group="group_10279" data-tab="tab-group-10279-content-10282">Java</div></div><div class="tab-content"><div id="tab-group-10279-content-10280" class="tab-pane active" data-group="group_10279" tabindex="-1"><div><span><p>When you create non-partitioned topics with the <a href="/docs/en/2.7.1/pulsar-admin#create-3"><code>create</code></a> command, you need to specify the topic name as an argument.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+<blockquote>
+<p><strong>Note</strong>    <br>
+When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic.</p>
+</blockquote>
+</span></div></div><div id="tab-group-10279-content-10281" class="tab-pane" data-group="group_10279" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createNonPartitionedTopic?version=2.7.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-10279-content-10282" class="tab-pane" data-group="group_10279" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().createNonPartitionedTopic(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete</h3>
+<p>You can delete non-partitioned topics in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10283-tab-10284" class="nav-link active" data-group="group_10283" data-tab="tab-group-10283-content-10284">pulsar-admin</div><div id="tab-group-10283-tab-10285" class="nav-link" data-group="group_10283" data-tab="tab-group-10283-content-10285">REST API</div><div id="tab-group-10283-tab-10286" class="nav-link" data-group="group_10283" data-tab="tab-group-10283-content-10286">Java</div></div><div class="tab-content"><div id="tab-group-10283-content-10284" class="tab-pane active" data-group="group_10283" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics delete \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+</span></div></div><div id="tab-group-10283-content-10285" class="tab-pane" data-group="group_10283" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTopic?version=2.7.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-10283-content-10286" class="tab-pane" data-group="group_10283" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>List</h3>
+<p>You can get the list of topics under a given namespace in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10287-tab-10288" class="nav-link active" data-group="group_10287" data-tab="tab-group-10287-content-10288">pulsar-admin</div><div id="tab-group-10287-tab-10289" class="nav-link" data-group="group_10287" data-tab="tab-group-10287-content-10289">REST API</div><div id="tab-group-10287-tab-10290" class="nav-link" data-group="group_10287" data-tab="tab-group-10287-content-10290">Java</div></div><div class="tab-content"><div id="tab-group-10287-content-10288" class="tab-pane active" data-group="group_10287" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list tenant/namespace</span><br />persistent://tenant/namespace/topic1<br />persistent://tenant/namespace/topic2<br /></code></pre>
+</span></div></div><div id="tab-group-10287-content-10289" class="tab-pane" data-group="group_10287" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-10287-content-10290" class="tab-pane" data-group="group_10287" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stats</h3>
+<p>You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to <a href="#get-stats">get stats</a>.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
+  <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">1232439.816728665</span>,
+  <span class="hljs-attr">"storageSize"</span>: <span class="hljs-number">135532389160</span>,
+  <span class="hljs-attr">"publishers"</span>: [
+    {
+      <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">57.855383881403576</span>,
+      <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">558994.7078932219</span>,
+      <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">613135</span>,
+      <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"producerName"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"address"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-literal">null</span>
+    }
+  ],
+  <span class="hljs-attr">"subscriptions"</span>: {
+    <span class="hljs-attr">"my-topic_subscription"</span>: {
+      <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span>: <span class="hljs-number">116632</span>,
+      <span class="hljs-attr">"type"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"msgRateExpired"</span>: <span class="hljs-number">36.98245516804671</span>,
+      <span class="hljs-attr">"consumers"</span>: []
+    }
+  },
+  <span class="hljs-attr">"replication"</span>: {}
+}
+</code></pre>
+<p>You can check the current statistics of a given topic and its connected producers and consumers in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10291-tab-10292" class="nav-link active" data-group="group_10291" data-tab="tab-group-10291-content-10292">pulsar-admin</div><div id="tab-group-10291-tab-10293" class="nav-link" data-group="group_10291" data-tab="tab-group-10291-content-10293">REST API</div><div id="tab-group-10291-tab-10294" class="nav-link" data-group="group_10291" data-tab="tab-group-10291-content-10294">Java</div></div><div class="tab-content"><div id="tab-group-10291-content-10292" class="tab-pane active" data-group="group_10291" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats \</span><br />  persistent://test-tenant/namespace/topic \<br />  --get-precise-backlog<br /></code></pre>
+</span></div></div><div id="tab-group-10291-content-10293" class="tab-pane" data-group="group_10291" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getStats?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/stats</i></a>
+</p>
+</span></div></div><div id="tab-group-10291-content-10294" class="tab-pane" data-group="group_10291" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getStats(topic, <span class="hljs-keyword">false</span> <span class="hljs-comment">/* is precise backlog */</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="manage-partitioned-topics"></a><a href="#manage-partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Manage partitioned topics</h2>
+<p>You can use Pulsar <a href="/docs/en/2.7.1/admin-api-overview">admin API</a> to create, update, delete and check status of partitioned topics.</p>
+<h3><a class="anchor" aria-hidden="true" id="create-1"></a><a href="#create-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create</h3>
+<p>Partitioned topics must be explicitly created. When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.</p>
+<p>By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set <code>brokerDeleteInactiveTopicsEnabled</code> to <code>false</code>. To change the frequency of checking inactive topics, set <code>brokerDeleteInactiveTopicsFrequencySeconds</code> to a specific value.</p>
+<p>For more information about the two parameters, see <a href="/docs/en/2.7.1/reference-configuration#broker">here</a>.</p>
+<p>You can create partitioned topics in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10295-tab-10296" class="nav-link active" data-group="group_10295" data-tab="tab-group-10295-content-10296">pulsar-admin</div><div id="tab-group-10295-tab-10297" class="nav-link" data-group="group_10295" data-tab="tab-group-10295-content-10297">REST API</div><div id="tab-group-10295-tab-10298" class="nav-link" data-group="group_10295" data-tab="tab-group-10295-content-10298">Java</div></div><div class="tab-content"><div id="tab-group-10295-content-10296" class="tab-pane active" data-group="group_10295" tabindex="-1"><div><span><p>When you create partitioned topics with the <a href="/docs/en/2.7.1/pulsar-admin#create-partitioned-topic"><code>create-partitioned-topic</code></a>
+command, you need to specify the topic name as an argument and the number of partitions using the <code>-p</code> or <code>--partitions</code> flag.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br />  --partitions 4<br /></code></pre>
+<blockquote>
+<p><strong>Note</strong>    <br>
+If a non-partitioned topic with the suffix '-partition-' followed by a numeric value like 'xyz-topic-partition-10', you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.</p>
+</blockquote>
+</span></div></div><div id="tab-group-10295-content-10297" class="tab-pane" data-group="group_10295" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createPartitionedTopic?version=2.7.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-10295-content-10298" class="tab-pane" data-group="group_10295" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br /><span class="hljs-keyword">int</span> numPartitions = <span class="hljs-number">4</span>;<br />admin.topics().createPartitionedTopic(topicName, numPartitions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="create-missed-partitions"></a><a href="#create-missed-partitions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create missed partitions</h3>
+<p>When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the <a href="/docs/en/2.7.1/pulsar-admin#create-missed-partitions"><code>create-missed-partitions</code></a> command to create partitions for the topic.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10299-tab-10300" class="nav-link active" data-group="group_10299" data-tab="tab-group-10299-content-10300">pulsar-admin</div><div id="tab-group-10299-tab-10301" class="nav-link" data-group="group_10299" data-tab="tab-group-10299-content-10301">REST API</div><div id="tab-group-10299-tab-10302" class="nav-link" data-group="group_10299" data-tab="tab-group-10299-content-10302">Java</div></div><div class="tab-content"><div id="tab-group-10299-content-10300" class="tab-pane active" data-group="group_10299" tabindex="-1"><div><span><p>You can create missed partitions with the <a href="/docs/en/2.7.1/pulsar-admin#create-missed-partitions"><code>create-missed-partitions</code></a> command and specify the topic name as an argument.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-missed-partitions \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br /></code></pre>
+</span></div></div><div id="tab-group-10299-content-10301" class="tab-pane" data-group="group_10299" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createMissedPartitions?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-10299-content-10302" class="tab-pane" data-group="group_10299" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().createMissedPartitions(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="get-metadata"></a><a href="#get-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get metadata</h3>
+<p>Partitioned topics are associated with metadata, you can view it as a JSON object. The following metadata field is available.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Field</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">The number of partitions into which the topic is divided.</td></tr>
+</tbody>
+</table>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10303-tab-10304" class="nav-link active" data-group="group_10303" data-tab="tab-group-10303-content-10304">pulsar-admin</div><div id="tab-group-10303-tab-10305" class="nav-link" data-group="group_10303" data-tab="tab-group-10303-content-10305">REST API</div><div id="tab-group-10303-tab-10306" class="nav-link" data-group="group_10303" data-tab="tab-group-10303-content-10306">Java</div></div><div class="tab-content"><div id="tab-group-10303-content-10304" class="tab-pane active" data-group="group_10303" tabindex="-1"><div><span><p>You can check the number of partitions in a partitioned topic with the <a href="/docs/en/2.7.1/pulsar-admin#get-partitioned-topic-metadata"><code>get-partitioned-topic-metadata</code></a> subcommand.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics get-partitioned-topic-metadata \</span><br />  persistent://my-tenant/my-namespace/my-topic<br />{<br />  "partitions": 4<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-10303-content-10305" class="tab-pane" data-group="group_10303" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedMetadata?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-10303-content-10306" class="tab-pane" data-group="group_10303" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getPartitionedTopicMetadata(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update</h3>
+<p>You can update the number of partitions for an existing partitioned topic <em>if</em> the topic is non-global. However, you can only add the partition number. Decrementing the number of partitions would delete the topic, which is not supported in Pulsar.</p>
+<p>Producers and consumers can find the newly created partitions automatically.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10307-tab-10308" class="nav-link active" data-group="group_10307" data-tab="tab-group-10307-content-10308">pulsar-admin</div><div id="tab-group-10307-tab-10309" class="nav-link" data-group="group_10307" data-tab="tab-group-10307-content-10309">REST API</div><div id="tab-group-10307-tab-10310" class="nav-link" data-group="group_10307" data-tab="tab-group-10307-content-10310">Java</div></div><div class="tab-content"><div id="tab-group-10307-content-10308" class="tab-pane active" data-group="group_10307" tabindex="-1"><div><span><p>You can update partitioned topics with the <a href="/docs/en/2.7.1/pulsar-admin#update-partitioned-topic"><code>update-partitioned-topic</code></a> command.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics update-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br />  --partitions 8<br /></code></pre>
+</span></div></div><div id="tab-group-10307-content-10309" class="tab-pane" data-group="group_10307" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updatePartitionedTopic?version=2.7.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-10307-content-10310" class="tab-pane" data-group="group_10307" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().updatePartitionedTopic(topic, numPartitions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="delete-1"></a><a href="#delete-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete</h3>
+<p>You can delete partitioned topics with the <a href="/docs/en/2.7.1/pulsar-admin#delete-partitioned-topic"><code>delete-partitioned-topic</code></a> command, REST API and Java.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10311-tab-10312" class="nav-link active" data-group="group_10311" data-tab="tab-group-10311-content-10312">pulsar-admin</div><div id="tab-group-10311-tab-10313" class="nav-link" data-group="group_10311" data-tab="tab-group-10311-content-10313">REST API</div><div id="tab-group-10311-tab-10314" class="nav-link" data-group="group_10311" data-tab="tab-group-10311-content-10314">Java</div></div><div class="tab-content"><div id="tab-group-10311-content-10312" class="tab-pane active" data-group="group_10311" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics delete-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+</span></div></div><div id="tab-group-10311-content-10313" class="tab-pane" data-group="group_10311" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deletePartitionedTopic?version=2.7.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:topic/:namespace/:destination/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-10311-content-10314" class="tab-pane" data-group="group_10311" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="list-1"></a><a href="#list-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>List</h3>
+<p>You can get the list of partitioned topics under a given namespace in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10315-tab-10316" class="nav-link active" data-group="group_10315" data-tab="tab-group-10315-content-10316">pulsar-admin</div><div id="tab-group-10315-tab-10317" class="nav-link" data-group="group_10315" data-tab="tab-group-10315-content-10317">REST API</div><div id="tab-group-10315-tab-10318" class="nav-link" data-group="group_10315" data-tab="tab-group-10315-content-10318">Java</div></div><div class="tab-content"><div id="tab-group-10315-content-10316" class="tab-pane active" data-group="group_10315" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list-partitioned-topics tenant/namespace</span><br />persistent://tenant/namespace/topic1<br />persistent://tenant/namespace/topic2<br /></code></pre>
+</span></div></div><div id="tab-group-10315-content-10317" class="tab-pane" data-group="group_10315" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedTopicList?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-10315-content-10318" class="tab-pane" data-group="group_10315" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getPartitionedTopicList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="stats-1"></a><a href="#stats-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stats</h3>
+<p>You can check the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to <a href="#get-stats">get stats</a>.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">999.992947159793</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">1070918.4635439808</span>,
+  <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"bytesInCounter"</span> : <span class="hljs-number">270318763</span>,
+  <span class="hljs-attr">"msgInCounter"</span> : <span class="hljs-number">252489</span>,
+  <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">1070.926056966454</span>,
+  <span class="hljs-attr">"msgChunkPublished"</span> : <span class="hljs-literal">false</span>,
+  <span class="hljs-attr">"storageSize"</span> : <span class="hljs-number">270316646</span>,
+  <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">200921133</span>,
+  <span class="hljs-attr">"publishers"</span> : [ {
+    <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">999.992947159793</span>,
+    <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">1070918.4635439808</span>,
+    <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">1070.3333333333333</span>,
+    <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"producerId"</span> : <span class="hljs-number">0</span>
+  } ],
+  <span class="hljs-attr">"subscriptions"</span> : {
+    <span class="hljs-attr">"test"</span> : {
+      <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"chuckedMessageRate"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span> : <span class="hljs-number">144318</span>,
+      <span class="hljs-attr">"msgBacklogNoDelayed"</span> : <span class="hljs-number">144318</span>,
+      <span class="hljs-attr">"blockedSubscriptionOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"msgDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgRateExpired"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"lastExpireTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedFlowTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"consumers"</span> : [ ],
+      <span class="hljs-attr">"isDurable"</span> : <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"isReplicated"</span> : <span class="hljs-literal">false</span>
+    }
+  },
+  <span class="hljs-attr">"replication"</span> : { },
+  <span class="hljs-attr">"metadata"</span> : {
+    <span class="hljs-attr">"partitions"</span> : <span class="hljs-number">3</span>
+  },
+  <span class="hljs-attr">"partitions"</span> : { }
+}
+</code></pre>
+<p>You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10319-tab-10320" class="nav-link active" data-group="group_10319" data-tab="tab-group-10319-content-10320">pulsar-admin</div><div id="tab-group-10319-tab-10321" class="nav-link" data-group="group_10319" data-tab="tab-group-10319-content-10321">REST API</div><div id="tab-group-10319-tab-10322" class="nav-link" data-group="group_10319" data-tab="tab-group-10319-content-10322">Java</div></div><div class="tab-content"><div id="tab-group-10319-content-10320" class="tab-pane active" data-group="group_10319" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics partitioned-stats \</span><br />  persistent://test-tenant/namespace/topic \<br />  --per-partition<br /></code></pre>
+</span></div></div><div id="tab-group-10319-content-10321" class="tab-pane" data-group="group_10319" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedStats?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats</i></a>
+</p>
+</span></div></div><div id="tab-group-10319-content-10322" class="tab-pane" data-group="group_10319" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getPartitionedStats(topic, <span class="hljs-keyword">true</span> <span class="hljs-comment">/* per partition */</span>, <span class="hljs-keyword">false</span> <span class="hljs-comment">/* is precise backlog */</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="internal-stats"></a><a href="#internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Internal stats</h3>
+<p>You can check the detailed statistics of a topic. The following is an example. For description of each stats, refer to <a href="#get-internal-stats">get internal stats</a>.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
+  <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"currentLedgerEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"currentLedgerSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>: <span class="hljs-string">"2016-06-29 03:00:23.825"</span>,
+  <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>: <span class="hljs-literal">null</span>,
+  <span class="hljs-attr">"waitingCursorsCount"</span>: <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"pendingAddEntriesCount"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"lastConfirmedEntry"</span>: <span class="hljs-string">"324711539:3232"</span>,
+  <span class="hljs-attr">"state"</span>: <span class="hljs-string">"LedgerOpened"</span>,
+  <span class="hljs-attr">"ledgers"</span>: [
+    {
+      <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
+      <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>
+    }
+  ],
+  <span class="hljs-attr">"cursors"</span>: {
+    <span class="hljs-attr">"my-subscription"</span>: {
+      <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
+      <span class="hljs-attr">"readPosition"</span>: <span class="hljs-string">"324711539:3233"</span>,
+      <span class="hljs-attr">"waitingReadOp"</span>: <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"pendingReadOps"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"messagesConsumedCounter"</span>: <span class="hljs-number">20449501</span>,
+      <span class="hljs-attr">"cursorLedger"</span>: <span class="hljs-number">324702104</span>,
+      <span class="hljs-attr">"cursorLedgerLastEntry"</span>: <span class="hljs-number">21</span>,
+      <span class="hljs-attr">"individuallyDeletedMessages"</span>: <span class="hljs-string">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span>,
+      <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>: <span class="hljs-string">"2016-06-29 01:30:19.313"</span>,
+      <span class="hljs-attr">"state"</span>: <span class="hljs-string">"Open"</span>
+    }
+  }
+}
+</code></pre>
+<p>You can get the internal stats for the partitioned topic in the following ways.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10323-tab-10324" class="nav-link active" data-group="group_10323" data-tab="tab-group-10323-content-10324">pulsar-admin</div><div id="tab-group-10323-tab-10325" class="nav-link" data-group="group_10323" data-tab="tab-group-10323-content-10325">REST API</div><div id="tab-group-10323-tab-10326" class="nav-link" data-group="group_10323" data-tab="tab-group-10323-content-10326">Java</div></div><div class="tab-content"><div id="tab-group-10323-content-10324" class="tab-pane active" data-group="group_10323" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats-internal \</span><br />  persistent://test-tenant/namespace/topic<br /></code></pre>
+</span></div></div><div id="tab-group-10323-content-10325" class="tab-pane" data-group="group_10323" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getInternalStats?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/internalStats</i></a>
+</p>
+</span></div></div><div id="tab-group-10323-content-10326" class="tab-pane" data-group="group_10323" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getInternalStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="publish-to-partitioned-topics"></a><a href="#publish-to-partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Publish to partitioned topics</h2>
+<p>By default, Pulsar topics are served by a single broker, which limits the maximum throughput of a topic. <em>Partitioned topics</em> can span multiple brokers and thus allow for higher throughput.</p>
+<p>You can publish to partitioned topics using Pulsar client libraries. When publishing to partitioned topics, you must specify a routing mode. If you do not specify any routing mode when you create a new producer, the round robin routing mode is used.</p>
+<h3><a class="anchor" aria-hidden="true" id="routing-mode"></a><a href="#routing-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing mode</h3>
+<p>You can specify the routing mode in the ProducerConfiguration object that you use to configure your producer. The routing mode determines which partition(internal topic) that each message should be published to.</p>
+<p>The following <a href="https://pulsar.apache.org/api/client/2.7.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRoutingMode">MessageRoutingMode</a>
+ options are available.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">If no key is provided, the producer publishes messages across all partitions in round-robin policy to achieve the maximum throughput. Round-robin is not done per individual message, round-robin is set to the same boundary of batching delay to ensure that batching is effective. If a key is specified on the message, the partitioned producer hashes the key and assigns message to a particular partition. This is the default mode.</td></tr>
+<tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">If no key is provided, the producer picks a single partition randomly and publishes all messages into that partition. If a key is specified on the message, the partitioned producer hashes the key and assigns message to a particular partition.</td></tr>
+<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">Use custom message router implementation that is called to determine the partition for a particular message. You can create a custom routing mode by using the Java client and implementing the <a href="https://pulsar.apache.org/api/client/2.7.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+ interface.</td></tr>
+</tbody>
+</table>
+<p>The following is an example:</p>
+<pre><code class="hljs css language-java">String pulsarBrokerRootUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
+producer.send(<span class="hljs-string">"Partitioned topic message"</span>.getBytes());
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="custom-message-router"></a><a href="#custom-message-router" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Custom message router</h3>
+<p>To use a custom message router, you need to provide an implementation of the <a href="https://pulsar.apache.org/api/client/2.7.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+ interface, which has just one <code>choosePartition</code> method:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">MessageRouter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Serializable</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">choosePartition</span><span class="hljs-params">(Message msg)</span></span>;
+}
+</code></pre>
+<p>The following router routes every message to partition 10:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">AlwaysTenRouter</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">MessageRouter</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">choosePartition</span><span class="hljs-params">(Message msg)</span> </span>{
+        <span class="hljs-keyword">return</span> <span class="hljs-number">10</span>;
+    }
+}
+</code></pre>
+<p>With that implementation, you can send</p>
+<pre><code class="hljs css language-java">String pulsarBrokerRootUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+String topic = <span class="hljs-string">"persistent://my-tenant/my-cluster-my-namespace/my-topic"</span>;
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(<span class="hljs-keyword">new</span> AlwaysTenRouter())
+        .create();
+producer.send(<span class="hljs-string">"Partitioned topic message"</span>.getBytes());
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="how-to-choose-partitions-when-using-a-key"></a><a href="#how-to-choose-partitions-when-using-a-key" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How to choose partitions when using a key</h3>
+<p>If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// If the message has a key, it supersedes the round robin routing policy</span>
+        <span class="hljs-keyword">if</span> (msg.hasKey()) {
+            <span class="hljs-keyword">return</span> signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
+        }
+
+        <span class="hljs-keyword">if</span> (isBatchingEnabled) { <span class="hljs-comment">// if batching is enabled, choose partition on `partitionSwitchMs` boundary.</span>
+            <span class="hljs-keyword">long</span> currentMs = clock.millis();
+            <span class="hljs-keyword">return</span> signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartitions());
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">return</span> signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(<span class="hljs-keyword">this</span>), topicMetadata.numPartitions());
+        }
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="manage-subscriptions"></a><a href="#manage-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Manage subscriptions</h2>
+<p>You can use <a href="/docs/en/2.7.1/admin-api-overview">Pulsar admin API</a> to create, check, and delete subscriptions.</p>
+<h3><a class="anchor" aria-hidden="true" id="create-subscription"></a><a href="#create-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create subscription</h3>
+<p>You can create a subscription for a topic using one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10327-tab-10328" class="nav-link active" data-group="group_10327" data-tab="tab-group-10327-content-10328">pulsar-admin</div><div id="tab-group-10327-tab-10329" class="nav-link" data-group="group_10327" data-tab="tab-group-10327-content-10329">REST API</div><div id="tab-group-10327-tab-10330" class="nav-link" data-group="group_10327" data-tab="tab-group-10327-content-10330">Java</div></div><div class="tab-content"><div id="tab-group-10327-content-10328" class="tab-pane active" data-group="group_10327" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics create-subscription \<br />--subscription my-subscription \<br />persistent://test-tenant/ns1/tp1<br /></code></pre>
+</span></div></div><div id="tab-group-10327-content-10329" class="tab-pane" data-group="group_10327" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createSubscriptions?version=2.7.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription</i></a>
+</p>
+</span></div></div><div id="tab-group-10327-content-10330" class="tab-pane" data-group="group_10327" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subscriptionName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);<br /></code></pre>
+</span></div></div></div></div>
+### Get subscription
+You can check all subscription names for a given topic using one of the following methods.
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10331-tab-10332" class="nav-link active" data-group="group_10331" data-tab="tab-group-10331-content-10332">pulsar-admin</div><div id="tab-group-10331-tab-10333" class="nav-link" data-group="group_10331" data-tab="tab-group-10331-content-10333">REST API</div><div id="tab-group-10331-tab-10334" class="nav-link" data-group="group_10331" data-tab="tab-group-10331-content-10334">Java</div></div><div class="tab-content"><div id="tab-group-10331-content-10332" class="tab-pane active" data-group="group_10331" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics subscriptions \<br />persistent://test-tenant/ns1/tp1 \<br />my-subscription<br /></code></pre>
+</span></div></div><div id="tab-group-10331-content-10333" class="tab-pane" data-group="group_10331" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getSubscriptions?version=2.7.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions</i></a>
+</p>
+</span></div></div><div id="tab-group-10331-content-10334" class="tab-pane" data-group="group_10331" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getSubscriptions(topic);<br /></code></pre>
+</span></div></div></div></div>
+### Unsubscribe subscription 
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-10335-tab-10336" class="nav-link active" data-group="group_10335" data-tab="tab-group-10335-content-10336">pulsar-admin</div><div id="tab-group-10335-tab-10337" class="nav-link" data-group="group_10335" data-tab="tab-group-10335-content-10337">REST API</div><div id="tab-group-10335-tab-10338" class="nav-link" data-group="group_10335" data-tab="tab-group-10335-content-10338">Java</div></div><div class="tab-content"><div id="tab-group-10335-content-10336" class="tab-pane active" data-group="group_10335" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics unsubscribe \<br />--subscription my-subscription \<br />persistent://test-tenant/ns1/tp1 <br /></code></pre>
+</span></div></div><div id="tab-group-10335-content-10337" class="tab-pane" data-group="group_10335" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteSubscription?version=2.7.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription</i></a>
+</p>
+</span></div></div><div id="tab-group-10335-content-10338" class="tab-pane" data-group="group_10335" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subscriptionName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().deleteSubscription(topic, subscriptionName);<br /></code></pre>
+</span></div></div></div></div></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/2.7.1/admin-api-permissions"><span class="arrow-prev">← </span><span>Permissions</span></a><a class="docs-next button" href="/docs/en/2.7.1/admin-api-functions"><span>Functions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#manage-topic-resources">Manage topic resources</a><ul class="toc-headings"><li><a href="#list-of-topics">List of topics</a></li><li><a href="#grant-permission">Grant permission</a></li><li><a href="#get-permission">Get permission</a></li><li><a href="#revoke-permission">Revoke permission</a></li><li><a href="#delete-topic">Delete topic</a></li><li><a href="#unload-topic">Unload topic</a></li><li><a href="#get-stats">Get stats</a></li><li><a href="#get-internal-stats">Get internal stats</a></li><li><a href="#peek-messages">Peek messages</a></li><li><a href="#get-message-by-id">Get message by ID</a></li><li><a href="#skip-messages">Skip messages</a></li><li><a href="#skip-all-messages">Skip all messages</a></li><li><a href="#reset-cursor">Reset cursor</a></li><li><a href="#lookup-of-topic">Lookup of topic</a></li><li><a href="#get-bundle">Get bundle</a></li><li><a href="#get-subscriptions">Get subscriptions</a></li><li><a href="#last-message-id">Last Message Id</a></li><li><a href="#configure-deduplication-snapshot-interval">Configure deduplication snapshot interval</a></li><li><a href="#configure-inactive-topic-policies">Configure inactive topic policies</a></li><li><a href="#configure-offload-policies">Configure offload policies</a></li></ul></li><li><a href="#manage-non-partitioned-topics">Manage non-partitioned topics</a><ul class="toc-headings"><li><a href="#create">Create</a></li><li><a href="#delete">Delete</a></li><li><a href="#list">List</a></li><li><a href="#stats">Stats</a></li></ul></li><li><a href="#manage-partitioned-topics">Manage partitioned topics</a><ul class="toc-headings"><li><a href="#create-1">Create</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#get-metadata">Get metadata</a></li><li><a href="#update">Update</a></li><li><a href="#delete-1">Delete</a></li><li><a href="#list-1">List</a></li><li><a href="#stats-1">Stats</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li><li><a href="#publish-to-partitioned-topics">Publish to partitioned topics</a><ul class="toc-headings"><li><a href="#routing-mode">Routing mode</a></li><li><a href="#custom-message-router">Custom message router</a></li><li><a href="#how-to-choose-partitions-when-using-a-key">How to choose partitions when using a key</a></li></ul></li><li><a href="#manage-subscriptions">Manage subscriptions</a><ul class="toc-headings"><li><a href="#create-subscription">Create subscription</a></li><li><a href="#get-subscription">Get subscription</a></li><li><a href="#unsubscribe-subscription">Unsubscribe subscription</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.7.1"]}
+              });
+            </script></body></html>

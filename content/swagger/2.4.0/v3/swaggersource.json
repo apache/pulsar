@@ -1,0 +1,1010 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This provides the REST API for Pulsar Source operations",
+        "version": "v3",
+        "title": "Pulsar Source REST API",
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    },
+    "basePath": "/admin/v3",
+    "tags": [
+        {
+            "name": "sources"
+        }
+    ],
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "paths": {
+        "/sources/builtinsources": {
+            "get": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
+                "description": "",
+                "operationId": "getSourceList",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "403": {
+                        "description": "The requester doesn't have admin permissions"
+                    },
+                    "408": {
+                        "description": "Request timeout"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}": {
+            "get": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Lists all Pulsar Sources currently deployed in a given namespace",
+                "description": "",
+                "operationId": "listSources",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}": {
+            "get": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Fetches information about a Pulsar Source currently running in cluster mode",
+                "description": "",
+                "operationId": "getSourceInfo",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "$ref": "#/definitions/SourceConfig"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Creates a new Pulsar Source in cluster mode",
+                "description": "",
+                "operationId": "registerSource",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of source",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "x-examples": {
+                            "application/json": "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pulsar Function successfully created"
+                    },
+                    "400": {
+                        "description": "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Updates a Pulsar Source currently running in cluster mode",
+                "description": "",
+                "operationId": "updateSource",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of source",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "x-examples": {
+                            "application/json": "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pulsar Function successfully updated"
+                    },
+                    "400": {
+                        "description": "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "403": {
+                        "description": "The requester doesn't have admin permissions"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Deletes a Pulsar Source currently running in cluster mode",
+                "description": "",
+                "operationId": "deregisterSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The function was successfully deleted"
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "408": {
+                        "description": "Request timeout"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/restart": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Restart all source instances",
+                "description": "",
+                "operationId": "restartSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/start": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Start all source instances",
+                "description": "",
+                "operationId": "startSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/status": {
+            "get": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Displays the status of a Pulsar Source running in cluster mode",
+                "description": "",
+                "operationId": "getSourceStatus",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "$ref": "#/definitions/SourceStatus"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/stop": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Stop all source instances",
+                "description": "",
+                "operationId": "stopSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/restart": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Restart source instance",
+                "description": "",
+                "operationId": "restartSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "instanceId",
+                        "in": "path",
+                        "description": "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/start": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Start source instance",
+                "description": "",
+                "operationId": "startSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "instanceId",
+                        "in": "path",
+                        "description": "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/status": {
+            "get": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Displays the status of a Pulsar Source instance",
+                "description": "",
+                "operationId": "getSourceInstanceStatus",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "instanceId",
+                        "in": "path",
+                        "description": "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "$ref": "#/definitions/SourceInstanceStatusData"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        },
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/stop": {
+            "post": {
+                "tags": [
+                    "sources"
+                ],
+                "summary": "Stop source instance",
+                "description": "",
+                "operationId": "stopSource",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "description": "The name of tenant",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "description": "The name of namespace",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "sourceName",
+                        "in": "path",
+                        "description": "The name of name",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "instanceId",
+                        "in": "path",
+                        "description": "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "401": {
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "404": {
+                        "description": "Not Found(The source doesn't exist)"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ExceptionInformation": {
+            "type": "object",
+            "properties": {
+                "exceptionString": {
+                    "type": "string"
+                },
+                "timestampMs": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "Resources": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "ram": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "disk": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "SourceConfig": {
+            "type": "object",
+            "properties": {
+                "tenant": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "className": {
+                    "type": "string"
+                },
+                "topicName": {
+                    "type": "string"
+                },
+                "serdeClassName": {
+                    "type": "string"
+                },
+                "schemaType": {
+                    "type": "string"
+                },
+                "configs": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object"
+                    }
+                },
+                "secrets": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object"
+                    }
+                },
+                "parallelism": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "processingGuarantees": {
+                    "type": "string",
+                    "enum": [
+                        "ATLEAST_ONCE",
+                        "ATMOST_ONCE",
+                        "EFFECTIVELY_ONCE"
+                    ]
+                },
+                "resources": {
+                    "$ref": "#/definitions/Resources"
+                },
+                "archive": {
+                    "type": "string"
+                },
+                "runtimeFlags": {
+                    "type": "string"
+                }
+            }
+        },
+        "SourceInstanceStatus": {
+            "type": "object",
+            "properties": {
+                "instanceId": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "status": {
+                    "$ref": "#/definitions/SourceInstanceStatusData"
+                }
+            }
+        },
+        "SourceInstanceStatusData": {
+            "type": "object",
+            "properties": {
+                "running": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "numRestarts": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "numReceivedFromSource": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "numSystemExceptions": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "latestSystemExceptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ExceptionInformation"
+                    }
+                },
+                "numSourceExceptions": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "latestSourceExceptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ExceptionInformation"
+                    }
+                },
+                "numWritten": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "lastReceivedTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "workerId": {
+                    "type": "string"
+                }
+            }
+        },
+        "SourceStatus": {
+            "type": "object",
+            "properties": {
+                "numInstances": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "numRunning": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SourceInstanceStatus"
+                    }
+                }
+            }
+        }
+    }
+}

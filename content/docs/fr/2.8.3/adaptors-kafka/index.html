@@ -1,0 +1,373 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar adaptor for Apache Kafka · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar est compatible avec les applications qui utilisent l&#x27;API Java d&#x27;[Apache Kafka](http://kafka.apache.org)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Pulsar adaptor for Apache Kafka · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar est compatible avec les applications qui utilisent l&#x27;API Java d&#x27;[Apache Kafka](http://kafka.apache.org)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/adaptors-kafka">English</a></li><li><a href="/docs/ja/2.8.3/adaptors-kafka">日本語</a></li><li><a href="/docs/ko/2.8.3/adaptors-kafka">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/adaptors-kafka">中文</a></li><li><a href="/docs/zh-TW/2.8.3/adaptors-kafka">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Adaptateurs</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar adaptor for Apache Kafka</h1></header><article><div><span><p>Pulsar est compatible avec les applications qui utilisent l'API Java d'<a href="http://kafka.apache.org">Apache Kafka</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="à-laide-du-wrapper-de-compatibilité-pulsar-pour-kafka"></a><a href="#à-laide-du-wrapper-de-compatibilité-pulsar-pour-kafka" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>À l’aide du wrapper de compatibilité Pulsar pour Kafka</h2>
+<p>In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in <code>pom.xml</code>:</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.kafka<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>kafka-clients<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>0.10.2.1<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre>
+<p>Ensuite, incluez la dépendance suivante pour le wrapper Pulsar pour Kafka :</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-kafka<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>2.9.1<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre>
+<p>Avec la nouvelle dépendance, le code existant fonctionne sans aucun changement. Enfin, vous devrez ajuster la configuration pour vous assurer que les producteurs et les consommateurs pointent sur Pulsar plutôt que Kafka, et utilisent un topic particulier de Pulsar.</p>
+<h2><a class="anchor" aria-hidden="true" id="utiliser-le-wrapper-de-compatibilité-pulsar-pour-kafka-avec-un-client-existant-de-kafka"></a><a href="#utiliser-le-wrapper-de-compatibilité-pulsar-pour-kafka-avec-un-client-existant-de-kafka" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Utiliser le wrapper de compatibilité Pulsar pour Kafka avec un client existant de Kafka</h2>
+<p>Lors de la migration de Kafka à Pulsar, l’application peut avoir à utiliser le client original Kafka et le wrapper Pulsar pour Kafka ensemble pendant la migration. Vous devriez envisager d'utiliser le wrapper client de Pulsar pour Kafka unshaded.</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-kafka-original<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>2.9.1<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre>
+<p>Lorsque vous utilisez cette dépendance, construisez des producteurs utilisant <code>org.apache.kafka.clients.producer.PulsarKafkaProducer</code> au lieu de <code>org.apache.kafka.clients.producer.KafkaProducer</code> et <code>org.apache.kafka.clients.producer.PulsarKafkaConsumer</code> pour les consommateurs.</p>
+<h2><a class="anchor" aria-hidden="true" id="example-de-producteur"></a><a href="#example-de-producteur" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example de producteur</h2>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Le topic doit être un topic classique de Pulsar</span>
+String topic = <span class="hljs-string">"persistent://public/default/my-topic"</span>;
+
+Properties props = <span class="hljs-keyword">new</span> Properties();
+<span class="hljs-comment">// Référence le service Pulsar</span>
+props.put(<span class="hljs-string">"bootstrap.servers"</span>, <span class="hljs-string">"pulsar://localhost:6650"</span>);
+
+props.put(<span class="hljs-string">"key.serializer"</span>, IntegerSerializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+props.put(<span class="hljs-string">"value.serializer"</span>, StringSerializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+
+Producer&lt;Integer, String&gt; producer = <span class="hljs-keyword">new</span> KafkaProducer&lt;&gt;(props);
+
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">10</span>; i++) {
+    producer.send(<span class="hljs-keyword">new</span> ProducerRecord&lt;Integer, String&gt;(topic, i, <span class="hljs-string">"hello-"</span> + i));
+    log.info(<span class="hljs-string">"Message {} sent successfully"</span>, i);
+}
+
+producer.close();
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="exemple-de-consommateur"></a><a href="#exemple-de-consommateur" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exemple de consommateur</h2>
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://public/default/my-topic"</span>;
+
+Properties props = <span class="hljs-keyword">new</span> Properties();
+<span class="hljs-comment">// Référence le service Pulsar</span>
+props.put(<span class="hljs-string">"bootstrap.servers"</span>, <span class="hljs-string">"pulsar://localhost:6650"</span>);
+props.put(<span class="hljs-string">"group.id"</span>, <span class="hljs-string">"my-subscription-name"</span>);
+props.put(<span class="hljs-string">"enable.auto.commit"</span>, <span class="hljs-string">"false"</span>);
+props.put(<span class="hljs-string">"key.deserializer"</span>, IntegerDeserializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+props.put(<span class="hljs-string">"value.deserializer"</span>, StringDeserializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+
+Consumer&lt;Integer, String&gt; consumer = <span class="hljs-keyword">new</span> KafkaConsumer&lt;&gt;(props);
+consumer.subscribe(Arrays.asList(topic));
+
+<span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+    ConsumerRecords&lt;Integer, String&gt; records = consumer.poll(<span class="hljs-number">100</span>);
+    records.forEach(record -&gt; {
+        log.info(<span class="hljs-string">"Received record: {}"</span>, record);
+    });
+
+    <span class="hljs-comment">// Commit le dernier offset</span>
+    consumer.commitSync();
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="exemples-complets"></a><a href="#exemples-complets" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exemples complets</h2>
+<p>Vous pouvez trouvez des exemples complets de producteurs et consommateurs <a href="https://github.com/apache/pulsar-adapters/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples">ici</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="matrice-de-compatibilité"></a><a href="#matrice-de-compatibilité" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Matrice de compatibilité</h2>
+<p>Actuellement, le wrapper Pulsar Kafka supporte la plupart des opérations offertes par l'API Kafka.</p>
+<h3><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h3>
+<p>APIs:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Méthode du producteur</th><th style="text-align:left">Supporté</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Future&lt;RecordMetadata&gt; send(ProducerRecord&lt;K, V&gt; record)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Future&lt;RecordMetadata&gt; send(ProducerRecord&lt;K, V&gt; record, Callback callback)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void flush()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>List&lt;PartitionInfo&gt; partitionsFor(String topic)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;MetricName, ? extends Metric&gt; metrics()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void close()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void close(long timeout, TimeUnit unit)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<p>Propriétés:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Propriété</th><th style="text-align:left">Supporté</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>acks</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left">Durabilité et quorum d'écriture sont configurés au niveau de l'espace de nommage</td></tr>
+<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Oui</td><td style="text-align:left">It uses a default value of <code>earliest</code> if you do not give a specific setting.</td></tr>
+<tr><td style="text-align:left"><code>batch.size</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>buffer.memory</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>client.id</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>compression.type</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Allows <code>gzip</code> and <code>lz4</code>. No <code>snappy</code>.</td></tr>
+<tr><td style="text-align:left"><code>connections.max.idle.ms</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Supporte jusqu'à 2 147 483,647,000(Integer.MAX_VALUE * 1000) ms de période d'inactivité</td></tr>
+<tr><td style="text-align:left"><code>interceptor.classes</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>key.serializer</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>linger.ms</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Controls the group commit time when batching messages</td></tr>
+<tr><td style="text-align:left"><code>max.block.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>max.in.flight.requests.per.connection</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left">In Pulsar ordering is maintained even with multiple requests in flight</td></tr>
+<tr><td style="text-align:left"><code>max.request.size</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>metric.reporters</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>metrics.num.samples</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>metrics.sample.window.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>partitioner.class</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>receive.buffer.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>reconnect.backoff.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>request.timeout.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>retries</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left">Le client Pulsar réessaie avec un backoff exponentiel jusqu'à l'expiration du délai d'envoi.</td></tr>
+<tr><td style="text-align:left"><code>send.buffer.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>timeout.ms</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>value.serializer</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h3>
+<p>Le tableau suivant liste les APIs des consommateurs.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Méthode du consommateur</th><th style="text-align:left">Supporté</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>Set&lt;TopicPartition&gt; assignment()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Set&lt;String&gt; subscription()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void subscribe(Collection&lt;String&gt; topics)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void subscribe(Collection&lt;String&gt; topics, ConsumerRebalanceListener callback)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void assign(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void subscribe(Pattern pattern, ConsumerRebalanceListener callback)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void unsubscribe()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>ConsumerRecords&lt;K, V&gt; poll(long timeoutMillis)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void commitSync()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void commitSync(Map&lt;TopicPartition, OffsetAndMetadata&gt; offsets)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void commitAsync()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void commitAsync(OffsetCommitCallback callback)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void commitAsync(Map&lt;TopicPartition, OffsetAndMetadata&gt; offsets, OffsetCommitCallback callback)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void seek(TopicPartition partition, long offset)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void seekToBeginning(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void seekToEnd(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>long position(TopicPartition partition)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>OffsetAndMetadata committed(TopicPartition partition)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;MetricName, ? extends Metric&gt; metrics()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>List&lt;PartitionInfo&gt; partitionsFor(String topic)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;String, List&lt;PartitionInfo&gt;&gt; listTopics()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Set&lt;TopicPartition&gt; paused()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void pause(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void resume(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;TopicPartition, OffsetAndTimestamp&gt; offsetsForTimes(Map&lt;TopicPartition, Long&gt; timestampsToSearch)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;TopicPartition, Long&gt; beginningOffsets(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Map&lt;TopicPartition, Long&gt; endOffsets(Collection&lt;TopicPartition&gt; partitions)</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void close()</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void close(long timeout, TimeUnit unit)</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>void wakeup()</code></td><td style="text-align:left">Non</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<p>Propriétés:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Propriété</th><th style="text-align:left">Supporté</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>group.id</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Se mappe sur le nom de l'abonnement à Pulsar</td></tr>
+<tr><td style="text-align:left"><code>max.poll.records</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>max.poll.interval.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left">Les messages sont &quot;poussés&quot; du broker</td></tr>
+<tr><td style="text-align:left"><code>session.timeout.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>heartbeat.interval.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Doit pointer vers une seule URL du service Pulsar</td></tr>
+<tr><td style="text-align:left"><code>enable.auto.commit</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>auto.commit.interval.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left">Avec l'auto-commit, les acks sont envoyées immédiatement au broker</td></tr>
+<tr><td style="text-align:left"><code>partition.assignment.strategy</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>auto.offset.reset</code></td><td style="text-align:left">Oui</td><td style="text-align:left">Valeurs supportées: earliest et latest.</td></tr>
+<tr><td style="text-align:left"><code>fetch.min.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>fetch.max.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>fetch.max.wait.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>interceptor.classes</code></td><td style="text-align:left">Oui</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>metadata.max.age.ms</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>max.partition.fetch.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>send.buffer.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>receive.buffer.bytes</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>client.id</code></td><td style="text-align:left">Ignoré</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="personnaliser-les-configurations-de-pulsar"></a><a href="#personnaliser-les-configurations-de-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Personnaliser les configurations de Pulsar</h2>
+<p>Vous pouvez configurer le fournisseur d'authentification de Pulsar directement à partir des propriétés Kafka.</p>
+<h3><a class="anchor" aria-hidden="true" id="propriétés-du-client-pulsar"></a><a href="#propriétés-du-client-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Propriétés du client Pulsar</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Propriété</th><th style="text-align:left">Default</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-"><code>pulsar.authentication.class</code></a></td><td style="text-align:left"></td><td style="text-align:left">Configure to auth provider. For example, <code>org.apache.pulsar.client.impl.auth.AuthenticationTls</code>.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-"><code>pulsar.authentication.params.map</code></a></td><td style="text-align:left"></td><td style="text-align:left">Map qui représente les paramètres pour le plugin d'authentification.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-"><code>pulsar.authentication.params.string</code></a></td><td style="text-align:left"></td><td style="text-align:left">String avec les paramètres pour le plugin d'authentification, par exemple, <code>key1:val1,key2:val2</code>.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-"><code>pulsar.use.tls</code></a></td><td style="text-align:left"><code>false</code></td><td style="text-align:left">Active la sécurité de la couche transport avec TLS.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-"><code>pulsar.tls.trust.certs.file.path</code></a></td><td style="text-align:left"></td><td style="text-align:left">Chemin d'accès au fichier contenant les certificats de confiance TLS.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-"><code>pulsar.tls.allow.insecure.connection</code></a></td><td style="text-align:left"><code>false</code></td><td style="text-align:left">Accepte les certificats auto-signés des brokers.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-"><code>pulsar.operation.timeout.ms</code></a></td><td style="text-align:left"><code>30000</code></td><td style="text-align:left">Délai d'attente général des opérations.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-"><code>pulsar.stats.interval.seconds</code></a></td><td style="text-align:left"><code>60</code></td><td style="text-align:left">Intervalle d'émission des statistiques de la lib cliente Pulsar.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-"><code>pulsar.num.io.threads</code></a></td><td style="text-align:left"><code>1</code></td><td style="text-align:left">Le nombre de threads Netty IO à utiliser.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-"><code>pulsar.connections.per.broker</code></a></td><td style="text-align:left"><code>1</code></td><td style="text-align:left">Le nombre maximum de connexions à chaque broker.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-"><code>pulsar.use.tcp.nodelay</code></a></td><td style="text-align:left"><code>true</code></td><td style="text-align:left">TCP no-delay.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-"><code>pulsar.concurrent.lookup.requests</code></a></td><td style="text-align:left"><code>50000</code></td><td style="text-align:left">Le nombre maximum de recherches simultanées sur les topics.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-"><code>pulsar.max.number.rejected.request.per.connection</code></a></td><td style="text-align:left"><code>50</code></td><td style="text-align:left">Le seuil d'erreurs pour forcer la fermeture d'une connexion.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ClientBuilder.html#keepAliveInterval-int-java.util.concurrent.TimeUnit-"><code>pulsar.keepalive.interval.ms</code></a></td><td style="text-align:left"><code>30000</code></td><td style="text-align:left">Keep alive interval for each client-broker-connection.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="propriétés-du-producteur-pulsar"></a><a href="#propriétés-du-producteur-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Propriétés du producteur Pulsar</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Propriété</th><th style="text-align:left">Default</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-"><code>pulsar.producer.name</code></a></td><td style="text-align:left"></td><td style="text-align:left">Spécifie le nom du producteur.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-"><code>pulsar.producer.initial.sequence.id</code></a></td><td style="text-align:left"></td><td style="text-align:left">Spécifie la valeur de départ pour l'ID de séquence de ce producteur.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-"><code>pulsar.producer.max.pending.messages</code></a></td><td style="text-align:left"><code>1000</code></td><td style="text-align:left">Définit la taille maximale de la file d'attente des messages en attente d'un accusé de réception de la part du broker.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-"><code>pulsar.producer.max.pending.messages.across.partitions</code></a></td><td style="text-align:left"><code>50000</code></td><td style="text-align:left">Définit le nombre maximum de messages en attente sur toutes les partitions.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-"><code>pulsar.producer.batching.enabled</code></a></td><td style="text-align:left"><code>true</code></td><td style="text-align:left">Contrôle si le batching automatique de messages est activé pour le producteur.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-"><code>pulsar.producer.batching.max.messages</code></a></td><td style="text-align:left"><code>1000</code></td><td style="text-align:left">Le nombre maximum de messages par batch.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-"><code>pulsar.block.if.producer.queue.full</code></a></td><td style="text-align:left"></td><td style="text-align:left">Specify the block producer if queue  is full.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="propriétés-du-consommateur-pulsar"></a><a href="#propriétés-du-consommateur-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Propriétés du consommateur Pulsar</h3>
+<table>
+<thead>
+<tr><th style="text-align:left">Propriété</th><th style="text-align:left">Default</th><th style="text-align:left">Remarques</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-"><code>pulsar.consumer.name</code></a></td><td style="text-align:left"></td><td style="text-align:left">Spécifie le nom du consommateur.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-"><code>pulsar.consumer.receiver.queue.size</code></a></td><td style="text-align:left">1000</td><td style="text-align:left">Définit la taille de la file d'attente de réception du consommateur.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-"><code>pulsar.consumer.acknowledgments.group.time.millis</code></a></td><td style="text-align:left">100</td><td style="text-align:left">Définit le délai maximal pendant lequel les consommateurs peuvent envoyer les accusés de réception au broker.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-"><code>pulsar.consumer.total.receiver.queue.size.across.partitions</code></a></td><td style="text-align:left">50000</td><td style="text-align:left">Définit la taille maximale de la file d'attente totale des récepteurs pour toutes les partitions.</td></tr>
+<tr><td style="text-align:left"><a href="http://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-"><code>pulsar.consumer.subscription.topics.mode</code></a></td><td style="text-align:left">PersistentOnly</td><td style="text-align:left">Définit le mode d'abonnement au topic pour les consommateurs.</td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.8.3/admin-api-packages"><span class="arrow-prev">← </span><span>Packages</span></a><a class="docs-next button" href="/docs/fr/2.8.3/adaptors-spark"><span>Apache Spark</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#à-laide-du-wrapper-de-compatibilité-pulsar-pour-kafka">À l’aide du wrapper de compatibilité Pulsar pour Kafka</a></li><li><a href="#utiliser-le-wrapper-de-compatibilité-pulsar-pour-kafka-avec-un-client-existant-de-kafka">Utiliser le wrapper de compatibilité Pulsar pour Kafka avec un client existant de Kafka</a></li><li><a href="#example-de-producteur">Example de producteur</a></li><li><a href="#exemple-de-consommateur">Exemple de consommateur</a></li><li><a href="#exemples-complets">Exemples complets</a></li><li><a href="#matrice-de-compatibilité">Matrice de compatibilité</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#personnaliser-les-configurations-de-pulsar">Personnaliser les configurations de Pulsar</a><ul class="toc-headings"><li><a href="#propriétés-du-client-pulsar">Propriétés du client Pulsar</a></li><li><a href="#propriétés-du-producteur-pulsar">Propriétés du producteur Pulsar</a></li><li><a href="#propriétés-du-consommateur-pulsar">Propriétés du consommateur Pulsar</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.8.3"]}
+              });
+            </script></body></html>

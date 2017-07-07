@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema Registry · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。 生产者和消费者需要某种机制来协调topic层面的类型, 以免出现各种各样的潜在问题 (例如序列化和反序列化问题)。 应用通常采用两种基本方法之一，在消息传递中确保类型安全:"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Schema Registry · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。 生产者和消费者需要某种机制来协调topic层面的类型, 以免出现各种各样的潜在问题 (例如序列化和反序列化问题)。 应用通常采用两种基本方法之一，在消息传递中确保类型安全:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/concepts-schema-registry">English</a></li><li><a href="/docs/ja/2.8.3/concepts-schema-registry">日本語</a></li><li><a href="/docs/fr/2.8.3/concepts-schema-registry">Français</a></li><li><a href="/docs/ko/2.8.3/concepts-schema-registry">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/concepts-schema-registry">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema Registry</h1></header><article><div><span><p>对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。 生产者和消费者需要某种机制来协调topic层面的类型, 以免出现各种各样的潜在问题 (例如序列化和反序列化问题)。 应用通常采用两种基本方法之一，在消息传递中确保类型安全:</p>
+<ol>
+<li>&quot;客户端&quot; 方法, 消息生产者和消费者不仅负责序列化和反序列处理消息 (包括原始字节), 而且还 &quot;知道&quot; 哪些类型是通过哪些topic传输的。 如果生产者往主题 <code>topic-1</code>发送温度感应数据，而这个topic的consumer按照读取湿度感应的方式来转换数据，将会遇到问题。</li>
+<li>&quot;服务器端&quot; 方法, 生产者和消费者告知系统哪些数据类型可以通过topic传输。 通过这种方法，消息系统强制执行类型安全, 并确保生产者和消费者保持同步。</li>
+</ol>
+<p>这两种方法都被Pulsar支持，你可以在topic的基础上，自由选择采用哪一种，或者混用。</p>
+<ol>
+<li>&quot;客户端&quot; 方法中, 生产者和消费者可以发送和接收由原始字节数组组成的消息, 并保留所有的类型安全在应用中，以“带外”基础上强制执行。</li>
+<li>For the &quot;server-side&quot; approach, Pulsar has a built-in <strong>schema registry</strong> that enables clients to upload data schemas on a per-topic basis. 这些schema显示了，topic可以识别哪些数据类型为有效。</li>
+</ol>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-CN/2.8.3/client-libraries-java">Java client</a>, <a href="/docs/zh-CN/2.8.3/client-libraries-go">CGo client</a>, <a href="/docs/zh-CN/2.8.3/client-libraries-python">Python client</a>, and <a href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="基础架构"></a><a href="#基础架构" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基础架构</h2>
+<p>当你使用Schema创建带类型的producer时，schema将会被自动上传。 此外，可以通过Pulsar的 <a href="https://pulsar.apache.org/admin-rest-api#tag/schemas">REST</a>
+ API 手动上载、提取和更新schema。</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="其他schema注册的后端"></a><a href="#其他schema注册的后端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>其他schema注册的后端</h4>
+<p>开箱即用，Pulsar使用 <a href="concepts-architecture-overview#persistent-storage">Apache BookKeeper</a> log存储系统来保存schema。 不过你也可以按照你的需要使用不同的后端。 客制化的schema存储逻辑文档即将推出。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="schema是如何工作的"></a><a href="#schema是如何工作的" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema是如何工作的</h2>
+<p>Pulsar schemas are applied and enforced <em>at the topic level</em> (schemas cannot be applied at the namespace or tenant level). Producers and consumers upload schemas to Pulsar brokers.</p>
+<p>Pulsar schema是非常简单的数据结构，它的构成如下：</p>
+<ul>
+<li>A <strong>name</strong>. In Pulsar, a schema's name is the topic to which the schema is applied.</li>
+<li>A <strong>payload</strong>, which is a binary representation of the schema</li>
+<li>A schema <a href="#supported-schema-formats"><strong>type</strong></a></li>
+<li>User-defined <strong>properties</strong> as a string/string map. Properties如何使用，完全由程序指定。 Properties可能是关联到schema的Git hash，例如<code>dev</code>或者<code>prod</code>等环境信息。</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="schema版本"></a><a href="#schema版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema版本</h2>
+<p>我们通过一个例子，来讲解schema版本如何工作。 假设使用以下代码创建Pulsar <a href="/docs/zh-CN/2.8.3/client-libraries-java">Java 客户端</a>，尝试连接到Pulsar，并开始发送消息:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+</code></pre>
+<p>下表列出了尝试连接时可能出现的场景, 以及每种场景下发生了什么：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">场景</th><th style="text-align:left">发生了什么</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">该Topic不存在schema</td><td style="text-align:left">使用给定的schema创建了producer。 Schema传输到broker并被存储 (因为没有现成的schema与 <code>SensorReading</code> schema &quot;兼容&quot;)。 任何使用同样schema/topic的consumer可以消费<code>sensor-data</code> topic中的消息。</td></tr>
+<tr><td style="text-align:left">Schema已经存在；producer使用已经被保存过的schema进行连接</td><td style="text-align:left">Schema被传输到Pulsar broker。 Broker确认此schema是兼容的。 Broker尝试在<a href="/docs/zh-CN/2.8.3/concepts-architecture-overview#persistent-storage">BookKeeper</a>存储schema，但是发现它已经存在了，所以用它来标记生产的消息。</td></tr>
+<tr><td style="text-align:left">Schema已经存在；producer使用兼容的新schema进行连接。</td><td style="text-align:left">The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>Schema版本是连续的。 Schema被处理关联topic的broker所保存，便于进行版本的分配。 一旦分配/提供了schema的版本，后续由该生产者生产的所有消息，都将被恰当的版本所标记。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="支持的schema格式"></a><a href="#支持的schema格式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的schema格式</h2>
+<p>以下格式被Pulsar schema注册所支持：</p>
+<ul>
+<li>None. If no schema is specified for a topic, producers and consumers will handle raw bytes.</li>
+<li><code>String</code> (用于 UTF-8-encoded 字符串)</li>
+<li><a href="https://www.json.org/">JSON</a></li>
+<li><a href="https://developers.google.com/protocol-buffers/">Protobuf</a></li>
+<li><a href="https://avro.apache.org/">Avro</a></li>
+</ul>
+<p>使用介绍，请参考你选择的客户端类库文档。</p>
+<ul>
+<li><a href="/docs/zh-CN/2.8.3/client-libraries-java#schemas">Java</a></li>
+</ul>
+<blockquote>
+<p>未来的Pulsar release将会支持其他更多schema格式。</p>
+</blockquote>
+<p>The following example shows how to define an Avro schema using the <code>GenericSchemaBuilder</code>, generate a generic Avro schema using <code>GenericRecordBuilder</code>, and consume messages into <code>GenericRecord</code>.</p>
+<p><strong>示例</strong></p>
+<ol>
+<li><p>Use the <code>RecordSchemaBuilder</code> to build a schema.</p>
+<pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);
+recordSchemaBuilder.field(<span class="hljs-string">"intField"</span>).type(SchemaType.INT32);
+SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schemaInfo)).create();
+</code></pre></li>
+<li><p>Use <code>RecordBuilder</code> to build the generic records.</p>
+<pre><code class="hljs css language-java">producer.newMessage().value(schema.newRecordBuilder()
+            .set(<span class="hljs-string">"intField"</span>, <span class="hljs-number">32</span>)
+            .build()).send();
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="管理-schema"></a><a href="#管理-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理 Schema</h2>
+<p>You can use Pulsar admin tools to manage schemas for topics.</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#基础架构">基础架构</a></li><li><a href="#schema是如何工作的">Schema是如何工作的</a></li><li><a href="#schema版本">Schema版本</a></li><li><a href="#支持的schema格式">支持的schema格式</a></li><li><a href="#管理-schema">管理 Schema</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy a cluster on bare metal · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; ### Tips"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Deploy a cluster on bare metal · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; ### Tips"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/deploy-bare-metal">English</a></li><li><a href="/docs/ja/2.8.3/deploy-bare-metal">日本語</a></li><li><a href="/docs/fr/2.8.3/deploy-bare-metal">Français</a></li><li><a href="/docs/zh-CN/2.8.3/deploy-bare-metal">中文</a></li><li><a href="/docs/zh-TW/2.8.3/deploy-bare-metal">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Deployment</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy a cluster on bare metal</h1></header><article><div><span><blockquote>
+<h3><a class="anchor" aria-hidden="true" id="tips"></a><a href="#tips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tips</h3>
+<ol>
+<li><p>Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you are interested in experimenting with Pulsar or using Pulsar in a startup or on a single team, it is simplest to opt for a single cluster. If you do need to run a multi-cluster Pulsar instance, see the guide <a href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">here</a>.</p></li>
+<li><p>If you want to use all builtin <a href="/docs/ko/2.8.3/io-overview">Pulsar IO</a> connectors in your Pulsar deployment, you need to download <code>apache-pulsar-io-connectors</code> package and install <code>apache-pulsar-io-connectors</code> under <code>connectors</code> directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for <a href="/docs/ko/2.8.3/functions-overview">Pulsar Functions</a>.</p></li>
+<li><p>If you want to use <a href="/docs/ko/2.8.3/concepts-tiered-storage">Tiered Storage</a> feature in your Pulsar deployment, you need to download <code>apache-pulsar-offloaders</code> package and install <code>apache-pulsar-offloaders</code> under <code>offloaders</code> directory in the pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the <a href="/docs/ko/2.8.3/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p></li>
+</ol>
+</blockquote>
+<p>Deploying a Pulsar cluster involves doing the following (in order):</p>
+<ul>
+<li>Deploy a <a href="#deploy-a-zookeeper-cluster">ZooKeeper</a> cluster (optional)</li>
+<li>Initialize <a href="#initialize-cluster-metadata">cluster metadata</a></li>
+<li>Deploy a <a href="#deploy-a-bookkeeper-cluster">BookKeeper</a> cluster</li>
+<li>Deploy one or more Pulsar <a href="#deploy-pulsar-brokers">brokers</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="preparation"></a><a href="#preparation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Preparation</h2>
+<h3><a class="anchor" aria-hidden="true" id="requirements"></a><a href="#requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Requirements</h3>
+<p>Currently, Pulsar is available for 64-bit *<em>macOS</em>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
+<blockquote>
+<p>If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines for running ZooKeeper.</p>
+</blockquote>
+<p>To run Pulsar on bare metal, the following configuration is recommended:</p>
+<ul>
+<li>At least 6 Linux machines or VMs
+<ul>
+<li>3 for running <a href="https://zookeeper.apache.org">ZooKeeper</a></li>
+<li>3 for running a Pulsar broker, and a <a href="https://bookkeeper.apache.org">BookKeeper</a> bookie</li>
+</ul></li>
+<li>A single <a href="https://en.wikipedia.org/wiki/Domain_Name_System">DNS</a> name covering all of the Pulsar broker hosts</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Broker is only supported on 64-bit JVM.</p>
+</blockquote>
+<blockquote>
+<p>If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later), you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.</p>
+</blockquote>
+<blockquote>
+<p>If you do not have a DNS server, you can use the multi-host format in the service URL instead.</p>
+</blockquote>
+<p>Each machine in your cluster needs to have <a href="https://adoptium.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptium.net/?variant=openjdk11">Java 11</a> installed.</p>
+<p>The following is a diagram showing the basic setup:</p>
+<p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
+<p>In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL. In this case, <code>pulsar-cluster.acme.com</code> abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.</p>
+<h3><a class="anchor" aria-hidden="true" id="hardware-considerations"></a><a href="#hardware-considerations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hardware considerations</h3>
+<p>When you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.</p>
+<h4><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h4>
+<p>For machines running ZooKeeper, is is recommended to use less powerful machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, <em>not</em> for basic operations. If you run Pulsar on <a href="https://aws.amazon.com/">Amazon Web Services</a> (AWS), for example, a <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html">t2.small</a> instance might likely suffice.</p>
+<h4><a class="anchor" aria-hidden="true" id="bookies-and-brokers"></a><a href="#bookies-and-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bookies and Brokers</h4>
+<p>For machines running a bookie and a Pulsar broker, more powerful machines are required. For an AWS deployment, for example, <a href="https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/">i3.4xlarge</a> instances may be appropriate. On those machines you can use the following:</p>
+<ul>
+<li>Fast CPUs and 10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller">NIC</a> (for Pulsar brokers)</li>
+<li>Small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> controller and a battery-backed write cache (for BookKeeper bookies)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="install-the-pulsar-binary-package"></a><a href="#install-the-pulsar-binary-package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install the Pulsar binary package</h2>
+<blockquote>
+<p>You need to install the Pulsar binary package on <em>each machine in the cluster</em>, including machines running <a href="#deploy-a-zookeeper-cluster">ZooKeeper</a> and <a href="#deploy-a-bookkeeper-cluster">BookKeeper</a>.</p>
+</blockquote>
+<p>To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:</p>
+<ul>
+<li>By clicking on the link below directly, which automatically triggers a download:
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz" download>Pulsar 2.9.1 binary release</a></li>
+</ul></li>
+<li>From the Pulsar <a href="/download">downloads page</a></li>
+<li>From the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a> on <a href="https://github.com">GitHub</a></li>
+<li>Using <a href="https://www.gnu.org/software/wget">wget</a>:</li>
+</ul>
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz
+</code></pre>
+<p>Once you download the tarball, untar it and <code>cd</code> into the resulting directory:</p>
+<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.9.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
+</code></pre>
+<p>The extracted directory contains the following subdirectories:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">디렉토리</th><th style="text-align:left">포함</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left"><a href="/docs/ko/2.8.3/reference-cli-tools">command-line tools</a> of Pulsar, such as <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a></td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Configuration files for Pulsar, including for <a href="/docs/ko/2.8.3/reference-configuration#broker">broker configuration</a>, <a href="/docs/ko/2.8.3/reference-configuration#zookeeper">ZooKeeper configuration</a>, and more</td></tr>
+<tr><td style="text-align:left"><code>데이터</code></td><td style="text-align:left">The data storage directory that ZooKeeper and BookKeeper use</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files that Pulsar uses</td></tr>
+<tr><td style="text-align:left"><code>로그</code></td><td style="text-align:left">Logs that the installation creates</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="install-builtin-connectors-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"></a><a href="#install-builtin-connectors-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">Install Builtin Connectors (optional)</a></h2>
+<blockquote>
+<p>Since Pulsar release <code>2.1.0-incubating</code>, Pulsar provides a separate binary distribution, containing all the <code>builtin</code> connectors. If you want to enable those <code>builtin</code> connectors, you can follow the instructions as below; otherwise you can skip this section for now.</p>
+</blockquote>
+<p>To get started using builtin connectors, you need to download the connectors tarball release on every broker node in one of the following ways:</p>
+<ul>
+<li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors" download>Pulsar IO Connectors 2.9.1 release</a></li>
+</ul></li>
+<li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors/{connector}-2.9.1.nar</span>
+</code></pre></li>
+</ul>
+<p>Once you download the .nar file, copy the file to directory <code>connectors</code> in the pulsar directory. For example, if you download the connector file <code>pulsar-io-aerospike-2.9.1.nar</code>:</p>
+<pre><code class="hljs css language-bash">$ mkdir connectors
+$ mv pulsar-io-aerospike-2.9.1.nar connectors
+
+$ ls connectors
+pulsar-io-aerospike-2.9.1.nar
+...
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="install-tiered-storage-offloaders-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"></a><a href="#install-tiered-storage-offloaders-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">Install Tiered Storage Offloaders (optional)</a></h2>
+<blockquote>
+<p>Since Pulsar release <code>2.2.0</code>, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can skip this section for now.</p>
+</blockquote>
+<p>To get started using tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
+<ul>
+<li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.9.1 release</a></li>
+</ul></li>
+<li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>Once you download the tarball, in the pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the pulsar directory:</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.9.1-bin.tar.gz
+
+// you can find a directory named `apache-pulsar-offloaders-2.9.1` <span class="hljs-keyword">in</span> the pulsar directory
+// <span class="hljs-keyword">then</span> copy the offloaders
+
+$ mv apache-pulsar-offloaders-2.9.1/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-2.9.1.nar
+</code></pre>
+<p>For more details of how to configure tiered storage feature, you can refer to the <a href="/docs/ko/2.8.3/cookbooks-tiered-storage">Tiered storage cookbook</a></p>
+<h2><a class="anchor" aria-hidden="true" id="deploy-a-zookeeper-cluster"></a><a href="#deploy-a-zookeeper-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy a ZooKeeper cluster</h2>
+<blockquote>
+<p>If you already have an existing zookeeper cluster and want to use it, you can skip this section.</p>
+</blockquote>
+<p><a href="https://zookeeper.apache.org">ZooKeeper</a> manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first (before all other components). A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.</p>
+<p>To begin, add all ZooKeeper servers to the configuration specified in <a href="/docs/ko/2.8.3/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> (in the Pulsar directory that you create <a href="#install-the-pulsar-binary-package">above</a>). The following is an example:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+<blockquote>
+<p>If you only have one machine on which to deploy Pulsar, you only need to add one server entry in the configuration file.</p>
+</blockquote>
+<p>On each host, you need to specify the ID of the node in the <code>myid</code> file, which is in the <code>data/zookeeper</code> folder of each server by default (you can change the file location via the <a href="/docs/ko/2.8.3/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> parameter).</p>
+<blockquote>
+<p>See the <a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">Multi-server setup guide</a> in the ZooKeeper documentation for detailed information on <code>myid</code> and more.</p>
+</blockquote>
+<p>For example, on a ZooKeeper server like <code>zk1.us-west.example.com</code>, you can set the <code>myid</code> value as follows:</p>
+<pre><code class="hljs css language-bash">$ mkdir -p data/zookeeper
+$ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
+</code></pre>
+<p>On <code>zk2.us-west.example.com</code>, the command is <code>echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
+<p>Once you add each server to the <code>zookeeper.conf</code> configuration and have the appropriate <code>myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start zookeeper
+</code></pre>
+<blockquote>
+<p>If you plan to deploy Zookeeper with the Bookie on the same node, you need to start zookeeper by using different stats port by configuring the <code>metricsProvider.httpPort</code> in zookeeper.conf.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Initialize cluster metadata</h2>
+<p>Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper for each cluster in your instance. You only need to write this data <strong>once</strong>.</p>
+<p>You can initialize this metadata using the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. This command can be run on any machine in your ZooKeeper cluster. The following is an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
+  --cluster pulsar-cluster-1 \
+  --zookeeper zk1.us-west.example.com:2181 \
+  --configuration-store zk1.us-west.example.com:2181 \
+  --web-service-url http://pulsar.us-west.example.com:8080 \
+  --web-service-url-tls https://pulsar.us-west.example.com:8443 \
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre>
+<p>As you can see from the example above, you will need to specify the following:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Flag</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>--cluster</code></td><td style="text-align:left">A name for the cluster</td></tr>
+<tr><td style="text-align:left"><code>--zookeeper</code></td><td style="text-align:left">A &quot;local&quot; ZooKeeper connection string for the cluster. This connection string only needs to include <em>one</em> machine in the ZooKeeper cluster.</td></tr>
+<tr><td style="text-align:left"><code>--configuration-store</code></td><td style="text-align:left">The configuration store connection string for the entire instance. As with the <code>--zookeeper</code> flag, this connection string only needs to include <em>one</em> machine in the ZooKeeper cluster.</td></tr>
+<tr><td style="text-align:left"><code>--web-service-url</code></td><td style="text-align:left">The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).</td></tr>
+<tr><td style="text-align:left"><code>--web-service-url-tls</code></td><td style="text-align:left">If you use <a href="/docs/ko/2.8.3/security-tls-transport">TLS</a>, you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).</td></tr>
+<tr><td style="text-align:left"><code>--broker-service-url</code></td><td style="text-align:left">A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the <code>pulsar</code> scheme instead. The default port is 6650 (you had better not use a different port).</td></tr>
+<tr><td style="text-align:left"><code>--broker-service-url-tls</code></td><td style="text-align:left">If you use <a href="/docs/ko/2.8.3/security-tls-transport">TLS</a>, you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">--web-service-url</span> <span class="hljs-string">http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651</span>
+</code></pre>
+</blockquote>
+<blockquote>
+<p>If you want to use an existing BookKeeper cluster, you can add the <code>--existing-bk-metadata-service-uri</code> flag as follows:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">--existing-bk-metadata-service-uri</span> <span class="hljs-string">"zk+null://zk1:2181;zk2:2181/ledgers" \
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651</span>
+</code></pre>
+<p>You can obtain the metadata service URI of the existing BookKeeper cluster by using the <code>bin/bookkeeper shell whatisinstanceid</code> command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="deploy-a-bookkeeper-cluster"></a><a href="#deploy-a-bookkeeper-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy a BookKeeper cluster</h2>
+<p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a <strong>3-bookie BookKeeper cluster</strong>.</p>
+<p>You can configure BookKeeper bookies using the <a href="/docs/ko/2.8.3/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a> configuration file. The most important step in configuring bookies for our purposes here is ensuring that <a href="/docs/ko/2.8.3/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a> is set to the connection string for the ZooKeeper cluster. The following is an example:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
+<p>Once you appropriately modify the <code>zkServers</code> parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters <a href="/docs/ko/2.8.3/reference-configuration#bookkeeper">here</a>. However, consulting the <a href="http://bookkeeper.apache.org/docs/latest/reference/config/">BookKeeper documentation</a> for a more in-depth guide might be a better choice.</p>
+<p>Once you apply the desired configuration in <code>conf/bookkeeper.conf</code>, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
+<p>To start the bookie in the background, use the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
+</code></pre>
+<p>To start the bookie in the foreground:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar bookie
+</code></pre>
+<p>You can verify that a bookie works properly by running the <code>bookiesanity</code> command on the <a href="/docs/ko/2.8.3/reference-cli-tools#shell">BookKeeper shell</a>:</p>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
+</code></pre>
+<p>This command creates an ephemeral BookKeeper ledger on the local bookie, writes a few entries, reads them back, and finally deletes the ledger.</p>
+<p>After you start all the bookies, you can use <code>simpletest</code> command for <a href="/docs/ko/2.8.3/reference-cli-tools#shell">BookKeeper shell</a> on any bookie node, to verify all the bookies in the cluster are up running.</p>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper shell simpletest --ensemble &lt;num-bookies&gt; --writeQuorum &lt;num-bookies&gt; --ackQuorum &lt;num-bookies&gt; --numEntries &lt;num-entries&gt;
+</code></pre>
+<p>This command creates a <code>num-bookies</code> sized ledger on the cluster, writes a few entries, and finally deletes the ledger.</p>
+<h2><a class="anchor" aria-hidden="true" id="deploy-pulsar-brokers"></a><a href="#deploy-pulsar-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy Pulsar brokers</h2>
+<p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide the administrative interface of Pulsar. A good choice is to run <strong>3 brokers</strong>, one for each machine that already runs a BookKeeper bookie.</p>
+<h3><a class="anchor" aria-hidden="true" id="configure-brokers"></a><a href="#configure-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Brokers</h3>
+<p>The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the <a href="/docs/ko/2.8.3/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a> and <a href="/docs/ko/2.8.3/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the <code>configurationStoreServers</code> point to the same <code>zookeeperServers</code>.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+<span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
+<p>You also need to specify the cluster name (matching the name that you provided when you <a href="#initialize-cluster-metadata">initialize the metadata of the cluster</a>):</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clusterName</span>=<span class="hljs-string">pulsar-cluster-1</span>
+</code></pre>
+<p>In addition, you need to match the broker and web service ports provided when you initialize the metadata of the cluster (especially when you use a different port than the default):</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">brokerServicePort</span>=<span class="hljs-string">6650</span>
+<span class="hljs-attr">brokerServicePortTls</span>=<span class="hljs-string">6651</span>
+<span class="hljs-attr">webServicePort</span>=<span class="hljs-string">8080</span>
+<span class="hljs-attr">webServicePortTls</span>=<span class="hljs-string">8443</span>
+</code></pre>
+<blockquote>
+<p>If you deploy Pulsar in a one-node cluster, you should update the replication settings in <code>conf/broker.conf</code> to <code>1</code>.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Number of bookies to use when creating a ledger</span>
+<span class="hljs-attr">managedLedgerDefaultEnsembleSize</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of copies to store for each message</span>
+<span class="hljs-attr">managedLedgerDefaultWriteQuorum</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of guaranteed copies (acks to wait before write is complete)</span>
+<span class="hljs-attr">managedLedgerDefaultAckQuorum</span>=<span class="hljs-string">1</span>
+</code></pre>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="enable-pulsar-functions-optional"></a><a href="#enable-pulsar-functions-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Pulsar Functions (optional)</h3>
+<p>If you want to enable <a href="/docs/ko/2.8.3/functions-overview">Pulsar Functions</a>, you can follow the instructions as below:</p>
+<ol>
+<li><p>Edit <code>conf/broker.conf</code> to enable functions worker, by setting <code>functionsWorkerEnabled</code> to <code>true</code>.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre></li>
+<li><p>Edit <code>conf/functions_worker.yml</code> and set <code>pulsarFunctionsCluster</code> to the cluster name that you provide when you <a href="#initialize-cluster-metadata">initialize the metadata of the cluster</a>.</p>
+<pre><code class="hljs css language-conf">pulsarFunctionsCluster: pulsar-cluster<span class="hljs-number">-1</span>
+</code></pre></li>
+</ol>
+<p>If you want to learn more options about deploying the functions worker, check out <a href="/docs/ko/2.8.3/functions-worker">Deploy and manage functions worker</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="start-brokers"></a><a href="#start-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Brokers</h3>
+<p>You can then provide any other configuration changes that you want in the <a href="/docs/ko/2.8.3/reference-configuration#broker"><code>conf/broker.conf</code></a> file. Once you decide on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, you can start brokers either in the foreground or in the background, using nohup.</p>
+<p>You can start a broker in the foreground using the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-broker"><code>pulsar broker</code></a> command:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar broker
+</code></pre>
+<p>You can start a broker in the background using the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
+</code></pre>
+<p>Once you successfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!</p>
+<h2><a class="anchor" aria-hidden="true" id="connect-to-the-running-cluster"></a><a href="#connect-to-the-running-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect to the running cluster</h2>
+<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code>pulsar-client</code> tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.</p>
+<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="/docs/ko/2.8.3/reference-configuration#client"><code>conf/client.conf</code></a> in your binary package. You need to change the values for <code>webServiceUrl</code> and <code>brokerServiceUrl</code>, substituting <code>localhost</code> (which is the default), with the DNS name that you assign to your broker/bookie hosts. The following is an example:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://us-west.example.com:8080</span>
+<span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://us-west.example.com:6650</span>
+</code></pre>
+<blockquote>
+<p>If you do not have a DNS server, you can specify multi-host in service URL as follows:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://host1:8080,host2:8080,host3:8080</span>
+<span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://host1:6650,host2:6650,host3:6650</span>
+</code></pre>
+</blockquote>
+<p>Once that is complete, you can publish a message to the Pulsar topic:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce \
+  persistent://public/default/<span class="hljs-built_in">test</span> \
+  -n 1 \
+  -m <span class="hljs-string">"Hello Pulsar"</span>
+</code></pre>
+<blockquote>
+<p>You may need to use a different cluster name in the topic if you specify a cluster name other than <code>pulsar-cluster-1</code>.</p>
+</blockquote>
+<p>This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client consume \
+  persistent://public/default/<span class="hljs-built_in">test</span> \
+  -n 100 \
+  -s <span class="hljs-string">"consumer-test"</span> \
+  -t <span class="hljs-string">"Exclusive"</span>
+</code></pre>
+<p>Once you successfully publish the above message to the topic, you should see it in the standard output:</p>
+<pre><code class="hljs css language-bash">----- got message -----
+Hello Pulsar
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="run-functions"></a><a href="#run-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Functions</h2>
+<blockquote>
+<p>If you have <a href="#enable-pulsar-functions-optional">enabled</a> Pulsar Functions, you can try out the Pulsar Functions now.</p>
+</blockquote>
+<p>Create an ExclamationFunction <code>exclamation</code>.</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar examples/api-examples.jar \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+</code></pre>
+<p>Check whether the function runs as expected by <a href="/docs/ko/2.8.3/functions-deploying#triggering-pulsar-functions">triggering</a> the function.</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
+</code></pre>
+<p>You should see the following output:</p>
+<pre><code class="hljs css language-shell">hello world!
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.8.3/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster"><span>Bare metal multi-cluster</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#preparation">Preparation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#install-the-pulsar-binary-package">Install the Pulsar binary package</a></li><li><a href="#install-builtin-connectors-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">Install Builtin Connectors (optional)</a></a></li><li><a href="#install-tiered-storage-offloaders-optionalhttpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">Install Tiered Storage Offloaders (optional)</a></a></li><li><a href="#deploy-a-zookeeper-cluster">Deploy a ZooKeeper cluster</a></li><li><a href="#initialize-cluster-metadata">Initialize cluster metadata</a></li><li><a href="#deploy-a-bookkeeper-cluster">Deploy a BookKeeper cluster</a></li><li><a href="#deploy-pulsar-brokers">Deploy Pulsar brokers</a><ul class="toc-headings"><li><a href="#configure-brokers">Configure Brokers</a></li><li><a href="#enable-pulsar-functions-optional">Enable Pulsar Functions (optional)</a></li><li><a href="#start-brokers">Start Brokers</a></li></ul></li><li><a href="#connect-to-the-running-cluster">Connect to the running cluster</a></li><li><a href="#run-functions">Run Functions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

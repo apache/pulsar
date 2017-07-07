@@ -1,0 +1,1424 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar configuration · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Pulsar configuration · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/reference-configuration">English</a></li><li><a href="/docs/ja/2.8.3/reference-configuration">日本語</a></li><li><a href="/docs/fr/2.8.3/reference-configuration">Français</a></li><li><a href="/docs/zh-CN/2.8.3/reference-configuration">中文</a></li><li><a href="/docs/zh-TW/2.8.3/reference-configuration">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Reference</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar configuration</h1></header><article><div><span><style type="text/css">
+  table{
+    font-size: 80%;
+  }
+</style>
+<p>You can manage Pulsar configuration by configuration files in the <a href="https://github.com/apache/pulsar/tree/master/conf"><code>conf</code></a> directory of a Pulsar <a href="/docs/ko/2.8.3/standalone">installation</a>.</p>
+<ul>
+<li><a href="#bookkeeper">BookKeeper</a></li>
+<li><a href="#broker">Broker</a></li>
+<li><a href="#client">Client</a></li>
+<li><a href="#service-discovery">Service discovery</a></li>
+<li><a href="#log4j">Log4j</a></li>
+<li><a href="#log4j-shell">Log4j shell</a></li>
+<li><a href="#standalone">Standalone</a></li>
+<li><a href="#websocket">WebSocket</a></li>
+<li><a href="#pulsar-proxy">Pulsar proxy</a></li>
+<li><a href="#zookeeper">ZooKeeper</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
+<p>BookKeeper is a replicated log storage system that Pulsar uses for durable storage of all messages.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>bookiePort</td><td>The port on which the bookie server listens.</td><td>3181</td></tr>
+<tr><td>allowLoopback</td><td>Whether the bookie is allowed to use a loopback interface as its primary interface (that is the interface used to establish its identity). By default, loopback interfaces are not allowed to work as the primary interface. Using a loopback interface as the primary interface usually indicates a configuration error. For example, it’s fairly common in some VPS setups to not configure a hostname or to have the hostname resolve to <code>127.0.0.1</code>. If this is the case, then all bookies in the cluster will establish their identities as <code>127.0.0.1:3181</code> and only one will be able to join the cluster. For VPSs configured like this, you should explicitly set the listening interface.</td><td>false</td></tr>
+<tr><td>listeningInterface</td><td>The network interface on which the bookie listens. By default, the bookie listens on all interfaces.</td><td>eth0</td></tr>
+<tr><td>advertisedAddress</td><td>Configure a specific hostname or IP address that the bookie should use to advertise itself to clients. By default, the bookie advertises either its own IP address or hostname according to the <code>listeningInterface</code> and <code>useHostNameAsBookieID</code> settings.</td><td>N/A</td></tr>
+<tr><td>allowMultipleDirsUnderSameDiskPartition</td><td>Configure the bookie to enable/disable multiple ledger/index/journal directories in the same filesystem disk partition.</td><td>false</td></tr>
+<tr><td>minUsableSizeForIndexFileCreation</td><td>The minimum safe usable size available in index directory for bookie to create index files while replaying journal at the time of bookie starts in Readonly Mode (in bytes).</td><td>1073741824</td></tr>
+<tr><td>journalDirectory</td><td>The directory where BookKeeper outputs its write-ahead log (WAL).</td><td>data/bookkeeper/journal</td></tr>
+<tr><td>journalDirectories</td><td>Directories that BookKeeper outputs its write ahead log. Multiple directories are available, being separated by <code>,</code>. For example: <code>journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2</code>. If <code>journalDirectories</code> is set, the bookies skip <code>journalDirectory</code> and use this setting directory.</td><td>/tmp/bk-journal</td></tr>
+<tr><td>ledgerDirectories</td><td>The directory where BookKeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by <code>,</code>, for example <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>. Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.</td><td>data/bookkeeper/ledgers</td></tr>
+<tr><td>ledgerManagerType</td><td>The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> for more info.</td><td>hierarchical</td></tr>
+<tr><td>zkLedgersRootPath</td><td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.</td><td>/ledgers</td></tr>
+<tr><td>ledgerStorageClass</td><td>Ledger storage implementation class</td><td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td></tr>
+<tr><td>entryLogFilePreallocationEnabled</td><td>Enable or disable entry logger preallocation</td><td>true</td></tr>
+<tr><td>logSizeLimit</td><td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.</td><td>2147483648</td></tr>
+<tr><td>minorCompactionThreshold</td><td>Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.</td><td>0.2</td></tr>
+<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime.</td><td>3600</td></tr>
+<tr><td>majorCompactionThreshold</td><td>The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.</td><td>0.5</td></tr>
+<tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled. Note: should be greater than gcWaitTime.</td><td>86400</td></tr>
+<tr><td>readOnlyModeEnabled</td><td>If <code>readOnlyModeEnabled=true</code>, then on all full ledger disks, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown.</td><td>true</td></tr>
+<tr><td>forceReadOnlyBookie</td><td>Whether the bookie is force started in read only mode.</td><td>false</td></tr>
+<tr><td>persistBookieStatusEnabled</td><td>Persist the bookie status locally on the disks. So the bookies can keep their status upon restarts.</td><td>false</td></tr>
+<tr><td>compactionMaxOutstandingRequests</td><td>Sets the maximum number of entries that can be compacted without flushing. When compacting, the entries are written to the entrylog and the new offsets are cached in memory. Once the entrylog is flushed the index is updated with the new offsets. This parameter controls the number of entries added to the entrylog before a flush is forced. A higher value for this parameter means more memory will be used for offsets. Each offset consists of 3 longs. This parameter should not be modified unless you’re fully aware of the consequences.</td><td>100000</td></tr>
+<tr><td>compactionRate</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
+<tr><td>isThrottleByBytes</td><td>Throttle compaction by bytes or by entries.</td><td>false</td></tr>
+<tr><td>compactionRateByEntries</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
+<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction reads entries. The unit is bytes added per second.</td><td>1000000</td></tr>
+<tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
+<tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
+<tr><td>journalPreAllocSizeMB</td><td>How space to pre-allocate at a time in the journal.</td><td>16</td></tr>
+<tr><td>journalWriteBufferSizeKB</td><td>The of the write buffers used for the journal.</td><td>64</td></tr>
+<tr><td>journalRemoveFromPageCache</td><td>Whether pages should be removed from the page cache after force write.</td><td>true</td></tr>
+<tr><td>journalAdaptiveGroupWrites</td><td>Whether to group journal force writes, which optimizes group commit for higher throughput.</td><td>true</td></tr>
+<tr><td>journalMaxGroupWaitMSec</td><td>The maximum latency to impose on a journal write to achieve grouping.</td><td>1</td></tr>
+<tr><td>journalAlignmentSize</td><td>All the journal writes and commits should be aligned to given size</td><td>4096</td></tr>
+<tr><td>journalBufferedWritesThreshold</td><td>Maximum writes to buffer to achieve grouping</td><td>524288</td></tr>
+<tr><td>journalFlushWhenQueueEmpty</td><td>If we should flush the journal when journal queue is empty</td><td>false</td></tr>
+<tr><td>numJournalCallbackThreads</td><td>The number of threads that should handle journal callbacks</td><td>8</td></tr>
+<tr><td>openLedgerRereplicationGracePeriod</td><td>The grace period, in milliseconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon bookie failure.</td><td>30000</td></tr>
+<tr><td>rereplicationEntryBatchSize</td><td>The number of max entries to keep in fragment for re-replication</td><td>100</td></tr>
+<tr><td>autoRecoveryDaemonEnabled</td><td>Whether the bookie itself can start auto-recovery service.</td><td>true</td></tr>
+<tr><td>lostBookieRecoveryDelay</td><td>How long to wait, in seconds, before starting auto recovery of a lost bookie.</td><td>0</td></tr>
+<tr><td>gcWaitTime</td><td>How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.</td><td>900000</td></tr>
+<tr><td>gcOverreplicatedLedgerWaitTime</td><td>How long the interval to trigger next garbage collection of overreplicated ledgers, in milliseconds. This should not be run very frequently since we read the metadata for all the ledgers on the bookie from zk.</td><td>86400000</td></tr>
+<tr><td>flushInterval</td><td>How long the interval to flush ledger index pages to disk, in milliseconds. Flushing index files will introduce much random disk I/O. If separating journal dir and ledger dirs each on different devices, flushing would not affect performance. But if putting journal dir and ledger dirs on same device, performance degrade significantly on too frequent flushing. You can consider increment flush interval to get better performance, but you need to pay more time on bookie server restart after failure.</td><td>60000</td></tr>
+<tr><td>bookieDeathWatchInterval</td><td>Interval to watch whether bookie is dead or not, in milliseconds</td><td>1000</td></tr>
+<tr><td>allowStorageExpansion</td><td>Allow the bookie storage to expand. Newly added ledger and index dirs must be empty.</td><td>false</td></tr>
+<tr><td>zkServers</td><td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.</td><td>localhost:2181</td></tr>
+<tr><td>zkTimeout</td><td>ZooKeeper client session timeout in milliseconds Bookie server will exit if it received SESSION_EXPIRED because it was partitioned off from ZooKeeper for more than the session timeout JVM garbage collection, disk I/O will cause SESSION_EXPIRED. Increment this value could help avoiding this issue</td><td>30000</td></tr>
+<tr><td>zkRetryBackoffStartMs</td><td>The start time that the Zookeeper client backoff retries in milliseconds.</td><td>1000</td></tr>
+<tr><td>zkRetryBackoffMaxMs</td><td>The maximum time that the Zookeeper client backoff retries in milliseconds.</td><td>10000</td></tr>
+<tr><td>zkEnableSecurity</td><td>Set ACLs on every node written on ZooKeeper, allowing users to read and write BookKeeper metadata stored on ZooKeeper. In order to make ACLs work you need to setup ZooKeeper JAAS authentication. All the bookies and Client need to share the same user, and this is usually done using Kerberos authentication. See ZooKeeper documentation.</td><td>false</td></tr>
+<tr><td>httpServerEnabled</td><td>The flag enables/disables starting the admin http server.</td><td>false</td></tr>
+<tr><td>httpServerPort</td><td>The HTTP server port to listen on. By default, the value is <code>8080</code>. If you want to keep it consistent with the Prometheus stats provider, you can set it to <code>8000</code>.</td><td>8080</td></tr>
+<tr><td>httpServerClass</td><td>The http server class.</td><td>org.apache.bookkeeper.http.vertx.VertxHttpServer</td></tr>
+<tr><td>serverTcpNoDelay</td><td>This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.</td><td>true</td></tr>
+<tr><td>serverSockKeepalive</td><td>This setting is used to send keep-alive messages on connection-oriented sockets.</td><td>true</td></tr>
+<tr><td>serverTcpLinger</td><td>The socket linger timeout on close. When enabled, a close or shutdown will not return until all queued messages for the socket have been successfully sent or the linger timeout has been reached. Otherwise, the call returns immediately and the closing is done in the background.</td><td>0</td></tr>
+<tr><td>byteBufAllocatorSizeMax</td><td>The maximum buf size of the received ByteBuf allocator.</td><td>1048576</td></tr>
+<tr><td>nettyMaxFrameSizeBytes</td><td>The maximum netty frame size in bytes. Any message received larger than this will be rejected.</td><td>5253120</td></tr>
+<tr><td>openFileLimit</td><td>Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.</td><td>0</td></tr>
+<tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.</td><td>8192</td></tr>
+<tr><td>pageLimit</td><td>How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
+<tr><td>readOnlyModeEnabled</td><td>If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.</td><td>true</td></tr>
+<tr><td>diskUsageThreshold</td><td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).</td><td>0.95</td></tr>
+<tr><td>diskCheckInterval</td><td>Disk check interval in milli seconds, interval to check the ledger dirs usage.</td><td>10000</td></tr>
+<tr><td>auditorPeriodicCheckInterval</td><td>Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.</td><td>604800</td></tr>
+<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>true</td></tr>
+<tr><td>auditorPeriodicBookieCheckInterval</td><td>The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.</td><td>86400</td></tr>
+<tr><td>numAddWorkerThreads</td><td>The number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
+<tr><td>numReadWorkerThreads</td><td>The number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
+<tr><td>numHighPriorityWorkerThreads</td><td>The umber of threads that should be used for high priority requests (i.e. recovery reads and adds, and fencing).</td><td>8</td></tr>
+<tr><td>maxPendingReadRequestsPerThread</td><td>If read workers threads are enabled, limit the number of pending requests, to avoid the executor queue to grow indefinitely.</td><td>2500</td></tr>
+<tr><td>maxPendingAddRequestsPerThread</td><td>The limited number of pending requests, which is used to avoid the executor queue to grow indefinitely when add workers threads are enabled.</td><td>10000</td></tr>
+<tr><td>isForceGCAllowWhenNoSpace</td><td>Whether force compaction is allowed when the disk is full or almost full. Forcing GC could get some space back, but could also fill up the disk space more quickly. This is because new log files are created before GC, while old garbage log files are deleted after GC.</td><td>false</td></tr>
+<tr><td>verifyMetadataOnGC</td><td>True if the bookie should double check <code>readMetadata</code> prior to GC.</td><td>false</td></tr>
+<tr><td>flushEntrylogBytes</td><td>Entry log flush interval in bytes. Flushing in smaller chunks but more frequently reduces spikes in disk I/O. Flushing too frequently may also affect performance negatively.</td><td>268435456</td></tr>
+<tr><td>readBufferSizeBytes</td><td>The number of bytes we should use as capacity for BufferedReadChannel.</td><td>4096</td></tr>
+<tr><td>writeBufferSizeBytes</td><td>The number of bytes used as capacity for the write buffer</td><td>65536</td></tr>
+<tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ip address for the registration.</td><td>false</td></tr>
+<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>). If you set the <code>bookieId</code>, then the <code>useHostNameAsBookieID</code> does not take effect.<br><br>The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>N/A</td></tr>
+<tr><td>allowEphemeralPorts</td><td>Whether the bookie is allowed to use an ephemeral port (port 0) as its server port. By default, an ephemeral port is not allowed. Using an ephemeral port as the service port usually indicates a configuration error. However, in unit tests, using an ephemeral port will address port conflict problems and allow running tests in parallel.</td><td>false</td></tr>
+<tr><td>enableLocalTransport</td><td>Whether the bookie is allowed to listen for the BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
+<tr><td>disableServerSocketBind</td><td>Whether the bookie is allowed to disable bind on network interfaces. This bookie will be available only to BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
+<tr><td>skipListArenaChunkSize</td><td>The number of bytes that we should use as chunk allocation for <code>org.apache.bookkeeper.bookie.SkipListArena</code>.</td><td>4194304</td></tr>
+<tr><td>skipListArenaMaxAllocSize</td><td>The maximum size that we should allocate from the skiplist arena. Allocations larger than this should be allocated directly by the VM to avoid fragmentation.</td><td>131072</td></tr>
+<tr><td>bookieAuthProviderFactoryClass</td><td>The factory class name of the bookie authentication provider. If this is null, then there is no authentication.</td><td>null</td></tr>
+<tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
+<tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log. For good performance, it should be big enough to hold a substantial amount of entries in the flush interval.</td><td>25% of direct memory</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens. By default, it is allocated to 25% of the available direct memory.</td><td>N/A</td></tr>
+<tr><td>dbStorage_readAheadCacheBatchSize</td><td>How many entries to pre-fill in cache after a read cache miss</td><td>1000</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases. By default, it uses 10% of direct memory.</td><td>N/A</td></tr>
+<tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
+<tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
+<tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
+<tr><td>dbStorage_rocksDB_bloomFilterBitsPerKey</td><td></td><td>10</td></tr>
+<tr><td>dbStorage_rocksDB_numLevels</td><td></td><td>-1</td></tr>
+<tr><td>dbStorage_rocksDB_numFilesInLevel0</td><td></td><td>4</td></tr>
+<tr><td>dbStorage_rocksDB_maxSizeInLevel1MB</td><td></td><td>256</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<p>Pulsar brokers are responsible for handling incoming messages from producers, dispatching messages to consumers, replicating data between clusters, and more.</p>
+<table spaces-before="0">
+  <tr>
+    <th>
+      Name
+    </th>
+<pre><code class="hljs">&lt;th&gt;
+  Description
+&lt;/th&gt;
+
+&lt;th&gt;
+  Default
+&lt;/th&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      advertisedListeners
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify multiple advertised listeners for the broker.&lt;br&gt;&lt;br&gt;The format is &lt;code&gt;&amp;lt;listener_name&amp;gt;:pulsar://&amp;lt;host&amp;gt;:&amp;lt;port&amp;gt;&lt;/code&gt;.&lt;br&gt;&lt;br&gt;If there are multiple listeners, separate them with commas.&lt;br&gt;&lt;br&gt;&lt;strong x-id=&quot;1&quot;&gt;Note&lt;/strong&gt;: do not use this configuration with &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;. If the value of this configuration is empty, the broker uses &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+  /
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      internalListenerName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the internal listener name for the broker.&lt;br&gt;&lt;br&gt;&lt;strong x-id=&quot;1&quot;&gt;Note&lt;/strong&gt;: the listener name must be contained in &lt;code&gt;advertisedListeners&lt;/code&gt;.&lt;br&gt;&lt;br&gt; If the value of this configuration is empty, the broker uses the first listener as the internal listener.
+&lt;/td&gt;
+
+&lt;td&gt;
+  /
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      authenticateOriginalAuthData
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  If this flag is set to &lt;code&gt;true&lt;/code&gt;, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      enablePersistentTopics
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether persistent topics are enabled on the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      enableNonPersistentTopics
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether non-persistent topics are enabled on the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      functionsWorkerEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether the Pulsar Functions worker service is enabled in the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      exposePublisherStats
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether to enable topic level metrics.
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      statsUpdateFrequencyInSecs
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      statsUpdateInitialDelayInSecs
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zookeeperServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper quorum connection string
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperCacheExpirySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  ZooKeeper cache expiry time in seconds
+&lt;/td&gt;
+
+&lt;td&gt;
+  300
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      configurationStoreServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configuration store connection string (as a comma-separated list)
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port
+&lt;/td&gt;
+
+&lt;td&gt;
+  6650
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port for TLS
+&lt;/td&gt;
+
+&lt;td&gt;
+  6651
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTP request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8080
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTPS request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8443
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketServiceEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the WebSocket API service in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketNumIoThreads
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of IO threads in Pulsar Client used in WebSocket proxy.
+&lt;/td&gt;
+
+&lt;td&gt;
+  8
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketConnectionsPerBroker
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of connections per Broker in Pulsar Client used in WebSocket proxy.
+&lt;/td&gt;
+
+&lt;td&gt;
+  8
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketSessionIdleTimeoutMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Time in milliseconds that idle WebSocket session times out.
+&lt;/td&gt;
+
+&lt;td&gt;
+  300000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketMaxTextFrameSize
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum size of a text message during parsing in WebSocket proxy.
+&lt;/td&gt;
+
+&lt;td&gt;
+  1048576
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      exposeTopicLevelMetricsInPrometheus
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether to enable topic level metrics.
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      exposeConsumerLevelMetricsInPrometheus
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether to enable consumer level metrics.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      jvmGCMetricsLoggerClassName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.
+&lt;/td&gt;
+
+&lt;td&gt;
+  N/A
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      bindAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service binds on, default is 0.0.0.0.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0.0.0.0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      advertisedAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service advertises to the outside world. If not set, the value of &lt;code&gt;InetAddress.getLocalHost().getHostName()&lt;/code&gt; is used.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clusterName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Name of the cluster to which this broker belongs to
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxTenants
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum number of tenants that can be created in each Pulsar cluster. When the number of tenants reaches the threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxNamespacesPerTenant
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum number of namespaces that can be created in each tenant. When the number of namespaces reaches this threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationMaxNumberOfProducers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum number of producers for which information will be stored for deduplication purposes.
+&lt;/td&gt;
+
+&lt;td&gt;
+  10000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEntriesInterval
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+&lt;/td&gt;
+
+&lt;td&gt;
+  1000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationSnapshotIntervalSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The time period after which a deduplication informational snapshot is taken. It runs simultaneously with &lt;code&gt;brokerDeduplicationEntriesInterval&lt;/code&gt;.
+&lt;/td&gt;
+
+&lt;td&gt;
+  120
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationProducerInactivityTimeoutMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
+&lt;/td&gt;
+
+&lt;td&gt;
+  360
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInMsg
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default messages per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInByte
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default bytes per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message-byte dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperSessionTimeoutMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper session timeout in milliseconds
+&lt;/td&gt;
+
+&lt;td&gt;
+  30000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerShutdownTimeoutMs
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Time to wait for broker graceful shutdown. After this time elapses, the process will be killed
+&lt;/td&gt;
+
+&lt;td&gt;
+  60000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      skipBrokerShutdownOnOOM
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Flag to skip broker shutdown when broker handles Out of memory error.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable backlog quota check. Enforces action on topic when the quota is reached
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for topics that have reached the quota
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaDefaultLimitGB
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1.
+&lt;/td&gt;
+
+&lt;td&gt;
+  -1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaDefaultRetentionPolicy
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The defaulted backlog quota retention policy. By Default, it is &lt;code&gt;producer_request_hold&lt;/code&gt;. &lt;li&gt;'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out)&lt;/li&gt; &lt;li&gt;'producer_exception' Policy which throws `javax.jms.ResourceAllocationException` to the producer &lt;/li&gt;&lt;li&gt;'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog&lt;/li&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+  producer_request_hold
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable topic auto creation if a new producer or consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreationType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)
+&lt;/td&gt;
+
+&lt;td&gt;
+  non-partitioned
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoSubscriptionCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable subscription auto creation if a new consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      defaultNumPartitions
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of partitioned topics that is allowed to be automatically created if &lt;code&gt;allowAutoTopicCreationType&lt;/code&gt; is partitioned
+&lt;/td&gt;
+
+&lt;td&gt;
+  1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the deletion of inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsFrequencySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMode
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the mode to delete inactive topics. &lt;li&gt; &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;: delete the topic which has no subscriptions or active producers. &lt;li&gt; &lt;code&gt;delete_when_subscriptions_caught_up&lt;/code&gt;: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers.
+&lt;/td&gt;
+
+&lt;td&gt;
+  &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMaxInactiveDurationSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the maximum duration for inactive topics. If it is not specified, the &lt;code&gt;brokerDeleteInactiveTopicsFrequencySeconds&lt;/code&gt; parameter is adopted.
+&lt;/td&gt;
+
+&lt;td&gt;
+  N/A
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      forceDeleteTenantAllowed
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable you to delete a tenant forcefully.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      forceDeleteNamespaceAllowed
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable you to delete a namespace forcefully.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      messageExpiryCheckIntervalInMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The frequency of proactively checking and purging expired messages.
+&lt;/td&gt;
+
+&lt;td&gt;
+  5
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServiceCompactionMonitorIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Interval between checks to determine whether topics with compaction policies need compaction.
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+</table> brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.|N/A |delayedDeliveryEnabled| Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.|true| |delayedDeliveryTickTimeMillis|Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.|1000| |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000| |clientLibraryVersionCheckEnabled|  Enable check for minimum allowed client library version |false| |clientLibraryVersionCheckAllowUnversioned| Allow client libraries with no version information  |true| |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks || |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false| |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0| | maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 | | maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 | | maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 | | maxConsumersPerSubscription | Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 | |tlsEnabled|Deprecated - Use 
+<p><code>webServicePortTls</code> and <code>brokerServicePortTls</code> instead. |false| |tlsCertificateFilePath|  Path for the TLS certificate file || |tlsKeyFilePath|  Path for the TLS private key file || |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. || |tlsAllowInsecureConnection| Accept untrusted TLS certificate from client. If it is set to <code>true</code>, a client with a cert which cannot be verified with the 'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication. |false| |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.3</code>, <code>TLSv1.2</code> || |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code>|| |tlsEnabledWithKeyStore| Enable TLS with KeyStore type configuration in broker |false| |tlsProvider| TLS Provider for KeyStore type || |tlsKeyStoreType| LS KeyStore type configuration in broker: JKS, PKCS12 |JKS| |tlsKeyStore| TLS KeyStore path in broker || |tlsKeyStorePassword| TLS KeyStore password for broker || |brokerClientTlsEnabledWithKeyStore| Whether internal client use KeyStore type to authenticate with Pulsar brokers |false| |brokerClientSslProvider| The TLS Provider used by internal client to authenticate with other Pulsar brokers || |brokerClientTlsTrustStoreType| TLS TrustStore type configuration for internal client: JKS, PKCS12, used by the internal client to authenticate with Pulsar brokers |JKS| |brokerClientTlsTrustStore| TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers || |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers || |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]|| |brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  <code>TLSv1.3</code>, <code>TLSv1.2</code> || |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled. |0| |tokenSettingPrefix| Configure the prefix of the token related setting like <code>tokenSecretKey</code>, <code>tokenPublicKey</code>, <code>tokenAuthClaim</code>, <code>tokenPublicAlg</code>, <code>tokenAudienceClaim</code>, and <code>tokenAudience</code>. || |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.|| |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.|| |tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>) |RS256| |tokenAuthClaim| Specify which of the token's claims will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The default &quot;sub&quot; claim will be used if this is left blank || |tokenAudienceClaim| The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;, that will be used to get the audience from token. If not set, audience will not be verified. || |tokenAudience| The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token, need contains this. || |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000| |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000| |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true| |subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value <strong>greater than 0</strong> deletes inactive subscriptions automatically.<br/>Setting this configuration to <strong>0</strong> does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each <strong>namespace</strong> using the <a href="https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-"><code>pulsar-admin namespaces set-subscription-expiration-time options</code> command</a>. | 0 | |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000| |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000| |authenticationEnabled| Enable authentication |false| |authenticationProviders| Authentication provider name list, which is comma separated list of class names  || | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 | |authorizationEnabled|  Enforce authorization |false| |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics || |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  || |brokerClientAuthenticationParameters||| |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  || |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false| |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory| |isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false| | topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 | |offloadersDirectory|The directory for all the offloader implementations.|./offloaders| |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>. The metadata service uri list can also be semicolon separated values like below: <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers || |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies || |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementation specifics parameters name and values  || |bookkeeperClientAuthenticationParameters||| |bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  || |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30| |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0| |bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16| |bookkeeperClientHealthCheckEnabled|  Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won’t be created on these bookies  |true| |bookkeeperClientHealthCheckIntervalSeconds||60| |bookkeeperClientHealthCheckErrorThresholdPerInterval||5| |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800| |bookkeeperClientRackawarePolicyEnabled|  Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble  |true| |bookkeeperClientRegionawarePolicyEnabled|  Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored  |false| |bookkeeperClientMinNumRacksPerWriteQuorum|  Minimum number of racks per write quorum. BK rack-aware bookie selection policy will try to get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.  |2| |bookkeeperClientEnforceMinNumRacksPerWriteQuorum|  Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a writeQuorum. If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.  |false| |bookkeeperClientReorderReadSequenceEnabled|  Enable/disable reordering read sequence on reading entries.  |false| |bookkeeperClientIsolationGroups| Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker  || |bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  || |bookkeeperClientMinAvailableBookiesInIsolationGroups| Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.  || |bookkeeperClientGetBookieInfoIntervalSeconds| Set the interval to periodically check bookie info |86400| |bookkeeperClientGetBookieInfoRetryIntervalSeconds|  Set the interval to retry a failed bookie info lookup |60| |bookkeeperEnableStickyReads | Enable/disable having read operations for a ledger to be sticky to a single bookie. If this flag is enabled, the client will use one single bookie (by preference) to read  all entries for a ledger. | true | |managedLedgerDefaultEnsembleSize|  Number of bookies to use when creating a ledger |2| |managedLedgerDefaultWriteQuorum| Number of copies to store for each message  |2| |managedLedgerDefaultAckQuorum| Number of guaranteed copies (acks to wait before write is complete) |2| |managedLedgerCacheSizeMB|  Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. By default, uses 1/5th of available direct memory || |managedLedgerCacheCopyEntries| Whether we should make a copy of the entry payloads when inserting in cache| false| |managedLedgerCacheEvictionWatermark| Threshold to which bring down the cache level when eviction is triggered  |0.9| |managedLedgerCacheEvictionFrequency| Configure the cache eviction frequency for the managed ledger cache (evictions/sec) | 100.0 | |managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 | |managedLedgerCursorBackloggedThreshold| Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive. | 1000| |managedLedgerDefaultMarkDeleteRateLimit| Rate limit the amount of writes per second generated by consumer acking the messages  |1.0| |managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered after the min rollover time has passed and one of the following conditions is true: <ul><li>The max rollover time has been reached</li><li>The max entries have been written to the ledger</li><li>The max ledger size has been written to the ledger</li></ul>|50000| |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10| |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240| |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000| |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400| |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000| |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false| |loadBalancerEnabled| Enable load balancer  |true| |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection || |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10| |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15| |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1| |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30| |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30| |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000| |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1| |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85| |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15| |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65| |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false| |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100| |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128| |replicationMetricsEnabled| Enable replication metrics  |true| |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16| |replicationProducerQueueSize|  Replicator producer queue size  |1000| |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl|| |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false| |brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use <code>brokerDeleteInactiveTopicsFrequencySeconds</code>.|60| |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true| |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider| |defaultRetentionTimeInMinutes| Default message retention time  |0| |defaultRetentionSizeInMB|  Default retention size  |0| |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30| |bootstrapNamespaces| The bootstrap name. | N/A | |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl| |supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]| |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide| |managedLedgerOffloadDriver| The directory for all the offloader implementations <code>offloadersDirectory=./offloaders</code>. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -&gt; Api&amp;auth -&gt; APIs). || |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2| |managedLedgerOffloadPrefetchRounds|The maximum prefetch rounds for ledger reading for offloading.|1| |managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true| |managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000| |managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)| |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  || |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into || |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) || |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864| |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576| |gcsManagedLedgerOffloadRegion|For Google Cloud Storage ledger offload, region where offload bucket is located. Go to this page for more details: <a href="https://cloud.google.com/storage/docs/bucket-locations">https://cloud.google.com/storage/docs/bucket-locations</a> .|N/A| |gcsManagedLedgerOffloadBucket|For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into.|N/A| |gcsManagedLedgerOffloadMaxBlockSizeInBytes|For Google Cloud Storage ledger offload, the maximum block size in bytes. (64MB by default, 5MB minimum)|67108864| |gcsManagedLedgerOffloadReadBufferSizeInBytes|For Google Cloud Storage ledger offload, Read buffer size in bytes. (1MB by default)|1048576| |gcsManagedLedgerOffloadServiceAccountKeyFile|For Google Cloud Storage, path to json file containing service account credentials. For more details, see the &quot;Service Accounts&quot; section of <a href="https://support.google.com/googleapi/answer/6158849">https://support.google.com/googleapi/answer/6158849</a> .|N/A| |fileSystemProfilePath|For File System Storage, file system profile path.|../conf/filesystem_offload_core_site.xml| |fileSystemURI|For File System Storage, file system uri.|N/A| |s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 || |s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload| | acknowledgmentAtBatchIndexLevelEnabled | Enable or disable the batch index acknowledgement. | false | |enableReplicatedSubscriptions|Whether to enable tracking of replicated subscriptions state across clusters.|true| |replicatedSubscriptionsSnapshotFrequencyMillis|The frequency of snapshots for replicated subscriptions tracking.|1000| |replicatedSubscriptionsSnapshotTimeoutSeconds|The timeout for building a consistent snapshot for tracking replicated subscriptions state.|30| |replicatedSubscriptionsSnapshotMaxCachedPerSubscription|The maximum number of snapshot to be cached per subscription.|10| |maxMessagePublishBufferSizeInMB|The maximum memory size for a broker to handle messages that are sent by producers. If the processing message size exceeds this value, the broker stops reading data from the connection. The processing messages refer to the messages that are sent to the broker but the broker has not sent response to the client. Usually the messages are waiting to be written to bookies. It is shared across all the topics running in the same broker. The value <code>-1</code> disables the memory limitation. By default, it is 50% of direct memory.|N/A| |messagePublishBufferCheckIntervalInMillis|Interval between checks to see if message publish buffer size exceeds the maximum. Use <code>0</code> or negative number to disable the max publish buffer limiting.|100| |retentionCheckIntervalInSeconds|Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.|120| | maxMessageSize | Set the maximum size of a message. | 5242880 | | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false | | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |<br>
+|haProxyProtocolEnabled | Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol. |false| | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 | |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared | / managedLedgerInfoCompressionType / ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY), if value is NONE or invalid, the managedLedgerInfo will not be compressed. Notice, after enable this configuration, if you want to degrade broker, you should change the configuration to <code>NONE</code> and make sure all ledger metadata are saved without compression. | None |</p>
+<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
+<p>You can use the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>webServiceUrl</td><td>The web URL for the cluster.</td><td><a href="http://localhost:8080/">http://localhost:8080/</a></td></tr>
+<tr><td>brokerServiceUrl</td><td>The Pulsar protocol URL for the cluster.</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
+<tr><td>authPlugin</td><td>The authentication plugin.</td><td></td></tr>
+<tr><td>authParams</td><td>The authentication parameters for the cluster, as a comma-separated string.</td><td></td></tr>
+<tr><td>useTls</td><td>Whether to enforce the TLS authentication in the cluster.</td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td>Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority.</td><td>false</td></tr>
+<tr><td>tlsEnableHostnameVerification</td><td>Whether the server hostname must match the common name of the certificate that is used by the server.</td><td>false</td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
+<tr><td>useKeyStoreTls</td><td>Enable TLS with KeyStore type configuration in the broker.</td><td>false</td></tr>
+<tr><td>tlsTrustStoreType</td><td>TLS TrustStore type configuration. <li>JKS <li>PKCS12</td><td>JKS</td></tr>
+<tr><td>tlsTrustStore</td><td>TLS TrustStore path.</td><td></td></tr>
+<tr><td>tlsTrustStorePassword</td><td>TLS TrustStore password.</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>zookeeperServers</td><td>Zookeeper quorum connection string (comma-separated)</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
+<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout</td><td>30000</td></tr>
+<tr><td>servicePort</td><td>Port to use to server binary-proto request</td><td>6650</td></tr>
+<tr><td>servicePortTls</td><td>Port to use to server binary-proto-tls request</td><td>6651</td></tr>
+<tr><td>webServicePort</td><td>Port that discovery service listen on</td><td>8080</td></tr>
+<tr><td>webServicePortTls</td><td>Port to use to server HTTPS request</td><td>8443</td></tr>
+<tr><td>bindOnLocalhost</td><td>Control whether to bind directly on localhost rather than on normal hostname</td><td>false</td></tr>
+<tr><td>authenticationEnabled</td><td>Enable authentication</td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td>Authentication provider name list, which is comma separated list of class names (comma-separated)</td><td></td></tr>
+<tr><td>authorizationEnabled</td><td>Enforce authorization</td><td>false</td></tr>
+<tr><td>superUserRoles</td><td>Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated)</td><td></td></tr>
+<tr><td>tlsEnabled</td><td>Enable TLS</td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
+<p>You can set the log level and configuration in the  <a href="https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155">log4j2.yaml</a> file. The following logging configuration parameters are available.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar.root.logger</td><td>WARN,CONSOLE</td></tr>
+<tr><td>pulsar.log.dir</td><td>로그</td></tr>
+<tr><td>pulsar.log.file</td><td>pulsar.log</td></tr>
+<tr><td>log4j.rootLogger</td><td>${pulsar.root.logger}</td></tr>
+<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
+<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE</td><td>org.apache.log4j.DailyRollingFileAppender</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.File</td><td>${pulsar.log.dir}/${pulsar.log.file}</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n</td></tr>
+<tr><td>log4j.appender.TRACEFILE</td><td>org.apache.log4j.FileAppender</td></tr>
+<tr><td>log4j.appender.TRACEFILE.Threshold</td><td>TRACE</td></tr>
+<tr><td>log4j.appender.TRACEFILE.File</td><td>pulsar-trace.log</td></tr>
+<tr><td>log4j.appender.TRACEFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.TRACEFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>Note: 'topic' in log4j2.appender is configurable. - If you want to append all logs to a single topic, set the same topic name. - If you want to append logs to different topics, you can set different topic names.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="log4j-shell"></a><a href="#log4j-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j shell</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>bookkeeper.root.logger</td><td>ERROR,CONSOLE</td></tr>
+<tr><td>log4j.rootLogger</td><td>${bookkeeper.root.logger}</td></tr>
+<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
+<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ABSOLUTE} %-5p %m%n</td></tr>
+<tr><td>log4j.logger.org.apache.zookeeper</td><td>ERROR</td></tr>
+<tr><td>log4j.logger.org.apache.bookkeeper</td><td>ERROR</td></tr>
+<tr><td>log4j.logger.org.apache.bookkeeper.bookie.BookieShell</td><td>INFO</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Standalone</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>authenticateOriginalAuthData</td><td>If this flag is set to <code>true</code>, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
+<tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
+<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
+<tr><td>webServicePort</td><td>The port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
+<tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
+<tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
+<tr><td>numAcceptorThreads</td><td>Number of threads to use for Netty Acceptor</td><td>1</td></tr>
+<tr><td>numIOThreads</td><td>Number of threads to use for Netty IO</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>numHttpServerThreads</td><td>Number of threads to use for HTTP requests processing</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>isRunningStandalone</td><td>This flag controls features that are meant to be used when running in standalone mode.</td><td>N/A</td></tr>
+<tr><td>clusterName</td><td>The name of the cluster that this broker belongs to.</td><td>standalone</td></tr>
+<tr><td>failureDomainsEnabled</td><td>Enable cluster's failure-domain which can distribute brokers into logical region.</td><td>false</td></tr>
+<tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds.</td><td>30000</td></tr>
+<tr><td>zooKeeperOperationTimeoutSeconds</td><td>ZooKeeper operation timeout in seconds.</td><td>30</td></tr>
+<tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>60000</td></tr>
+<tr><td>skipBrokerShutdownOnOOM</td><td>Flag to skip broker shutdown when broker handles Out of memory error.</td><td>false</td></tr>
+<tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
+<tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
+<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1.</td><td>-1</td></tr>
+<tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
+<tr><td>maxPendingPublishRequestsPerConnection</td><td>Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory</td><td>1000</td></tr>
+<tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>
+<tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
+<tr><td>subscriptionExpirationTimeMinutes</td><td>How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically</td><td>0</td></tr>
+<tr><td>subscriptionRedeliveryTrackerEnabled</td><td>Enable subscription message redelivery tracker to send redelivery count to consumer.</td><td>true</td></tr>
+<tr><td>subscriptionKeySharedEnable</td><td>Whether to enable the Key_Shared subscription.</td><td>true</td></tr>
+<tr><td>subscriptionKeySharedUseConsistentHashing</td><td>In Key_Shared subscription type, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers.</td><td>false</td></tr>
+<tr><td>subscriptionKeySharedConsistentHashingReplicaPoints</td><td>In Key_Shared subscription type, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers.</td><td>100</td></tr>
+<tr><td>subscriptionExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired subscription</td><td>5</td></tr>
+<tr><td>brokerDeduplicationEnabled</td><td>Set the default behavior for message deduplication in the broker. This can be overridden per-namespace. If it is enabled, the broker rejects messages that are already stored in the topic.</td><td>false</td></tr>
+<tr><td>brokerDeduplicationMaxNumberOfProducers</td><td>Maximum number of producer information that it's going to be persisted for deduplication purposes</td><td>10000</td></tr>
+<tr><td>brokerDeduplicationEntriesInterval</td><td>Number of entries after which a deduplication information snapshot is taken. A greater interval leads to less snapshots being taken though it would increase the topic recovery time, when the entries published after the snapshot need to be replayed.</td><td>1000</td></tr>
+<tr><td>brokerDeduplicationProducerInactivityTimeoutMinutes</td><td>The time of inactivity (in minutes) after which the broker discards deduplication information related to a disconnected producer.</td><td>360</td></tr>
+<tr><td>defaultNumberOfNamespaceBundles</td><td>When a namespace is created without specifying the number of bundles, this value is used as the default setting.</td><td>4</td></tr>
+<tr><td>clientLibraryVersionCheckEnabled</td><td>Enable checks for minimum allowed client library version.</td><td>false</td></tr>
+<tr><td>clientLibraryVersionCheckAllowUnversioned</td><td>Allow client libraries with no version information</td><td>true</td></tr>
+<tr><td>statusFilePath</td><td>The path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td>/usr/local/apache/htdocs</td></tr>
+<tr><td>maxUnackedMessagesPerConsumer</td><td>The maximum number of unacknowledged messages allowed to be received by consumers on a shared subscription. The broker will stop sending messages to a consumer once this limit is reached or until the consumer begins acknowledging messages. A value of 0 disables the unacked message limit check and thus allows consumers to receive messages without any restrictions.</td><td>50000</td></tr>
+<tr><td>maxUnackedMessagesPerSubscription</td><td>The same as above, except per subscription rather than per consumer.</td><td>200000</td></tr>
+<tr><td>maxUnackedMessagesPerBroker</td><td>Maximum number of unacknowledged messages allowed per broker. Once this limit reaches, the broker stops dispatching messages to all shared subscriptions which has a higher number of unacknowledged messages until subscriptions start acknowledging messages back and unacknowledged messages count reaches to limit/2. When the value is set to 0, unacknowledged message limit check is disabled and broker does not block dispatchers.</td><td>0</td></tr>
+<tr><td>maxUnackedMessagesPerSubscriptionOnBrokerBlocked</td><td>Once the broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which have higher unacknowledged messages than this percentage limit and subscription does not receive any new messages until that subscription acknowledges messages back.</td><td>0.16</td></tr>
+<tr><td>unblockStuckSubscriptionEnabled</td><td>Broker periodically checks if subscription is stuck and unblock if flag is enabled.</td><td>false</td></tr>
+<tr><td>zookeeperSessionExpiredPolicy</td><td>There are two policies when ZooKeeper session expired happens, &quot;shutdown&quot; and &quot;reconnect&quot;. If it is set to &quot;shutdown&quot; policy, when ZooKeeper session expired happens, the broker is shutdown. If it is set to &quot;reconnect&quot; policy, the broker tries to reconnect to ZooKeeper server and re-register metadata to ZooKeeper. Note: the &quot;reconnect&quot; policy is an experiment feature.</td><td>shutdown</td></tr>
+<tr><td>topicPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. (Disable publish throttling with value 0)</td><td>10</td></tr>
+<tr><td>brokerPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled.</td><td>50</td></tr>
+<tr><td>brokerPublisherThrottlingMaxMessageRate</td><td>Maximum rate (in 1 second) of messages allowed to publish for a broker if the message rate limiting is enabled. When the value is set to 0, message rate limiting is disabled.</td><td>0</td></tr>
+<tr><td>brokerPublisherThrottlingMaxByteRate</td><td>Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled.</td><td>0</td></tr>
+<tr><td>subscribeThrottlingRatePerConsumer</td><td>Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.</td><td>0</td></tr>
+<tr><td>subscribeRatePeriodPerConsumerInSecond</td><td>Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.</td><td>30</td></tr>
+<tr><td>dispatchThrottlingRatePerTopicInMsg</td><td>Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingOnNonBacklogConsumerEnabled</td><td>Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs.</td><td>true</td></tr>
+<tr><td>dispatcherMaxReadBatchSize</td><td>The maximum number of entries to read from BookKeeper. By default, it is 100 entries.</td><td>100</td></tr>
+<tr><td>dispatcherMaxReadSizeBytes</td><td>The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.</td><td>5242880</td></tr>
+<tr><td>dispatcherMinReadBatchSize</td><td>The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.</td><td>1</td></tr>
+<tr><td>dispatcherMaxRoundRobinBatchSize</td><td>The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.</td><td>20</td></tr>
+<tr><td>preciseDispatcherFlowControl</td><td>Precise dispathcer flow control according to history message number of each entry.</td><td>false</td></tr>
+<tr><td>streamingDispatch</td><td>Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release.</td><td>false</td></tr>
+<tr><td>maxConcurrentLookupRequest</td><td>Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic.</td><td>50000</td></tr>
+<tr><td>maxConcurrentTopicLoadRequest</td><td>Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations.</td><td>5000</td></tr>
+<tr><td>maxConcurrentNonPersistentMessagePerConnection</td><td>Maximum number of concurrent non-persistent message that can be processed per connection.</td><td>1000</td></tr>
+<tr><td>numWorkerThreadsForNonPersistentTopic</td><td>Number of worker threads to serve non-persistent topic.</td><td>8</td></tr>
+<tr><td>enablePersistentTopics</td><td>Enable broker to load persistent topics.</td><td>true</td></tr>
+<tr><td>enableNonPersistentTopics</td><td>Enable broker to load non-persistent topics.</td><td>true</td></tr>
+<tr><td>maxSubscriptionsPerTopic</td><td>Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled.</td><td>0</td></tr>
+<tr><td>maxProducersPerTopic</td><td>Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled.</td><td>0</td></tr>
+<tr><td>maxConsumersPerTopic</td><td>Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled.</td><td>0</td></tr>
+<tr><td>maxConsumersPerSubscription</td><td>Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled.</td><td>0</td></tr>
+<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled.</td><td>0</td></tr>
+<tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection.</td><td>300</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from the client. If it is set to true, a client with a certificate which cannot be verified with the 'tlsTrustCertsFilePath' certificate is allowed to connect to the server, though the certificate is not be used for client authentication.</td><td>false</td></tr>
+<tr><td>tlsProtocols</td><td>Specify the TLS protocols the broker uses to negotiate during TLS handshake.</td><td></td></tr>
+<tr><td>tlsCiphers</td><td>Specify the TLS cipher the broker uses to negotiate during TLS Handshake.</td><td></td></tr>
+<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication.</td><td>false</td></tr>
+<tr><td>tlsEnabledWithKeyStore</td><td>Enable TLS with KeyStore type configuration in broker.</td><td>false</td></tr>
+<tr><td>tlsProvider</td><td>TLS Provider for KeyStore type.</td><td></td></tr>
+<tr><td>tlsKeyStoreType</td><td>TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12</td><td>JKS</td></tr>
+<tr><td>tlsKeyStore</td><td>TLS KeyStore path in the broker.</td><td></td></tr>
+<tr><td>tlsKeyStorePassword</td><td>TLS KeyStore password for the broker.</td><td></td></tr>
+<tr><td>tlsTrustStoreType</td><td>TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12</td><td>JKS</td></tr>
+<tr><td>tlsTrustStore</td><td>TLS TrustStore path in the broker.</td><td></td></tr>
+<tr><td>tlsTrustStorePassword</td><td>TLS TrustStore password for the broker.</td><td></td></tr>
+<tr><td>brokerClientTlsEnabledWithKeyStore</td><td>Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers.</td><td>false</td></tr>
+<tr><td>brokerClientSslProvider</td><td>The TLS Provider used by the internal client to authenticate with other Pulsar brokers.</td><td></td></tr>
+<tr><td>brokerClientTlsTrustStoreType</td><td>TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12</td><td>JKS</td></tr>
+<tr><td>brokerClientTlsTrustStore</td><td>TLS TrustStore path for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
+<tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
+<tr><td>brokerClientTlsCiphers</td><td>Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake.</td><td></td></tr>
+<tr><td>brokerClientTlsProtocols</td><td>Specify the TLS protocols that the broker uses to negotiate during TLS handshake.</td><td></td></tr>
+<tr><td>systemTopicEnabled</td><td>Enable/Disable system topics.</td><td>false</td></tr>
+<tr><td>topicLevelPoliciesEnabled</td><td>Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first.</td><td>false</td></tr>
+<tr><td>topicFencingTimeoutSeconds</td><td>If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed.</td><td>0</td></tr>
+<tr><td>proxyRoles</td><td>Role names that are treated as &quot;proxy roles&quot;. If the broker sees a request with role as proxyRoles, it demands to see a valid original principal.</td><td></td></tr>
+<tr><td>authenticationEnabled</td><td>Enable authentication for the broker.</td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td>A comma-separated list of class names for authentication providers.</td><td>false</td></tr>
+<tr><td>authorizationEnabled</td><td>Enforce authorization in brokers.</td><td>false</td></tr>
+<tr><td>authorizationProvider</td><td>Authorization provider fully qualified class-name.</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
+<tr><td>authorizationAllowWildcardsMatching</td><td>Allow wildcard matching in authorization. Wildcard matching is applicable only when the wildcard-character (*) presents at the <strong>first</strong> or <strong>last</strong> position.</td><td>false</td></tr>
+<tr><td>superUserRoles</td><td>Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks.</td><td></td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td>The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters.</td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td>The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.</td><td></td></tr>
+<tr><td>athenzDomainNames</td><td>Supported Athenz authentication provider domain names as a comma-separated list.</td><td></td></tr>
+<tr><td>anonymousUserRole</td><td>When this parameter is not empty, unauthenticated users perform as anonymousUserRole.</td><td></td></tr>
+<tr><td>tokenSettingPrefix</td><td>Configure the prefix of the token related setting like <code>tokenSecretKey</code>, <code>tokenPublicKey</code>, <code>tokenAuthClaim</code>, <code>tokenPublicAlg</code>, <code>tokenAudienceClaim</code>, and <code>tokenAudience</code>.</td><td></td></tr>
+<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
+<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
+<tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
+<tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
+<tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
+<tr><td>saslJaasClientAllowedIds</td><td>This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to <code>SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT</code>, which is &quot;.<em>pulsar.</em>&quot;, so only clients whose id contains 'pulsar' are allowed to connect.</td><td>N/A</td></tr>
+<tr><td>saslJaasBrokerSectionName</td><td>Service Principal, for login context name. By default, it is set to <code>SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME</code>, which is &quot;Broker&quot;.</td><td>N/A</td></tr>
+<tr><td>httpMaxRequestSize</td><td>If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.</td><td>-1</td></tr>
+<tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
+<tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <code>zk+hierarchical://localhost:2181/ledgers</code>. The metadata service uri list can also be semicolon separated values like: <code>zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers</code>.</td><td>N/A</td></tr>
+<tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to be used when connecting to bookies (BookKeeper servers).</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper authentication plugin implementation parameters and values.</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParameters</td><td>Parameters associated with the bookkeeperClientAuthenticationParametersName</td><td></td></tr>
+<tr><td>bookkeeperClientNumWorkerThreads</td><td>Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()</td><td></td></tr>
+<tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BookKeeper add and read operations.</td><td>30</td></tr>
+<tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.</td><td>0</td></tr>
+<tr><td>bookkeeperUseV2WireProtocol</td><td>Use older Bookkeeper wire protocol with bookie.</td><td>true</td></tr>
+<tr><td>bookkeeperClientHealthCheckEnabled</td><td>Enable bookie health checks.</td><td>true</td></tr>
+<tr><td>bookkeeperClientHealthCheckIntervalSeconds</td><td>The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.</td><td>60</td></tr>
+<tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td>Error threshold for health checks.</td><td>5</td></tr>
+<tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td>If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds</td><td>1800</td></tr>
+<tr><td>bookkeeperClientGetBookieInfoIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>86400</td></tr>
+<tr><td>bookkeeperClientGetBookieInfoRetryIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>60</td></tr>
+<tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
+<tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>2</td></tr>
+<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientIsolationGroups</td><td></td><td></td></tr>
+<tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
+<tr><td>bookkeeperClientMinAvailableBookiesInIsolationGroups</td><td>Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.</td><td></td></tr>
+<tr><td>bookkeeperTLSProviderFactoryClass</td><td>Set the client security provider factory class name.</td><td>org.apache.bookkeeper.tls.TLSContextFactory</td></tr>
+<tr><td>bookkeeperTLSClientAuthentication</td><td>Enable TLS authentication with bookie.</td><td>false</td></tr>
+<tr><td>bookkeeperTLSKeyFileType</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
+<tr><td>bookkeeperTLSTrustCertTypes</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
+<tr><td>bookkeeperTLSKeyStorePasswordPath</td><td>Path to file containing keystore password, if the client keystore is password protected.</td><td></td></tr>
+<tr><td>bookkeeperTLSTrustStorePasswordPath</td><td>Path to file containing truststore password, if the client truststore is password protected.</td><td></td></tr>
+<tr><td>bookkeeperTLSKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
+<tr><td>bookkeeperTLSCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
+<tr><td>bookkeeperTLSTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
+<tr><td>bookkeeperDiskWeightBasedPlacementEnabled</td><td>Enable/Disable disk weight based placement.</td><td>false</td></tr>
+<tr><td>bookkeeperExplicitLacIntervalInMills</td><td>Set the interval to check the need for sending an explicit LAC. When the value is set to 0, no explicit LAC is sent.</td><td>0</td></tr>
+<tr><td>bookkeeperClientExposeStatsToPrometheus</td><td>Expose BookKeeper client managed ledger stats to Prometheus.</td><td>false</td></tr>
+<tr><td>managedLedgerDefaultEnsembleSize</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerDefaultAckQuorum</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerDigestType</td><td>Default type of checksum to use when writing to BookKeeper.</td><td>CRC32C</td></tr>
+<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>8</td></tr>
+<tr><td>managedLedgerCacheSizeMB</td><td></td><td>N/A</td></tr>
+<tr><td>managedLedgerCacheCopyEntries</td><td>Whether to copy the entry payloads when inserting in cache.</td><td>false</td></tr>
+<tr><td>managedLedgerCacheEvictionWatermark</td><td></td><td>0.9</td></tr>
+<tr><td>managedLedgerCacheEvictionFrequency</td><td>Configure the cache eviction frequency for the managed ledger cache (evictions/sec)</td><td>100.0</td></tr>
+<tr><td>managedLedgerCacheEvictionTimeThresholdMillis</td><td>All entries that have stayed in cache for more than the configured time, will be evicted</td><td>1000</td></tr>
+<tr><td>managedLedgerCursorBackloggedThreshold</td><td>Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive.</td><td>1000</td></tr>
+<tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>
+<tr><td>managedLedgerDefaultMarkDeleteRateLimit</td><td></td><td>0.1</td></tr>
+<tr><td>managedLedgerMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
+<tr><td>managedLedgerMinLedgerRolloverTimeMinutes</td><td></td><td>10</td></tr>
+<tr><td>managedLedgerMaxLedgerRolloverTimeMinutes</td><td></td><td>240</td></tr>
+<tr><td>managedLedgerCursorMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
+<tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td></td><td>14400</td></tr>
+<tr><td>managedLedgerMaxSizePerLedgerMbytes</td><td>Maximum ledger size before triggering a rollover for a topic.</td><td>2048</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersist</td><td>Maximum number of &quot;acknowledgment holes&quot; that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in &quot;ranges&quot; of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes.</td><td>10000</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper.</td><td>1000</td></tr>
+<tr><td>autoSkipNonRecoverableData</td><td></td><td>false</td></tr>
+<tr><td>managedLedgerMetadataOperationsTimeoutSeconds</td><td>Operation timeout while updating managed-ledger metadata.</td><td>60</td></tr>
+<tr><td>managedLedgerReadEntryTimeoutSeconds</td><td>Read entries timeout when the broker tries to read messages from BookKeeper.</td><td>0</td></tr>
+<tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish message to BookKeeper.</td><td>0</td></tr>
+<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.</td><td>10 ms</td></tr>
+<tr><td>managedLedgerPrometheusStatsLatencyRolloverSeconds</td><td>Managed ledger prometheus stats latency rollover seconds.</td><td>60</td></tr>
+<tr><td>managedLedgerTraceTaskExecution</td><td>Whether to trace managed ledger task execution time.</td><td>true</td></tr>
+<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.</td><td>10</td></tr>
+<tr><td>loadBalancerEnabled</td><td></td><td>false</td></tr>
+<tr><td>loadBalancerPlacementStrategy</td><td></td><td>weightedRandomSelection</td></tr>
+<tr><td>loadBalancerReportUpdateThresholdPercentage</td><td></td><td>10</td></tr>
+<tr><td>loadBalancerReportUpdateMaxIntervalMinutes</td><td></td><td>15</td></tr>
+<tr><td>loadBalancerHostUsageCheckIntervalMinutes</td><td></td><td>1</td></tr>
+<tr><td>loadBalancerSheddingIntervalMinutes</td><td></td><td>30</td></tr>
+<tr><td>loadBalancerSheddingGracePeriodMinutes</td><td></td><td>30</td></tr>
+<tr><td>loadBalancerBrokerMaxTopics</td><td></td><td>50000</td></tr>
+<tr><td>loadBalancerBrokerUnderloadedThresholdPercentage</td><td></td><td>1</td></tr>
+<tr><td>loadBalancerBrokerOverloadedThresholdPercentage</td><td></td><td>85</td></tr>
+<tr><td>loadBalancerResourceQuotaUpdateIntervalMinutes</td><td></td><td>15</td></tr>
+<tr><td>loadBalancerBrokerComfortLoadLevelPercentage</td><td></td><td>65</td></tr>
+<tr><td>loadBalancerAutoBundleSplitEnabled</td><td></td><td>false</td></tr>
+<tr><td>loadBalancerAutoUnloadSplitBundlesEnabled</td><td>Enable/Disable automatic unloading of split bundles.</td><td>true</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxTopics</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxSessions</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxMsgRate</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td><td></td><td>100</td></tr>
+<tr><td>loadBalancerNamespaceMaximumBundles</td><td></td><td>128</td></tr>
+<tr><td>loadBalancerBrokerThresholdShedderPercentage</td><td>The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy.</td><td>10</td></tr>
+<tr><td>loadBalancerHistoryResourcePercentage</td><td>The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>0.9</td></tr>
+<tr><td>loadBalancerBandwithInResourceWeight</td><td>The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
+<tr><td>loadBalancerBandwithOutResourceWeight</td><td>The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
+<tr><td>loadBalancerCPUResourceWeight</td><td>The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
+<tr><td>loadBalancerMemoryResourceWeight</td><td>The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
+<tr><td>loadBalancerDirectMemoryResourceWeight</td><td>The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
+<tr><td>loadBalancerBundleUnloadMinThroughputThreshold</td><td>Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdShedder strategy.</td><td>10</td></tr>
+<tr><td>replicationMetricsEnabled</td><td></td><td>true</td></tr>
+<tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
+<tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
+<tr><td>replicationPolicyCheckDurationSeconds</td><td>Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy.</td><td>600</td></tr>
+<tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
+<tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
+<tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
+<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
+<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>).<br><br> The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>/</td></tr>
+<tr><td>maxTopicsPerNamespace</td><td>The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check.</td><td>0</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>configurationStoreServers</td><td></td><td></td></tr>
+<tr><td>zooKeeperSessionTimeoutMillis</td><td></td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
+<tr><td>serviceUrl</td><td></td><td></td></tr>
+<tr><td>serviceUrlTls</td><td></td><td></td></tr>
+<tr><td>brokerServiceUrl</td><td></td><td></td></tr>
+<tr><td>brokerServiceUrlTls</td><td></td><td></td></tr>
+<tr><td>webServicePort</td><td></td><td>8080</td></tr>
+<tr><td>webServicePortTls</td><td></td><td>8443</td></tr>
+<tr><td>bindAddress</td><td></td><td>0.0.0.0</td></tr>
+<tr><td>clusterName</td><td></td><td></td></tr>
+<tr><td>authenticationEnabled</td><td></td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td></td><td></td></tr>
+<tr><td>authorizationEnabled</td><td></td><td>false</td></tr>
+<tr><td>superUserRoles</td><td></td><td></td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td></td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
+<tr><td>tlsEnabled</td><td></td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td></td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td></td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td></td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-proxy"></a><a href="#pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy</h2>
+<p>The <a href="/docs/ko/2.8.3/concepts-architecture-overview#pulsar-proxy">Pulsar proxy</a> can be configured in the <code>conf/proxy.conf</code> file.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>forwardAuthorizationCredentials</td><td>Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect.</td><td>false</td></tr>
+<tr><td>zookeeperServers</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>brokerServiceURL</td><td>The service URL pointing to the broker cluster. Must begin with <code>pulsar://</code>.</td><td></td></tr>
+<tr><td>brokerServiceURLTLS</td><td>The TLS service URL pointing to the broker cluster. Must begin with <code>pulsar+ssl://</code>.</td><td></td></tr>
+<tr><td>brokerWebServiceURL</td><td>The Web service URL pointing to the broker cluster</td><td></td></tr>
+<tr><td>brokerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the broker cluster</td><td></td></tr>
+<tr><td>functionWorkerWebServiceURL</td><td>The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
+<tr><td>functionWorkerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
+<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
+<tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostname()</code> is used.</td><td>N/A</td></tr>
+<tr><td>servicePort</td><td>The port to use for server binary Protobuf requests</td><td>6650</td></tr>
+<tr><td>servicePortTls</td><td>The port to use to server binary Protobuf TLS requests</td><td>6651</td></tr>
+<tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks</td><td></td></tr>
+<tr><td>proxyLogLevel</td><td>Proxy log level <li>0: Do not log any TCP channel information. <li>1: Parse and log any TCP channel information and command information without message body. <li>2: Parse and log channel information, command information and message body.</td><td>0</td></tr>
+<tr><td>authenticationEnabled</td><td>Whether authentication is enabled for the Pulsar proxy</td><td>false</td></tr>
+<tr><td>authenticateMetricsEndpoint</td><td>Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect.</td><td>true</td></tr>
+<tr><td>authenticationProviders</td><td>Authentication provider name list (a comma-separated list of class names)</td><td></td></tr>
+<tr><td>authorizationEnabled</td><td>Whether authorization is enforced by the Pulsar proxy</td><td>false</td></tr>
+<tr><td>authorizationProvider</td><td>Authorization provider as a fully qualified class name</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
+<tr><td>anonymousUserRole</td><td>When this parameter is not empty, unauthenticated users perform as anonymousUserRole.</td><td></td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td>The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td>The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
+<tr><td>brokerClientTrustCertsFilePath</td><td>The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers</td><td></td></tr>
+<tr><td>superUserRoles</td><td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin</td><td></td></tr>
+<tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
+<tr><td>tlsEnabledInProxy</td><td>Deprecated - use <code>servicePortTls</code> and <code>webServicePortTls</code> instead.</td><td>false</td></tr>
+<tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers.</td><td>false</td></tr>
+<tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. If the value is set 0, check TLS certificate every new connection.</td><td>300</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate pem file</td><td></td></tr>
+<tr><td>tlsHostnameVerificationEnabled</td><td>Whether the hostname is validated when the proxy creates a TLS connection with brokers</td><td>false</td></tr>
+<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted.</td><td>false</td></tr>
+<tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.3</code>, <code>TLSv1.2</code></td><td></td></tr>
+<tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
+<tr><td>httpReverseProxyConfigs</td><td>HTTP directs to redirect to non-pulsar services</td><td></td></tr>
+<tr><td>httpOutputBufferSize</td><td>HTTP output buffer size. The amount of data that will be buffered for HTTP requests before it is flushed to the channel. A larger buffer size may result in higher HTTP throughput though it may take longer for the client to see data. If using HTTP streaming via the reverse proxy, this should be set to the minimum value (1) so that clients see the data as soon as possible.</td><td>32768</td></tr>
+<tr><td>httpNumThreads</td><td>Number of threads to use for HTTP requests processing</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>tokenSettingPrefix</td><td>Configure the prefix of the token related setting like <code>tokenSecretKey</code>, <code>tokenPublicKey</code>, <code>tokenAuthClaim</code>, <code>tokenPublicAlg</code>, <code>tokenAudienceClaim</code>, and <code>tokenAudience</code>.</td><td></td></tr>
+<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
+<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>. Note: key file must be DER-encoded.</td><td></td></tr>
+<tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
+<tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
+<tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
+<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
+<p>ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the <code>conf/zookeeper.conf</code> file in your Pulsar installation. The following parameters are available:</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>tickTime</td><td>The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.</td><td>2000</td></tr>
+<tr><td>initLimit</td><td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the tickTime parameter.</td><td>10</td></tr>
+<tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
+<tr><td>dataDir</td><td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</td><td>data/zookeeper</td></tr>
+<tr><td>clientPort</td><td>The port on which the ZooKeeper server will listen for connections.</td><td>2181</td></tr>
+<tr><td>admin.enableServer</td><td>The port at which the admin listens.</td><td>true</td></tr>
+<tr><td>admin.serverPort</td><td>The port at which the admin listens.</td><td>9990</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).</td><td>3</td></tr>
+<tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.</td><td>1</td></tr>
+<tr><td>forceSync</td><td>Requires updates to be synced to media of the transaction log before finishing processing the update. If this option is set to 'no', ZooKeeper will not require updates to be synced to the media. WARNING: it's not recommended to run a production ZK cluster with <code>forceSync</code> disabled.</td><td>yes</td></tr>
+<tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
+</tbody>
+</table>
+<p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a <code>server.N</code> line to the <code>conf/zookeeper.conf</code> file for each node in the ZooKeeper cluster, where <code>N</code> is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+<blockquote>
+<p>We strongly recommend consulting the <a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper Administrator's Guide</a> for a more thorough and comprehensive introduction to ZooKeeper configuration</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.8.3/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar CLI tools</span></a><a class="docs-next button" href="/docs/ko/2.8.3/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a></li><li><a href="#client">Client</a></li><li><a href="#service-discovery">Service discovery</a></li><li><a href="#log4j">Log4j</a></li><li><a href="#log4j-shell">Log4j shell</a></li><li><a href="#standalone">Standalone</a></li><li><a href="#websocket">WebSocket</a></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#zookeeper">ZooKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy Pulsar on DC/OS · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; ### Tips"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Deploy Pulsar on DC/OS · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; ### Tips"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class=""><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/deploy-dcos">English</a></li><li><a href="/docs/ja/2.8.3/deploy-dcos">日本語</a></li><li><a href="/docs/fr/2.8.3/deploy-dcos">Français</a></li><li><a href="/docs/zh-CN/2.8.3/deploy-dcos">中文</a></li><li><a href="/docs/zh-TW/2.8.3/deploy-dcos">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy Pulsar on DC/OS</h1></header><article><div><span><blockquote>
+<h3><a class="anchor" aria-hidden="true" id="tips"></a><a href="#tips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tips</h3>
+<p>If you want to enable all builtin <a href="/docs/ko/2.8.3/io-overview">Pulsar IO</a> connectors in your Pulsar deployment, you can choose to use <code>apachepulsar/pulsar-all</code> image instead of <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/ko/2.8.3/io-overview#working-with-connectors">all builtin connectors</a>.</p>
+</blockquote>
+<p><a href="https://dcos.io/">DC/OS</a> (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on <a href="http://mesos.apache.org/">Apache Mesos</a>. DC/OS is an open-source tool that <a href="https://mesosphere.com/">Mesosphere</a> creates and maintains .</p>
+<p>Apache Pulsar is available as a <a href="https://mesosphere.github.io/marathon/docs/application-groups.html">Marathon Application Group</a>, which runs multiple applications as manageable sets.</p>
+<h2><a class="anchor" aria-hidden="true" id="전제-조건"></a><a href="#전제-조건" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>전제 조건</h2>
+<p>In order to run Pulsar on DC/OS, you need the following:</p>
+<ul>
+<li><p>DC/OS version <a href="https://docs.mesosphere.com/1.9/">1.9</a> or higher</p></li>
+<li><p>A <a href="https://docs.mesosphere.com/1.9/installing/">DC/OS cluster</a> with at least three agent nodes</p></li>
+<li><p>The <a href="https://docs.mesosphere.com/1.9/cli/install/">DC/OS CLI tool</a> installed</p></li>
+<li><p>The <a href="https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json"><code>PulsarGroups.json</code></a> configuration file from the Pulsar GitHub repo.</p>
+<pre><code class="hljs css language-bash">$ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
+</code></pre></li>
+</ul>
+<p>Each node in the DC/OS-managed Mesos cluster must have at least:</p>
+<ul>
+<li>4 CPU</li>
+<li>4 GB of memory</li>
+<li>60 GB of total persistent disk</li>
+</ul>
+<p>Alternatively, you can change the configuration in <code>PulsarGroups.json</code> according to match your resources of DC/OS cluster.</p>
+<h2><a class="anchor" aria-hidden="true" id="deploy-pulsar-using-the-dcos-command-interface"></a><a href="#deploy-pulsar-using-the-dcos-command-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy Pulsar using the DC/OS command interface</h2>
+<p>You can deploy Pulsar on DC/OS using this command:</p>
+<pre><code class="hljs css language-bash">$ dcos marathon group add PulsarGroups.json
+</code></pre>
+<p>This command deploys Docker container instances in three groups, which together comprise a Pulsar cluster:</p>
+<ul>
+<li>3 bookies (1 <a href="/docs/ko/2.8.3/reference-terminology#bookie">bookie</a> on each agent node and 1 <a href="http://bookkeeper.apache.org/docs/latest/admin/autorecovery/">bookie recovery</a> instance)</li>
+<li>3 Pulsar <a href="/docs/ko/2.8.3/reference-terminology#broker">brokers</a> (1 broker on each node and 1 admin instance)</li>
+<li>1 <a href="http://prometheus.io/">Prometheus</a> instance and 1 <a href="https://grafana.com/">Grafana</a> instance</li>
+</ul>
+<blockquote>
+<p>When you run DC/OS, a ZooKeeper cluster already runs at <code>master.mesos:2181</code>, thus you do not have to install or start up ZooKeeper separately.</p>
+</blockquote>
+<p>After executing the <code>dcos</code> command above, click on the <strong>Services</strong> tab in the DC/OS <a href="https://docs.mesosphere.com/latest/gui/">GUI interface</a>, which you can access at <a href="http://m1.dcos">http://m1.dcos</a> in this example. You should see several applications in the process of deploying.</p>
+<p><img src="/docs/assets/dcos_command_execute.png" alt="DC/OS command executed"></p>
+<p><img src="/docs/assets/dcos_command_execute2.png" alt="DC/OS command executed2"></p>
+<h2><a class="anchor" aria-hidden="true" id="the-bookkeeper-group"></a><a href="#the-bookkeeper-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The BookKeeper group</h2>
+<p>To monitor the status of the BookKeeper cluster deployment, click on the <strong>bookkeeper</strong> group in the parent <strong>pulsar</strong> group.</p>
+<p><img src="/docs/assets/dcos_bookkeeper_status.png" alt="DC/OS bookkeeper status"></p>
+<p>At this point, 3 <a href="/docs/ko/2.8.3/reference-terminology#bookie">bookies</a> should be shown as green, which means that the bookies have been deployed successfully and are now running.</p>
+<p><img src="/docs/assets/dcos_bookkeeper_run.png" alt="DC/OS bookkeeper running"></p>
+<p>You can also click into each bookie instance to get more detailed information, such as the bookie running log.</p>
+<p><img src="/docs/assets/dcos_bookie_log.png" alt="DC/OS bookie log"></p>
+<p>To display information about the BookKeeper in ZooKeeper, you can visit <a href="http://m1.dcos/exhibitor">http://m1.dcos/exhibitor</a>. In this example, 3 bookies are under the <code>available</code> directory.</p>
+<p><img src="/docs/assets/dcos_bookkeeper_in_zookeeper.png" alt="DC/OS bookkeeper in zk"></p>
+<h2><a class="anchor" aria-hidden="true" id="the-pulsar-broker-group"></a><a href="#the-pulsar-broker-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar broker Group</h2>
+<p>Similar to the BookKeeper group above, click into the <strong>brokers</strong> to check the status of the Pulsar brokers.</p>
+<p><img src="/docs/assets/dcos_broker_status.png" alt="DC/OS broker status"></p>
+<p><img src="/docs/assets/dcos_broker_run.png" alt="DC/OS broker running"></p>
+<p>You can also click into each broker instance to get more detailed information, such as the broker running log.</p>
+<p><img src="/docs/assets/dcos_broker_log.png" alt="DC/OS broker log"></p>
+<p>Broker cluster information in Zookeeper is also available through the web UI. In this example, you can see that the <code>loadbalance</code> and <code>managed-ledgers</code> directories have been created.</p>
+<p><img src="/docs/assets/dcos_broker_in_zookeeper.png" alt="DC/OS broker in zk"></p>
+<h2><a class="anchor" aria-hidden="true" id="monitor-group"></a><a href="#monitor-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor Group</h2>
+<p>The <strong>monitory</strong> group consists of Prometheus and Grafana.</p>
+<p><img src="/docs/assets/dcos_monitor_status.png" alt="DC/OS monitor status"></p>
+<h3><a class="anchor" aria-hidden="true" id="prometheus"></a><a href="#prometheus" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prometheus</h3>
+<p>Click into the instance of <code>prom</code> to get the endpoint of Prometheus, which is <code>192.168.65.121:9090</code> in this example.</p>
+<p><img src="/docs/assets/dcos_prom_endpoint.png" alt="DC/OS prom endpoint"></p>
+<p>If you click that endpoint, you can see the Prometheus dashboard. The <a href="http://192.168.65.121:9090/targets">http://192.168.65.121:9090/targets</a> URL display all the bookies and brokers.</p>
+<p><img src="/docs/assets/dcos_prom_targets.png" alt="DC/OS prom targets"></p>
+<h3><a class="anchor" aria-hidden="true" id="grafana"></a><a href="#grafana" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Grafana</h3>
+<p>Click into <code>grafana</code> to get the endpoint for Grafana, which is <code>192.168.65.121:3000</code> in this example.</p>
+<p><img src="/docs/assets/dcos_grafana_endpoint.png" alt="DC/OS grafana endpoint"></p>
+<p>If you click that endpoint, you can access the Grafana dashboard.</p>
+<p><img src="/docs/assets/dcos_grafana_dashboard.png" alt="DC/OS grafana targets"></p>
+<h2><a class="anchor" aria-hidden="true" id="run-a-simple-pulsar-consumer-and-producer-on-dcos"></a><a href="#run-a-simple-pulsar-consumer-and-producer-on-dcos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a simple Pulsar consumer and producer on DC/OS</h2>
+<p>Now that you have a fully deployed Pulsar cluster, you can run a simple consumer and producer to show Pulsar on DC/OS in action.</p>
+<h3><a class="anchor" aria-hidden="true" id="download-and-prepare-the-pulsar-java-tutorial"></a><a href="#download-and-prepare-the-pulsar-java-tutorial" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Download and prepare the Pulsar Java tutorial</h3>
+<p>You can clone a <a href="https://github.com/streamlio/pulsar-java-tutorial">Pulsar Java tutorial</a> repo. This repo contains a simple Pulsar consumer and producer (you can find more information in the <code>README</code> file of the repo).</p>
+<pre><code class="hljs css language-bash">$ git <span class="hljs-built_in">clone</span> https://github.com/streamlio/pulsar-java-tutorial
+</code></pre>
+<p>Change the <code>SERVICE_URL</code> from <code>pulsar://localhost:6650</code> to <code>pulsar://a1.dcos:6650</code> in both <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java"><code>ConsumerTutorial.java</code></a> and <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a>. The <code>pulsar://a1.dcos:6650</code> endpoint is for the broker service. You can fetch the endpoint details for each broker instance from the DC/OS GUI. <code>a1.dcos</code> is a DC/OS client agent, which runs a broker. The client agent IP address can also replace this.</p>
+<p>Now, change the message number from 10 to 10000000 in main method of <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a> so that it can produce more messages.</p>
+<p>Now compile the project code using the command below:</p>
+<pre><code class="hljs css language-bash">$ mvn clean package
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="run-the-consumer-and-producer"></a><a href="#run-the-consumer-and-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run the consumer and producer</h3>
+<p>Execute this command to run the consumer:</p>
+<pre><code class="hljs css language-bash">$ mvn <span class="hljs-built_in">exec</span>:java -Dexec.mainClass=<span class="hljs-string">"tutorial.ConsumerTutorial"</span>
+</code></pre>
+<p>Execute this command to run the producer:</p>
+<pre><code class="hljs css language-bash">$ mvn <span class="hljs-built_in">exec</span>:java -Dexec.mainClass=<span class="hljs-string">"tutorial.ProducerTutorial"</span>
+</code></pre>
+<p>You can see the producer producing messages and the consumer consuming messages through the DC/OS GUI.</p>
+<p><img src="/docs/assets/dcos_producer.png" alt="DC/OS pulsar producer"></p>
+<p><img src="/docs/assets/dcos_consumer.png" alt="DC/OS pulsar consumer"></p>
+<h3><a class="anchor" aria-hidden="true" id="view-grafana-metric-output"></a><a href="#view-grafana-metric-output" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>View Grafana metric output</h3>
+<p>While the producer and consumer run, you can access running metrics information from Grafana.</p>
+<p><img src="/docs/assets/dcos_metrics.png" alt="DC/OS pulsar dashboard"></p>
+<h2><a class="anchor" aria-hidden="true" id="uninstall-pulsar"></a><a href="#uninstall-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Uninstall Pulsar</h2>
+<p>You can shut down and uninstall the <code>pulsar</code> application from DC/OS at any time in the following two ways:</p>
+<ol>
+<li><p>Using the DC/OS GUI, you can choose <strong>Delete</strong> at the right end of Pulsar group.</p>
+<p><img src="/docs/assets/dcos_uninstall.png" alt="DC/OS pulsar uninstall"></p></li>
+<li><p>You can use the following command:</p>
+<pre><code class="hljs css language-bash">$ dcos marathon group remove /pulsar
+</code></pre></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#전제-조건">전제 조건</a></li><li><a href="#deploy-pulsar-using-the-dcos-command-interface">Deploy Pulsar using the DC/OS command interface</a></li><li><a href="#the-bookkeeper-group">The BookKeeper group</a></li><li><a href="#the-pulsar-broker-group">The Pulsar broker Group</a></li><li><a href="#monitor-group">Monitor Group</a><ul class="toc-headings"><li><a href="#prometheus">Prometheus</a></li><li><a href="#grafana">Grafana</a></li></ul></li><li><a href="#run-a-simple-pulsar-consumer-and-producer-on-dcos">Run a simple Pulsar consumer and producer on DC/OS</a><ul class="toc-headings"><li><a href="#download-and-prepare-the-pulsar-java-tutorial">Download and prepare the Pulsar Java tutorial</a></li><li><a href="#run-the-consumer-and-producer">Run the consumer and producer</a></li><li><a href="#view-grafana-metric-output">View Grafana metric output</a></li></ul></li><li><a href="#uninstall-pulsar">Uninstall Pulsar</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

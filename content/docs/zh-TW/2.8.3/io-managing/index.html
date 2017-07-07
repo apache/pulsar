@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing Connectors · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This section describes how to manage Pulsar IO connectors in a Pulsar cluster. You will learn how to:"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Managing Connectors · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="This section describes how to manage Pulsar IO connectors in a Pulsar cluster. You will learn how to:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class=""><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/io-managing">English</a></li><li><a href="/docs/ja/2.8.3/io-managing">日本語</a></li><li><a href="/docs/fr/2.8.3/io-managing">Français</a></li><li><a href="/docs/ko/2.8.3/io-managing">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/io-managing">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing Connectors</h1></header><article><div><span><p>This section describes how to manage Pulsar IO connectors in a Pulsar cluster. You will learn how to:</p>
+<ul>
+<li>Deploy builtin connectors</li>
+<li>Monitor and update running connectors with Pulsar Admin CLI</li>
+<li>Deploy customized connectors</li>
+<li>Upgrade a connector</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="using-builtin-connectors"></a><a href="#using-builtin-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using Builtin Connectors</h2>
+<p>Pulsar bundles several <a href="/docs/zh-TW/2.8.3/io-overview#working-with-connectors">builtin connectors</a> that should be used for moving data in and out of commonly used systems such as databases, messaging systems. Getting set up to use these builtin connectors is simple. You can follow the <a href="/docs/zh-TW/2.8.3/standalone#installing-builtin-connectors">instructions</a> on installing builtin connectors. After setup, all the builtin connectors will be automatically discovered by Pulsar brokers (or function-workers), so no additional installation steps are required.</p>
+<h2><a class="anchor" aria-hidden="true" id="configuring-connectors"></a><a href="#configuring-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Connectors</h2>
+<p>Configuring Pulsar IO connectors is straightforward. What you need to do is to provide a yaml configuration file when your <a href="#running-connectors">run connectors</a>. The yaml configuration file basically tells Pulsar where to locate the sources and sinks and how to connect those sources and sinks with Pulsar topics.</p>
+<p>Below is an example yaml configuration file for Cassandra Sink:</p>
+<pre><code class="hljs css language-shell">tenant: public
+namespace: default
+name: cassandra-test-sink
+...
+<span class="hljs-meta">#</span><span class="bash"> cassandra specific config</span>
+configs:
+    roots: "localhost:9042"
+    keyspace: "pulsar_test_keyspace"
+    columnFamily: "pulsar_test_table"
+    keyname: "key"
+    columnName: "col"
+</code></pre>
+<p>The example yaml basically tells Pulsar which Cassandra cluster to connect, what is the <code>keyspace</code> and <code>columnFamily</code> to be used in Cassandra for collecting data, and how to map a Pulsar message into Cassandra table key and columns.</p>
+<p>For details, consult the documentation for <a href="/docs/zh-TW/2.8.3/io-overview#working-with-connectors">individual connectors</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="running-connectors"></a><a href="#running-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running Connectors</h2>
+<p>Pulsar connectors can be managed using the <a href="/docs/zh-TW/2.8.3/pulsar-admin#source"><code>source</code></a> and <a href="/docs/zh-TW/2.8.3/pulsar-admin#sink"><code>sink</code></a> commands of the <a href="/docs/zh-TW/2.8.3/pulsar-admin"><code>pulsar-admin</code></a> CLI tool.</p>
+<h3><a class="anchor" aria-hidden="true" id="running-sources"></a><a href="#running-sources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running sources</h3>
+<p>You can submit a source to be run in an existing Pulsar cluster using a command of this form:</p>
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin sources create --classname  &lt;classname&gt; --archive &lt;jar-location&gt; --tenant &lt;tenant&gt; --namespace &lt;namespace&gt; --name &lt;<span class="hljs-built_in">source</span>-name&gt; --destination-topic-name &lt;output-topic&gt;
+</code></pre>
+<p>Here’s an example command:</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin sources create --classname org.apache.pulsar.io.twitter.TwitterFireHose --archive ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destination-topic-name twitter_data
+</code></pre>
+<p>Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin sources localrun --classname  org.apache.pulsar.io.twitter.TwitterFireHose --archive ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destination-topic-name twitter_data
+</code></pre>
+<p>If you are submitting a built-in source, you don't need to specify <code>--classname</code> and <code>--archive</code>. You can simply specify the source type <code>--source-type</code>. The command to submit a built-in source is in following form:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sources create \
+    --tenant &lt;tenant&gt; \
+    --namespace &lt;namespace&gt; \
+    --name &lt;<span class="hljs-built_in">source</span>-name&gt; \
+    --destination-topic-name &lt;input-topics&gt; \
+    --<span class="hljs-built_in">source</span>-type &lt;<span class="hljs-built_in">source</span>-type&gt;
+</code></pre>
+<p>Here's an example to submit a Kafka source:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sources create \
+    --tenant <span class="hljs-built_in">test</span>-tenant \
+    --namespace <span class="hljs-built_in">test</span>-namespace \
+    --name <span class="hljs-built_in">test</span>-kafka-source \
+    --destination-topic-name pulsar_sink_topic \
+    --<span class="hljs-built_in">source</span>-type kafka
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="running-sinks"></a><a href="#running-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running Sinks</h3>
+<p>You can submit a sink to be run in an existing Pulsar cluster using a command of this form:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sinks create --classname  &lt;classname&gt; --archive &lt;jar-location&gt; --tenant <span class="hljs-built_in">test</span> --namespace &lt;namespace&gt; --name &lt;sink-name&gt; --inputs &lt;input-topics&gt;
+</code></pre>
+<p>Here’s an example command:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sinks create --classname  org.apache.pulsar.io.cassandra --archive ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
+</code></pre>
+<p>Instead of submitting a sink to run on an existing Pulsar cluster, you alternatively can run a sink as a process on your local machine:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sinks localrun --classname  org.apache.pulsar.io.cassandra --archive ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
+</code></pre>
+<p>If you are submitting a built-in sink, you don't need to specify <code>--classname</code> and <code>--archive</code>. You can simply specify the sink type <code>--sink-type</code>. The command to submit a built-in sink is in following form:</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</p>
+</blockquote>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sinks create \
+    --tenant &lt;tenant&gt; \
+    --namespace &lt;namespace&gt; \
+    --name &lt;sink-name&gt; \
+    --inputs &lt;input-topics&gt; \
+    --sink-type &lt;sink-type&gt;
+</code></pre>
+<p>Here's an example to submit a Cassandra sink:</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sinks create \
+    --tenant <span class="hljs-built_in">test</span>-tenant \
+    --namespace <span class="hljs-built_in">test</span>-namespace \
+    --name <span class="hljs-built_in">test</span>-cassandra-sink \
+    --inputs pulsar_input_topic \
+    --sink-type cassandra
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="monitoring-connectors"></a><a href="#monitoring-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring Connectors</h2>
+<p>Since Pulsar IO connectors are running as <a href="/docs/zh-TW/2.8.3/functions-overview">Pulsar Functions</a>, so you can use <a href="/docs/zh-TW/2.8.3/pulsar-admin#source"><code>functions</code></a> commands available in the <a href="/docs/zh-TW/2.8.3/pulsar-admin"><code>pulsar-admin</code></a> CLI tool.</p>
+<h3><a class="anchor" aria-hidden="true" id="retrieve-connector-metadata"></a><a href="#retrieve-connector-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrieve Connector Metadata</h3>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">functions</span> <span class="hljs-keyword">get</span> \
+    <span class="hljs-comment">--tenant &lt;tenant&gt; \</span>
+    <span class="hljs-comment">--namespace &lt;namespace&gt; \</span>
+    <span class="hljs-comment">--name &lt;connector-name&gt;</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="retrieve-connector-running-status"></a><a href="#retrieve-connector-running-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrieve Connector Running Status</h3>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">functions</span> getstatus \
+    <span class="hljs-comment">--tenant &lt;tenant&gt; \</span>
+    <span class="hljs-comment">--namespace &lt;namespace&gt; \</span>
+    <span class="hljs-comment">--name &lt;connector-name&gt;</span>
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#using-builtin-connectors">Using Builtin Connectors</a></li><li><a href="#configuring-connectors">Configuring Connectors</a></li><li><a href="#running-connectors">Running Connectors</a><ul class="toc-headings"><li><a href="#running-sources">Running sources</a></li><li><a href="#running-sinks">Running Sinks</a></li></ul></li><li><a href="#monitoring-connectors">Monitoring Connectors</a><ul class="toc-headings"><li><a href="#retrieve-connector-metadata">Retrieve Connector Metadata</a></li><li><a href="#retrieve-connector-running-status">Retrieve Connector Running Status</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

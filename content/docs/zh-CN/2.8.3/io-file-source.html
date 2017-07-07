@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>File source connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="文件源连接器从目录中的文件中拉取消息，并将消息保存到 Pulsar 主题。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="File source connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="文件源连接器从目录中的文件中拉取消息，并将消息保存到 Pulsar 主题。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/io-file-source">English</a></li><li><a href="/docs/ja/2.8.3/io-file-source">日本語</a></li><li><a href="/docs/fr/2.8.3/io-file-source">Français</a></li><li><a href="/docs/ko/2.8.3/io-file-source">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/io-file-source">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">File source connector</h1></header><article><div><span><p>文件源连接器从目录中的文件中拉取消息，并将消息保存到 Pulsar 主题。</p>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<p>文件源连接器的配置具有以下属性。</p>
+<h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>Required</th><th>默认值</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>inputDirectory</code></td><td>String</td><td>true</td><td>没有默认值</td><td>要拉取文件的输入目录。</td></tr>
+<tr><td><code>recurse</code></td><td>Boolean</td><td>false</td><td>true</td><td>是否从子目录上拉取文件。</td></tr>
+<tr><td><code>keepFile</code></td><td>Boolean</td><td>false</td><td>false</td><td>如果设置为 true，文件处理后不会被删除，这意味着文件可以连续被抓取。</td></tr>
+<tr><td><code>fileFilter</code></td><td>String</td><td>false</td><td>[^\.].*</td><td>已选中名称匹配已给定正则表达式的文件。</td></tr>
+<tr><td><code>pathFilter</code></td><td>String</td><td>false</td><td>NULL</td><td>如果 <code>recurse</code> 设置为 true，将扫描路径匹配给定正则表达式的子目录。</td></tr>
+<tr><td><code>minimumFileAge</code></td><td>Integer</td><td>false</td><td>0</td><td>可以处理文件的最小创建时间（age）。 <br><br>Any file younger than <code>minimumFileAge</code> (according to the last modification date) is ignored.</td></tr>
+<tr><td><code>maximumFileAge</code></td><td>Long</td><td>false</td><td>Long.MAX_VALUE</td><td>可以处理文件的最大创建时间（age）。 <br><br>Any file older than <code>maximumFileAge</code> (according to last modification date) is ignored.</td></tr>
+<tr><td><code>minimumSize</code></td><td>Integer</td><td>false</td><td>1</td><td>可以处理文件的最小大小(字节数)。</td></tr>
+<tr><td><code>maximumSize</code></td><td>Double</td><td>false</td><td>Double.MAX_VALUE</td><td>可以处理文件的最大大小(字节数)。</td></tr>
+<tr><td><code>ignoreHiddenFiles</code></td><td>Boolean</td><td>false</td><td>true</td><td>是否忽略隐藏文件。</td></tr>
+<tr><td><code>pollingInterval</code></td><td>Long</td><td>false</td><td>10000L</td><td>Indicates how long to wait before performing a directory listing.</td></tr>
+<tr><td><code>numWorkers</code></td><td>Integer</td><td>false</td><td>1</td><td>The number of worker threads that process files.<br><br> This allows you to process a larger number of files concurrently. <br><br>However, setting this to a value greater than 1 makes the data from multiple files mixed in the target topic.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
+<p>在使用文件源连接器之前，你需要通过以下方法之一创建一个配置文件。</p>
+<ul>
+<li><p>JSON</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"inputDirectory"</span>: <span class="hljs-string">"/Users/david"</span>,
+    <span class="hljs-attr">"recurse"</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">"keepFile"</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">"fileFilter"</span>: <span class="hljs-string">"[^\\.].*"</span>,
+    <span class="hljs-attr">"pathFilter"</span>: <span class="hljs-string">"*"</span>,
+    <span class="hljs-attr">"minimumFileAge"</span>: <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"maximumFileAge"</span>: <span class="hljs-number">9999999999</span>,
+    <span class="hljs-attr">"minimumSize"</span>: <span class="hljs-number">1</span>,
+    <span class="hljs-attr">"maximumSize"</span>: <span class="hljs-number">5000000</span>,
+    <span class="hljs-attr">"ignoreHiddenFiles"</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">"pollingInterval"</span>: <span class="hljs-number">5000</span>,
+    <span class="hljs-attr">"numWorkers"</span>: <span class="hljs-number">1</span>
+}
+</code></pre></li>
+<li><p>YAML</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">inputDirectory:</span> <span class="hljs-string">"/Users/david"</span>
+    <span class="hljs-attr">recurse:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">keepFile:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">fileFilter:</span> <span class="hljs-string">"[^\\.].*"</span>
+    <span class="hljs-attr">pathFilter:</span> <span class="hljs-string">"*"</span>
+    <span class="hljs-attr">minimumFileAge:</span> <span class="hljs-number">0</span>
+    <span class="hljs-attr">maximumFileAge:</span> <span class="hljs-number">9999999999</span>
+    <span class="hljs-attr">minimumSize:</span> <span class="hljs-number">1</span>
+    <span class="hljs-attr">maximumSize:</span> <span class="hljs-number">5000000</span>
+    <span class="hljs-attr">ignoreHiddenFiles:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">pollingInterval:</span> <span class="hljs-number">5000</span>
+    <span class="hljs-attr">numWorkers:</span> <span class="hljs-number">1</span>
+</code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h2>
+<p>这是一个使用文件源连接器的例子。</p>
+<ol>
+<li><p>拉取一个 Pulsar 镜像。</p>
+<pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
+</code></pre></li>
+<li><p>启动 Pulsar 单机模式。</p>
+<pre><code class="hljs css language-bash">$ docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
+</code></pre></li>
+<li><p>创建配置文件 <em>file-connector.yaml</em>。</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">inputDirectory:</span> <span class="hljs-string">"/opt"</span>
+</code></pre></li>
+<li><p>复制配置文件 <em>file-connector.yaml</em> 到容器。</p>
+<pre><code class="hljs css language-bash">$ docker cp connectors/file-connector.yaml pulsar-standalone:/pulsar/
+</code></pre></li>
+<li><p>下载文件源连接器。</p>
+<pre><code class="hljs css language-bash">$ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
+</code></pre></li>
+<li><p>启动文件源连接器。</p>
+<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-standalone /bin/bash
+
+$ ./bin/pulsar-admin sources localrun \
+--archive /pulsar/pulsar-io-file-{version}.nar \
+--name file-test \
+--destination-topic-name  pulsar-file-test \
+--<span class="hljs-built_in">source</span>-config-file /pulsar/file-connector.yaml
+</code></pre></li>
+<li><p>启动一个消费者。</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
+</code></pre></li>
+<li><p>将消息写入文件 <em>test.txt</em>。</p>
+<pre><code class="hljs css language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">"hello world!"</span> &gt; /opt/test.txt
+</code></pre>
+<p>以下信息出现在消费者终端窗口。</p>
+<pre><code class="hljs css language-bash">----- got message -----
+hello world!
+</code></pre></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#示例">示例</a></li></ul></li><li><a href="#用法">用法</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

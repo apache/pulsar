@@ -1,0 +1,2151 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar concepts and architecture</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar concepts and architecture</h1>
+        <span class="docs-lead">A high-level overview of Pulsar's moving pieces</span><br />
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">architecture</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-architecture">architecture</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-architecture">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>architecture</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><span class="popover-term" tabindex="0" title="What is Pulsar?" data-placement="top" data-content="Pulsar is a distributed messaging system originally created by Yahoo but now under the stewardship of the Apache Software Foundation." data-toggle="popover" data-trigger="focus">Pulsar</span> is a multi-tenant, high-performance solution for server-to-server messaging originally developed by <a href="http://yahoo.github.io/">Yahoo</a> and now under the stewardship of the <a href="https://www.apache.org/">Apache Software Foundation</a>.</p>
+
+<p>Pulsar’s key features include:</p>
+
+<ul>
+  <li>Native support for multiple <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> in a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, with seamless <a href="../../admin/GeoReplication">geo-replication</a> of messages across clusters</li>
+  <li>Very low publish and end-to-end latency</li>
+  <li>Seamless scalability out to over a million topics</li>
+  <li>A simple <a href="#client-api">client API</a> with bindings for <a href="../../clients/Java">Java</a>, <a href="../../clients/Python">Python</a>, and <a href="../../clients/Cpp">C++</a></li>
+  <li>Multiple <a href="#subscription-modes">subscription modes</a> for <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> (<a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>)</li>
+  <li>Guaranteed message delivery with <a href="#persistent-storage">persistent message storage</a> provided by <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a></li>
+</ul>
+
+<h2 id="producers-consumers-topics-and-subscriptions">Producers, consumers, topics, and subscriptions</h2>
+
+<p>Pulsar is built on the <a href="https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern">publish-subscribe</a> pattern, aka <span class="popover-term" tabindex="0" title="What is the publish-subscribe pattern (pub-sub)?" data-placement="top" data-content="A messaging pattern in which publisher proccesses publish messages on topics that are then consumed (processed) by consumer processes." data-toggle="popover" data-trigger="focus">pub-sub</span>. In this pattern, <a href="#producers">producers</a> publish messages to <a href="#topics">topics</a>. <a href="#consumers">Consumers</a> can then <a href="#subscription-modes">subscribe</a> to those topics, process incoming messages, and send an <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledgement</span> when processing is complete.</p>
+
+<p>Once a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> has been created, all messages will be <a href="#persistent-storage">retained</a> by Pulsar, even if the consumer gets disconnected. Retained messages will be discarded only when a consumer <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledges</span> that they’ve been successfully processed.</p>
+
+<h3 id="producers">Producers</h3>
+
+<p>A producer is a process that attaches to a topic and publishes messages to a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> for processing.</p>
+
+<h4 id="send-modes">Send modes</h4>
+
+<p>Producers can send messages to brokers either synchronously (sync) or asynchronously (async).</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Mode</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Sync send</td>
+      <td style="text-align: left">The producer will wait for acknowledgement from the broker after sending each message. If acknowledgment isn’t received then the producer will consider the send operation a failure.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Async send</td>
+      <td style="text-align: left">The producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size <a href="../../reference/Configuration#broker">configurable</a>, the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="compression">Compression</h4>
+
+<p>Messages published by producers can be compressed during transportation in order to save bandwidth. Pulsar currently supports two types of compression:</p>
+
+<ul>
+  <li><a href="https://github.com/lz4/lz4">LZ4</a></li>
+  <li><a href="https://zlib.net/">ZLIB</a></li>
+</ul>
+
+<h4 id="batching">Batching</h4>
+
+<p>If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batching size is defined by the maximum number of messages and maximum publish latency.</p>
+
+<h3 id="consumers">Consumers</h3>
+
+<p>A consumer is a process that attaches to a topic via a subscription and then receives messages.</p>
+
+<h4 id="receive-modes">Receive modes</h4>
+
+<p>Messages can be received from <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> either synchronously (sync) or asynchronously (async).</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Mode</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Sync receive</td>
+      <td style="text-align: left">A sync receive will be blocked until a message is available.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Async receive</td>
+      <td style="text-align: left">An async receive will return immediately with a future value—a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a> in Java, for example—that completes once a new message is available.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="acknowledgement">Acknowledgement</h4>
+
+<p>When a consumer has successfully processed a message, it needs to send an <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledgement</span> to the broker so that the broker can discard the message (otherwise it <a href="#persistent-storage">stores</a> the message).</p>
+
+<p>Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    <p>Cumulative acknowledgement cannot be used with <a href="#subscription-modes">shared subscription mode</a>, because shared mode involves multiple consumers having access to the same subscription.</p>
+
+  </div>
+</div>
+
+<h4 id="listeners">Listeners</h4>
+
+<p>Client libraries can provide their own listener implementations for consumers. The <a href="../../clients/Java">Java client</a>, for example, provides a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageListener.html"><code class="highlighter-rouge">MesssageListener</code></a> interface. In this interface, the <code class="highlighter-rouge">received</code> method is called whenever a new message is received.</p>
+
+<h3 id="topics">Topics</h3>
+
+<p>As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from producers to consumers. Topic names are URLs that have a well-defined structure:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Topic name component</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">persistent</code></td>
+      <td style="text-align: left">It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably <a href="#persistent-storage">persisted</a> on disk (that means on multiple disks unless the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> is <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span>), whereas <a href="#non-persistent-topics">non-persistent</a> topic does not persist message into storage disk.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">property</code></td>
+      <td style="text-align: left">The topic’s <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> within the instance. Tenants are essential to <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenancy</span> in Pulsar and can be spread across clusters.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">cluster</code></td>
+      <td style="text-align: left">Where the topic is located. Typically there will be one <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> for each geographical region or data center.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">namespace</code></td>
+      <td style="text-align: left">The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the <a href="#namespace">namespace</a> level. Each property (tenant) can have multiple namespaces.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">topic</code></td>
+      <td style="text-align: left">The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>No need to explicitly create new topics</p>
+</span>
+    <p>Application does not explicitly create the topic but attempting to write or receive message on a topic that does not yet exist, Pulsar will automatically create that topic under the <a href="#namespace">namespace</a>.</p>
+
+  </div>
+</div>
+
+<h3 id="namespace">Namespace</h3>
+
+<p>A namespace is a logical nomenclature within a property. A property can create multiple namespaces via <a href="../../admin-api/namespaces#create">admin API</a>. For instance, a property with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. 
+For e.g.  <code class="highlighter-rouge">my-property/my-cluster/my-property-app1</code> is a namespace for the application  <code class="highlighter-rouge">my-property-app1</code> in cluster <code class="highlighter-rouge">my-cluster</code> for <code class="highlighter-rouge">my-property</code>. 
+Application can create any number of <a href="#topics">topics</a> under the namespace.</p>
+
+<h3 id="subscription-modes">Subscription modes</h3>
+
+<p>A subscription is a named configuration rule that determines how messages are delivered to <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>. There are three available subscription modes in Pulsar: <a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>. These modes are illustrated in the figure below.</p>
+
+<p><img src="/img/pulsar_subscriptions.jpg" alt="Subscription Modes" /></p>
+
+<h4 id="exclusive">Exclusive</h4>
+
+<p>In <em>exclusive</em> mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.</p>
+
+<p>In the diagram above, only <strong>Consumer-A</strong> is allowed to consume messages.</p>
+
+<p>Exclusive mode is the default subscription mode.</p>
+
+<h4 id="shared">Shared</h4>
+
+<p>In <em>shared</em> or <em>round robin</em> mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.</p>
+
+<p>In the diagram above, <strong>Consumer-B-1</strong> and <strong>Consumer-B-2</strong> are able to subscribe to the topic, but <strong>Consumer-C-1</strong> and others could as well.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Limitations of shared mode</p>
+</span>
+    <p>There are two important things to be aware of when using shared mode:</p>
+
+<ol>
+  <li>Message ordering is not guaranteed.</li>
+  <li>You cannot use <a href="#acknowledgement">cumulative acknowledgment</a> with shared mode.</li>
+</ol>
+
+  </div>
+</div>
+
+<h4 id="failover">Failover</h4>
+
+<p>In <em>failover</em> mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer’s name and the first consumer will initially be the only one receiving messages. This consumer is called the <em>master consumer</em>.</p>
+
+<p>When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.</p>
+
+<p>In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.</p>
+
+<h3 id="partitioned-topics">Partitioned topics</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Normal topics can be served only by a single <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>, which limits the topic’s maximum throughput. <em>Partitioned topics</em> are a special type of topic that be handled by multiple brokers, which allows for much higher throughput.</p>
+
+<p>Behind the scenes, a partitioned topic is actually implemented as N internal topics, where N is the number of partitions. When publishing messages to a partitioned topic, each message is routed to one of several brokers. The distribution of partitions across brokers is handled automatically by Pulsar.</p>
+
+<p>The diagram below illustrates this:</p>
+
+<p><img src="/img/pulsar_partitioned_topic.jpg" alt="Partitioned Topic" /></p>
+
+<p>Here, the topic <strong>T1</strong> has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).</p>
+
+<p>Messages for this topic are broadcast to two <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>. The <a href="#routing-modes">routing mode</a> determines both which broker handles each partition, while the <a href="../../getting-started/ConceptsAndArchitecture#subscription-modes">subscription mode</a> determines which messages go to which consumers.</p>
+
+<p>Decisions about routing and subscription modes can be made separately in most cases. Throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.</p>
+
+<p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and processed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>.</p>
+
+<p>Partitioned topics need to be explicitly created via the <a href="../../admin-api/overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
+
+<h4 id="routing-modes">Routing modes</h4>
+
+<p>When publishing to partitioned topics, you must specify a <em>routing mode</em>. The routing mode determines which partition—that is, which internal topic—each message should be published to.</p>
+
+<p>There are three routing modes available by default:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Mode</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Ordering guarantee</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Key hash</td>
+      <td style="text-align: left">If a key property has been specified on the message, the partitioned producer will hash the key and assign it to a particular partition.</td>
+      <td style="text-align: left">Per-key-bucket ordering</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Single default partition</td>
+      <td style="text-align: left">If no key is provided, each producer’s message will be routed to a dedicated partition, initially random selected</td>
+      <td style="text-align: left">Per-producer ordering</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Round robin distribution</td>
+      <td style="text-align: left">If no key is provided, all messages will be routed to different partitions in round-robin fashion to achieve maximum throughput.</td>
+      <td style="text-align: left">None</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../clients/Java">Java client</a> by implementing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
+
+<h3 id="non-persistent-topics">Non-persistent topics</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Notice</p>
+</span>
+    
+<p>This feature is still in experimental mode and implementation details may change in future release.</p>
+
+  </div>
+</div>
+
+<p>As name suggests, non-persist topic does not persist messages into any durable storage disk unlike persistent topic where messages are durably persisted on multiple disks.</p>
+
+<p>Therefore, if you are using persistent delivery, messages are persisted to disk/database so that they will survive a broker restart or subscriber failover. While using non-persistent delivery, if you kill a broker or subscriber is disconnected then subscriber will lose all in-transit messages. So, client may see message loss with non-persistent topic.</p>
+
+<ul>
+  <li>In non-persistent topic, as soon as broker receives published message, it immediately delivers this message to all connected subscribers without persisting them into any storage. So, if subscriber gets disconnected with broker then broker will not be able to deliver those in-transit messages and subscribers will never be able to receive those messages again. Broker also drops a message for the consumer, if consumer does not have enough permit to consume message, or consumer TCP channel is not writable. Therefore, consumer receiver queue size (to accommodate enough permits) and TCP-receiver window size (to keep channel writable) should be configured properly to avoid message drop for that consumer.</li>
+  <li>Broker only allows configured number of in-flight messages per client connection. So, if producer tries to publish messages higher than this rate, then broker silently drops those new incoming messages without processing and delivering them to the subscribers. However, broker acknowledges with special message-id (<code class="highlighter-rouge">msg-id: -1:-1</code>) for those dropped messages to signal producer about the message drop.</li>
+</ul>
+
+<h4 id="performance">Performance</h4>
+
+<p>Non-persistent messaging is usually faster than persistent messaging because broker does not persist messages and immediately sends ack back to producer as soon as that message deliver to all connected subscribers. Therefore, producer sees comparatively low publish latency with non-persistent topic.</p>
+
+<h4 id="client-api">Client API</h4>
+
+<p>A topic name will look like:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>non-persistent://my-property/us-west/my-namespace/my-topic
+</code></pre></div></div>
+
+<p>Producer and consumer can connect to non-persistent topic in a similar way, as persistent topic except topic name must start with <code class="highlighter-rouge">non-persistent</code>.</p>
+
+<p>Non-persistent topic supports all 3 different subscription-modes: <strong>Exclusive</strong>, <strong>Shared</strong>, <strong>Failover</strong> which are already explained in details at <a href="../../getting-started/ConceptsAndArchitecture">GettingStarted</a>.</p>
+
+<h5 id="consumer-api">Consumer API</h5>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">,</span>
+            <span class="s">"my-subscribtion-name"</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h5 id="producer-api">Producer API</h5>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h4 id="broker-configuration">Broker configuration</h4>
+
+<p>Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics.</p>
+
+<p>Broker configuration for enabling broker to own only configured type of topics</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># It disables broker to load persistent topics
+enablePersistentTopics=false
+# It enables broker to load non-persistent topics
+enableNonPersistentTopics=true
+</code></pre></div></div>
+
+<h2 id="architecture-overview">Architecture overview</h2>
+
+<p>At the highest level, a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> is composed of one or more Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>. Clusters within an instance can <a href="#replicate">replicate</a> data amongst themselves.</p>
+
+<p>In a Pulsar cluster:</p>
+
+<ul>
+  <li>One or more <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> handles and load balances incoming messages from <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>, dispatches messages to <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, communicates with <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> to handle various coordination tasks, stores messages in <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> instances (aka <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>), relies on a cluster-specific <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> cluster for certain tasks, and more.</li>
+  <li>A <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> cluster consisting of one more or more <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> handles <a href="#persistent-storage">persistent storage</a> of messages.</li>
+  <li>A <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> cluster specific to that cluster handles</li>
+</ul>
+
+<p>The diagram below provides an illustration of a Pulsar cluster:</p>
+
+<p><img src="/img/pulsar_system_architecture.png" alt="Architecture Diagram" /></p>
+
+<p>At the broader <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> level, an instance-wide ZooKeeper cluster called <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> handles coordination tasks involving multiple clusters, for example <a href="#replication">geo-replication</a>.</p>
+
+<h2 id="brokers">Brokers</h2>
+
+<p>The Pulsar message <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> is a stateless component that’s primarily responsible for running two other components:</p>
+
+<ul>
+  <li>An HTTP server that exposes a REST API for both <a href="../../reference/RestApi">administrative tasks</a> and <a href="#client-setup-phase">topic lookup</a> for producers and consumers</li>
+  <li>A <span class="popover-term" tabindex="0" title="What is a dispatcher?" data-placement="top" data-content="An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications." data-toggle="popover" data-trigger="focus">dispatcher</span>, which is an asynchronous TCP server over a custom <a href="../../reference/BinaryProtocol">binary protocol</a> used for all data transfers</li>
+</ul>
+
+<p>Messages are typically dispatched out of a <a href="#managed-ledger">managed ledger</a> cache for the sake of performance, <em>unless</em> the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>.</p>
+
+<p>Finally, to support <span class="popover-term" tabindex="0" title="What is geo-replication?" data-placement="top" data-content="Replication of messages across Pulsar clusters, potentially in different datacenters or geographical regions." data-toggle="popover" data-trigger="focus">geo-replication</span> on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar <a href="../../clients/Java">Java client library</a>.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>For a guide to managing Pulsar brokers, see the <a href="../../admin/ClustersBrokers#managing-brokers">Clusters and brokers</a> guide.</p>
+
+  </div>
+</div>
+
+<h2 id="clusters">Clusters</h2>
+
+<p>A Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> consists of one or more Pulsar <em>clusters</em>. Clusters, in turn, consist of:</p>
+
+<ul>
+  <li>One or more Pulsar <a href="#broker">brokers</a></li>
+  <li>A <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> quorum used for cluster-level configuration and coordination</li>
+  <li>An ensemble of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> used for <a href="#persistent-storage">persistent storage</a> of messages</li>
+</ul>
+
+<p>Clusters can replicate amongst themselves using <a href="#geo-replication">geo-replication</a>.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>For a guide to managing Pulsar clusters, see the <a href="../../admin/ClustersBrokers#managing-clusters">Clusters and brokers</a> guide.</p>
+
+  </div>
+</div>
+
+<h3 id="global-cluster">Global cluster</h3>
+
+<p>In any Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, there is an instance-wide cluster called <code class="highlighter-rouge">global</code> that you can use to mange non-cluster-specific namespaces and topics. The <code class="highlighter-rouge">global</code> cluster is created for you automatically when you <a href="../../admin/ClustersBrokers#initialize-cluster-metadata">initialize metadata</a> for the first cluster in your instance.</p>
+
+<p>Global topic names have this basic structure (note the <code class="highlighter-rouge">global</code> cluster):</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">my-property</span>/<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+</section>
+
+<h2 id="metadata-store">Metadata store</h2>
+
+<p>Pulsar uses <a href="https://zookeeper.apache.org/">Apache Zookeeper</a> for metadata storage, cluster configuration, and coordination. In a Pulsar instance:</p>
+
+<ul>
+  <li>A <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> quorum stores configuration for <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span>, and other entities that need to be globally consistent.</li>
+  <li>Each cluster has its own local ZooKeeper ensemble that stores <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics." data-toggle="popover" data-trigger="focus">ledger</span> metadata, and more.</li>
+</ul>
+
+<p>When creating a <a href="../../admin/ClustersBrokers#initialize-cluster-metadata">new cluster</a></p>
+
+<h2 id="persistent-storage">Persistent storage</h2>
+
+<p><img src="/img/broker-bookie.png" alt="Brokers and bookies" /></p>
+
+<p>Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>, it will be delivered to its intended target.</p>
+
+<p>This guarantee requires that non-<span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> messages are stored in a durable manner until they can be delivered to and acknowledged by <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>. This mode of messaging is commonly called <em>persistent messaging</em>. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> volumes on each server.</p>
+
+<p>Pulsar uses a system called <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a> for persistent message storage. BookKeeper is a distributed <a href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead log</a> (WAL) system that provides a number of crucial advantages for Pulsar:</p>
+
+<ul>
+  <li>It enables Pulsar to utilize many independent logs, called <a href="#ledgers">ledgers</a>. Multiple ledgers can be created for <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> over time.</li>
+  <li>It offers very efficient storage for sequential data that handles entry replication.</li>
+  <li>It guarantees read consistency of ledgers in the presence of various system failures.</li>
+  <li>It offers even distribution of I/O across bookies.</li>
+  <li>It’s horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> to a cluster.</li>
+  <li><span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">Bookies</span> are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices—one for journal and another for general storage–bookies are able to isolate the effects of read operations from the latency of ongoing write operations.</li>
+</ul>
+
+<p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. Cursors are <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> positions for <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>. BookKeeper enables Pulsar to store consumer position in a scalable fashion.</p>
+
+<p>At the moment, Pulsar only supports persistent message storage. This accounts for the <code class="highlighter-rouge">persistent</code> in all <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> names. Here’s an example:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">my-property</span>/<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+</section>
+
+<p>In the future, Pulsar will support ephemeral message storage.</p>
+
+<h3 id="ledgers">Ledgers</h3>
+
+<p>A <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics." data-toggle="popover" data-trigger="focus">ledger</span> is an append-only data structure with a single writer that is assigned to multiple BookKeeper storage nodes, or <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>. Ledger entries are replicated to multiple bookies. Ledgers themselves have very simple semantics:</p>
+
+<ul>
+  <li>A Pulsar broker can create a ledger, append entries to the ledger, and close the ledger.</li>
+  <li>After the ledger has been closed—either explicitly or because the writer process crashed—it can then be opened only in read-only mode.</li>
+  <li>Finally, when entries in the ledger are no longer needed, the whole ledger can be deleted from the system (across all bookies).</li>
+</ul>
+
+<h4 id="ledger-read-consistency">Ledger read consistency</h4>
+
+<p>The main strength of Bookkeeper is that it guarantees read consistency in ledgers in the presence of failures. Since the ledger can only be written to by a single process, that process is free to append entries very efficiently, without need to obtain consensus. After a failure, the ledger will go through a recovery process that will finalize the state of the ledger and establish which entry was last committed to the log. After that point, all readers of the ledger are guaranteed to see the exact same content.</p>
+
+<h4 id="managed-ledgers">Managed ledgers</h4>
+
+<p>Given that Bookkeeper ledgers provide a single log abstraction, a library was developed on top of the ledger called the <em>managed ledger</em> that represents the storage layer for a single topic. A managed ledger represents the abstraction of a stream of messages with a single writer that keeps appending at the end of the stream and multiple <span class="popover-term" tabindex="0" title="What is a cursor?" data-placement="top" data-content="The subscription position for a consumer." data-toggle="popover" data-trigger="focus">cursors</span> that are consuming the stream, each with its own associated position.</p>
+
+<p>Internally, a single managed ledger uses multiple BookKeeper ledgers to store the data. There are two reasons to have multiple ledgers:</p>
+
+<ol>
+  <li>After a failure, a ledger is no longer writable and a new one needs to be created.</li>
+  <li>A ledger can be deleted when all cursors have consumed the messages it contains. This allows for periodic rollover of ledgers.</li>
+</ol>
+
+<h3 id="journal-storage">Journal storage</h3>
+
+<p>In BookKeeper, <em>journal</em> files contain BookKeeper transaction logs. Before making an update to a <a href="#ledgers">ledger</a>, a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the <a href="../../reference/Configuration#bookkeeper-journalMaxSizeMB"><code class="highlighter-rouge">journalMaxSizeMB</code></a> parameter).</p>
+
+<h3 id="non-persistent-storage">Non-persistent storage</h3>
+
+<p>A future version of BookKeeper will support <em>non-persistent messaging</em> and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the <code class="highlighter-rouge">persistent</code> in topic names with a <code class="highlighter-rouge">non-persistent</code> indicator.</p>
+
+<h2 id="message-retention-and-expiry">Message retention and expiry</h2>
+
+<p>By default, Pulsar message <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>:</p>
+
+<ul>
+  <li>immediately delete <em>all</em> messages that have been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>, and</li>
+  <li><a href="#persistent-storage">persistently store</a> all unacknowledged messages in a message backlog.</li>
+</ul>
+
+<p>Pulsar has two features, however, that enable you to override this default behavior:</p>
+
+<ul>
+  <li>Message <strong>retention</strong> enables you to store messages that have been acknowledged by a consumer</li>
+  <li>Message <strong>expiry</strong> enables you to set a time to live (TTL) for messages that have not yet been acknowledged</li>
+</ul>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="../../advanced/RetentionExpiry">Message retention and expiry</a> admin documentation.</p>
+
+  </div>
+</div>
+
+<p>The diagram below illustrates both concepts:</p>
+
+<p><img src="/img/retention-expiry.png" width="80%" /></p>
+
+<p>With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> dicates that some messages are durably stored in Pulsar even though they’ve already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, <em>all</em> of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.</p>
+
+<p>With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven’t been acknowledged</span>, because they’ve expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven’t been acknowledged but are 10 minutes old).</p>
+
+<h2 id="replication">Replication</h2>
+
+<p>Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. <a href="../../admin/GeoReplication">Geo-replication</a> in Pulsar enables you to do that.</p>
+
+<h2 id="multi-tenancy">Multi-tenancy</h2>
+
+<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which <a href="TODO">storage quotas</a>, <a href="../../advanced/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
+
+<p>The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>As you can see, the property is the most basic unit of categorization for topics (and even more fundamental than the <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>).</p>
+
+<h3 id="properties-and-namespaces">Properties and namespaces</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsar was designed from the ground up to be a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. In Pulsar, <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenants</span> are identified by <a href="#properties">properties</a>. Properties are the highest administrative unit within a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>. Within properties</p>
+
+<h3 id="properties">Properties</h3>
+
+<p>To each property in a Pulsar instance you can assign:</p>
+
+<ul>
+  <li>An <a href="../../admin/Authz#authorization">authorization</a> scheme</li>
+  <li>The set of <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> to which the property applies</li>
+</ul>
+
+<h3 id="namespaces">Namespaces</h3>
+
+<p><span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">Properties</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> are two key concepts of Pulsar to support <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenancy</span>.</p>
+
+<ul>
+  <li>A <strong>property</strong> identifies a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>. Pulsar is provisioned for a specified property with appropriate capacity allocated to the property.</li>
+  <li>A <strong>namespace</strong> is the administrative unit nomenclature within a property. The configuration policies set on a namespace apply to all the topics created in such namespace. A property may create multiple namespaces via self-administration using REST API and CLI tools. For instance, a property with different applications can create a separate namespace for each application.</li>
+</ul>
+
+<p>Names for topics in the same namespace will look like this:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
+</section>
+
+<h2 id="authentication-and-authorization">Authentication and Authorization</h2>
+
+<p>Pulsar supports a pluggable <a href="../../admin/Authz">authentication</a> mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and properties.</p>
+
+<h2 id="client-interface">Client interface</h2>
+
+<p>Pulsar exposes a client API with language bindings for <a href="../../clients/Java">Java</a> and <a href="../../clients/Cpp">C++</a>. The client API optimizes and encapsulates Pulsar’s client-broker communication protocol and exposes a simple and intuitive API for use by applications.</p>
+
+<p>Under the hood, the current official Pulsar client libraries support transparent reconnection and/or connection failover to <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, queuing of messages until <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by the broker, and heuristics such as connection retries with backoff.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Custom client libraries</p>
+</span>
+    
+<p>If you’d like to create your own client library, we recommend consulting the documentation on Pulsar’s custom <a href="../../project/BinaryProtocol">binary protocol</a>.</p>
+
+  </div>
+</div>
+
+<h3 id="client-setup-phase">Client setup phase</h3>
+
+<p>When an application wants to create a producer/consumer, the Pulsar client library will initiate a setup phase that is composed of two steps:</p>
+
+<ol>
+  <li>The client will attempt to determine the owner of the topic by sending an HTTP lookup request to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>. The request could reach one of the active brokers which, by looking at the (cached) zookeeper metadata will know who is serving the topic or, in case nobody is serving it, will try to assign it to the least loaded broker.</li>
+  <li>Once the client library has the broker address, it will create a TCP connection (or reuse an existing connection from the pool) and authenticate it. Within this connection, client and broker exchange binary commands from a custom protocol. At this point the client will send a command to create producer/consumer to the broker, which will comply after having validated the authorization policy.</li>
+</ol>
+
+<p>Whenever the TCP connection breaks, the client will immediately re-initiate this setup phase and will keep trying with exponential backoff to re-establish the producer or consumer until the operation succeeds.</p>
+
+<h2 id="pulsar-proxy">Pulsar proxy</h2>
+
+<p>One way for Pulsar clients to interact with a Pulsar <a href="#clusters">cluster</a> is by connecting to Pulsar message <a href="#brokers">brokers</a> directly. In some cases, however, this kind of direct connection is either infeasible or undesirable because the client doesn’t have direct access to broker addresses. If you’re running Pulsar in a cloud environment or on <a href="https://kubernetes.io">Kubernetes</a> or an analogous platform, for example, then direct client connections to brokers are likely not possible.</p>
+
+<p>The <strong>Pulsar proxy</strong> provides a solution to this problem by acting as a single gateway for all of the brokers in a cluster. If you run the Pulsar proxy (which, again, is optional), all client connections with the Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> will flow through the proxy rather than communicating with brokers.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you’d like.</p>
+
+  </div>
+</div>
+
+<p>Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> clusters. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar proxy <span class="se">\</span>
+  <span class="nt">--zookeeper-servers</span> zk-0,zk-1,zk-2 <span class="se">\</span>
+  <span class="nt">--global-zookeeper-servers</span> zk-0,zk-1,zk-2
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Pulsar proxy docs</p>
+</span>
+    
+<p>For documentation on using the Pulsar proxy, see the <a href="../../admin/Proxy">Pulsar proxy admin documentation</a>.</p>
+
+  </div>
+</div>
+
+<p>Some important things to know about the Pulsar proxy:</p>
+
+<ul>
+  <li>Connecting clients don’t need to provide <em>any</em> specific configuration to use the Pulsar proxy. You won’t need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you’re running a load balancer over the Pulsar proxy).</li>
+  <li><a href="../../admin/Authz/#tls-client-auth">TLS encryption and authentication</a> is supported by the Pulsar proxy</li>
+</ul>
+
+<h2 id="service-discovery">Service discovery</h2>
+
+<p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the <a href="../../deployment/InstanceSetup#service-discovery-setup">Deploying a Pulsar instance</a> guide.</p>
+
+<p>You can use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, whether via DNS, an HTTP or IP redirect, or some other means.</p>
+
+<h2 id="reader-interface">Reader interface</h2>
+
+<p>In Pulsar, the “standard” <a href="#consumers">consumer interface</a> involves using <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> to listen on <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>, process incoming messages, and finally <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> those messages when they’ve been processed. Whenever a consumer connects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic’s cursor is automatically managed by Pulsar.</p>
+
+<p>The <strong>reader interface</strong> for Pulsar enables applications to manually manage cursors. When you use a reader to connect to a topic—rather than a consumer—you need to specify <em>which</em> message the reader begins reading from when it connects to a topic. When connecting to a topic, the reader interface enables you to begin with:</p>
+
+<ul>
+  <li>The <strong>earliest</strong> available message in the topic</li>
+  <li>The <strong>latest</strong> available message in the topic</li>
+  <li>Some other message between the earliest and the latest. If you select this option, you’ll need to explicitly provide a message ID. Your application will be responsible for “knowing” this message ID in advance, perhaps fetching it from a persistent data store or cache.</li>
+</ul>
+
+<p>The reader interface is helpful for use cases like using Pulsar to provide <a href="https://streaml.io/blog/exactly-once/">effectively-once</a> processing semantics for a stream processing system. For this use case, it’s essential that the stream processing system be able to “rewind” topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to “manually position” themselves within a topic.</p>
+
+<p><img src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80%" /></p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Non-partitioned topics only</p>
+</span>
+    <p>The reader interface for Pulsar cannot currently be used with <a href="#partitioned-topics">partitioned topics</a>.</p>
+
+  </div>
+</div>
+
+<p>Here’s a Java example that begins reading from the earliest available message on a topic:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.Message</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.MessageId</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.Reader</span><span class="o">;</span>
+
+<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/reader-api-test"</span><span class="o">;</span>
+<span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">earliest</span><span class="o">;</span>
+
+<span class="c1">// Create a reader on a topic and for a specific message (and onward)</span>
+<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+
+<span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="na">readNext</span><span class="o">();</span>
+
+    <span class="c1">// Process the message</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>To create a reader that will read from the latest available message:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">latest</span><span class="o">;</span>
+<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+</code></pre></div></div>
+
+<p>To create a reader that will read from some message between earliest and latest:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">byte</span><span class="o">[]</span> <span class="n">msgIdBytes</span> <span class="o">=</span> <span class="c1">// Some byte array</span>
+<span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">fromByteArray</span><span class="o">(</span><span class="n">msgIdBytes</span><span class="o">);</span>
+<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+</code></pre></div></div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar concepts and architecture</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

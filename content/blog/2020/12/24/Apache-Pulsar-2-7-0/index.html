@@ -1,0 +1,222 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.7.0 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.7.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.7.0 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2020/12/24/Apache-Pulsar-2-7-0"/><meta property="og:description" content="We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.7.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2020/12/24/Apache-Pulsar-2-7-0">Apache Pulsar 2.7.0</a></h1><p class="post-meta">December 24, 2020</p><div class="authorBlock"><p class="post-authorName"><a href="https://twitter.com/lipenghui6" target="_blank" rel="noreferrer noopener">Penghui Li</a></p></div></header><div><span><p>We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.7.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes.</p>
+<p>Here is a selection of the most interesting and major features added to Pulsar 2.7.0.</p>
+<!--truncate-->
+<h2><a class="anchor" aria-hidden="true" id="major-features"></a><a href="#major-features" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Major features</h2>
+<h3><a class="anchor" aria-hidden="true" id="transaction-support"></a><a href="#transaction-support" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transaction support</h3>
+<p>Transactional semantics enable event streaming applications to consume, process, and produce messages in one atomic operation. With transactions, Pulsar achieves the exactly-once semantics for a single partition and multiple partitions as well. This enables new use cases with Pulsar where a client (either as a producer or consumer) can work with messages across multiple topics and partitions and ensure those messages will all be processed as a single unit. This will strengthen the message delivery semantics of Apache Pulsar and processing guarantees for Pulsar Functions.</p>
+<p>Currently, Pulsar transactions are in developer preview. The community will work further to enhance the feature to be used in the production environment soon.</p>
+<p>To enable transactions in Pulsar, you need to configure the parameter in the <code>broker.conf</code> file.</p>
+<pre><code class="hljs"><span class="hljs-attr">transactionCoordinatorEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>Initialize transaction coordinator metadata, so the transaction coordinators can leverage advantages of the partitioned topic, such as load balance.</p>
+<pre><code class="hljs">bin/pulsar initialize-transaction-coordinator-metadata -cs <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">2181</span> -c standalone
+</code></pre>
+<p>From the client-side, you can also enable the transactions for the Pulsar client.</p>
+<pre><code class="hljs css language-java">PulsarClient pulsarClient = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .enableTransaction(<span class="hljs-keyword">true</span>)
+        .build();
+</code></pre>
+<p>Here is an example to demonstrate the Pulsar transactions.</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Open a transaction</span>
+Transaction txn = pulsarClient
+        .newTransaction()
+        .withTransactionTimeout(<span class="hljs-number">5</span>, TimeUnit.MINUTES)
+        .build()
+        .get();
+
+<span class="hljs-comment">//  Publish messages with the transaction</span>
+producer.newMessage(txn).value(<span class="hljs-string">"Hello Pulsar Transaction"</span>.getBytes()).send();
+
+<span class="hljs-comment">// Consume and acknowledge messages with the transaction</span>
+Message&lt;<span class="hljs-keyword">byte</span>[]&gt; message = consumer.receive();
+consumer.acknowledgeAsync(message.getMessageId(), txn);
+
+<span class="hljs-comment">// Commit the transaction</span>
+txn.commit()
+</code></pre>
+<p>For more details about the Pulsar transactions, refer to <a href="http://pulsar.apache.org/docs/en/transactions/">here</a>. For more details about the design of Pulsar transactions, refer to <a href="https://github.com/apache/pulsar/wiki/PIP-31%3A-Transaction-Support">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="topic-level-policy"></a><a href="#topic-level-policy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topic level policy</h3>
+<p>Pulsar 2.7.0 introduces the system topic which can maintain all policy change events to achieve the topic level policy. All policies at the namespace level are now also available at the topic level, so users can set different policies at the topic level flexibly without using lots of metadata service resources. The topic level policy enables users to manage topics more flexibly and adds no burden to ZooKeeper.</p>
+<p>To enable topic level policy in Pulsar, you need to configure the parameter in the <code>broker.conf</code> file.</p>
+<pre><code class="hljs"><span class="hljs-attr">systemTopicEnabled</span>=<span class="hljs-literal">true</span>
+<span class="hljs-attr">topicLevelPoliciesEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>After topic level policy is enabled, you can use Pulsar Admin to update the policy of a topic. Here is an example for setting the data retention for a specific topic.</p>
+<pre><code class="hljs"><span class="hljs-string">bin/</span><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-retention</span> -s <span class="hljs-string">10G </span>-t <span class="hljs-string">7d </span><span class="hljs-string">persistent:</span>//<span class="hljs-string">public/</span><span class="hljs-string">default/</span><span class="hljs-string">my-topic
+</span></code></pre>
+<p>For more details about the system topic and topic level policy, refer to <a href="https://github.com/apache/pulsar/wiki/PIP-39%3A-Namespace-Change-Events">here</a></p>
+<h3><a class="anchor" aria-hidden="true" id="support-azure-blobstore-offloader"></a><a href="#support-azure-blobstore-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support Azure BlobStore offloader</h3>
+<p>In Pulsar 2.7.0, we add support for Azure BlobStore offloader, which allows users to offload topic data into Azure BlobStore. You can configure the Azure BlobStore offloader driver in the configuration <code>broker.conf</code> file.</p>
+<pre><code class="hljs"><span class="hljs-attr">managedLedgerOffloadDriver</span>=azureblob
+</code></pre>
+<p>For more details, refer to <a href="https://github.com/apache/pulsar/pull/8436">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="native-protobuf-schema-support"></a><a href="#native-protobuf-schema-support" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Native protobuf schema support</h3>
+<p>Pulsar 2.7.0 introduces a native protobuf schema support, which can provide more ability for protobuf users who want to integrate with Pulsar. Here is an example to show how to use native protobuf schema in Java client:</p>
+<pre><code class="hljs css language-java">Consumer&lt;PBMessage&gt; consumer = client.newConsumer(Schema.PROTOBUFNATIVE(PBMessage.class))
+.topic(topic)
+.subscriptionName("my-subscription-name")
+.subscribe();
+</code></pre>
+<p>For more details, refer to <a href="https://github.com/apache/pulsar/pull/8372">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="resource-limitation"></a><a href="#resource-limitation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Resource limitation</h3>
+<p>In Pulsar, tenant, namespace, and topic are the core resources of a cluster. Pulsar 2.7.0 enables you to limit the maximum tenants of a cluster, the maximum namespaces per tenant, the maximum topics per namespace, and the maximum subscriptions per topic.</p>
+<p>You can configure the resource limitations in the <code>broker.conf</code> file.</p>
+<pre><code class="hljs"><span class="hljs-attr">maxTenants</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">maxNamespacesPerTenant</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">maxTopicsPerNamespace</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">maxSubscriptionsPerTopic</span>=<span class="hljs-number">0</span>
+</code></pre>
+<p>This provides Pulsar administrators with great convenience in resource management.</p>
+<h3><a class="anchor" aria-hidden="true" id="support-e2e-encryption-for-pulsar-functions"></a><a href="#support-e2e-encryption-for-pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support e2e encryption for Pulsar Functions</h3>
+<p>Pulsar 2.7.0 enables you to add End-to-End (e2e) encryption for Pulsar Functions. You can use the public and private key pair that the application configured to perform encryption. Only consumers with a valid key can decrypt encrypted messages.</p>
+<p>To enable End-to-End encryption on Functions Worker, you can set it by specifying <code>--producer-config</code> in the command line terminal. For more information, refer to <a href="http://pulsar.apache.org/docs/en/security-encryption/">Pulsar Encryption</a>.</p>
+<p>For more details, you can see <a href="https://github.com/apache/pulsar/pull/8432">here</a></p>
+<h3><a class="anchor" aria-hidden="true" id="function-rebalance"></a><a href="#function-rebalance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function rebalance</h3>
+<p>Before 2.7.0, there was no mechanism for rebalancing functions scheduler on workers. The workload for functions m become skewed. Pulsar 2.7.0 supports manual trigger functions rebalance and automatic periodic functions rebalance.</p>
+<p>For more details, refer to <a href="https://github.com/apache/pulsar/pull/7388">https://github.com/apache/pulsar/pull/7388</a>  and <a href="https://github.com/apache/pulsar/pull/7449">https://github.com/apache/pulsar/pull/7449</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="more-information"></a><a href="#more-information" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>More information</h2>
+<ul>
+<li>To download Apache Pulsar 2.7.0, click <a href="https://pulsar.apache.org/en/download/">here</a>.</li>
+<li>For more information about Apache Pulsar 2.7.0, see <a href="https://pulsar.apache.org/release-notes/#2.7.0">2.7.0 release notes</a> and <a href="https://github.com/apache/pulsar/pulls?q=milestone%3A2.7.0+-label%3Arelease%2F2.6.2+-label%3Arelease%2F2.6.1+">2.7.0 PR list</a>.</li>
+</ul>
+<p>If you have any questions or suggestions, contact us with mailing lists or slack.</p>
+<ul>
+<li><a href="mailto:users@pulsar.apache.org">users@pulsar.apache.org</a></li>
+<li><a href="mailto:dev@pulsar.apache.org">dev@pulsar.apache.org</a></li>
+<li>Pulsar slack channel: <a href="https://apache-pulsar.slack.com/">https://apache-pulsar.slack.com/</a></li>
+<li>Self-registration at <a href="https://apache-pulsar.herokuapp.com/">https://apache-pulsar.herokuapp.com/</a></li>
+</ul>
+<p>Looking forward to your contributions to <a href="https://github.com/apache/pulsar">Apache Pulsar</a>.</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.7.0" data-url="https://pulsar.apache.org/blog/2020/12/24/Apache-Pulsar-2-7-0" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#major-features">Major features</a><ul class="toc-headings"><li><a href="#transaction-support">Transaction support</a></li><li><a href="#topic-level-policy">Topic level policy</a></li><li><a href="#support-azure-blobstore-offloader">Support Azure BlobStore offloader</a></li><li><a href="#native-protobuf-schema-support">Native protobuf schema support</a></li><li><a href="#resource-limitation">Resource limitation</a></li><li><a href="#support-e2e-encryption-for-pulsar-functions">Support e2e encryption for Pulsar Functions</a></li><li><a href="#function-rebalance">Function rebalance</a></li></ul></li><li><a href="#more-information">More information</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

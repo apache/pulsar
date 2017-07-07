@@ -1,0 +1,398 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to develop Pulsar connectors · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="本教程解释了如何开发 Pulsar connector，以在 Pulsar 和其他系统之间移动数据。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="How to develop Pulsar connectors · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="本教程解释了如何开发 Pulsar connector，以在 Pulsar 和其他系统之间移动数据。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/io-develop">English</a></li><li><a href="/docs/ja/2.8.3/io-develop">日本語</a></li><li><a href="/docs/fr/2.8.3/io-develop">Français</a></li><li><a href="/docs/ko/2.8.3/io-develop">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/io-develop">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar IO</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to develop Pulsar connectors</h1></header><article><div><span><p>本教程解释了如何开发 Pulsar connector，以在 Pulsar 和其他系统之间移动数据。</p>
+<p>Pulsar connector 是特殊的 <a href="/docs/zh-CN/2.8.3/functions-overview">Pulsar Functions</a>，因此创建 Pulsar connector 类似于创建 Pulsar function。</p>
+<p>Pulsar connector 可分为两类：</p>
+<table>
+<thead>
+<tr><th>类型</th><th>说明</th><th>示例</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+<p>{@inject: github:</p>
+<p><code>Source</code>:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|<a href="/docs/zh-CN/2.8.3/io-rabbitmq">RabbitMQ source connector</a> imports the messages of a RabbitMQ queue to a Pulsar topic.
+<a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
+|将数据从 Pulsar 导出到其他系统。|<a href="/docs/zh-CN/2.8.3/io-kinesis">Kinesis sink connector</a> 将 Pulsar 主题消息导出到 Kinesis 流。</p>
+<h2><a class="anchor" aria-hidden="true" id="开发"></a><a href="#开发" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>开发</h2>
+<p>你可以开发 Pulsar source connector 和 sink connector。</p>
+<h3><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h3>
+<p>要开发一个源连接器，需要实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
+ 接口，也就是说，需要实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
+ 和 {@inject: github:<code>read</code>:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java 这两个方法。</p>
+<ol>
+<li><p>实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
+ 方法。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+* Open connector with configuration
+*
+* <span class="hljs-doctag">@param</span> config initialization config
+* <span class="hljs-doctag">@param</span> sourceContext
+* <span class="hljs-doctag">@throws</span> Exception IO type exceptions when opening a connector
+*/</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SourceContext sourceContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
+</code></pre>
+<p>Source connector 初始化会调用此方法。</p>
+<p>在此方法中，可通过传入的 <code>config</code> 参数检索所有 connector 的特定设置，并初始化所有必须的资源。</p>
+<p>例如，Kafka connector 可以在 <code>open</code> 方法中创建 Kafka 客户端。</p>
+<p>Besides, Pulsar runtime also provides a <code>SourceContext</code> for the connector to access runtime resources for tasks like collecting metrics. 执行此方法可以保存 <code>SourceContext</code> 供后续使用。</p></li>
+<li><p>实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
+ 方法。</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+    * Reads the next message from source.
+    * If source does not have any new messages, this call should block.
+    * <span class="hljs-doctag">@return</span> next message from source.  The return result should never be null
+    * <span class="hljs-doctag">@throws</span> Exception
+    */</span>
+    <span class="hljs-function">Record&lt;T&gt; <span class="hljs-title">read</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
+</code></pre>
+<p>如果没有要返回的内容，则应停止该方法的执行而不是返回 <code>null</code>。</p>
+<p>返回值 <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
+ 需要封装以下 Pulsar IO 运行时所需要的信息。</p>
+<ul>
+<li><p><a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
+ 需要包含以下变量：</p>
+<table>
+<thead>
+<tr><th>变量</th><th>Required</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</li>
+</ul></li>
+</ol>
+<pre><code class="hljs">  `TopicName`|No|Pulsar topic name from which the record is originated from. `Key`|No| 随机用密钥标记消息。&lt;br/&gt;&lt;br/&gt; 更多详细信息，参阅 [Routing modes](/docs/zh-CN/2.8.3/concepts-messaging#routing-modes).| `Value`|Yes| 实际记录数据。 `EventTime`|No| Source 中记录的事件时间。 `PartitionId`|No| 如果记录来自已分区的 source，则返回 `PartitionId`。 &lt;br/&gt;&lt;br/&gt;`PartitionId` 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 `RecordSequence`|No| 如果记录来自于序列 source，则返回 `RecordSequence`。&lt;br/&gt;&lt;br/&gt;`RecordSequence` 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 `Properties` |No| 如果记录带有用户自定义的属性，则返回相关属性。 `DestinationTopic`|No| 应该写入消息的 topic。 `Message`|No| 包含用户发送数据的类。&lt;br/&gt;&lt;br/&gt; 更多详细信息，参阅 [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java)。|
+
+ * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following methods:
+
+    Method|Description |---|--- `ack` |Acknowledge that the record is fully processed. `fail`|Indicate that the record fails to be processed.
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="处理-schema-信息"></a><a href="#处理-schema-信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>处理 Schema 信息</h2>
+<p>Pulsar IO 能够自动处理 Schema 信息，同时提供了强大的基于 Java 通用 API 的类型。 如果你知道你正在处理的 Schema 类型，你就可以在 Sink 申明中为此类型直接指定对应的 Java 原生类。</p>
+<pre><code class="hljs"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-symbol">MySource</span> <span class="hljs-symbol">implements</span> <span class="hljs-symbol">Source</span>&lt;<span class="hljs-symbol">String</span>&gt; {
+    <span class="hljs-keyword">public</span> Record&lt;String&gt; read() {}
+}
+</code></pre>
+<p>如果你想实现一个能够兼容任意 Schema 的 Source，你可以使用 <code>byte[]</code> (of <code>ByteBuffer</code>) ，代码实现为 Schema.AUTO_PRODUCE_BYTES()。</p>
+<pre><code class="hljs"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MySource</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Source</span>&lt;<span class="hljs-title">byte</span>[]&gt; </span>{
+    <span class="hljs-keyword">public</span> Record&lt;<span class="hljs-keyword">byte</span>[]&gt; read() {
+
+        Schema wantedSchema = ....
+        Record&lt;<span class="hljs-keyword">byte</span>[]&gt; myRecord = <span class="hljs-keyword">new</span> MyRecordImplementation(); 
+        ....
+    }
+    <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyRecordImplementation</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Record</span>&lt;<span class="hljs-title">byte</span>[]&gt; </span>{
+         <span class="hljs-keyword">public</span> <span class="hljs-keyword">byte</span>[] getValue() {
+            <span class="hljs-keyword">return</span> ....encoded <span class="hljs-keyword">byte</span>[]...that represents the value 
+         }
+         <span class="hljs-keyword">public</span> Schema&lt;<span class="hljs-keyword">byte</span>[]&gt; getSchema() {
+             <span class="hljs-keyword">return</span> Schema.AUTO_PRODUCE_BYTES(wantedSchema);
+         }
+    }
+}
+</code></pre>
+<p>To handle the <code>KeyValue</code> type properly, follow the guidelines for your record implementation:</p>
+<ul>
+<li>It must implement <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/KVRecord.java"><code>Record</code></a>
+ interface and implement <code>getKeySchema</code>,<code>getValueSchema</code>, and <code>getKeyValueEncodingType</code></li>
+<li>It must return a <code>KeyValue</code> object as <code>Record.getValue()</code></li>
+<li>It may return null in <code>Record.getSchema()</code></li>
+</ul>
+<p>When Pulsar IO runtime encounters a <code>KVRecord</code>, it brings the following changes automatically:</p>
+<ul>
+<li>Set properly the <code>KeyValueSchema</code></li>
+<li>Encode the Message Key and the Message Value according to the <code>KeyValueEncoding</code> (SEPARATED or INLINE)</li>
+</ul>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>For more information about <strong>how to create a source connector</strong>, see <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaSource</code></a>
+.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h3>
+<p>Developing a sink connector <strong>is similar to</strong> developing a source connector, that is, you need to implement the <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
+ interface, which means implementing the <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
+ method and the <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
+ method.</p>
+<ol>
+<li><p>实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
+ 方法。</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+    * Open connector with configuration
+    *
+    * <span class="hljs-doctag">@param</span> config initialization config
+    * <span class="hljs-doctag">@param</span> sinkContext
+    * <span class="hljs-doctag">@throws</span> Exception IO type exceptions when opening a connector
+    */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SinkContext sinkContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
+</code></pre></li>
+<li><p>实现 <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
+ 方法。</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+    * Write a message to Sink
+    * <span class="hljs-doctag">@param</span> record record to write to sink
+    * <span class="hljs-doctag">@throws</span> Exception
+    */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">write</span><span class="hljs-params">(Record&lt;T&gt; record)</span> <span class="hljs-keyword">throws</span> Exception</span>;
+</code></pre>
+<p>During the implementation, you can decide how to write the <code>Value</code> and the <code>Key</code> to the actual source, and leverage all the provided information such as <code>PartitionId</code> and <code>RecordSequence</code> to achieve different processing guarantees.</p>
+<p>还需要 ack 记录（消息发送成功）或发送失败记录（消息发送失败）。</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="处理-schema-信息-1"></a><a href="#处理-schema-信息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>处理 Schema 信息</h2>
+<p>Pulsar IO 能够自动处理 Schema 信息，同时提供了强大的基于 Java 通用 API 的类型。 如果你知道你正在消费的数据的 Schema 类型，你就可以在 Sink 申明中为此类型直接指定对应的 Java 原生类。</p>
+<pre><code class="hljs"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-symbol">MySink</span> <span class="hljs-symbol">implements</span> <span class="hljs-symbol">Sink</span>&lt;<span class="hljs-symbol">String</span>&gt; {
+    <span class="hljs-keyword">public</span> <span class="hljs-built_in">void</span> write(Record&lt;String&gt; record) {}
+}
+</code></pre>
+<p>如果你要实现一个可以兼容任意 Schema 的 Sink 连接器，你可以使用特殊的 GenericObject 接口。</p>
+<pre><code class="hljs">public class MySink implements Sink&lt;GenericObject&gt; {
+    public void write(Record&lt;GenericObject&gt; record) {
+        Schema schema = record.getSchema();
+        GenericObject genericObject = record.getValue();
+        <span class="hljs-keyword">if</span> (genericObject != <span class="hljs-literal">null</span>) {
+            SchemaType<span class="hljs-built_in"> type </span>= genericObject.getSchemaType();
+            Object nativeObject = genericObject.getNativeObject();
+            <span class="hljs-built_in">..</span>.
+        }
+        <span class="hljs-built_in">..</span><span class="hljs-built_in">..</span>
+    }
+}
+</code></pre>
+<p>当记录类型为 AVRO、JSON 或 Protobuf 时（schemaType=AVRO,JSON,PROTOBUF_NATIVE），你可以将 <code>genericObject</code> 类型的变量转换成 <code>GenericRecord</code> 类型变量，并使用 <code>getFields()</code> 和 <code>getField()</code> API。 你可以通过 <code>genericObject.getNativeObject()</code> 方法访问原生 AVRO 记录。</p>
+<p>当记录类型为 KeyValue 时，你可以通过以下代码访问 Schema 的 Key 和 Value。</p>
+<pre><code class="hljs"><span class="hljs-title">public</span> <span class="hljs-keyword">class</span> <span class="hljs-type">MySink</span> implements <span class="hljs-type">Sink</span>&lt;<span class="hljs-type">GenericObject</span>&gt; {
+    public void write(<span class="hljs-type">Record</span>&lt;<span class="hljs-type">GenericObject</span>&gt; record) {
+        <span class="hljs-type">Schema</span> schema = record.getSchema();
+        <span class="hljs-type">GenericObject</span> genericObject = record.getValue();
+        <span class="hljs-type">SchemaType</span> <span class="hljs-class"><span class="hljs-keyword">type</span> = genericObject.getSchemaType();</span>
+        <span class="hljs-type">Object</span> nativeObject = genericObject.getNativeObject();
+        <span class="hljs-keyword">if</span> (<span class="hljs-class"><span class="hljs-keyword">type</span> == <span class="hljs-type">SchemaType</span>.<span class="hljs-type">KEY_VALUE</span>) {
+            <span class="hljs-type">KeyValue</span> <span class="hljs-title">keyValue</span> = (<span class="hljs-type">KeyValue</span>) <span class="hljs-title">nativeObject</span>;
+            <span class="hljs-type">Object</span> <span class="hljs-title">key</span> = <span class="hljs-title">keyValue</span>.<span class="hljs-title">getKey</span>();
+            <span class="hljs-type">Object</span> <span class="hljs-title">value</span> = <span class="hljs-title">keyValue</span>.<span class="hljs-title">getValue</span>();
+
+            <span class="hljs-type">KeyValueSchema</span> <span class="hljs-title">keyValueSchema</span> = (<span class="hljs-type">KeyValueSchema</span>) <span class="hljs-title">schema</span>;
+            <span class="hljs-type">Schema</span> <span class="hljs-title">keySchema</span> = <span class="hljs-title">keyValueSchema</span>.<span class="hljs-title">getKeySchema</span>();
+            <span class="hljs-type">Schema</span> <span class="hljs-title">valueSchema</span> = <span class="hljs-title">keyValueSchema</span>.<span class="hljs-title">getValueSchema</span>();
+        }</span>
+        ....
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="测试"></a><a href="#测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>测试</h2>
+<p>测试 connector 会有一定的难度，因为 Pulsar IO connector 与两个可能很难模拟的系统交互，即 Pulsar 和与 connector 连接的系统。</p>
+<p>建议在模拟外部服务时编写特殊测试来测试 connector 功能，如下所示。</p>
+<h3><a class="anchor" aria-hidden="true" id="单元测试"></a><a href="#单元测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单元测试</h3>
+<p>可以为 connector 创建单元测试。</p>
+<h3><a class="anchor" aria-hidden="true" id="集成测试"></a><a href="#集成测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集成测试</h3>
+<p>只要有足够的单元测试，就可以添加单独的集成测试来验证端到端的功能。</p>
+<p>Pulsar uses <a href="https://www.testcontainers.org/">testcontainers</a> <strong>for all integration tests</strong>.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>For more information about <strong>how to create integration tests for Pulsar connectors</strong>, see <a href="https://github.com/apache/pulsar/tree/master//tests/integration/src/test/java/org/apache/pulsar/tests/integration/io"><code>IntegrationTests</code></a>
+.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="包"></a><a href="#包" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>包</h2>
+<p>在开发并测试 connector 后，需要先将其打包，然后才能提交到 <a href="/docs/zh-CN/2.8.3/functions-overview">Pulsar Functions</a> 集群。</p>
+<p>有两种方法可以使用 Pulsar Functions 的运行时间，即 <a href="#nar">NAR</a> 和 <a href="#uber-jar">uber JAR</a>。</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>如果打算将 connector 打包并分发给其他人使用，则需要 为自己的代码添加许可，并进行版权保护。 请记得添加许可和版权到 代码用到的所有库和你的发行版中。</p>
+<p>如果使用 <a href="#nar">NAR</a> 方法，则 NAR 插件会在生成的 NAR 包中自动创建一个 <code>DEPENDENCIES</code> 文件，包含 connector 所有库的许可和版权。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="nar"></a><a href="#nar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NAR</h3>
+<p><strong>NAR</strong> stands for NiFi Archive, which is a custom packaging mechanism used by Apache NiFi, to provide a bit of Java ClassLoader isolation.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>For more information about <strong>how NAR works</strong>, see <a href="https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd">here</a>.</p>
+</blockquote>
+<p>Pulsar uses the same mechanism for packaging <strong>all</strong> <a href="io-connectors">built-in connectors</a>.</p>
+<p>安装 Pulsar connector 最简单的方法是使用 <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> 创建一个 NAR 包。</p>
+<p>Include this <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> in your maven project for your connector as below.</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugins</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.nifi<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>nifi-nar-maven-plugin<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>1.2.0<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">plugin</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">plugins</span>&gt;</span>
+</code></pre>
+<p>You must also create a <code>resources/META-INF/services/pulsar-io.yaml</code> file with the following contents:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">connector</span> <span class="hljs-string">name</span>
+<span class="hljs-attr">description:</span> <span class="hljs-string">connector</span> <span class="hljs-string">description</span>
+<span class="hljs-attr">sourceClass:</span> <span class="hljs-string">fully</span> <span class="hljs-string">qualified</span> <span class="hljs-string">class</span> <span class="hljs-string">name</span> <span class="hljs-string">(only</span> <span class="hljs-string">if</span> <span class="hljs-string">source</span> <span class="hljs-string">connector)</span>
+<span class="hljs-attr">sinkClass:</span> <span class="hljs-string">fully</span> <span class="hljs-string">qualified</span> <span class="hljs-string">class</span> <span class="hljs-string">name</span> <span class="hljs-string">(only</span> <span class="hljs-string">if</span> <span class="hljs-string">sink</span> <span class="hljs-string">connector)</span>
+</code></pre>
+<p>For Gradle users, there is a <a href="https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin">Gradle Nar plugin available on the Gradle Plugin Portal</a>.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>For more information about an <strong>how to use NAR for Pulsar connectors</strong>, see <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/twitter/pom.xml"><code>TwitterFirehose</code></a>
+.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="uber-jar"></a><a href="#uber-jar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Uber JAR</h3>
+<p>An alternative approach is to create an <strong>uber JAR</strong> that contains all of the connector's JAR files and other resource files. No directory internal structure is necessary.</p>
+<p>可以使用 <a href="https://maven.apache.org/plugins/maven-shade-plugin/examples/includes-excludes.html">maven-shade-plugin</a> 来创建 uber JAR。如下所示：</p>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.maven.plugins<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>maven-shade-plugin<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>3.1.1<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">executions</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">execution</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">phase</span>&gt;</span>package<span class="hljs-tag">&lt;/<span class="hljs-name">phase</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">goals</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">goal</span>&gt;</span>shade<span class="hljs-tag">&lt;/<span class="hljs-name">goal</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">goals</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">configuration</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">filters</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">filter</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">artifact</span>&gt;</span>*:*<span class="hljs-tag">&lt;/<span class="hljs-name">artifact</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">filter</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">filters</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">configuration</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">execution</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">executions</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">plugin</span>&gt;</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="monitor"></a><a href="#monitor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor</h2>
+<p>Pulsar 连接器可以让你轻松地将数据接入和输出 Pulsar。 必须确保运行的连接器在任何时候都是正常运行的。 你可以通过以下方法监控已部署的 Pulsar 连接器：</p>
+<ul>
+<li><p>检查由 Pulsar 提供的 Metrics。</p>
+<p>Pulsar connectors expose the metrics that can be collected and used for monitoring the health of <strong>Java</strong> connectors. 你可以通过关注 <a href="/docs/zh-CN/2.8.3/deploy-monitoring">监控</a> 指南来检查这些指标。</p></li>
+<li><p>设置并检查你的自定义 Metrics。</p>
+<p>In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for <strong>Java</strong> connectors. Function workers 会自动将这些 Metrics 数据收集并发送到 Prometheus，你可以在 Grafana 中查看这些指标。</p></li>
+</ul>
+<p>下面是一个为 Java 连接器编写自定义 Metrics 的示例。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38565-tab-38566" class="nav-link active" data-group="group_38565" data-tab="tab-group-38565-content-38566">Java</div></div><div class="tab-content"><div id="tab-group-38565-content-38566" class="tab-pane active" data-group="group_38565" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">TestMetricSink</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Sink</span>&lt;<span class="hljs-title">String</span>&gt; </span>{<br /><br />        <span class="hljs-meta">@Override</span><br />        <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(Map&lt;String, Object&gt; config, SinkContext sinkContext)</span> <span class="hljs-keyword">throws</span> Exception </span>{<br />            sinkContext.recordMetric(<span class="hljs-string">"foo"</span>, <span class="hljs-number">1</span>);<br />        }<br /><br />        <span class="hljs-meta">@Override</span><br />        <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">write</span><span class="hljs-params">(Record&lt;String&gt; record)</span> <span class="hljs-keyword">throws</span> Exception </span>{<br /><br />        }<br /><br />        <span class="hljs-meta">@Override</span><br />        <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">close</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception </span>{<br /><br />        }<br />    }<br /></code></pre>
+</span></div></div></div></div>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/io-cdc"><span class="arrow-prev">← </span><span>CDC connector</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/io-cli"><span>CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#开发">开发</a><ul class="toc-headings"><li><a href="#source">Source</a></li></ul></li><li><a href="#处理-schema-信息">处理 Schema 信息</a><ul class="toc-headings"><li><a href="#sink">Sink</a></li></ul></li><li><a href="#处理-schema-信息-1">处理 Schema 信息</a></li><li><a href="#测试">测试</a><ul class="toc-headings"><li><a href="#单元测试">单元测试</a></li><li><a href="#集成测试">集成测试</a></li></ul></li><li><a href="#包">包</a><ul class="toc-headings"><li><a href="#nar">NAR</a></li><li><a href="#uber-jar">Uber JAR</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

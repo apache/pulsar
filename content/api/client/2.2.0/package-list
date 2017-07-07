@@ -1,0 +1,6 @@
+org.apache.pulsar.client.api
+org.apache.pulsar.client.api.url
+org.apache.pulsar.client.impl
+org.apache.pulsar.client.impl.auth
+org.apache.pulsar.client.impl.conf
+org.apache.pulsar.client.util

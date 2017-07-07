@@ -1,0 +1,848 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar command-line tools · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Pulsar command-line tools · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/2.8.3/reference-cli-tools">日本語</a></li><li><a href="/docs/fr/2.8.3/reference-cli-tools">Français</a></li><li><a href="/docs/ko/2.8.3/reference-cli-tools">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/reference-cli-tools">中文</a></li><li><a href="/docs/zh-TW/2.8.3/reference-cli-tools">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Reference</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/en/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/en/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/reference-cli-tools.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar command-line tools</h1></header><article><div><span><p>Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.</p>
+<p>All Pulsar command-line tools can be run from the <code>bin</code> directory of your <a href="/docs/en/2.8.3/standalone">installed Pulsar package</a>. The following tools are currently documented:</p>
+<ul>
+<li><a href="#pulsar"><code>pulsar</code></a></li>
+<li><a href="#pulsar-client"><code>pulsar-client</code></a></li>
+<li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a></li>
+<li><a href="#pulsar-perf"><code>pulsar-perf</code></a></li>
+<li><a href="#bookkeeper"><code>bookkeeper</code></a></li>
+<li><a href="#broker-tool"><code>broker-tool</code></a></li>
+</ul>
+<blockquote>
+<h3><a class="anchor" aria-hidden="true" id="getting-help"></a><a href="#getting-help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Getting help</h3>
+<p>You can get help for any CLI tool, command, or subcommand using the <code>--help</code> flag, or <code>-h</code> for short. Here's an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar broker --<span class="hljs-built_in">help</span></span>
+</code></pre>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="pulsar"></a><a href="#pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar</code></h2>
+<p>The pulsar tool is used to start Pulsar components, such as bookies and ZooKeeper, in the foreground.</p>
+<p>These processes can also be started in the background, using nohup, using the pulsar-daemon tool, which has the same command interface as pulsar.</p>
+<p>Usage:</p>
+<pre><code class="hljs css language-bash">$ pulsar <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands:</p>
+<ul>
+<li><code>bookie</code></li>
+<li><code>broker</code></li>
+<li><code>compact-topic</code></li>
+<li><code>discovery</code></li>
+<li><code>configuration-store</code></li>
+<li><code>initialize-cluster-metadata</code></li>
+<li><code>proxy</code></li>
+<li><code>standalone</code></li>
+<li><code>websocket</code></li>
+<li><code>zookeeper</code></li>
+<li><code>zookeeper-shell</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+</code></pre>
+<p>The table below lists the environment variables that you can use to configure the <code>pulsar</code> tool.</p>
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td><code>conf/log4j2.yaml</code></td></tr>
+<tr><td><code>PULSAR_BROKER_CONF</code></td><td>Configuration file for broker</td><td><code>conf/broker.conf</code></td></tr>
+<tr><td><code>PULSAR_BOOKKEEPER_CONF</code></td><td>description: Configuration file for bookie</td><td><code>conf/bookkeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_ZK_CONF</code></td><td>Configuration file for zookeeper</td><td><code>conf/zookeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_CONFIGURATION_STORE_CONF</code></td><td>Configuration file for the configuration store</td><td><code>conf/global_zookeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_DISCOVERY_CONF</code></td><td>Configuration file for discovery service</td><td><code>conf/discovery.conf</code></td></tr>
+<tr><td><code>PULSAR_WEBSOCKET_CONF</code></td><td>Configuration file for websocket proxy</td><td><code>conf/websocket.conf</code></td></tr>
+<tr><td><code>PULSAR_STANDALONE_CONF</code></td><td>Configuration file for standalone</td><td><code>conf/standalone.conf</code></td></tr>
+<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>Extra options to be passed to the jvm</td><td></td></tr>
+<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Extra paths for Pulsar's classpath</td><td></td></tr>
+<tr><td><code>PULSAR_PID_DIR</code></td><td>Folder where the pulsar server PID file should be stored</td><td></td></tr>
+<tr><td><code>PULSAR_STOP_TIMEOUT</code></td><td>Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="bookie"></a><a href="#bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
+<p>Starts up a bookie server</p>
+<p>Usage:</p>
+<pre><code class="hljs css language-bash">$ pulsar bookie options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-readOnly</code></td><td>Force start a read-only bookie server</td><td>false</td></tr>
+<tr><td><code>-withAutoRecovery</code></td><td>Start auto-recover service bookie server</td><td>false</td></tr>
+</tbody>
+</table>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
+  -readOnly \
+  -withAutoRecovery
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker</code></h3>
+<p>Starts up a Pulsar broker</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar broker options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>Configuration file for BookKeeper</td><td></td></tr>
+<tr><td><code>-rb</code> , <code>--run-bookie</code></td><td>Run a BookKeeper bookie on the same host as the Pulsar broker</td><td>false</td></tr>
+<tr><td><code>-ra</code> , <code>--run-bookie-autorecovery</code></td><td>Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker</td><td>false</td></tr>
+</tbody>
+</table>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="compact-topic"></a><a href="#compact-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact-topic</code></h3>
+<p>Run compaction against a Pulsar topic (in a new process)</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar compact-topic options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-t</code> , <code>--topic</code></td><td>The Pulsar topic that you would like to compact</td><td></td></tr>
+</tbody>
+</table>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ pulsar compact-topic --topic topic-to-compact
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="discovery"></a><a href="#discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>discovery</code></h3>
+<p>Run a discovery server</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar discovery
+</code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>configuration-store</code></h3>
+<p>Starts up the Pulsar configuration store</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar configuration-store
+</code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>initialize-cluster-metadata</code></h3>
+<p>One-time cluster metadata initialization</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar initialize-cluster-metadata options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-ub</code> , <code>--broker-service-url</code></td><td>The broker service URL for the new cluster</td><td></td></tr>
+<tr><td><code>-tb</code> , <code>--broker-service-url-tls</code></td><td>The broker service URL for the new cluster with TLS encryption</td><td></td></tr>
+<tr><td><code>-c</code> , <code>--cluster</code></td><td>Cluster name</td><td></td></tr>
+<tr><td><code>-cs</code> , <code>--configuration-store</code></td><td>The configuration store quorum connection string</td><td></td></tr>
+<tr><td><code>--existing-bk-metadata-service-uri</code></td><td>The metadata service URI of the existing BookKeeper cluster that you want to use</td><td></td></tr>
+<tr><td><code>-h</code> , <code>--help</code></td><td>Cluster name</td><td>false</td></tr>
+<tr><td><code>--initial-num-stream-storage-containers</code></td><td>The number of storage containers of BookKeeper stream storage</td><td>16</td></tr>
+<tr><td><code>--initial-num-transaction-coordinators</code></td><td>The number of transaction coordinators assigned in a cluster</td><td>16</td></tr>
+<tr><td><code>-uw</code> , <code>--web-service-url</code></td><td>The web service URL for the new cluster</td><td></td></tr>
+<tr><td><code>-tw</code> , <code>--web-service-url-tls</code></td><td>The web service URL for the new cluster with TLS encryption</td><td></td></tr>
+<tr><td><code>-zk</code> , <code>--zookeeper</code></td><td>The local ZooKeeper quorum connection string</td><td></td></tr>
+<tr><td><code>--zookeeper-session-timeout-ms</code></td><td>The local ZooKeeper session timeout. The time unit is in millisecond(ms)</td><td>30000</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>proxy</code></h3>
+<p>Manages the Pulsar proxy</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar proxy options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--configuration-store</code></td><td>Configuration store connection string</td><td></td></tr>
+<tr><td><code>-zk</code> , <code>--zookeeper-servers</code></td><td>Local ZooKeeper connection string</td><td></td></tr>
+</tbody>
+</table>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
+  --zookeeper-servers zk-0,zk-1,zk2 \
+  --configuration-store zk-0,zk-1,zk-2
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>standalone</code></h3>
+<p>Run a broker service with local bookies and local ZooKeeper</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar standalone options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-a</code> , <code>--advertised-address</code></td><td>The standalone broker advertised address</td><td></td></tr>
+<tr><td><code>--bookkeeper-dir</code></td><td>Local bookies’ base data directory</td><td>data/standalone/bookkeeper</td></tr>
+<tr><td><code>--bookkeeper-port</code></td><td>Local bookies’ base port</td><td>3181</td></tr>
+<tr><td><code>--no-broker</code></td><td>Only start ZooKeeper and BookKeeper services, not the broker</td><td>false</td></tr>
+<tr><td><code>--num-bookies</code></td><td>The number of local bookies</td><td>1</td></tr>
+<tr><td><code>--only-broker</code></td><td>Only start the Pulsar broker service (not ZooKeeper or BookKeeper)</td><td></td></tr>
+<tr><td><code>--wipe-data</code></td><td>Clean up previous ZooKeeper/BookKeeper data</td><td></td></tr>
+<tr><td><code>--zookeeper-dir</code></td><td>Local ZooKeeper’s data directory</td><td>data/standalone/zookeeper</td></tr>
+<tr><td><code>--zookeeper-port</code></td><td>Local ZooKeeper’s port</td><td>2181</td></tr>
+</tbody>
+</table>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket</code></h3>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar websocket
+</code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper</code></h3>
+<p>Starts up a ZooKeeper cluster</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar zookeeper
+</code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="zookeeper-shell"></a><a href="#zookeeper-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper-shell</code></h3>
+<p>Connects to a running ZooKeeper cluster using the ZooKeeper shell</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar zookeeper-shell options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration file for ZooKeeper</td><td></td></tr>
+<tr><td><code>-server</code></td><td>Configuration zk address, eg: <code>127.0.0.1:2181</code></td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
+<p>The pulsar-client tool</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-client <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands</p>
+<ul>
+<li><code>produce</code></li>
+<li><code>consume</code></li>
+</ul>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</td></tr>
+<tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td>org.apache.pulsar.client.impl.auth.AuthenticationSasl</td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
+<tr><td><code>--proxy-protocol</code></td><td>Proxy protocol to select type of routing at proxy</td><td></td></tr>
+<tr><td><code>--proxy-url</code></td><td>Proxy-server URL to which to connect</td><td></td></tr>
+<tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a> </br> <a href="ws://localhost:8080">ws://localhost:8080</a></td></tr>
+<tr><td><code>-v</code>, <code>--version</code></td><td>Get the version of the Pulsar client</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Show this help</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="produce"></a><a href="#produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
+<p>Send a message or messages to a specific broker and topic</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-client produce topic options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-f</code>, <code>--files</code></td><td>Comma-separated file paths to send; either -m or -f must be specified</td><td>[]</td></tr>
+<tr><td><code>-m</code>, <code>--messages</code></td><td>Comma-separated string of messages to send; either -m or -f must be specified</td><td>[]</td></tr>
+<tr><td><code>-n</code>, <code>--num-produce</code></td><td>The number of times to send the message(s); the count of messages/files * num-produce should be below 1000</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible</td><td>0.0</td></tr>
+<tr><td><code>-c</code>, <code>--chunking</code></td><td>Split the message and publish in chunks if the message size is larger than the allowed max size</td><td>false</td></tr>
+<tr><td><code>-s</code>, <code>--separator</code></td><td>Character to split messages string with.</td><td>&quot;,&quot;</td></tr>
+<tr><td><code>-k</code>, <code>--key</code></td><td>Message key to add</td><td>key=value string, like k1=v1,k2=v2.</td></tr>
+<tr><td><code>-p</code>, <code>--properties</code></td><td>Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. <code>k1=v1,k2=v2</code>.</td><td></td></tr>
+<tr><td><code>-ekn</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload.</td><td></td></tr>
+<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>The URI of public key to encrypt payload. For example, <code>file:///path/to/public.key</code> or <code>data:application/x-pem-file;base64,*****</code>.</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consume"></a><a href="#consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
+<p>Consume messages from a specific broker and topic</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-client consume topic options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--hex</code></td><td>Display binary messages in hexadecimal format.</td><td>false</td></tr>
+<tr><td><code>-n</code>, <code>--num-messages</code></td><td>Number of messages to consume, 0 means to consume forever.</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible</td><td>0.0</td></tr>
+<tr><td><code>--regex</code></td><td>Indicate the topic name is a regex pattern</td><td>false</td></tr>
+<tr><td><code>-s</code>, <code>--subscription-name</code></td><td>Subscription name</td><td></td></tr>
+<tr><td><code>-t</code>, <code>--subscription-type</code></td><td>The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
+<tr><td><code>-p</code>, <code>--subscription-position</code></td><td>The position of the subscription. Possible values: Latest, Earliest.</td><td>Latest</td></tr>
+<tr><td><code>-m</code>, <code>--subscription-mode</code></td><td>Subscription mode. Possible values: Durable, NonDurable.</td><td>Durable</td></tr>
+<tr><td><code>-q</code>, <code>--queue-size</code></td><td>The size of consumer's receiver queue.</td><td>0</td></tr>
+<tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>Max pending chunk messages.</td><td>0</td></tr>
+<tr><td><code>-ac</code>, <code>--auto_ack_chunk_q_full</code></td><td>Auto ack for the oldest message in consumer's receiver queue if the queue full.</td><td>false</td></tr>
+<tr><td><code>--hide-content</code></td><td>Do not print the message to the console.</td><td>false</td></tr>
+<tr><td><code>-st</code>, <code>--schema-type</code></td><td>Set the schema type. Use <code>auto_consume</code> to dump AVRO and other structured data types. Possible values: bytes, auto_consume.</td><td>bytes</td></tr>
+<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>The URI of public key to encrypt payload. For example, <code>file:///path/to/public.key</code> or <code>data:application/x-pem-file;base64,*****</code>.</td><td></td></tr>
+<tr><td><code>-pm</code>, <code>--pool-messages</code></td><td>Use the pooled message.</td><td>true</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-daemon"></a><a href="#pulsar-daemon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-daemon</code></h2>
+<p>A wrapper around the pulsar tool that’s used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using nohup.</p>
+<p>pulsar-daemon has a similar interface to the pulsar command but adds start and stop commands for various services. For a listing of those services, run pulsar-daemon to see the help output or see the documentation for the pulsar command.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-daemon <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands</p>
+<ul>
+<li><code>start</code></li>
+<li><code>stop</code></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
+<p>Start a service in the background using nohup.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-daemon start service
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
+<p>Stop a service that’s already been started using start.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-daemon stop service options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>-force</td><td>Stop the service forcefully if not stopped by normal shutdown.</td><td>false</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf</code></h2>
+<p>A tool for performance testing a Pulsar broker.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands</p>
+<ul>
+<li><code>consume</code></li>
+<li><code>produce</code></li>
+<li><code>read</code></li>
+<li><code>websocket-producer</code></li>
+<li><code>managed-ledger</code></li>
+<li><code>monitor-brokers</code></li>
+<li><code>simulation-client</code></li>
+<li><code>simulation-controller</code></li>
+<li><code>help</code></li>
+</ul>
+<p>Environment variables</p>
+<p>The table below lists the environment variables that you can use to configure the pulsar-perf tool.</p>
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
+<tr><td><code>PULSAR_CLIENT_CONF</code></td><td>Configuration file for the client</td><td>conf/client.conf</td></tr>
+<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>Extra options to be passed to the JVM</td><td></td></tr>
+<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Extra paths for Pulsar's classpath</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="consume-1"></a><a href="#consume-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
+<p>Run a consumer</p>
+<p>Usage</p>
+<pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-perf consume <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>-ac</code>, <code>--auto_ack_chunk_q_full</code></td><td>Auto ack for the oldest message in consumer's receiver queue if the queue full</td><td>false</td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
+<tr><td><code>--acks-delay-millis</code></td><td>Acknowledgements grouping delay in millis</td><td>100</td></tr>
+<tr><td><code>--batch-index-ack</code></td><td>Enable or disable the batch index acknowledgment</td><td>false</td></tr>
+<tr><td><code>-bw</code>, <code>--busy-wait</code></td><td>Enable or disable Busy-Wait on the Pulsar client</td><td>false</td></tr>
+<tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the private key to decrypt payload</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-e</code>, <code>--expire_time_incomplete_chunked_messages</code></td><td>The expiration time for incomplete chunk messages (in milliseconds)</td><td>0</td></tr>
+<tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
+<tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>Max pending chunk messages</td><td>0</td></tr>
+<tr><td><code>-n</code>, <code>--num-consumers</code></td><td>Number of consumers (per topic)</td><td>1</td></tr>
+<tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>Set the number of threads to be used for handling connections to brokers</td><td>1</td></tr>
+<tr><td><code>-ns</code>, <code>--num-subscriptions</code></td><td>Number of subscriptions (per topic)</td><td>1</td></tr>
+<tr><td><code>-t</code>, <code>--num-topics</code></td><td>The number of topics</td><td>1</td></tr>
+<tr><td><code>-pm</code>, <code>--pool-messages</code></td><td>Use the pooled message</td><td>true</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Simulate a slow message consumer (rate in msg/s)</td><td>0</td></tr>
+<tr><td><code>-q</code>, <code>--receiver-queue-size</code></td><td>Size of the receiver queue</td><td>1000</td></tr>
+<tr><td><code>-p</code>, <code>--receiver-queue-size-across-partitions</code></td><td>Max total size of the receiver queue across partitions</td><td>50000</td></tr>
+<tr><td><code>--replicated</code></td><td>Whether the subscription status should be replicated</td><td>false</td></tr>
+<tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
+<tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscriber-name</code></td><td>Subscriber name prefix</td><td></td></tr>
+<tr><td><code>-ss</code>, <code>--subscriptions</code></td><td>A list of subscriptions to consume on (e.g. sub1,sub2)</td><td>sub</td></tr>
+<tr><td><code>-st</code>, <code>--subscription-type</code></td><td>Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
+<tr><td><code>-sp</code>, <code>--subscription-position</code></td><td>Subscriber position. Possible values are Latest, Earliest.</td><td>Latest</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages</td><td>0</td></tr>
+<tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>Allow insecure TLS connection</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="produce-1"></a><a href="#produce-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
+<p>Run a producer</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf produce options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-am</code>, <code>--access-mode</code></td><td>Producer access mode. Valid values are <code>Shared</code>, <code>Exclusive</code> and <code>WaitForExclusive</code></td><td>Shared</td></tr>
+<tr><td><code>-au</code>, <code>--admin-url</code></td><td>Pulsar admin URL</td><td></td></tr>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
+<tr><td><code>-b</code>, <code>--batch-time-window</code></td><td>Batch messages in a window of the specified number of milliseconds</td><td>1</td></tr>
+<tr><td><code>-bb</code>, <code>--batch-max-bytes</code></td><td>Maximum number of bytes per batch</td><td>4194304</td></tr>
+<tr><td><code>-bm</code>, <code>--batch-max-messages</code></td><td>Maximum number of messages per batch</td><td>1000</td></tr>
+<tr><td><code>-bw</code>, <code>--busy-wait</code></td><td>Enable or disable Busy-Wait on the Pulsar client</td><td>false</td></tr>
+<tr><td><code>-ch</code>, <code>--chunking</code></td><td>Split the message and publish in chunks if the message size is larger than allowed max size</td><td>false</td></tr>
+<tr><td><code>-d</code>, <code>--delay</code></td><td>Mark messages with a given delay in seconds</td><td>0s</td></tr>
+<tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
+<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload</td><td></td></tr>
+<tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the public key to encrypt payload</td><td></td></tr>
+<tr><td><code>-ef</code>, <code>--exit-on-failure</code></td><td>Exit from the process on publish failure</td><td>false</td></tr>
+<tr><td><code>-fc</code>, <code>--format-class</code></td><td>Custom Formatter class name</td><td>org.apache.pulsar.testclient.DefaultMessageFormatter</td></tr>
+<tr><td><code>-fp</code>, <code>--format-payload</code></td><td>Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
+<tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>Max number of outstanding messages</td><td>1000</td></tr>
+<tr><td><code>-p</code>, <code>--max-outstanding-across-partitions</code></td><td>Max number of outstanding messages across partitions</td><td>50000</td></tr>
+<tr><td><code>-mk</code>, <code>--message-key-generation-mode</code></td><td>The generation mode of message key. Valid options are <code>autoIncrement</code>, <code>random</code></td><td></td></tr>
+<tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>Set the number of threads to be used for handling connections to brokers</td><td>1</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages.</td><td>0</td></tr>
+<tr><td><code>-n</code>, <code>--num-producers</code></td><td>The number of producers (per topic)</td><td>1</td></tr>
+<tr><td><code>-threads</code>, <code>--num-test-threads</code></td><td>Number of test threads</td><td>1</td></tr>
+<tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
+<tr><td><code>-np</code>, <code>--partitions</code></td><td>Create partitioned topics with the given number of partitions. Setting this value to 0 means not trying to create a topic</td><td></td></tr>
+<tr><td><code>-f</code>, <code>--payload-file</code></td><td>Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages</td><td></td></tr>
+<tr><td><code>-e</code>, <code>--payload-delimiter</code></td><td>The delimiter used to split lines when using payload from a file</td><td>\n</td></tr>
+<tr><td><code>-pn</code>, <code>--producer-name</code></td><td>Producer Name</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
+<tr><td><code>--send-timeout</code></td><td>Set the sendTimeout</td><td>0</td></tr>
+<tr><td><code>--separator</code></td><td>Separator between the topic and topic number</td><td>-</td></tr>
+<tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>Message size (in bytes)</td><td>1024</td></tr>
+<tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled.</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages.</td><td>0</td></tr>
+<tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
+<tr><td><code>--warmup-time</code></td><td>Warm-up time in seconds</td><td>1</td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>Allow insecure TLS connection</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="read"></a><a href="#read" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>read</code></h3>
+<p>Run a topic reader</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">read</span> options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
+<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
+<tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>Set the number of threads to be used for handling connections to brokers</td><td>1</td></tr>
+<tr><td><code>-t</code>, <code>--num-topics</code></td><td>The number of topics</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Simulate a slow message reader (rate in msg/s)</td><td>0</td></tr>
+<tr><td><code>-q</code>, <code>--receiver-queue-size</code></td><td>Size of the receiver queue</td><td>1000</td></tr>
+<tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
+<tr><td><code>-m</code>, <code>--start-message-id</code></td><td>Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'</td><td>earliest</td></tr>
+<tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled.</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
+<tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
+<tr><td><code>--use-tls</code></td><td>Use TLS encryption on the connection</td><td>false</td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>Allow insecure TLS connection</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="websocket-producer"></a><a href="#websocket-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket-producer</code></h3>
+<p>Run a websocket producer</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf websocket-producer options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages</td><td>0</td></tr>
+<tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
+<tr><td><code>-f</code>, <code>--payload-file</code></td><td>Use payload from a file instead of empty buffer</td><td></td></tr>
+<tr><td><code>-u</code>, <code>--proxy-url</code></td><td>Pulsar Proxy URL, e.g., &quot;<a href="ws://localhost:8080/">ws://localhost:8080/</a>&quot;</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>Message size in byte</td><td>1024</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages</td><td>0</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managed-ledger"></a><a href="#managed-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>managed-ledger</code></h3>
+<p>Write directly on managed-ledgers</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf managed-ledger options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-a</code>, <code>--ack-quorum</code></td><td>Ledger ack quorum</td><td>1</td></tr>
+<tr><td><code>-dt</code>, <code>--digest-type</code></td><td>BookKeeper digest type. Possible Values: [CRC32, MAC, CRC32C, DUMMY]</td><td>CRC32C</td></tr>
+<tr><td><code>-e</code>, <code>--ensemble-size</code></td><td>Ledger ensemble size</td><td>1</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single bookie</td><td>1</td></tr>
+<tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>Max number of outstanding requests</td><td>1000</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages</td><td>0</td></tr>
+<tr><td><code>-t</code>, <code>--num-topic</code></td><td>Number of managed ledgers</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>Write rate msg/s across managed ledgers</td><td>100</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>Message size in byte</td><td>1024</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages</td><td>0</td></tr>
+<tr><td><code>--threads</code></td><td>Number of threads writing</td><td>1</td></tr>
+<tr><td><code>-w</code>, <code>--write-quorum</code></td><td>Ledger write quorum</td><td>1</td></tr>
+<tr><td><code>-zk</code>, <code>--zookeeperServers</code></td><td>ZooKeeper connection string</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="monitor-brokers"></a><a href="#monitor-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>monitor-brokers</code></h3>
+<p>Continuously receive broker data and/or load reports</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf monitor-brokers options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--connect-string</code></td><td>A connection string for one or more ZooKeeper servers</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="simulation-client"></a><a href="#simulation-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-client</code></h3>
+<p>Run a simulation server acting as a Pulsar client. Uses the client configuration specified in <code>conf/client.conf</code>.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf simulation-client options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--port</code></td><td>Port to listen on for controller</td><td>0</td></tr>
+<tr><td><code>--service-url</code></td><td>Pulsar Service URL</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="simulation-controller"></a><a href="#simulation-controller" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-controller</code></h3>
+<p>Run a simulation controller to give commands to servers</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf simulation-controller options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--client-port</code></td><td>The port that the clients are listening on</td><td>0</td></tr>
+<tr><td><code>--clients</code></td><td>Comma-separated list of client hostnames</td><td></td></tr>
+<tr><td><code>--cluster</code></td><td>The cluster to test on</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="help"></a><a href="#help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>help</code></h3>
+<p>This help message</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">help</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookkeeper</code></h2>
+<p>A tool for managing BookKeeper.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands</p>
+<ul>
+<li><code>autorecovery</code></li>
+<li><code>bookie</code></li>
+<li><code>localbookie</code></li>
+<li><code>upgrade</code></li>
+<li><code>shell</code></li>
+</ul>
+<p>Environment variables</p>
+<p>The table below lists the environment variables that you can use to configure the bookkeeper tool.</p>
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>BOOKIE_LOG_CONF</td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
+<tr><td>BOOKIE_CONF</td><td>BookKeeper configuration file</td><td>conf/bk_server.conf</td></tr>
+<tr><td>BOOKIE_EXTRA_OPTS</td><td>Extra options to be passed to the JVM</td><td></td></tr>
+<tr><td>BOOKIE_EXTRA_CLASSPATH</td><td>Extra paths for BookKeeper's classpath</td><td></td></tr>
+<tr><td>ENTRY_FORMATTER_CLASS</td><td>The Java class used to format entries</td><td></td></tr>
+<tr><td>BOOKIE_PID_DIR</td><td>Folder where the BookKeeper server PID file should be stored</td><td></td></tr>
+<tr><td>BOOKIE_STOP_TIMEOUT</td><td>Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="auto-recovery"></a><a href="#auto-recovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>auto-recovery</code></h3>
+<p>Runs an auto-recovery service</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper autorecovery options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="bookie-1"></a><a href="#bookie-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
+<p>Starts up a BookKeeper server (aka bookie)</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper bookie options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery</td><td></td></tr>
+<tr><td>-readOnly</td><td>Force start a read-only bookie server</td><td>false</td></tr>
+<tr><td>-withAutoRecovery</td><td>Start auto-recovery service bookie server</td><td>false</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="localbookie"></a><a href="#localbookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localbookie</code></h3>
+<p>Runs a test ensemble of N bookies locally</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper localbookie N
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="upgrade"></a><a href="#upgrade" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>upgrade</code></h3>
+<p>Upgrade the bookie’s filesystem</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper upgrade options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery</td><td></td></tr>
+<tr><td><code>-u</code>, <code>--upgrade</code></td><td>Upgrade the bookie’s directories</td><td></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="shell"></a><a href="#shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>shell</code></h3>
+<p>Run shell for admin commands. To see a full listing of those commands, run bookkeeper shell without an argument.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ bookkeeper shell
+</code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ bookkeeper shell bookiesanity
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="broker-tool"></a><a href="#broker-tool" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker-tool</code></h2>
+<p>The <code>broker- tool</code> is used for operations on a specific broker.</p>
+<p>Usage</p>
+<pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands</p>
+<ul>
+<li><code>load-report</code></li>
+<li><code>help</code></li>
+</ul>
+<p>Example
+Two ways to get more information about a command as below:</p>
+<pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">help</span> <span class="hljs-built_in">command</span>
+$ broker-tool <span class="hljs-built_in">command</span> --<span class="hljs-built_in">help</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="load-report"></a><a href="#load-report" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>load-report</code></h3>
+<p>Collect the load report of a specific broker.
+The command is run on a broker, and used for troubleshooting why broker can’t collect right load report.</p>
+<p>Options</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-i</code>, <code>--interval</code></td><td>Interval to collect load report, in milliseconds</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Display help information</td><td></td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/2.8.3/reference-terminology"><span class="arrow-prev">← </span><span>Terminology</span></a><a class="docs-next button" href="/docs/en/2.8.3/reference-configuration"><span>Pulsar configuration</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar"><code>pulsar</code></a><ul class="toc-headings"><li><a href="#bookie"><code>bookie</code></a></li><li><a href="#broker"><code>broker</code></a></li><li><a href="#compact-topic"><code>compact-topic</code></a></li><li><a href="#discovery"><code>discovery</code></a></li><li><a href="#configuration-store"><code>configuration-store</code></a></li><li><a href="#initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#standalone"><code>standalone</code></a></li><li><a href="#websocket"><code>websocket</code></a></li><li><a href="#zookeeper"><code>zookeeper</code></a></li><li><a href="#zookeeper-shell"><code>zookeeper-shell</code></a></li></ul></li><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.8.3"]}
+              });
+            </script></body></html>

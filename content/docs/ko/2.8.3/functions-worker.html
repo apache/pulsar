@@ -1,0 +1,368 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy and manage functions worker · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/ko/2.8.3/functions-runtime)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Deploy and manage functions worker · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/ko/2.8.3/functions-runtime)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-worker">English</a></li><li><a href="/docs/ja/2.8.3/functions-worker">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-worker">Français</a></li><li><a href="/docs/zh-CN/2.8.3/functions-worker">中文</a></li><li><a href="/docs/zh-TW/2.8.3/functions-worker">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploy and manage functions worker</h1></header><article><div><span><p>Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to <a href="/docs/ko/2.8.3/functions-runtime">configure Functions runtime</a>.</p>
+<p>Pulsar <code>functions-worker</code> is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either based on your requirements.</p>
+<ul>
+<li><a href="#run-functions-worker-with-brokers">run with brokers</a></li>
+<li><a href="#run-functions-worker-separately">run it separately</a> in a different broker</li>
+</ul>
+<blockquote>
+<p>Note<br>
+The <code>--- Service Urls---</code> lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="run-functions-worker-with-brokers"></a><a href="#run-functions-worker-with-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Functions-worker with brokers</h2>
+<p>The following diagram illustrates the deployment of functions-workers running along with brokers.</p>
+<p><img src="/docs/assets/functions-worker-corun.png" alt="assets/functions-worker-corun.png"></p>
+<p>To enable functions-worker running as part of a broker, you need to set <code>functionsWorkerEnabled</code> to <code>true</code> in the <code>broker.conf</code> file.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre>
+<p>If the <code>functionsWorkerEnabled</code> is set to <code>true</code>, the functions-worker is started as part of a broker. You need to configure the <code>conf/functions_worker.yml</code> file to customize your functions_worker.</p>
+<p>Before you run Functions-worker with broker, you have to configure Functions-worker, and then start it with brokers.</p>
+<h3><a class="anchor" aria-hidden="true" id="configure-functions-worker-to-run-with-brokers"></a><a href="#configure-functions-worker-to-run-with-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Functions-Worker to run with brokers</h3>
+<p>In this mode, most of the settings are already inherited from your broker configuration (for example, configurationStore settings, authentication settings, and so on) since <code>functions-worker</code> is running as part of the broker.</p>
+<p>Pay attention to the following required settings when configuring functions-worker in this mode.</p>
+<ul>
+<li><code>numFunctionPackageReplicas</code>: The number of replicas to store function packages. The default value is <code>1</code>, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than <code>2</code>.</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsar initialize-cluster-metadata</code> command.</li>
+</ul>
+<p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
+<ul>
+<li><code>bookkeeperClientAuthenticationPlugin</code>: the BookKeeper client authentication plugin name.</li>
+<li><code>bookkeeperClientAuthenticationParametersName</code>: the BookKeeper client authentication plugin parameters name.</li>
+<li><code>bookkeeperClientAuthenticationParameters</code>: the BookKeeper client authentication plugin parameters.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-stateful-functions-to-run-with-broker"></a><a href="#configure-stateful-functions-to-run-with-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Stateful-Functions to run with broker</h3>
+<p>If you want to use Stateful-Functions related functions (for example,  <code>putState()</code> and <code>queryState()</code> related interfaces), follow steps below.</p>
+<ol>
+<li><p>Enable the <strong>streamStorage</strong> service in the BookKeeper.</p>
+<p>Currently, the service uses the NAR package, so you need to set the configuration in <code>bookkeeper.conf</code>.</p>
+<pre><code class="hljs css language-text">extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+</code></pre>
+<p>After starting bookie, use the following methods to check whether the streamStorage service is started correctly.</p>
+<p>Input:</p>
+<pre><code class="hljs css language-shell">telnet localhost 4181
+</code></pre>
+<p>Output:</p>
+<pre><code class="hljs css language-text">Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+</code></pre></li>
+<li><p>Turn on this function in <code>functions_worker.yml</code>.</p></li>
+</ol>
+<pre><code class="hljs">```text
+stateStorageServiceUrl: bk://&lt;bk-service-url&gt;:4181
+```
+
+`bk-service-url` is the service URL pointing to the BookKeeper table service.
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="start-functions-worker-with-broker"></a><a href="#start-functions-worker-with-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Functions-worker with broker</h3>
+<p>Once you have configured the <code>functions_worker.yml</code> file, you can start or restart your broker.</p>
+<p>And then you can use the following command to verify if <code>functions-worker</code> is running well.</p>
+<pre><code class="hljs css language-bash">curl &lt;broker-ip&gt;:8080/admin/v2/worker/cluster
+</code></pre>
+<p>After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.</p>
+<pre><code class="hljs css language-json">[{<span class="hljs-attr">"workerId"</span>:<span class="hljs-string">"&lt;worker-id&gt;"</span>,<span class="hljs-attr">"workerHostname"</span>:<span class="hljs-string">"&lt;worker-hostname&gt;"</span>,<span class="hljs-attr">"port"</span>:<span class="hljs-number">8080</span>}]
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="run-functions-worker-separately"></a><a href="#run-functions-worker-separately" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Functions-worker separately</h2>
+<p>This section illustrates how to run <code>functions-worker</code> as a separate process in separate machines.</p>
+<p><img src="/docs/assets/functions-worker-separated.png" alt="assets/functions-worker-separated.png"></p>
+<blockquote>
+<p>Note<br>
+In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>false</code>, so you won't start <code>functions-worker</code> with brokers by mistake. Also, while accessing the <code>functions-worker</code> to manage any of the functions, the <code>pulsar-admin</code> CLI tool or any of the clients should use the <code>workerHostname</code> and <code>workerPort</code> that you set in <a href="#worker-parameters">Worker parameters</a> to generate an <code>--admin-url</code>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="configure-functions-worker-to-run-separately"></a><a href="#configure-functions-worker-to-run-separately" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Functions-worker to run separately</h3>
+<p>To run function-worker separately, you have to configure the following parameters.</p>
+<h4><a class="anchor" aria-hidden="true" id="worker-parameters"></a><a href="#worker-parameters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Worker parameters</h4>
+<ul>
+<li><code>workerId</code>: The type is string. It is unique across clusters, which is used to identify a worker machine.</li>
+<li><code>workerHostname</code>: The hostname of the worker machine.</li>
+<li><code>workerPort</code>: The port that the worker server listens on. Keep it as default if you don't customize it.</li>
+<li><code>workerPortTls</code>: The TLS port that the worker server listens on. Keep it as default if you don't customize it.</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="function-package-parameter"></a><a href="#function-package-parameter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function package parameter</h4>
+<ul>
+<li><code>numFunctionPackageReplicas</code>: The number of replicas to store function packages. The default value is <code>1</code>.</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="function-metadata-parameter"></a><a href="#function-metadata-parameter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function metadata parameter</h4>
+<ul>
+<li><code>pulsarServiceUrl</code>: The Pulsar service URL for your broker cluster.</li>
+<li><code>pulsarWebServiceUrl</code>: The Pulsar web service URL for your broker cluster.</li>
+<li><code>pulsarFunctionsCluster</code>: Set the value to your Pulsar cluster name (same as the <code>clusterName</code> setting in the broker configuration).</li>
+</ul>
+<p>If authentication is enabled for your broker cluster, you <em>should</em> configure the authentication plugin and parameters for the functions worker to communicate with the brokers.</p>
+<ul>
+<li><code>clientAuthenticationPlugin</code></li>
+<li><code>clientAuthenticationParameters</code></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="security-settings"></a><a href="#security-settings" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Security settings</h4>
+<p>If you want to enable security on functions workers, you <em>should</em>:</p>
+<ul>
+<li><a href="#enable-tls-transport-encryption">TLS 전송 암호화 여부를 설정합니다</a></li>
+<li><a href="#enable-authentication-provider">Enable Authentication Provider</a></li>
+<li><a href="#enable-authorization-provider">Enable Authorization Provider</a></li>
+<li><a href="#enable-end-to-end-encryption">Enable End-to-End Encryption</a></li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="tls-전송-암호화-여부를-설정합니다"></a><a href="#tls-전송-암호화-여부를-설정합니다" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 전송 암호화 여부를 설정합니다</h5>
+<p>To enable TLS transport encryption, configure the following settings.</p>
+<pre><code class="hljs"><span class="hljs-attribute">useTLS</span>: true
+<span class="hljs-attribute">pulsarServiceUrl</span>: pulsar+ssl://localhost:6651/
+<span class="hljs-attribute">pulsarWebServiceUrl</span>: https://localhost:8443
+
+<span class="pgsql">tlsEnabled: <span class="hljs-keyword">true</span>
+tlsCertificateFilePath: /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.cert.pem
+tlsKeyFilePath:         /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.key-pk8.pem
+tlsTrustCertsFilePath:  /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/ca.cert.pem
+
+// The <span class="hljs-type">path</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">trusted</span> certificates used <span class="hljs-keyword">by</span> the Pulsar client <span class="hljs-keyword">to</span> authenticate <span class="hljs-keyword">with</span> Pulsar brokers
+brokerClientTrustCertsFilePath: /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/ca.cert.pem
+</span></code></pre>
+<p>For details on TLS encryption, refer to <a href="/docs/ko/2.8.3/security-tls-transport">Transport Encryption using TLS</a>.</p>
+<h5><a class="anchor" aria-hidden="true" id="enable-authentication-provider"></a><a href="#enable-authentication-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authentication Provider</h5>
+<p>To enable authentication on Functions Worker, you need to configure the following settings.</p>
+<blockquote>
+<p>Note<br>
+Substitute the <em>providers list</em> with the providers you want to enable.</p>
+</blockquote>
+<pre><code class="hljs"><span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationProviders:</span> <span class="hljs-string">[</span> <span class="hljs-string">provider1,</span> <span class="hljs-string">provider2</span> <span class="hljs-string">]</span>
+</code></pre>
+<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings. See <a href="/docs/ko/2.8.3/security-tls-authentication">TLS Authentication</a> for more details.</p>
+<pre><code class="hljs">brokerClientAuthenticationPlugin: org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.impl</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.AuthenticationTls</span>
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin<span class="hljs-selector-class">.cert</span><span class="hljs-selector-class">.pem</span>,tlsKeyFile:/path/to/admin<span class="hljs-selector-class">.key-pk8</span><span class="hljs-selector-class">.pem</span>
+
+authenticationEnabled: true
+authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.authentication.AuthenticationProviderTls'</span>]
+</code></pre>
+<p>For <em>SASL Authentication</em> provider, add <code>saslJaasClientAllowedIds</code> and <code>saslJaasBrokerSectionName</code> under <code>properties</code> if needed.</p>
+<pre><code class="hljs"><span class="hljs-symbol">properties:</span>
+<span class="hljs-symbol">  saslJaasClientAllowedIds:</span> .*pulsar.*
+<span class="hljs-symbol">  saslJaasBrokerSectionName:</span> Broker
+</code></pre>
+<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. See <a href="/docs/ko/2.8.3/security-jwt">Token Authentication</a> for more details. Note: key files must be DER-encoded</p>
+<pre><code class="hljs"><span class="hljs-attribute">properties</span>:
+  <span class="hljs-attribute">tokenSecretKey</span>:       <span class="hljs-attribute">file</span>:<span class="hljs-comment">//my/secret.key </span>
+  # If using public/private
+  # <span class="hljs-attribute">tokenPublicKey</span>:     <span class="hljs-attribute">file</span>:<span class="hljs-comment">///path/to/public.key </span>
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="enable-authorization-provider"></a><a href="#enable-authorization-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authorization Provider</h5>
+<p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code>, <code>authorizationProvider</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authorizationProvider:</span> <span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
+<span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">&lt;configuration-store-servers&gt;</span>
+</code></pre>
+<p>You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">superUserRoles:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role1</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role2</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">role3</span>
+</code></pre>
+<h5><a class="anchor" aria-hidden="true" id="enable-end-to-end-encryption"></a><a href="#enable-end-to-end-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable End-to-End Encryption</h5>
+<p>You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.</p>
+<p>To enable End-to-End encryption on Functions Worker, you can set it by specifying <code>--producer-config</code> in the command line terminal, for more information, please refer to <a href="/docs/ko/2.8.3/security-encryption">here</a>.</p>
+<p>We include the relevant configuration information of <code>CryptoConfig</code> into <code>ProducerConfig</code>. The specific configurable field information about <code>CryptoConfig</code> is as follows:</p>
+<pre><code class="hljs css language-text">public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+}
+</code></pre>
+<ul>
+<li><code>producerCryptoFailureAction</code>: define the action if producer fail to encrypt data one of <code>FAIL</code>, <code>SEND</code>.</li>
+<li><code>consumerCryptoFailureAction</code>: define the action if consumer fail to decrypt data one of <code>FAIL</code>, <code>DISCARD</code>, <code>CONSUME</code>.</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="bookkeeper-authentication"></a><a href="#bookkeeper-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper Authentication</h4>
+<p>If authentication is enabled on the BookKeeper cluster, you need configure the BookKeeper authentication settings as follows:</p>
+<ul>
+<li><code>bookkeeperClientAuthenticationPlugin</code>: the plugin name of BookKeeper client authentication.</li>
+<li><code>bookkeeperClientAuthenticationParametersName</code>: the plugin parameters name of BookKeeper client authentication.</li>
+<li><code>bookkeeperClientAuthenticationParameters</code>: the plugin parameters of BookKeeper client authentication.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="start-functions-worker"></a><a href="#start-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Functions-worker</h3>
+<p>Once you have finished configuring the <code>functions_worker.yml</code> configuration file, you can start a <code>functions-worker</code> in the background by using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a> with the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">bin/pulsar-daemon start <span class="hljs-built_in">functions</span>-worker
+</code></pre>
+<p>You can also start <code>functions-worker</code> in the foreground by using <code>pulsar</code> CLI tool:</p>
+<pre><code class="hljs css language-bash">bin/pulsar <span class="hljs-built_in">functions</span>-worker
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configure-proxies-for-functions-workers"></a><a href="#configure-proxies-for-functions-workers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Proxies for Functions-workers</h3>
+<p>When you are running <code>functions-worker</code> in a separate cluster, the admin rest endpoints are split into two clusters. <code>functions</code>, <code>function-worker</code>, <code>source</code> and <code>sink</code> endpoints are now served by the <code>functions-worker</code> cluster, while all the other remaining endpoints are served by the broker cluster. Hence you need to configure your <code>pulsar-admin</code> to use the right service URL accordingly.</p>
+<p>In order to address this inconvenience, you can start a proxy cluster for routing the admin rest requests accordingly. Hence you will have one central entry point for your admin service.</p>
+<p>If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the <a href="http://pulsar.apache.org/docs/en/administration-proxy/">instructions</a> to start proxies.</p>
+<p><img src="/docs/assets/functions-worker-separated-proxy.png" alt="assets/functions-worker-separated.png"></p>
+<p>To enable routing functions related admin requests to <code>functions-worker</code> in a proxy, you can edit the <code>proxy.conf</code> file to modify the following settings:</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionWorkerWebServiceURL</span>=&lt;pulsar-functions-worker-web-service-url&gt;
+<span class="hljs-attr">functionWorkerWebServiceURLTLS</span>=&lt;pulsar-functions-worker-web-service-url&gt;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="compare-the-run-with-broker-and-run-separately-modes"></a><a href="#compare-the-run-with-broker-and-run-separately-modes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Compare the Run-with-Broker and Run-separately modes</h2>
+<p>As described above, you can run Function-worker with brokers, or run it separately. And it is more convenient to run functions-workers along with brokers. However, running functions-workers in a separate cluster provides better resource isolation for running functions in <code>Process</code> or <code>Thread</code> mode.</p>
+<p>Use which mode for your cases, refer to the following guidelines to determine.</p>
+<p>Use the <code>Run-with-Broker</code> mode in the following cases:</p>
+<ul>
+<li>a) if resource isolation is not required when running functions in <code>Process</code> or <code>Thread</code> mode;</li>
+<li>b) if you configure the functions-worker to run functions on Kubernetes (where the resource isolation problem is addressed by Kubernetes).</li>
+</ul>
+<p>Use the <code>Run-separately</code> mode in the following cases:</p>
+<ul>
+<li>a) you don't have a Kubernetes cluster;</li>
+<li>b) if you want to run functions and brokers separately.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="troubleshooting"></a><a href="#troubleshooting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Troubleshooting</h2>
+<p><strong>Error message: Namespace missing local cluster name in clusters list</strong></p>
+<pre><code class="hljs">Failed <span class="hljs-keyword">to</span> <span class="hljs-builtin-name">get</span> partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException<span class="hljs-variable">$BrokerMetadataException</span>: Namespace missing local cluster name <span class="hljs-keyword">in</span> clusters list: <span class="hljs-attribute">local_cluster</span>=xyz <span class="hljs-attribute">ns</span>=public/functions clusters=[standalone]
+</code></pre>
+<p>The error message prompts when either of the cases occurs:</p>
+<ul>
+<li>a) a broker is started with <code>functionsWorkerEnabled=true</code>, but the <code>pulsarFunctionsCluster</code> is not set to the correct cluster in the <code>conf/functions_worker.yaml</code> file;</li>
+<li>b) setting up a geo-replicated Pulsar cluster with <code>functionsWorkerEnabled=true</code>, while brokers in one cluster run well, brokers in the other cluster do not work well.</li>
+</ul>
+<p><strong>Workaround</strong></p>
+<p>If any of these cases happens, follow the instructions below to fix the problem:</p>
+<ol>
+<li><p>Disable Functions Worker by setting <code>functionsWorkerEnabled=false</code>, and restart brokers.</p></li>
+<li><p>Get the current clusters list of <code>public/functions</code> namespace.</p></li>
+</ol>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces get-clusters public/<span class="hljs-built_in">functions</span>
+</code></pre>
+<ol start="3">
+<li>Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.</li>
+</ol>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-clusters --clusters &lt;existing-clusters&gt;,&lt;new-cluster&gt; public/<span class="hljs-built_in">functions</span>
+</code></pre>
+<ol start="4">
+<li><p>After setting the cluster successfully, enable functions worker by setting <code>functionsWorkerEnabled=true</code>.</p></li>
+<li><p>Set the correct cluster name in <code>pulsarFunctionsCluster</code> in the <code>conf/functions_worker.yml</code> file, and restart brokers.</p></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.8.3/functions-runtime"><span class="arrow-prev">← </span><span>Setup: Configure Functions runtime</span></a><a class="docs-next button" href="/docs/ko/2.8.3/functions-develop"><span>How-to: Develop</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#run-functions-worker-with-brokers">Run Functions-worker with brokers</a><ul class="toc-headings"><li><a href="#configure-functions-worker-to-run-with-brokers">Configure Functions-Worker to run with brokers</a></li><li><a href="#configure-stateful-functions-to-run-with-broker">Configure Stateful-Functions to run with broker</a></li><li><a href="#start-functions-worker-with-broker">Start Functions-worker with broker</a></li></ul></li><li><a href="#run-functions-worker-separately">Run Functions-worker separately</a><ul class="toc-headings"><li><a href="#configure-functions-worker-to-run-separately">Configure Functions-worker to run separately</a></li><li><a href="#start-functions-worker">Start Functions-worker</a></li><li><a href="#configure-proxies-for-functions-workers">Configure Proxies for Functions-workers</a></li></ul></li><li><a href="#compare-the-run-with-broker-and-run-separately-modes">Compare the Run-with-Broker and Run-separately modes</a></li><li><a href="#troubleshooting">Troubleshooting</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar 2.6.2 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Apache Pulsar 2.6.2 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2"/><meta property="og:description" content="We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2020/11/09/Apache-Pulsar-2-6-2">Apache Pulsar 2.6.2</a></h1><p class="post-meta">November 9, 2020</p><div class="authorBlock"><p class="post-authorName"><a href="https://twitter.com/wolf4j1" target="_blank" rel="noreferrer noopener">Xiaolong Ran</a></p></div></header><div><span><p>We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes.</p>
+<p>Here are some highlights and major features added in Pulsar 2.6.2.</p>
+<!--truncate-->
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<h3><a class="anchor" aria-hidden="true" id="catch-throwable-when-starting-pulsar"></a><a href="#catch-throwable-when-starting-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Catch <code>throwable</code> when starting Pulsar</h3>
+<p>Before 2.6.2, Pulsar catched exceptions only when <code>BrokerStarter.start()</code> failed. Some errors such as <code>NoSuchMethodError</code> or <code>NoClassDefFoundError</code> could not be caught, and Pulsar was in abnormal status yet no error log was found in the log file.</p>
+<p>In 2.6.2, we modify exceptions to use <code>throwable</code> to avoid this issue.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7221">PR-7221</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="handle-subscriptionbusyexception-in-resetcursor-api"></a><a href="#handle-subscriptionbusyexception-in-resetcursor-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Handle SubscriptionBusyException in resetCursor API</h3>
+<p>In <code>PersistentSubscription.resetCursor</code> method, <code>SubscriptionFencedException</code> is thrown in several places, but it is not handled in <code>PersistentTopicBase</code>, so error messages are not clear.</p>
+<p>In 2.6.2, we export <code>SubscriptionBusyException</code> in <code>PersistentTopicBase</code> for <code>resetCursor</code>, so error messages in the REST API are clear.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7335">PR-7335</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="update-jersey-to-231"></a><a href="#update-jersey-to-231" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update Jersey to 2.31</h3>
+<p>Before 2.6.1, Pulsar used the Jersey 2.27, which has security concerns. In Pulsar 2.6.2, we update the Jersey version to the latest stable version(2.31) to enhance security.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7515">PR-7515</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="stop-to-dispatch-when-consumers-using-the-key_shared-subscription-stuck"></a><a href="#stop-to-dispatch-when-consumers-using-the-key_shared-subscription-stuck" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop to dispatch when consumers using the Key_Shared subscription stuck</h3>
+<p>Consumers using the <code>Key_Shared</code> subscription would encounter disorder messages occasionally. The following are steps to reproduce the situation:</p>
+<ol>
+<li>Connect Consumer1 to Key_Shared subscription <code>sub</code> and stop to receive</li>
+</ol>
+<ul>
+<li>receiverQueueSize: 500</li>
+</ul>
+<ol start="2">
+<li>Connect Producer and publish 500 messages with key <code>(i % 10)</code></li>
+<li>Connect Consumer2 to same subscription and start to receive</li>
+</ol>
+<ul>
+<li>receiverQueueSize: 1</li>
+<li>since <a href="https://github.com/apache/pulsar/pull/7106">https://github.com/apache/pulsar/pull/7106</a>, Consumer2 can't receive (expected)</li>
+</ul>
+<ol start="4">
+<li>Producer publish more 500 messages with same key generation algorithm</li>
+<li>After that, Consumer1 start to receive</li>
+<li>Check Consumer2 message ordering</li>
+</ol>
+<ul>
+<li>sometimes message ordering was broken in same key</li>
+</ul>
+<p>In 2.6.2, when consumers use the Key_Shared subscription, Pulsar stops dispatching messages to consumers that are stuck on delivery to guarantee message order.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7553">PR-7553</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="reestablish-namespace-bundle-ownership-from-false-negative-releasing-and-false-positive-acquiring"></a><a href="#reestablish-namespace-bundle-ownership-from-false-negative-releasing-and-false-positive-acquiring" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reestablish namespace bundle ownership from false negative releasing and false positive acquiring</h3>
+<p>In acquiring/releasing namespace bundle ownership, ZooKeeper might be disconnected before or after these operations are persisted in the ZooKeeper cluster. It leads to inconsistency between the local ownership cache and ZooKeeper cluster.</p>
+<p>In 2.6.2, we fix the issue with the following:</p>
+<ul>
+<li>In ownership releasing, do not retain ownership in failure.</li>
+<li>In ownership checking, querying and acquiring, reestablish the lost ownership in false negative releasing and false positive acquiring.</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7773">PR-7773</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="enable-users-to-configure-the-executor-pool-size"></a><a href="#enable-users-to-configure-the-executor-pool-size" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable users to configure the executor pool size</h3>
+<p>Before 2.6.2, the executor pool size in Pulsar was set to <code>20</code> when starting Pulsar services. Users could not configure the executor pool size.</p>
+<pre><code class="hljs"><span class="hljs-keyword">private</span> final ScheduledExecutorService executor = Executors.<span class="hljs-keyword">new</span><span class="hljs-type">ScheduledThreadPool</span>(<span class="hljs-number">20</span>,
+           <span class="hljs-keyword">new</span> <span class="hljs-type">DefaultThreadFactory</span>(<span class="hljs-string">"pulsar"</span>));
+</code></pre>
+<p>In 2.6.2, users can configure the executor pool size in the <code>broker.conf</code> file based on their needs.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7782">PR-7782</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="add-replicated-check-for-checkinactivesubscriptions"></a><a href="#add-replicated-check-for-checkinactivesubscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add replicated check for <code>checkInactiveSubscriptions</code></h3>
+<p>After the replicated subscription is deleted by <code>checkInactiveSubscriptions</code>, replicated subscriptions are created with <code>receiveSubscriptionUpdated</code>. In this case, the position becomes the latest position.</p>
+<pre><code class="hljs">topic.create<span class="hljs-constructor">Subscription(<span class="hljs-params">update</span>.<span class="hljs-params">getSubscriptionName</span>()</span>,
+        InitialPosition.Latest, <span class="hljs-literal">true</span> <span class="hljs-comment">/* replicateSubscriptionState */</span>);
+</code></pre>
+<p>In 2.6.2, the replicated subscription is excluded from automatic deletion by fixing the <code>PersistentTopic</code>.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8066">PR-8066</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="upgrade-jetty-util-version-to-9431"></a><a href="#upgrade-jetty-util-version-to-9431" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade jetty-util version to 9.4.31</h3>
+<p>Pulsar client depends on jetty-util. Jetty-util versions earlier than 9.4.30 contain known vulnerabilities.</p>
+<p>In 2.6.2, we upgrade the jetty-util version to <code>9.4.31</code> to enhance security.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8035">PR-8035</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="add-command-to-delete-a-clusters-metadata-from-zookeeper"></a><a href="#add-command-to-delete-a-clusters-metadata-from-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add command to delete a cluster's metadata from ZooKeeper</h3>
+<p>When we share the same ZooKeeper and BookKeeper cluster among multiple broker clusters, if a cluster was removed, its metadata in ZooKeeper were also removed.</p>
+<p>In 2.6.2, we fix the issue in the following ways:</p>
+<ul>
+<li>Add a <code>PulsarClusterMetadataTeardown</code> class to delete the relative nodes from ZooKeeper;</li>
+<li>Wrap the class to <code>bin/pulsar</code> script.</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8169">PR-8169</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="replace-eventloop-with-threadpoolexecutor-to-improve-performance-instead-of-eventloop"></a><a href="#replace-eventloop-with-threadpoolexecutor-to-improve-performance-instead-of-eventloop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replace EventLoop with ThreadPoolExecutor to improve performance instead of EventLoop</h3>
+<p>In 2.6.2, we replace EventLoop with a native JDK thread pool(ThreadPoolExecutor) to improve performance.</p>
+<p>The following is the test result with pulsar perf.</p>
+<p>Before 2.6.1:</p>
+<pre><code class="hljs">Aggregated throughput stats --- <span class="hljs-number">11715556</span> records received --- <span class="hljs-number">68813.420</span> msg/s --- <span class="hljs-number">537.605</span> Mbit/s
+</code></pre>
+<p>In 2.6.2：</p>
+<pre><code class="hljs">Aggregated throughput stats --- <span class="hljs-number">18392800</span> records received --- <span class="hljs-number">133314.602</span> msg/s --- <span class="hljs-number">1041.520</span> Mbit/s
+</code></pre>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8208">PR-8208</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="fix-deadlock-that-occurred-during-topic-ownership-check"></a><a href="#fix-deadlock-that-occurred-during-topic-ownership-check" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fix deadlock that occurred during topic ownership check</h3>
+<p>Some broker servers had deadlocks while splitting namespace bundles. When checking the thread dump of the broker, some threads were blocked in <code>NamespaceService#getBundle()</code>.</p>
+<pre><code class="hljs"><span class="hljs-string">"pulsar-ordered-OrderedExecutor-7-0"</span> #<span class="hljs-number">34</span> prio=<span class="hljs-number">5</span> os_prio=<span class="hljs-number">0</span> tid=<span class="hljs-number">0</span>x00007eeeab05a800 nid=<span class="hljs-number">0</span>x81a5 waiting on condition [<span class="hljs-number">0</span>x00007eeeafbd2000]
+  java<span class="hljs-selector-class">.lang</span><span class="hljs-selector-class">.Thread</span><span class="hljs-selector-class">.State</span>: WAITING (parking)
+       at sun<span class="hljs-selector-class">.misc</span><span class="hljs-selector-class">.Unsafe</span>.park(Native Method)
+       - parking to wait <span class="hljs-keyword">for</span>  &lt;<span class="hljs-number">0</span>x00007f17fa965418&gt; (<span class="hljs-selector-tag">a</span> java<span class="hljs-selector-class">.util</span><span class="hljs-selector-class">.concurrent</span>.CompletableFuture<span class="hljs-variable">$Signaller</span>)
+       at java<span class="hljs-selector-class">.util</span><span class="hljs-selector-class">.concurrent</span><span class="hljs-selector-class">.locks</span><span class="hljs-selector-class">.LockSupport</span>.park(LockSupport<span class="hljs-selector-class">.java</span>:<span class="hljs-number">175</span>)
+       at org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.common</span><span class="hljs-selector-class">.naming</span><span class="hljs-selector-class">.NamespaceBundleFactory</span>.getBundles(NamespaceBundleFactory<span class="hljs-selector-class">.java</span>:<span class="hljs-number">155</span>)
+...
+</code></pre>
+<p>The reason for the issue is that the <code>getBundle()</code> method leads to deadlock in <code>NamespaceService#isTopicOwned()</code>. To fix the issue, we remove the <code>getBundle()</code> method. When <code>isTopicOwned()</code> returns <code>false</code>, the bundle metadata is cached and can be got asynchronously. When the client reconnects the next time, Pulsar returns the correct bundle metadata from the cache.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8406">PR-8406</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h2>
+<h3><a class="anchor" aria-hidden="true" id="enable-users-to-configure-advertisedaddress-in-proxy"></a><a href="#enable-users-to-configure-advertisedaddress-in-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable users to configure <code>advertisedAddress</code> in proxy</h3>
+<p>Before 2.6.2, users could not configure <code>advertisedAddress</code> on the proxy side. In 2.6.2, users can configure <code>advertisedAddress</code> in proxy just as they do in Pulsar broker.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7542">PR-7542</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="add-proxy-plugin-interface-to-support-user-defined-additional-servlet"></a><a href="#add-proxy-plugin-interface-to-support-user-defined-additional-servlet" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add proxy plugin interface to support user defined additional servlet</h3>
+<p>To enable users to access the broker flexibly, Pulsar provides plugins similar to broker protocol and broker interceptor. However, users could not access the proxy before 2.6.2.</p>
+<p>To enable users to customize data requests in proxy, we add the protocol plugin for proxy in 2.6.2.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8067">PR-8067</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="fix-the-null-exception-when-starting-the-proxy-service"></a><a href="#fix-the-null-exception-when-starting-the-proxy-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fix the null exception when starting the proxy service</h3>
+<p>When enabling the broker TLS and broker client authentication with OAuth2 plugin,
+the proxy service exits with an unexpected null exception.</p>
+<p>The reason is that when initializing the flow, authentication is called, so the token client is not initialized before using.</p>
+<p>In 2.6.2, we fix the null exception when starting the proxy service.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8019">PR-8019</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="java-client"></a><a href="#java-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Client</h2>
+<h3><a class="anchor" aria-hidden="true" id="support-input-stream-for-truststore-cert"></a><a href="#support-input-stream-for-truststore-cert" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support input-stream for trustStore cert</h3>
+<p>In 2.6.1, Pulsar supports dynamic cert loading by using input stream for TLS cert and key file. The feature is mainly used by container. However, container also requires dynamic loading for truststore certs and users cannot store trust-store cert into file-system.</p>
+<p>In 2.6.2, Pulsar supports loading truststore cert dynamically using input stream.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7442">PR-7442</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="avoid-subscribing-the-same-topic"></a><a href="#avoid-subscribing-the-same-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Avoid subscribing the same topic</h3>
+<p>The current key of <code>MultiTopicsConsumerImpl.topics</code> is the topic name passed by the user. The <code>topicNameValid</code> method checks if the name is valid and <code>topics</code> doesn't contain the key.</p>
+<p>However, if a multi-topic consumer subscribes a partition of a subscribed partitioned topic,  <code>subscribeAsync</code> succeeds and a new <code>ConsumerImpl</code> of the same partition is created, which is redundant.</p>
+<p>Also, if a multi-topic consumer subscribes <code>public/default/topic</code> or <code>persistent://public/default/topic</code>, while the initial subscribed topic is <code>topic</code>, the redundant consumers would be created.</p>
+<p>In 2.6.2, we fix the issue in the following ways to avoid subscribing the same topic again:</p>
+<ul>
+<li>Use the full topic name as key for <code>MultiTopicsConsumerImpl.topics</code>.</li>
+<li>Check that both the full topic name and the full partitioned topic name do not exist in <code>MultiTopicsConsumerImpl.topics</code> when <code>subscribeAsync</code> is called.</li>
+<li>Throw a different exception to a different topic is invalid and the topic is already subscribed</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7823">PR-7823</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="cpp-client"></a><a href="#cpp-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CPP Client</h2>
+<h3><a class="anchor" aria-hidden="true" id="wait-for-all-seek-operations-complete"></a><a href="#wait-for-all-seek-operations-complete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Wait for all seek operations complete</h3>
+<p>When a partitioned consumer calls <code>seek</code>, it waits for only one partition's seek operation completion because each internal consumer calls callback(result) to complete the same promise.</p>
+<p>In 2.6.2, we use the following methods to avoid this problem:</p>
+<ul>
+<li>Add a <code>MultiResultCallback</code> implementation, the callback completes only when all N events complete successfully or one of N events fails.</li>
+<li>Use <code>MultiResultCallback</code> to wrap callback from <code>PartitionedConsumerImpl::seekAsync</code>.</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7216">PR-7216</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="make-clear-thread-safe"></a><a href="#make-clear-thread-safe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Make <code>clear()</code> thread-safe</h3>
+<p>Before 2.6.2, the <code>clear()</code> methods of <code>BatchAcknowledgementTracker</code> and <code>UnAckedMessageTrackerEnabled</code> are not thread-safe.</p>
+<p>In 2.6.2, we acquire a mutex in these <code>clear()</code> methods to make it thread-safe.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7862">PR-7862</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="add-snappy-library-to-docker-images-for-building-c-packages"></a><a href="#add-snappy-library-to-docker-images-for-building-c-packages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add Snappy library to Docker images for building C++ packages</h3>
+<p>The program crashes when Snappy compression is enabled on the C++ client packaged as RPM/DEB. This is because Snappy library is not included in the Docker image for building the RPM/DEB package.</p>
+<p>In 2.6.2, we add the Snappy library to the docker images to avoid the issue.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8086">PR-8086</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="support-key-based-batching"></a><a href="#support-key-based-batching" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support key based batching</h3>
+<p>Support key based batching for the C++ client. In addition, currently, the implementation of <code>BatchMessageContainer</code> is coupling to <code>ProducerImpl</code> tightly. The batch message container registers a timer to the producer's executor and the timeout callback is also the producer's method. Even its <code>add</code> method could call <code>sendMessage</code> to send a batch to the producer's pending queue. These should be the producer's work.</p>
+<p>In 2.6.2, we implement the feature in the following ways:</p>
+<ul>
+<li>Add a <code>MessageAndCallbackBatch</code> to store a <code>MessageImpl</code> of serialized single messages and a callback list.</li>
+<li>Add a <code>BatchMessageContainerBase</code> to provide interface methods and methods like update/clear message number/bytes, create <code>OpSendMsg</code>.</li>
+<li>Let <code>ProducerImpl</code> manage the batch timer and determine whether to create <code>OpSendMsg</code> from <code>BatchMessageContainerBase</code> and send it.</li>
+<li>Make <code>BatchMessageContainer</code> inherit <code>BatchMessageContainerBase</code>, it only manages a <code>MessageAndCallbackBatch</code>.</li>
+<li>Add a <code>BatchMessageKeyBasedContainer</code> that inherits <code>BatchMessageContainerBase</code>, it manages a map of message key and <code>MessageAndCallbackBatch</code>.</li>
+<li>Add a producer config to change batching type.</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7996">PR-7996</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="functions"></a><a href="#functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions</h2>
+<h3><a class="anchor" aria-hidden="true" id="enable-kubernetes-runtime-to-customize-function-instance-class-path"></a><a href="#enable-kubernetes-runtime-to-customize-function-instance-class-path" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Kubernetes runtime to customize function instance class path</h3>
+<p>Before 2.6.2, the function worker's classpath is used to configure the function instance (runner)'s classpath. When the broker (function worker) uses an image that is different from the function instance (runner) for Kubernetes runtime, the classpath is wrong and the function instance could not load the instance classes.</p>
+<p>In 2.6.2, we add a function instance classpath entry to the Kubernetes runtime config, and construct the function launch command accordingly.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7844">PR-7844</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="set-dryrun-of-kubernetes-runtime-to-null"></a><a href="#set-dryrun-of-kubernetes-runtime-to-null" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set <code>dryrun</code> of Kubernetes Runtime to null</h3>
+<p>Before 2.6.2, we upgraded the <code>client-java</code> of Kubernetes to <code>0.9.2</code> to enhance security. However, during the creation of statefulsets, secrets, and services, the value of <code>dryrun</code> was set to <code>true</code>, which was not accepted by Kubernetes. Only <code>All</code> is allowed in Kubernetes.</p>
+<p>In 2.6.2, we set the <code>dryrun</code> of Kubernetes Runtime to null.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8064">PR-8064</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-sql"></a><a href="#pulsar-sql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL</h2>
+<h3><a class="anchor" aria-hidden="true" id="upgrade-presto-version-to-332"></a><a href="#upgrade-presto-version-to-332" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade Presto version to 332</h3>
+<p>Upgrade Presto version to 332. Resolve different packages between prestosql and prestodb. Although the latest version is 334, versions higher than 333 require Java 11.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/7194">PR-7194</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h2>
+<h3><a class="anchor" aria-hidden="true" id="add-cli-command-to-get-the-last-message-id"></a><a href="#add-cli-command-to-get-the-last-message-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add CLI command to get the last message ID</h3>
+<p>Add <code>last-message-id</code> command in CLI, so users can get the last message ID with this command.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8082">PR-8082</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="support-deleting-schema-ledgers-when-deleting-topics"></a><a href="#support-deleting-schema-ledgers-when-deleting-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support deleting schema ledgers when deleting topics</h3>
+<p>Users could not delete schema of topics with the <code>PersistentTopics#deleteTopic</code> and <code>PersistentTopics#deletePartitionedTopic</code> in REST APIs. After topics were deleted, the schema ledgers still existed with adding an empty schema ledger.</p>
+<p>In 2.6.2, we implement the feature in the following ways:</p>
+<ul>
+<li>Add a <code>deleteSchema</code> query param to REST APIs of deleting topics/partitioned topics;</li>
+<li>Add a map to record the created ledgers in <code>BookkeeperSchemaStorage</code>;</li>
+<li>Expose <code>deleteSchema</code> param in pulsar-admin APIs;</li>
+<li>Delete schema ledgers when deleting the cluster with <code>-a</code> option.</li>
+</ul>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8167">PR-8167</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="support-deleting-all-data-associated-with-a-cluster"></a><a href="#support-deleting-all-data-associated-with-a-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Support deleting all data associated with a cluster</h3>
+<p>When multiple broker clusters shared the same bookie cluster, if users wanted to remove a broker cluster, the associated ledgers in bookies were not deleted as expected.</p>
+<p>In 2.6.2, we add a <code>cluster delete</code> command to enable users to delete all the data associated with the cluster.</p>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8133">PR-8133</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Perf</h2>
+<h3><a class="anchor" aria-hidden="true" id="enable-users-to-configure-iothread-number-in-pulsar-perf"></a><a href="#enable-users-to-configure-iothread-number-in-pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable users to configure ioThread number in pulsar-perf</h3>
+<p>In pulsar-perf, the default Pulsar client ioThread number is <code>Runtime.getRuntime().availableProcessors()</code> and users could not configure it in the command line. When running a pulsar-perf producer, it may cause messages to enqueue competition and lead to high latency.</p>
+<p>In 2.6.2, we implement the feature in the following ways:</p>
+<ol>
+<li>Enable users to configure the ioThread number in the command line;</li>
+<li>Change the default ioThead number from <code>Runtime.getRuntime().availableProcessors()</code> to <code>1</code></li>
+</ol>
+<p>For more information about implementation, see <a href="https://github.com/apache/pulsar/pull/8090">PR-8090</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="more-information"></a><a href="#more-information" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>More information</h2>
+<ul>
+<li>To download Apache Pulsar 2.6.2, click <a href="https://pulsar.apache.org/en/download/">download</a>.</li>
+<li>For more information about Apache Pulsar 2.6.2, see [2.6.2 release notes](<a href="https://pulsar.apache.org/release-notes/#2.6.2">https://pulsar.apache.org/release-notes/#2.6.2</a> and <a href="https://github.com/apache/pulsar/pulls?q=is%3Apr+label%3Arelease%2F2.6.2+is%3Aclosed">2.6.2 PR list</a>.</li>
+</ul>
+<p>If you have any questions or suggestions, contact us with mailing lists or slack.</p>
+<ul>
+<li><a href="mailto:users@pulsar.apache.org">users@pulsar.apache.org</a></li>
+<li><a href="mailto:dev@pulsar.apache.org">dev@pulsar.apache.org</a></li>
+<li>Pulsar slack channel: <a href="https://apache-pulsar.slack.com/">https://apache-pulsar.slack.com/</a></li>
+<li>Self-registration at <a href="https://apache-pulsar.herokuapp.com/">https://apache-pulsar.herokuapp.com/</a></li>
+</ul>
+<p>Looking forward to your contributions to <a href="https://github.com/apache/pulsar">Pulsar</a>.</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="Apache Pulsar 2.6.2" data-url="https://pulsar.apache.org/blog/2020/11/09/Apache-Pulsar-2-6-2" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#catch-throwable-when-starting-pulsar">Catch <code>throwable</code> when starting Pulsar</a></li><li><a href="#handle-subscriptionbusyexception-in-resetcursor-api">Handle SubscriptionBusyException in resetCursor API</a></li><li><a href="#update-jersey-to-231">Update Jersey to 2.31</a></li><li><a href="#stop-to-dispatch-when-consumers-using-the-key_shared-subscription-stuck">Stop to dispatch when consumers using the Key_Shared subscription stuck</a></li><li><a href="#reestablish-namespace-bundle-ownership-from-false-negative-releasing-and-false-positive-acquiring">Reestablish namespace bundle ownership from false negative releasing and false positive acquiring</a></li><li><a href="#enable-users-to-configure-the-executor-pool-size">Enable users to configure the executor pool size</a></li><li><a href="#add-replicated-check-for-checkinactivesubscriptions">Add replicated check for <code>checkInactiveSubscriptions</code></a></li><li><a href="#upgrade-jetty-util-version-to-9431">Upgrade jetty-util version to 9.4.31</a></li><li><a href="#add-command-to-delete-a-clusters-metadata-from-zookeeper">Add command to delete a cluster's metadata from ZooKeeper</a></li><li><a href="#replace-eventloop-with-threadpoolexecutor-to-improve-performance-instead-of-eventloop">Replace EventLoop with ThreadPoolExecutor to improve performance instead of EventLoop</a></li><li><a href="#fix-deadlock-that-occurred-during-topic-ownership-check">Fix deadlock that occurred during topic ownership check</a></li></ul></li><li><a href="#proxy">Proxy</a><ul class="toc-headings"><li><a href="#enable-users-to-configure-advertisedaddress-in-proxy">Enable users to configure <code>advertisedAddress</code> in proxy</a></li><li><a href="#add-proxy-plugin-interface-to-support-user-defined-additional-servlet">Add proxy plugin interface to support user defined additional servlet</a></li><li><a href="#fix-the-null-exception-when-starting-the-proxy-service">Fix the null exception when starting the proxy service</a></li></ul></li><li><a href="#java-client">Java Client</a><ul class="toc-headings"><li><a href="#support-input-stream-for-truststore-cert">Support input-stream for trustStore cert</a></li><li><a href="#avoid-subscribing-the-same-topic">Avoid subscribing the same topic</a></li></ul></li><li><a href="#cpp-client">CPP Client</a><ul class="toc-headings"><li><a href="#wait-for-all-seek-operations-complete">Wait for all seek operations complete</a></li><li><a href="#make-clear-thread-safe">Make <code>clear()</code> thread-safe</a></li><li><a href="#add-snappy-library-to-docker-images-for-building-c-packages">Add Snappy library to Docker images for building C++ packages</a></li><li><a href="#support-key-based-batching">Support key based batching</a></li></ul></li><li><a href="#functions">Functions</a><ul class="toc-headings"><li><a href="#enable-kubernetes-runtime-to-customize-function-instance-class-path">Enable Kubernetes runtime to customize function instance class path</a></li><li><a href="#set-dryrun-of-kubernetes-runtime-to-null">Set <code>dryrun</code> of Kubernetes Runtime to null</a></li></ul></li><li><a href="#pulsar-sql">Pulsar SQL</a><ul class="toc-headings"><li><a href="#upgrade-presto-version-to-332">Upgrade Presto version to 332</a></li></ul></li><li><a href="#pulsar-admin">pulsar-admin</a><ul class="toc-headings"><li><a href="#add-cli-command-to-get-the-last-message-id">Add CLI command to get the last message ID</a></li><li><a href="#support-deleting-schema-ledgers-when-deleting-topics">Support deleting schema ledgers when deleting topics</a></li><li><a href="#support-deleting-all-data-associated-with-a-cluster">Support deleting all data associated with a cluster</a></li></ul></li><li><a href="#pulsar-perf">Pulsar Perf</a><ul class="toc-headings"><li><a href="#enable-users-to-configure-iothread-number-in-pulsar-perf">Enable users to configure ioThread number in pulsar-perf</a></li></ul></li><li><a href="#more-information">More information</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

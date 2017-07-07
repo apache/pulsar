@@ -1,0 +1,227 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing Clusters · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **重要**"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Managing Clusters · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; **重要**"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/admin-api-clusters">English</a></li><li><a href="/docs/ja/2.8.3/admin-api-clusters">日本語</a></li><li><a href="/docs/fr/2.8.3/admin-api-clusters">Français</a></li><li><a href="/docs/ko/2.8.3/admin-api-clusters">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/admin-api-clusters">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing Clusters</h1></header><article><div><span><blockquote>
+<p><strong>重要</strong></p>
+<p>此页面仅显示 <strong>部分常用操作</strong>。</p>
+<ul>
+<li><p>有关 <code>Pulsar admin</code> 的最新完整信息，包括命令、标志、描述和更多信息，详见 <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin doc</a>。</p></li>
+<li><p>关于 <code>REST API</code> 最新最完整的信息，包括参数、响应、示例等等，可参阅 <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
+ API 文档。</p></li>
+<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
+</ul>
+</blockquote>
+<p>Pulsar 集群包括了一个或多个的 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#broker">broker</a>、<a href="/docs/zh-CN/2.8.3/reference-terminology#bookkeeper">BookKeeper</a> 服务器（即 <a href="/docs/zh-CN/2.8.3/reference-terminology#bookie">bookie</a>），以及一个提供配置和协调管理功能的 <a href="https://zookeeper.apache.org">ZooKeeper</a> 集群。</p>
+<p>管理集群的方式有以下几种：</p>
+<ul>
+<li><a href="/docs/zh-CN/2.8.3/pulsar-admin"><code>pulsar-admin</code></a> 工具的 <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters"><code>clusters</code></a> 命令</li>
+<li>Admin <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
+ API 的 <code>/admin/v2/clusters</code> 端点</li>
+<li><a href="/docs/zh-CN/2.8.3/client-libraries-java">Java API</a> 中 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+ 对象的 <code>clusters</code> 方法</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="集群资源"></a><a href="#集群资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集群资源</h2>
+<h3><a class="anchor" aria-hidden="true" id="准备新集群"></a><a href="#准备新集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>准备新集群</h3>
+<p>可以通过 admin 接口提供新集群。</p>
+<blockquote>
+<p>注意：超级用户才有权限进行此操作</p>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38374-tab-38375" class="nav-link active" data-group="group_38374" data-tab="tab-group-38374-content-38375">pulsar-admin</div><div id="tab-group-38374-tab-38376" class="nav-link" data-group="group_38374" data-tab="tab-group-38374-content-38376">REST API</div><div id="tab-group-38374-tab-38377" class="nav-link" data-group="group_38374" data-tab="tab-group-38374-content-38377">JAVA</div></div><div class="tab-content"><div id="tab-group-38374-content-38375" class="tab-pane active" data-group="group_38374" tabindex="-1"><div><span><p>You can provision a new cluster using the <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-create"><code>create</code></a> subcommand. 下面是一个示例：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin clusters create cluster-1 \</span><br />  --url http://my-cluster.org.com:8080 \<br />  --broker-url pulsar://my-cluster.org.com:6650<br /></code></pre>
+</span></div></div><div id="tab-group-38374-content-38376" class="tab-pane" data-group="group_38374" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createCluster?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/clusters/:cluster</i></a>
+</p>
+</span></div></div><div id="tab-group-38374-content-38377" class="tab-pane" data-group="group_38374" tabindex="-1"><div><span><pre><code class="hljs css language-java">ClusterData clusterData = <span class="hljs-keyword">new</span> ClusterData(<br />        serviceUrl,<br />        serviceUrlTls,<br />        brokerServiceUrl,<br />        brokerServiceUrlTls<br />);<br />admin.clusters().createCluster(clusterName, clusterData);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="初始化集群元数据"></a><a href="#初始化集群元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>初始化集群元数据</h3>
+<p>在准备新集群时，需要初始化集群的<a href="/docs/zh-CN/2.8.3/concepts-architecture-overview#metadata-store">元数据</a>。 初始化集群元数据需要指定以下内容：</p>
+<ul>
+<li>集群名称</li>
+<li>集群与本地 ZooKeeper 连接的字符串</li>
+<li>整个集群实例的配置存储连接字符串。</li>
+<li>集群 web 服务的 URL</li>
+<li>Broker 服务的 URL，用于启动集群中 <a href="/docs/zh-CN/2.8.3/reference-terminology#broker">broker</a> 之间的交互</li>
+</ul>
+<p>You must initialize cluster metadata <em>before</em> starting up any <a href="/docs/zh-CN/2.8.3/admin-api-brokers">brokers</a> that will belong to the cluster.</p>
+<blockquote>
+<p><strong>不能通过 REST API 或者 Java admin API 初始化集群元数据。</strong></p>
+<p>与 Pulsar 的其他管理功能不同的是，不能通过 admin REST API 或 admin Java 客户端初始化集群元数据。 但是可以使用 <a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI 执行 <a href="/docs/zh-CN/2.8.3/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a>命令。</p>
+</blockquote>
+<p>集群元数据初始化命令示例如下：</p>
+<pre><code class="hljs css language-shell">bin/pulsar initialize-cluster-metadata \
+  --cluster us-west \
+  --zookeeper zk1.us-west.example.com:2181 \
+  --configuration-store zk1.us-west.example.com:2184 \
+  --web-service-url http://pulsar.us-west.example.com:8080/ \
+  --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre>
+<p>在实例中使用 <a href="/docs/zh-CN/2.8.3/security-tls-authentication">TLS 认证</a> 时，只需使用 <code>--*-tls</code> 参数。</p>
+<h3><a class="anchor" aria-hidden="true" id="获取配置"></a><a href="#获取配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取配置</h3>
+<p>你可以随时获取现有集群的<a href="/docs/zh-CN/2.8.3/reference-configuration">配置</a>。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38378-tab-38379" class="nav-link active" data-group="group_38378" data-tab="tab-group-38378-content-38379">pulsar-admin</div><div id="tab-group-38378-tab-38380" class="nav-link" data-group="group_38378" data-tab="tab-group-38378-content-38380">REST API</div><div id="tab-group-38378-tab-38381" class="nav-link" data-group="group_38378" data-tab="tab-group-38378-content-38381">JAVA</div></div><div class="tab-content"><div id="tab-group-38378-content-38379" class="tab-pane active" data-group="group_38378" tabindex="-1"><div><span><p>Use the <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-get"><code>get</code></a> subcommand and specify the name of the cluster. 下面是一个示例：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin clusters get cluster-1</span><br />{<br />    "serviceUrl": "http://my-cluster.org.com:8080/",<br />    "serviceUrlTls": null,<br />    "brokerServiceUrl": "pulsar://my-cluster.org.com:6650/",<br />    "brokerServiceUrlTls": null<br />    "peerClusterNames": null<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-38378-content-38380" class="tab-pane" data-group="group_38378" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getCluster?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters/:cluster</i></a>
+</p>
+</span></div></div><div id="tab-group-38378-content-38381" class="tab-pane" data-group="group_38378" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.clusters().getCluster(clusterName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="更新"></a><a href="#更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新</h3>
+<p>你可以随时更新现有集群的配置。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38382-tab-38383" class="nav-link active" data-group="group_38382" data-tab="tab-group-38382-content-38383">pulsar-admin</div><div id="tab-group-38382-tab-38384" class="nav-link" data-group="group_38382" data-tab="tab-group-38382-content-38384">REST API</div><div id="tab-group-38382-tab-38385" class="nav-link" data-group="group_38382" data-tab="tab-group-38382-content-38385">JAVA</div></div><div class="tab-content"><div id="tab-group-38382-content-38383" class="tab-pane active" data-group="group_38382" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-update"><code>update</code></a> 子命令并使用参数指定新配置值。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin clusters update cluster-1 \</span><br />  --url http://my-cluster.org.com:4081 \<br />  --broker-url pulsar://my-cluster.org.com:3350<br /></code></pre>
+</span></div></div><div id="tab-group-38382-content-38384" class="tab-pane" data-group="group_38382" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateCluster?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster</i></a>
+</p>
+</span></div></div><div id="tab-group-38382-content-38385" class="tab-pane" data-group="group_38382" tabindex="-1"><div><span><pre><code class="hljs css language-java">ClusterData clusterData = <span class="hljs-keyword">new</span> ClusterData(<br />        serviceUrl,<br />        serviceUrlTls,<br />        brokerServiceUrl,<br />        brokerServiceUrlTls<br />);<br />admin.clusters().updateCluster(clusterName, clusterData);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="删除"></a><a href="#删除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除</h3>
+<p>可以从 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#instance">实例</a>中删除集群。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38386-tab-38387" class="nav-link active" data-group="group_38386" data-tab="tab-group-38386-content-38387">pulsar-admin</div><div id="tab-group-38386-tab-38388" class="nav-link" data-group="group_38386" data-tab="tab-group-38386-content-38388">REST API</div><div id="tab-group-38386-tab-38389" class="nav-link" data-group="group_38386" data-tab="tab-group-38386-content-38389">JAVA</div></div><div class="tab-content"><div id="tab-group-38386-content-38387" class="tab-pane active" data-group="group_38386" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-delete"><code>delete</code></a> 子命令并指定集群名称。</p>
+<pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> clusters <span class="hljs-keyword">delete</span> <span class="hljs-keyword">cluster</span><span class="hljs-number">-1</span><br /></code></pre>
+</span></div></div><div id="tab-group-38386-content-38388" class="tab-pane" data-group="group_38386" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteCluster?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/clusters/:cluster</i></a>
+</p>
+</span></div></div><div id="tab-group-38386-content-38389" class="tab-pane" data-group="group_38386" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.clusters().deleteCluster(clusterName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取资源列表"></a><a href="#获取资源列表" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取资源列表</h3>
+<p>可以获取 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#instance">实例</a>中的所有集群。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38390-tab-38391" class="nav-link active" data-group="group_38390" data-tab="tab-group-38390-content-38391">pulsar-admin</div><div id="tab-group-38390-tab-38392" class="nav-link" data-group="group_38390" data-tab="tab-group-38390-content-38392">REST API</div><div id="tab-group-38390-tab-38393" class="nav-link" data-group="group_38390" data-tab="tab-group-38390-content-38393">JAVA</div></div><div class="tab-content"><div id="tab-group-38390-content-38391" class="tab-pane active" data-group="group_38390" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-list"><code>list</code></a> 子命令。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin clusters list</span><br />cluster-1<br />cluster-2<br /></code></pre>
+</span></div></div><div id="tab-group-38390-content-38392" class="tab-pane" data-group="group_38390" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getClusters?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters</i></a>
+</p>
+</span></div></div><div id="tab-group-38390-content-38393" class="tab-pane" data-group="group_38390" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.clusters().getClusters();<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="更新对等集群peer-cluster数据"></a><a href="#更新对等集群peer-cluster数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新对等集群（peer-cluster）数据</h3>
+<p>在 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#instance">实例</a>中，可以为给定集群配置 peer-cluster。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38394-tab-38395" class="nav-link active" data-group="group_38394" data-tab="tab-group-38394-content-38395">pulsar-admin</div><div id="tab-group-38394-tab-38396" class="nav-link" data-group="group_38394" data-tab="tab-group-38394-content-38396">REST API</div><div id="tab-group-38394-tab-38397" class="nav-link" data-group="group_38394" data-tab="tab-group-38394-content-38397">JAVA</div></div><div class="tab-content"><div id="tab-group-38394-content-38395" class="tab-pane active" data-group="group_38394" tabindex="-1"><div><span><p>使用<a href="/docs/zh-CN/2.8.3/pulsar-admin#clusters-update-peer-clusters"><code>update-peer-clusters</code></a>子命令并指定对等集群的名称。</p>
+<pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">update</span>-peer-clusters <span class="hljs-keyword">cluster</span><span class="hljs-number">-1</span> <span class="hljs-comment">--peer-clusters cluster-2</span><br /></code></pre>
+</span></div></div><div id="tab-group-38394-content-38396" class="tab-pane" data-group="group_38394" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/setPeerClusterNames?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster/peers</i></a>
+</p>
+</span></div></div><div id="tab-group-38394-content-38397" class="tab-pane" data-group="group_38394" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.clusters().updatePeerClusterNames(clusterName, peerClusterList);<br /></code></pre>
+</span></div></div></div></div></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/admin-api-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/admin-api-tenants"><span>租户</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#集群资源">集群资源</a><ul class="toc-headings"><li><a href="#准备新集群">准备新集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#获取配置">获取配置</a></li><li><a href="#更新">更新</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#更新对等集群peer-cluster数据">更新对等集群（peer-cluster）数据</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

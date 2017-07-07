@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Netty Tcp or Udp Connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Source"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Netty Tcp or Udp Connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="## Source"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/2.8.3/io-netty">日本語</a></li><li><a href="/docs/fr/2.8.3/io-netty">Français</a></li><li><a href="/docs/ko/2.8.3/io-netty">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/io-netty">中文</a></li><li><a href="/docs/zh-TW/2.8.3/io-netty">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/io-netty.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Netty Tcp or Udp Connector</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h2>
+<p>The Netty Source connector opens a port that accept incoming data via the configured network protocol and publish it to a user-defined Pulsar topic.
+Also, this connector is suggested to be used in a containerized (e.g. k8s) deployment.
+Otherwise, if the connector is running in process or thread mode, the instances may be conflicting on listening to ports.</p>
+<h3><a class="anchor" aria-hidden="true" id="source-configuration-options"></a><a href="#source-configuration-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source Configuration Options</h3>
+<table>
+<thead>
+<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>type</code></td><td><code>false</code></td><td><code>tcp</code></td><td>The network protocol over which data is trasmitted to netty. Valid values include HTTP, TCP, and UDP</td></tr>
+<tr><td><code>host</code></td><td><code>false</code></td><td><code>127.0.0.1</code></td><td>The host name or address that the source instance to listen on.</td></tr>
+<tr><td><code>port</code></td><td><code>false</code></td><td><code>10999</code></td><td>The port that the source instance to listen on.</td></tr>
+<tr><td><code>numberOfThreads</code></td><td><code>false</code></td><td><code>1</code></td><td>The number of threads of Netty Tcp Server to accept incoming connections and handle the traffic of the accepted connections.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="configuration-example"></a><a href="#configuration-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Example</h3>
+<p>Here is a configuration Json example:</p>
+<pre><code class="hljs css language-$json">{
+    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"tcp"</span>,
+    <span class="hljs-attr">"host"</span>: <span class="hljs-string">"127.0.0.1"</span>,
+    <span class="hljs-attr">"port"</span>: <span class="hljs-string">"10911"</span>,
+    <span class="hljs-attr">"numberOfThreads"</span>: <span class="hljs-string">"5"</span>
+}
+</code></pre>
+<p>Here is a configuration Yaml example:</p>
+<pre><code class="hljs css language-$yaml"><span class="hljs-symbol">configs:</span>
+<span class="hljs-symbol">    type:</span> <span class="hljs-string">"tcp"</span>
+<span class="hljs-symbol">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
+<span class="hljs-symbol">    port:</span> <span class="hljs-number">10999</span>
+<span class="hljs-symbol">    numberOfThreads:</span> <span class="hljs-number">1</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="usage-example"></a><a href="#usage-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage example</h3>
+<ul>
+<li>Start pulsar standalone</li>
+</ul>
+<pre><code class="hljs css language-$bash">docker pull apachepulsar/pulsar:<span class="hljs-number">2.4</span><span class="hljs-number">.0</span>
+docker run -d -it -p <span class="hljs-number">6650</span>:<span class="hljs-number">6650</span> -p <span class="hljs-number">8080</span>:<span class="hljs-number">8080</span> -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:<span class="hljs-number">2.4</span><span class="hljs-number">.0</span> bin/pulsar standalone
+</code></pre>
+<ul>
+<li>Start pulsar-io in standalone</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="tcp-example"></a><a href="#tcp-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tcp example</h4>
+<ul>
+<li>Config file netty-source-config.yaml</li>
+</ul>
+<pre><code class="hljs css language-$yaml"><span class="hljs-symbol">configs:</span>
+<span class="hljs-symbol">    type:</span> <span class="hljs-string">"tcp"</span>
+<span class="hljs-symbol">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
+<span class="hljs-symbol">    port:</span> <span class="hljs-number">10999</span>
+<span class="hljs-symbol">    numberOfThreads:</span> <span class="hljs-number">1</span>
+</code></pre>
+<ul>
+<li>Copy configuration file to pulsar server</li>
+</ul>
+<pre><code class="hljs css language-$bash">docker <span class="hljs-keyword">cp</span> netty-<span class="hljs-keyword">source</span>-config.yaml pulsar-netty-standalone:/pulsar/<span class="hljs-keyword">conf</span>/
+</code></pre>
+<ul>
+<li>Download netty connector and start netty connector</li>
+</ul>
+<pre><code class="hljs css language-$bash">docker exec -it pulsar-netty-standalone <span class="hljs-string">/bin/bash</span>
+curl -O http:<span class="hljs-string">//mirror-hk.koddos.net/apache/pulsar/pulsar-2.4.0/connectors/pulsar-io-netty-2.4.0.nar</span>
+<span class="hljs-string">./bin/pulsar-admin</span> sources localrun <span class="hljs-params">--archive</span> pulsar-io-{{pulsar<span class="hljs-function">:version</span>}}<span class="hljs-string">.nar</span> <span class="hljs-params">--tenant</span> public <span class="hljs-params">--namespace</span> default <span class="hljs-params">--name</span> netty <span class="hljs-params">--destination-topic-name</span> netty-topic <span class="hljs-params">--source-config-file</span> netty-source-config.yaml <span class="hljs-params">--parallelism</span> 1
+</code></pre>
+<ul>
+<li>Consume data</li>
+</ul>
+<pre><code class="hljs css language-$bash"><span class="hljs-symbol">docker</span> exec -<span class="hljs-keyword">it </span>pulsar-netty-standalone /<span class="hljs-keyword">bin/bash
+</span>./<span class="hljs-keyword">bin/pulsar-client </span>consume -t Exclusive -s netty-<span class="hljs-keyword">sub </span>netty-topic -n <span class="hljs-number">0</span>
+</code></pre>
+<ul>
+<li>Open another window for send data to netty source</li>
+</ul>
+<pre><code class="hljs css language-$bash">docker exec -it pulsar-netty-standalone /bin/bash
+apt-<span class="hljs-keyword">get</span> update
+apt-<span class="hljs-keyword">get</span> -y install telnet
+<span class="hljs-symbol">root@</span><span class="hljs-number">1</span>d19327b2c67:/pulsar# telnet <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span> <span class="hljs-number">10999</span>
+Trying <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>...
+Connected to <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>.
+Escape character <span class="hljs-keyword">is</span> <span class="hljs-string">'^]'</span>.
+hello
+world
+</code></pre>
+<ul>
+<li>Verification results</li>
+</ul>
+<p>In the consumer window just opened, you can see the following data</p>
+<pre><code class="hljs css language-bash">----- got message -----
+hello
+
+----- got message -----
+world
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="http-example"></a><a href="#http-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Http example</h4>
+<ul>
+<li>Config file netty-source-config.yaml</li>
+</ul>
+<pre><code class="hljs css language-$yaml"><span class="hljs-symbol">configs:</span>
+<span class="hljs-symbol">    type:</span> <span class="hljs-string">"http"</span>
+<span class="hljs-symbol">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
+<span class="hljs-symbol">    port:</span> <span class="hljs-number">10999</span>
+<span class="hljs-symbol">    numberOfThreads:</span> <span class="hljs-number">1</span>
+</code></pre>
+<ul>
+<li>Start netty source</li>
+</ul>
+<pre><code class="hljs css language-$bash">docker exec -it pulsar-netty-standalone <span class="hljs-string">/bin/bash</span>
+<span class="hljs-string">./bin/pulsar-admin</span> sources localrun <span class="hljs-params">--archive</span> pulsar-io-{{pulsar<span class="hljs-function">:version</span>}}<span class="hljs-string">.nar</span> <span class="hljs-params">--tenant</span> public <span class="hljs-params">--namespace</span> default <span class="hljs-params">--name</span> netty <span class="hljs-params">--destination-topic-name</span> netty-topic <span class="hljs-params">--source-config-file</span> netty-source-config.yaml <span class="hljs-params">--parallelism</span> 1
+</code></pre>
+<ul>
+<li>Verification results</li>
+</ul>
+<pre><code class="hljs css language-bash">curl -X POST --data <span class="hljs-string">'hello, world!'</span> http://127.0.0.1:10999/
+</code></pre>
+<ul>
+<li>Verification results</li>
+</ul>
+<p>In the consumer window just opened, you can see the following data</p>
+<pre><code class="hljs css language-bash">----- got message -----
+hello, world!
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li><li><a href="#configuration-example">Configuration Example</a></li><li><a href="#usage-example">Usage example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.8.3"]}
+              });
+            </script></body></html>

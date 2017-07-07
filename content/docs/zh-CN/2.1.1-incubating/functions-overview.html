@@ -1,0 +1,487 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Functions overview · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="**Pulsar Functions** 是轻量级计算机处理程序，具有如下特点："/><meta name="docsearch:version" content="2.1.1-incubating"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Functions overview · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="**Pulsar Functions** 是轻量级计算机处理程序，具有如下特点："/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.1-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.1-incubating/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.1.1-incubating/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.1.1-incubating/functions-overview">English</a></li><li><a href="/docs/ja/2.1.1-incubating/functions-overview">日本語</a></li><li><a href="/docs/fr/2.1.1-incubating/functions-overview">Français</a></li><li><a href="/docs/ko/2.1.1-incubating/functions-overview">한국어</a></li><li><a href="/docs/zh-TW/2.1.1-incubating/functions-overview">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/functions-metrics">Metrics</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/io-develop">Developing Connectors</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/admin-api-schemas">Schemas</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/cookbooks-message-queue">Message queue</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.1.1-incubating/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Functions overview</h1></header><article><div><span><p><strong>Pulsar Functions</strong> 是轻量级计算机处理程序，具有如下特点：</p>
+<ul>
+<li>从一个或多个 Pulsar topic 中消费消息；</li>
+<li>将用户提供的处理逻辑应用于每条消息；</li>
+<li>将计算结果发布到另一个主题</li>
+</ul>
+<p>这是一个基于java的例子(使用<a href="/docs/zh-CN/2.1.1-incubating/functions-api#java-native-functions">原生接口</a>)</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{ <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input); }
+}
+</code></pre>
+<p>这是一个基于Python实现的类似的函数(也使用了<a href="/docs/zh-CN/2.1.1-incubating/functions-api#python-native-functions">原生接口</a>)</p>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"{0}!"</span>.format(input)
+</code></pre>
+<p>一条消息每次被发布到输入的主题时，函数都会被执行。 例如，如果一个函数监听在主题 <code>tweet-stream</code>上，在每次有消息发布到这个主题的时候函数都会运行。</p>
+<h2><a class="anchor" aria-hidden="true" id="目标"></a><a href="#目标" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>目标</h2>
+<p>Pulsar Functions背后的核心目标是使您能够轻松创建各种级别的复杂的的处理逻辑，而无需部署单独的类似系统(例如 <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, <a href="https://flink.apache.org/">Apache Flink</a>, 等等) Pulsar Functions本质上是现成的计算基础设施，作为Pulsar消息系统的一部分，供你使用。 这个核心目标与一系列其他目标相关联：</p>
+<ul>
+<li>开发者生产力(<a href="#language-native-functions">language-native</a> vs. <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> functions)</li>
+<li>简单的故障排查</li>
+<li>操作简单（不需要外部处理系统）</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="灵感来源"></a><a href="#灵感来源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>灵感来源</h2>
+<ol start="22">
+<li>Pulsar Functions功能受到若干系统和模式的启发(并从中汲取线索)：</li>
+</ol>
+<ul>
+<li>流处理引擎，例如 <a href="http://storm.apache.org/">Apache Storm</a>、<a href="https://apache.github.io/incubator-heron">Apache Heron</a>、<a href="https://flink.apache.org">Apache Flink</a></li>
+<li>“无服务器（Serverless）”和“Function as a Service”（FaaS）云平台，如：<a href="https://aws.amazon.com/lambda/">Amazon Web Services Lambda</a>、<a href="https://cloud.google.com/functions/">Google Cloud Functions</a>、<a href="https://azure.microsoft.com/en-us/services/functions/">Azure Cloud Functions</a> 等</li>
+</ul>
+<p>Pulsar Functions能被这样描述</p>
+<ul>
+<li><a href="https://aws.amazon.com/lambda/">Lambda</a> 样式的 functions</li>
+<li>专门设计的使用Pulsar来作为消息总线</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="编程模型"></a><a href="#编程模型" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编程模型</h2>
+<p>Pulsar Functions背后的核心编程模型非常简单:</p>
+<ul>
+<li>Functions 从一个或多个输入[主题](reference-terminology. md#topic)接收消息。 ** **每次收到消息时，函数可以做下面几件事情：
+<ul>
+<li>将某些处理逻辑应用到输入并写入到输出：
+<ul>
+<li>在Pulsar中的一个<strong>输出主题</strong></li>
+<li><a href="#state-storage">Apache BookKeeper</a></li>
+</ul></li>
+<li>写入日志到 <strong>日志主题</strong> (可能用于调试目的)</li>
+<li>增量 <a href="#word-count-example">计数器</a></li>
+</ul></li>
+</ul>
+<p><img src="/docs/assets/pulsar-functions-overview.png" alt="Pulsar Functions core programming model"></p>
+<h3><a class="anchor" aria-hidden="true" id="词数统计示例"></a><a href="#词数统计示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>词数统计示例</h3>
+<p>如果你使用Pulsar Functions 执行经典的字词计数示例，那么它可能看起来像这样：</p>
+<p><img src="/docs/assets/pulsar-functions-word-count.png" alt="Pulsar Functions word count example"></p>
+<p>如果你使用基于<a href="/docs/zh-CN/2.1.1-incubating/functions-api#functions-for-java">Java</a>的<a href="/docs/zh-CN/2.1.1-incubating/functions-api#java-sdk-functions">Pulsar Functions SDK for Java</a>来开发，可以写出下面的函数</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.example.functions;
+
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+
+<span class="hljs-keyword">import</span> java.util.Arrays;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">WordCountFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-comment">// This function is invoked every time a message is published to the input topic</span>
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
+        Arrays.asList(input.split(<span class="hljs-string">" "</span>)).forEach(word -&gt; {
+            String counterKey = word.toLowerCase();
+            context.incrCounter(counterKey, <span class="hljs-number">1</span>)
+        });
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<p>然后使用下面的<a href="#command-line-interface">命令</a><a href="#cluster-run-mode">部署</a>到你的Pulsar集群中:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar target/my-jar-with-dependencies.jar \
+  --className org.example.functions.WordCountFunction \
+  --tenant public \
+  --namespace default \
+  --name word-count \
+  --inputs persistent://public/default/sentences \
+  --output persistent://public/default/count
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="基于内容的路由示例"></a><a href="#基于内容的路由示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基于内容的路由示例</h3>
+<p>Pulsar Functions的使用案例有很多，下面展示一个更复杂的例子，该示例涉及基于内容的路由。</p>
+<p>想象一个函数, 它将内容 (字符串) 作为输入, 并根据内容将它们发布到不同的主题中（例如fruits或者vegetables主题） 如果这个内容既不属于fruit也不属于vegetable主题，就会有一个警告被记录到<a href="#logging">日志主题</a>中. 下面是一个可视化表示形式:</p>
+<p><img src="/docs/assets/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example"></p>
+<p>如果使用Python语言实现此路由功能, 它可能如下所示:</p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RoutingFunction</span><span class="hljs-params">(Function)</span>:</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span><span class="hljs-params">(self)</span>:</span>
+        self.fruits_topic = <span class="hljs-string">"persistent://public/default/fruits"</span>
+        self.vegetables_topic = <span class="hljs-string">"persistent://public/default/vegetables"</span>
+
+<span class="hljs-meta">    @staticmethod</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">is_fruit</span><span class="hljs-params">(item)</span>:</span>
+        <span class="hljs-keyword">return</span> item <span class="hljs-keyword">in</span> [<span class="hljs-string">"apple"</span>, <span class="hljs-string">"orange"</span>, <span class="hljs-string">"pear"</span>, <span class="hljs-string">"other fruits..."</span>]
+
+<span class="hljs-meta">    @staticmethod</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">is_vegetable</span><span class="hljs-params">(item)</span>:</span>
+        <span class="hljs-keyword">return</span> item <span class="hljs-keyword">in</span> [<span class="hljs-string">"carrot"</span>, <span class="hljs-string">"lettuce"</span>, <span class="hljs-string">"radish"</span>, <span class="hljs-string">"other vegetables..."</span>]
+
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, item, context)</span>:</span>
+        <span class="hljs-keyword">if</span> self.is_fruit(item):
+            context.publish(self.fruits_topic, item)
+        <span class="hljs-keyword">elif</span> self.is_vegetable(item):
+            context.publish(self.vegetables_topic, item)
+        <span class="hljs-keyword">else</span>:
+            warning = <span class="hljs-string">"The item {0} is neither a fruit nor a vegetable"</span>.format(item)
+            context.get_logger().warn(warning)
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="command-line-interface"></a><a href="#command-line-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command-line interface</h2>
+<p>Pulsar Functions使用 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin"><code>pulsar-admin</code></a> 工具进行管理 (主要是<a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#functions"><code>functions</code></a>命令). 这里是一个示例命令，它将运行一个函数在<a href="#local-run-mode">localrun模式</a>下：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-functions localrun \
+  --inputs persistent://public/default/test_src \
+  --output persistent://public/default/test_result \
+  --jar examples/api-examples.jar \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="fully-qualified-function-name-fqfn"></a><a href="#fully-qualified-function-name-fqfn" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fully Qualified Function Name (FQFN)</h2>
+<p>每个 Pulsar Function都有一个 <strong>Fully Qualified Function Name</strong> (简称FQFN) 包含三个要素：函数的租户、命名空间和函数名称。FQFN看起来类似于：</p>
+<pre><code class="hljs css language-http">tenant/namespace/name
+</code></pre>
+<p>例如, FQFN使您能够创建具有相同名称的多个函数, 前提是它们位于不同的命名空间中。</p>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<p>可以通过两种方式配置Pulsar Functions:</p>
+<ul>
+<li>基于 <a href="#command-line-interface">命令行参数</a>通过 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#functions">pulsar-admin functions</code></a> 接口</li>
+<li>基于<a href="http://yaml.org/">yaml</a> 配置文件</li>
+</ul>
+<p>如果要提供 yaml 配置, 则必须在命令行上指定文件的路径。下面是一个示例:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --functionConfigFile ./my-function.yaml
+</code></pre>
+<p>下面是一个<code>my-function.yaml</code>文件的示例:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">my-function</span>
+<span class="hljs-attr">tenant:</span> <span class="hljs-string">public</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">default</span>
+<span class="hljs-attr">jar:</span> <span class="hljs-string">./target/my-functions.jar</span>
+<span class="hljs-attr">className:</span> <span class="hljs-string">org.example.pulsar.functions.MyFunction</span>
+<span class="hljs-attr">inputs:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">persistent://public/default/test_src</span>
+<span class="hljs-attr">output:</span> <span class="hljs-string">persistent://public/default/test_result</span>
+</code></pre>
+<p>您还可以通过命令行工具指定一些函数属性，通过 yaml 配置一些其他的函数属性, 从而同时使用这两种配置方法。</p>
+<h2><a class="anchor" aria-hidden="true" id="supported-languages"></a><a href="#supported-languages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported languages</h2>
+<p>Pulsar Functions当前支持<a href="/docs/zh-CN/2.1.1-incubating/functions-api#functions-for-java">Java</a> and <a href="/docs/zh-CN/2.1.1-incubating/functions-api#functions-for-python">Python</a>两种语言. 对其他语言的支持即将推出。</p>
+<h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-api"></a><a href="#the-pulsar-functions-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions API</h2>
+<p>使用Pulsar Functions api 您可以创建以下处理逻辑:</p>
+<ul>
+<li>类型安全的。Pulsar Functions可以处理原始字节或更复杂的应用类型。</li>
+<li>基于SerDe的(序列化/反序列化)。支持多种“开箱即用”的类型，但您也可以创建自己的自定义SerDe逻辑。</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="function-context"></a><a href="#function-context" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function context</h3>
+<p>使用 <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>创建的每个 Pulsar 函数</a> 都支持获取一个上下文对象：</p>
+<ol>
+<li>有关该函数的各种信息，包括:</li>
+</ol>
+<ul>
+<li>函数的名称</li>
+<li>函数的租户和命名空间</li>
+<li><a href="#user-configuration">用户的配置</a></li>
+</ul>
+<ol start="2">
+<li>特殊功能，包括：</li>
+</ol>
+<ul>
+<li>生成 <a href="#logging">日志</a> 到指定日志主题的能力</li>
+<li>生成 <a href="#metrics">metircs</a>的能力</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="language-native-functions"></a><a href="#language-native-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Language-native functions</h3>
+<p>支持Java和Python的原生函数，即没有依赖的Pulsar Functions</p>
+<p>原生函数的好处是除了Java/Python中现有的“开箱即用”的变量之外，它们无需其他依赖。缺点是它们不提供对函数 <a href="#function-context">上下文</a>的访问，这对于各种功能都是必要的，包括 <a href="#logging">logging</a> <a href="#user-configuration">user configuration</a>等等。</p>
+<h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-sdk"></a><a href="#the-pulsar-functions-sdk" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions SDK</h2>
+<p>If you'd like a Pulsar Function to have access to a <a href="#function-context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="/docs/zh-CN/2.1.1-incubating/functions-api#functions-for-java">Java</a> and <a href="/docs/zh-CN/2.1.1-incubating/functions-api#functions-for-python">Pythnon</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
+<p>下面是一个使用有关其上下文的信息的 java 函数示例:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ContextAwareFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context, context)</span> </span>{
+        Logger LOG = context.getLogger();
+        String functionTenant = context.getTenant();
+        String functionNamespace = context.getNamespace();
+        String functionName = context.getName();
+        LOG.info(<span class="hljs-string">"Function tenant/namespace/name: {}/{}/{}"</span>, functionTenant, functionNamespace, functionName);
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h3>
+<p>下面是一个使用有关其上下文的信息的 java 函数示例:</p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ContextAwareFunction</span><span class="hljs-params">(Function)</span>:</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
+        log = context.get_logger()
+        function_tenant = context.get_function_tenant()
+        function_namespace = context.get_function_namespace()
+        function_name = context.get_function_name()
+        log.info(<span class="hljs-string">"Function tenant/namespace/name: {0}/{1}/{2}"</span>.format(function_tenant, function_namespace, function_name))
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="部署"></a><a href="#部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署</h2>
+<p>Pulsar Functions功能构建支持各种部署选项。目前, 有两种方法可以运行Pulsar Functions:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">部署模式</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="#local-run-mode">Local run mode</a></td><td style="text-align:left">The function runs in your local environment, for example on your laptop</td></tr>
+<tr><td style="text-align:left"><a href="#cluster-run-mode">Cluster mode</a></td><td style="text-align:left">函数在运行在你的Pulsar 集群上，与你的Pulsar <a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#broker">brokers</a>在相同的机器上</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="local-run-mode"></a><a href="#local-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Local run mode</h3>
+<p>如果你使用 <strong>localrun</strong> 模式运行一Pulsar函数，它将在运行命令的机器上运行(这可能是你的笔记本电脑，<a href="https://aws.amazon.com/ec2/">AWS EC2</a> 实例等)。 这里是一个<a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#localrun"><code>localrun</code></a>模式下运行的命令：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+  --py myfunc.py \
+  --className myfunc.SomeFunction \
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
+</code></pre>
+<p>默认情况下，函数连接到同一机器上运行的 Pulsar 集群通过本地的broker服务，URL是 <code>pulsar://localhost:6650</code>。 如果您想使用localrun模式来运行一个函数，但连接到非本地Pulsar 集群，你可以通过 <code>--brokerServiceUrl</code> 标志来指定一个不同的broker URL。 下面是一个示例：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  <span class="hljs-comment"># Other function parameters</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="cluster-run-mode"></a><a href="#cluster-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster run mode</h3>
+<p>当你运行 Pulsar Function在<strong>集群模式</strong>下时, 函数代码将被上传到Pulsar broker上，并与<em>代理broker</em>一起运行，而不是在您的<a href="#local-run-mode">本地环境</a>中运行。 您可以使用 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#create-1"><code>create</code></a> 命令在群集模式下运行函数。 下面是一个示例：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --py myfunc.py \
+  --className myfunc.SomeFunction \
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
+</code></pre>
+<p>此命令将上传 <code>myfunc.py</code> 到 Pulsar，它将使用代码启动一个 <a href="#parallelism">或更多</a> 函数实例。</p>
+<h3><a class="anchor" aria-hidden="true" id="parallelism"></a><a href="#parallelism" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Parallelism</h3>
+<p>默认情况下，当您在<a href="#cluster-run-mode">集群模式</a>创建并运行Pulsar函数时，只有一个<strong>实例</strong>运行。 但是, 您也可以并行运行多个实例。 您可以在创建函数时指定实例数, 也可以使用新的并行性因子更新现有的单实例函数。</p>
+<p>例如, 此命令将创建并运行并行性为 5 (即5个实例) 的函数:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --name parallel-fun \
+  --tenant public \
+  --namespace default \
+  --py func.py \
+  --className func.ParallelFunction \
+  --parallelism 5
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="function-instance-resources"></a><a href="#function-instance-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function instance resources</h3>
+<p>在 <a href="#cluster-run-mode">群集模式</a>运行 pusar Functions 时, 可以指定资源分配给每个函数 <a href="#parallelism">实例</a>:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Resource</th><th style="text-align:left">Specified as...</th><th style="text-align:left">Runtimes</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">CPU</td><td style="text-align:left">The number of cores</td><td style="text-align:left">Docker (coming soon)</td></tr>
+<tr><td style="text-align:left">RAM</td><td style="text-align:left">The number of bytes</td><td style="text-align:left">Process, Docker</td></tr>
+<tr><td style="text-align:left">Disk space</td><td style="text-align:left">The number of bytes</td><td style="text-align:left">Docker</td></tr>
+</tbody>
+</table>
+<p>下面是一个函数创建命令的示例, 它将分配8核、8GB内存和10GB的磁盘空间给一个函数:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar target/my-functions.jar \
+  --className org.example.functions.MyFunction \
+  --cpu 8 \
+  --ram 8589934592 \
+  --disk 10737418240
+</code></pre>
+<p>有关资源的详细信息, 请参阅 <a href="/docs/zh-CN/2.1.1-incubating/functions-deploying#resources">Deploying and Managing Pulsar Functions</a> 文档。</p>
+<h3><a class="anchor" aria-hidden="true" id="logging"></a><a href="#logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Logging</h3>
+<p>使用 <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>创建的Pulsar Functions可以将日志发送到一个日志的主题，这个可以在你的函数配置里指定。 例如，使用下面的命令创建的函数将在 <code>persistent://public/default/my-func-1-log</code> 主题上生成所有日志：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --name my-func-1 \
+  --logTopic persistent://public/default/my-func-1-log \
+  <span class="hljs-comment"># Other configs</span>
+</code></pre>
+<p>这个<a href="/docs/zh-CN/2.1.1-incubating/functions-api#java-logging">Java function</a>的例子记录日志使用了不同的日志级别基于函数的输入:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggerFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
+        Logger LOG = context.getLogger();
+        <span class="hljs-keyword">if</span> (input.length() &lt;= <span class="hljs-number">100</span>) {
+            LOG.info(<span class="hljs-string">"This string has a length of {}"</span>, input);
+        } <span class="hljs-keyword">else</span> {
+            LOG.warn(<span class="hljs-string">"This string is getting too long! It has {} characters"</span>, input);
+        }
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="user-configuration"></a><a href="#user-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User configuration</h3>
+<p>Pulsar Functions可以通过命令行传递任意的key-values(key和values必须是字符串)。 这些key-values的设置通过调用函数的<strong>用户配置</strong>. 用户配置必须包括 JSON 字符串.</p>
+<p>这是一个函数使用用户配置的额示例</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --userConfig <span class="hljs-string">'{"key-1":"value-1","key-2","value-2"}'</span> \
+  <span class="hljs-comment"># Other configs</span>
+</code></pre>
+<p>这是一个在函数中获取配置信息的示例</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ConfigMapFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
+        String val1 = context.getUserConfigValue(<span class="hljs-string">"key1"</span>).get();
+        String val2 = context.getUserConfigValue(<span class="hljs-string">"key2"</span>).get();
+        context.getLogger().info(<span class="hljs-string">"The user-supplied values are {} and {}"</span>, val1, val2);
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="triggering-pulsar-functions"></a><a href="#triggering-pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Triggering Pulsar Functions</h3>
+<p>Pulsar Functions 运行在<a href="#cluster-run-mode">集群模式</a>下可以使用<a href="/docs/zh-CN/2.1.1-incubating/functions-deploying#triggering-pulsar-functions">触发器</a>参考<a href="#command-line-interface">command line</a> 通过触发器，您可以轻松地将特定值传递给函数，并获得函数的返回值，而无需担心创建客户端、向正确的输入主题发送消息等。 触发器非常有用绝不限于测试和调试目的。</p>
+<blockquote>
+<p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a>本质上是一种非常方便的机制用于向函数发送消息，而不需要使用<a href="/docs/zh-CN/2.1.1-incubating/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>工具或指定语言的客户端库。</p>
+</blockquote>
+<p>让我我们看一个基于Python的函数示例(<a href="/docs/zh-CN/2.1.1-incubating/functions-api#python-native-functions">原生接口</a>)，它简单地反转字符串输入:</p>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+    <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
+</code></pre>
+<p>如果该函数在Pulsar集群中运行, 则可以像这样被触发:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
+  --tenant public \
+  --namespace default \
+  --name reverse-func \
+  --triggerValue <span class="hljs-string">"snoitcnuf raslup ot emoclew"</span>
+</code></pre>
+<p>这应该在控制台返回 <code>welcome to pulsar functions</code>。</p>
+<blockquote>
+<p>您也可以使用<code>--triggerFile</code>标志，用文件的内容触发Pulsar函数，而不是通过命令行工具传递字符串。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="processing-guarantees"></a><a href="#processing-guarantees" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Processing guarantees</h2>
+<p>Pulsar 函数功能提供三种不同的信息语义，你可以应用于任何函数中：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Delivery semantics</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><strong>At-most-once</strong> delivery</td><td style="text-align:left">发送给函数的每个消息最多会被处理一次</td></tr>
+<tr><td style="text-align:left"><strong>At-least-once</strong> delivery</td><td style="text-align:left">发送给函数的每条消息至少被处理一次</td></tr>
+<tr><td style="text-align:left"><strong>Effectively-once</strong> delivery</td><td style="text-align:left">发送函数的每条消息没精确的处理一次</td></tr>
+</tbody>
+</table>
+<p>例如, 此命令将在 <a href="#cluster-run-mode">群集模式</a> 中运行一个函数, 并effectively-once保证有效性:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --name my-effectively-once-function \
+  --processingGuarantees EFFECTIVELY_ONCE \
+  <span class="hljs-comment"># Other function configs</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="metrics"></a><a href="#metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metrics</h2>
+<p>Pulsar Functions使用<a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>可以发布meitrics到Pulsar 关于更多信息，请参阅 <a href="/docs/zh-CN/2.1.1-incubating/functions-metrics">Metrics for Pulsar Functions</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
+<p>Pulsar Functions使用 <a href="https://bookkeeper.apache.org">Apache Bookerper</a> 存储状态。 所有Pulsar安装，包括local standalone安装，BookKeeper bookies的部署等都将状态存储到[Apache BookKeeper](<a href="https://bookkeeper">https://bookkeeper</a>. apache. org)。</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/concepts-schema-registry"><span class="arrow-prev">← </span><span>concepts-schema-registry</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/functions-quickstart"><span>functions-quickstart</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#目标">目标</a></li><li><a href="#灵感来源">灵感来源</a></li><li><a href="#编程模型">编程模型</a><ul class="toc-headings"><li><a href="#词数统计示例">词数统计示例</a></li><li><a href="#基于内容的路由示例">基于内容的路由示例</a></li></ul></li><li><a href="#command-line-interface">Command-line interface</a></li><li><a href="#fully-qualified-function-name-fqfn">Fully Qualified Function Name (FQFN)</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#supported-languages">Supported languages</a></li><li><a href="#the-pulsar-functions-api">The Pulsar Functions API</a><ul class="toc-headings"><li><a href="#function-context">Function context</a></li><li><a href="#language-native-functions">Language-native functions</a></li></ul></li><li><a href="#the-pulsar-functions-sdk">The Pulsar Functions SDK</a><ul class="toc-headings"><li><a href="#java">Java</a></li><li><a href="#python">Python</a></li></ul></li><li><a href="#部署">部署</a><ul class="toc-headings"><li><a href="#local-run-mode">Local run mode</a></li><li><a href="#cluster-run-mode">Cluster run mode</a></li><li><a href="#parallelism">Parallelism</a></li><li><a href="#function-instance-resources">Function instance resources</a></li><li><a href="#logging">Logging</a></li><li><a href="#user-configuration">User configuration</a></li><li><a href="#triggering-pulsar-functions">Triggering Pulsar Functions</a></li></ul></li><li><a href="#processing-guarantees">Processing guarantees</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.1.1-incubating"]}
+              });
+            </script></body></html>

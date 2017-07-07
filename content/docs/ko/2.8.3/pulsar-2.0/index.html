@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar 2.0 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 2.0은 Pulsar의 새로운 주요한 릴리즈로, [simplified topic names ](#topic-names)과 [Pulsar Functions](/docs/ko/2.8.3/functions-overview) 기능 및 일부 용어 변경 등을 포함하여 플랫폼의 많은 변경사항을 제공합니다."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Pulsar 2.0 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar 2.0은 Pulsar의 새로운 주요한 릴리즈로, [simplified topic names ](#topic-names)과 [Pulsar Functions](/docs/ko/2.8.3/functions-overview) 기능 및 일부 용어 변경 등을 포함하여 플랫폼의 많은 변경사항을 제공합니다."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class=""><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/pulsar-2.0">English</a></li><li><a href="/docs/ja/2.8.3/pulsar-2.0">日本語</a></li><li><a href="/docs/fr/2.8.3/pulsar-2.0">Français</a></li><li><a href="/docs/zh-CN/2.8.3/pulsar-2.0">中文</a></li><li><a href="/docs/zh-TW/2.8.3/pulsar-2.0">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar 2.0</h1></header><article><div><span><p>Pulsar 2.0은 Pulsar의 새로운 주요한 릴리즈로, <a href="#topic-names">simplified topic names </a>과 <a href="/docs/ko/2.8.3/functions-overview">Pulsar Functions</a> 기능 및 일부 용어 변경 등을 포함하여 플랫폼의 많은 변경사항을 제공합니다.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-20의-새로운-기능"></a><a href="#pulsar-20의-새로운-기능" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 2.0의 새로운 기능</h2>
+<table>
+<thead>
+<tr><th style="text-align:left">특징</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="/docs/ko/2.8.3/functions-overview">Pulsar Functions</a></td><td style="text-align:left">Pulsar의 경량 컴퓨팅 옵션</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="주요-변경사항"></a><a href="#주요-변경사항" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>주요 변경사항</h2>
+<p>일상적인 사용에 큰 영향을 줄 수 있는, 주의 할 몇 가지 주요 변경 사항이 있습니다.</p>
+<h3><a class="anchor" aria-hidden="true" id="properties-versus-tenants"></a><a href="#properties-versus-tenants" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Properties versus tenants</h3>
+<p>이전에, Pulsar는 properties라는 개념을 가지고 있었습니다. A property is essentially the exact same thing as a tenant, so the &quot;property&quot; terminology has been removed in version 2.0. The <a href="/docs/ko/2.8.3/pulsar-admin#pulsar-admin"><code>pulsar-admin properties</code></a> command-line interface, for example, has been replaced with the <a href="/docs/ko/2.8.3/pulsar-admin#pulsar-admin-tenants"><code>pulsar-admin tenants</code></a> interface. 경우에 따라 properties 용어가 여전히 사용 되지만 이제는 더 이상 사용 되지 않는 것으로 간주되어 향후 릴리즈에서는 완전히 제거 될 것입니다.</p>
+<h3><a class="anchor" aria-hidden="true" id="topic-이름"></a><a href="#topic-이름" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topic 이름</h3>
+<p>Prior to version 2.0, <em>all</em> Pulsar topics had the following form:</p>
+<pre><code class="hljs css language-http">{persistent|non-persistent}://property/cluster/namespace/topic
+</code></pre>
+<p>Pulsar 2.0에는 두 가지 중요한 변경 사항이 있습니다:</p>
+<ul>
+<li>더 이상 <a href="#no-cluster">cluster component</a>가 없습니다.</li>
+<li>Properties 이름이 <a href="#tenants">tenants로 변경되었습니다.</a></li>
+<li><a href="#flexible-topic-naming">유연한</a> 이름 지정 시스템을 사용하여 많은 topic 이름을 줄일 수 있습니다.</li>
+<li><code>/</code> is not allowed in topic name</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="클러스터-구성-요소가-없습니다"></a><a href="#클러스터-구성-요소가-없습니다" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>클러스터 구성 요소가 없습니다</h4>
+<p>The cluster component has been removed from topic names. Thus, all topic names now have the following form:</p>
+<pre><code class="hljs css language-http">{persistent|non-persistent}://tenant/namespace/topic
+</code></pre>
+<blockquote>
+<p>기존 topic은 이전 이름 지정 방식을 사용 할 수 있으며 수정 없이 계속 이용 할 수 있습니다.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="유연한-toipc-이름-지정"></a><a href="#유연한-toipc-이름-지정" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>유연한 toipc 이름 지정</h4>
+<p>Pulsar 2.0의 모든 topic 이름은 <a href="#no-cluster-component">위</a>와 동일한 패턴을 갖지만 이제는 단순화한 단축 이름을 사용 할 수 있습니다. 유연한 이름 지정 시스템은 기본 topic 유형, tenant 및 namespace가 있습니다:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Topic 관점</th><th style="text-align:left">Default</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">topic type</td><td style="text-align:left"><code>persistent</code></td></tr>
+<tr><td style="text-align:left">tenant</td><td style="text-align:left"><code>public</code></td></tr>
+<tr><td style="text-align:left">namespace</td><td style="text-align:left"><code>default</code></td></tr>
+</tbody>
+</table>
+<p>아래 표는 기본값으로 topic 이름을 자동 변환하는 몇 가지 예를 보여줍니다:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">입력 topic 이름</th><th style="text-align:left">변환 된 topic 이름</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>my-topic</code></td><td style="text-align:left"><code>persistent://public/default/my-topic</code></td></tr>
+<tr><td style="text-align:left"><code>my-tenant/my-namespace/my-topic</code></td><td style="text-align:left"><code>persistent://my-tenant/my-namespace/my-topic</code></td></tr>
+</tbody>
+</table>
+<blockquote>
+<p><a href="/docs/ko/2.8.3/concepts-messaging#non-persistent-topics">non-persistent topics</a>의 경우 항상 full topic name을 계속 지정해야합니다. 현재 위의 persistent topic name에 대한 기본-변환 규칙은 적용되지 않습니다. 따라서, <code>non-persistent://my-topic</code> 과 같은 단축 이름을 사용 할 수 없으며 대신 <code>non-persistent://public/default/my-topic</code>을 사용 해야 합니다.</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-20의-새로운-기능">Pulsar 2.0의 새로운 기능</a></li><li><a href="#주요-변경사항">주요 변경사항</a><ul class="toc-headings"><li><a href="#properties-versus-tenants">Properties versus tenants</a></li><li><a href="#topic-이름">Topic 이름</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

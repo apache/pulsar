@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>ZooKeeperとBookKeeperの管理</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">ZooKeeperとBookKeeperの管理</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarは2つの外部システムを使って根本的なタスクを行っています：</p>
+
+<ul>
+  <li><a href="https://zookeeper.apache.org/">ZooKeeper</a>は様々な構成や調整に関わるタスクを行う役割を持ちます。</li>
+  <li><a href="http://bookkeeper.apache.org/">BookKeeper</a>はメッセージデータの<a href="../../getting-started/ConceptsAndArchitecture#永続ストレージ">永続ストレージ</a>としての役割を持ちます。</li>
+</ul>
+
+<p>ZooKeeperとBookKeeperはどちらもオープンソースの<a href="https://www.apache.org/">Apache</a>プロジェクトです。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>これら2つのシステムのPulsarにおける役割についての説明図は<a href="#pulsarはzookeeperとbookkeeperをどのように利用しているか">PulsarはZooKeeperとBookKeeperをどのように利用しているか</a>を見てください。</p>
+
+  </div>
+</div>
+
+<h2 id="zookeeper">ZooKeeper</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>各Pulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>は2つの別々のZooKeeperクォーラムに依存します。</p>
+
+<ul>
+  <li><a href="#local-zookeeperのデプロイ">Local ZooKeeper</a>は<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>レベルで動作し、クラスタ固有の設定管理や協調のための機能を提供します。各Pulsarクラスタには専用のZooKeeperクラスタが必要となります。</li>
+  <li><a href="#global-zookeeperのデプロイ">Global ZooKeeper</a>は<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>レベルで動作し、システム全体 (すなわち全てのクラスタ) の設定管理のための機能を提供します。Global ZooKeeperクォーラムは独立したマシンのクラスタか、あるいはLocal ZooKeeperと同じマシンでも提供できます。</li>
+</ul>
+
+<h3 id="local-zookeeperのデプロイ">Local ZooKeeperのデプロイ</h3>
+
+<p>ZooKeeperはPulsarの多様かつ重要な協調と設定に関するタスクを管理します。</p>
+
+<p>Pulsarインスタンスをデプロイするには<em>Pulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>ごとに</em>Local <span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>クラスタを立ち上げる必要があります。</p>
+
+<p>まず、全てのZooKeeperサーバを<a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a>ファイルで指定されたクォーラム設定に追加します。クラスタにおける各ノードに対応する<code class="highlighter-rouge">server.N</code>の行を追加してください。<code class="highlighter-rouge">N</code>はZooKeeperノードの番号です。以下は3つのノードでのZooKeeperクラスタの例です:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
+</code></pre></div></div>
+
+<p>それぞれのホストでは、<code class="highlighter-rouge">myid</code>ファイルでそのノードのIDを指定する必要があります。このファイルはデフォルトでは<code class="highlighter-rouge">data/zookeeper</code>フォルダに存在します (<a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a>パラメータで変更可能) 。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p><code class="highlighter-rouge">myid</code>などの詳細はZooKeeperのドキュメントの<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">複数サーバのセットアップガイド</a>を参照してください。</p>
+
+  </div>
+</div>
+
+<p>例えば、ZooKeeperサーバ<code class="highlighter-rouge">zk1.us-west.example.com</code>では次のようにして<code class="highlighter-rouge">myid</code>の値をセットできます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">zk2.us-west.example.com</code>ではコマンドは<code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code>になります。</p>
+
+<p>各サーバが<code class="highlighter-rouge">zookeeper.conf</code>の設定に追加され、適切な<code class="highlighter-rouge">myid</code>エントリを持っていれば、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLIツールで (nohupを使用してバックグラウンドで) 全てのホストでZooKeeperを起動できます。</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
+
+<h3 id="global-zookeeperのデプロイ">Global ZooKeeperのデプロイ</h3>
+
+<p>上記のセクションで設定・起動されたZooKeeperクラスタは、単一のPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>を管理するために使用される<em>Local</em> ZooKeeperクラスタです。しかし、完全なPulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>にはローカルクラスタに加えてインスタンスレベルの設定と調整タスクを処理する<em>Global</em> ZooKeeperクォーラムも必要です。</p>
+
+<p><a href="#単一クラスタのpulsarインスタンス">単一クラスタ</a>から成るインスタンスをデプロイする場合、Global ZooKeeperのための別のクラスタは必要ありません。しかしもし<a href="#複数クラスタのpulsarインスタンス">複数クラスタ</a>をデプロイするのであれば、インスタンスレベルのタスク用に別のZooKeeperクラスタを立ち上げる必要があります。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    
+    <p>マルチクラスタのPulsarインスタンスを稼動させている場合、インスタンスレベルの管理が可能です。</p>
+
+  </div>
+</div>
+
+<h4 id="単一クラスタのpulsarインスタンス">単一クラスタのPulsarインスタンス</h4>
+
+<p>Pulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>がただ1つのクラスタで構成されている場合、<span class="popover-term" tabindex="0" title="Global ZooKeeperとは？" data-placement="top" data-content="Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。" data-toggle="popover" data-trigger="focus">Global ZooKeeper</span>はLocal ZooKeeperクォーラムと同じマシン上で、異なるTCPポートで実行できます。</p>
+
+<p>単一クラスタのインスタンスにGlobal ZooKeeperをデプロイするには、ローカルクォーラムに使用されているのと同じZooKeeperサーバを、<a href="#local-zookeeper">Local ZooKeeper</a>と同様の方法で設定ファイル<a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a>に追加してください。方法は<a href="#local-zookeeper">Local ZooKeeper</a>の場合と同様ですが、異なるポート (ZooKeeperのデフォルトは2181) を使用してください。以下は2184番ポートを使用する3つのノードから構成されるZooKeeperクラスタの例です:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
+</code></pre></div></div>
+
+<p>これまでと同様に、各サーバの<code class="highlighter-rouge">data/global-zookeeper/myid</code>に<code class="highlighter-rouge">myid</code>ファイルを作成します。</p>
+
+<h4 id="複数クラスタのpulsarインスタンス">複数クラスタのPulsarインスタンス</h4>
+
+<p>異なる地理的地域に分散したクラスタから成るグローバルなPulsarインスタンスをデプロイする場合、Global ZooKeeperはある地域全体の障害やネットワークパーティションに耐性のある、高い可用性と強い一貫性を持ったメタデータストアとして機能します。</p>
+
+<p>ここで重要な点は、ZKクォーラムのメンバーが少なくとも3つの地域にまたがっており、その他の地域がオブザーバとして実行されている事を確認する事です。</p>
+
+<p>この場合も、Global ZooKeeperサーバの想定される負荷はとても低いため、Local ZooKeeperクォーラムに使用されているのと同じホストを共有させる事ができます。</p>
+
+<p>例として、<code class="highlighter-rouge">us-west</code>, <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>というクラスタを持つPulsarインスタンスを想定します。また、各クラスタには次のような名前のLocal ZooKeeperサーバが存在しているとします:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre></div></div>
+
+<p>このシナリオでは、いくつかのクラスタからクォーラムの参加者を選び、それ以外の全てをZKのオブザーバにします。例えば、7台のサーバクォーラムを形成するには、<code class="highlighter-rouge">us-west</code>から3台、<code class="highlighter-rouge">us-central</code>から2台、<code class="highlighter-rouge">us-east</code>から2台のサーバを選ぶ事ができます。</p>
+
+<p>これにより、これらの地域の内の1つに到達できなくてもGlobal ZooKeeperへの書き込みが可能になります。</p>
+
+<p>全てのサーバのZKの設定は次のようになります:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
+<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
+<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
+<span class="py">server.4</span><span class="p">=</span><span class="s">zk1.us-central.example.com:2185:2186</span>
+<span class="py">server.5</span><span class="p">=</span><span class="s">zk2.us-central.example.com:2185:2186</span>
+<span class="py">server.6</span><span class="p">=</span><span class="s">zk3.us-central.example.com:2185:2186:observer</span>
+<span class="py">server.7</span><span class="p">=</span><span class="s">zk1.us-east.example.com:2185:2186</span>
+<span class="py">server.8</span><span class="p">=</span><span class="s">zk2.us-east.example.com:2185:2186</span>
+<span class="py">server.9</span><span class="p">=</span><span class="s">zk3.us-east.example.com:2185:2186:observer</span>
+<span class="py">server.10</span><span class="p">=</span><span class="s">zk1.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.11</span><span class="p">=</span><span class="s">zk2.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.12</span><span class="p">=</span><span class="s">zk3.eu-central.example.com:2185:2186:observer</span>
+<span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
+<span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
+<span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
+</code></pre></div></div>
+
+<p>さらにZKのオブザーバには次の設定が必要です:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre></div></div>
+
+<h5 id="サービスの起動">サービスの起動</h5>
+
+<p>Global ZooKeeperの設定が完了したら、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>を使用してサービスを起動できます。</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre></div></div>
+
+<h3 id="zookeeperの設定">ZooKeeperの設定</h3>
+
+<p>PulsarにおけるZooKeeperの設定はインストール時に生成された<code class="highlighter-rouge">conf</code>ディレクトリにある2つの設定ファイル: <code class="highlighter-rouge">conf/zookeeper.conf</code>（<a href="#local-zookeeper">Local ZooKeeper</a>用）と<code class="highlighter-rouge">conf/global-zookeeper.conf</code>（<a href="#global-zookeeper">Global ZooKeeper</a>用）によって操作されます。</p>
+
+<h4 id="local-zookeeper">Local ZooKeeper</h4>
+
+<p>Local ZooKeeperの設定は<a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a>によって操作されます。下記の表は利用可能な設定項目を表しています：</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="zookeeper-tickTime">
+      <td>tickTime</td>
+      <td>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.
+</td>
+      <td>2000</td>
+    </tr>
+    
+    <tr id="zookeeper-initLimit">
+      <td>initLimit</td>
+      <td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
+</td>
+      <td>10</td>
+    </tr>
+    
+    <tr id="zookeeper-syncLimit">
+      <td>syncLimit</td>
+      <td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
+</td>
+      <td>5</td>
+    </tr>
+    
+    <tr id="zookeeper-dataDir">
+      <td>dataDir</td>
+      <td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.
+</td>
+      <td>data/zookeeper</td>
+    </tr>
+    
+    <tr id="zookeeper-clientPort">
+      <td>clientPort</td>
+      <td>The port on which the ZooKeeper server will listen for connections.
+</td>
+      <td>2181</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.snapRetainCount">
+      <td>autopurge.snapRetainCount</td>
+      <td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).
+</td>
+      <td>3</td>
+    </tr>
+    
+    <tr id="zookeeper-autopurge.purgeInterval">
+      <td>autopurge.purgeInterval</td>
+      <td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.
+</td>
+      <td>1</td>
+    </tr>
+    
+    <tr id="zookeeper-maxClientCnxns">
+      <td>maxClientCnxns</td>
+      <td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.
+</td>
+      <td>60</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h4 id="global-zookeeper">Global ZooKeeper</h4>
+
+<p>Global ZooKeeperの設定は<a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global-zookeeper.conf</code></a>によって操作されます。下記の表は利用可能な設定項目を表しています：</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+  </tbody>
+</table>
+
+<h2 id="bookkeeper">BookKeeper</h2>
+
+<p><span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>はPulsarにおけるすべての永続メッセージのストレージとしての役割を持ちます。BookKeeperは分散型の<a href="https://ja.wikipedia.org/wiki/%E3%83%AD%E3%82%B0%E5%85%88%E8%A1%8C%E6%9B%B8%E3%81%8D%E8%BE%BC%E3%81%BF">ログ先行書き込み（write ahead logging, WAL）</a>システムであり、<span class="popover-term" tabindex="0" title="Ledgerとは？" data-placement="top" data-content="BookKeeperの追加専用のデータ構造です。Pulsarのトピックのメッセージを永続的に保存するために使用されます。" data-toggle="popover" data-trigger="focus">Ledger</span>と呼ばれる独立したログの読み込みの一貫性を保証します。個々のBookKeeperのサーバーは<em>Bookie</em>とも呼ばれます。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>Pulsarにおけるメッセージの永続性、保存、有効期限を扱うためのガイドは<a href="../../advanced/RetentionExpiry">こちら</a>を参照してください。</p>
+
+  </div>
+</div>
+
+<h3 id="bookkeeperのデプロイ">BookKeeperのデプロイ</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>はPulsarの<a href="../../getting-started/ConceptsAndArchitecture#永続ストレージ">永続メッセージストレージ</a>です。</p>
+
+<p>Pulsarの各<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>は専用の<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>クラスタが必要です。BookKeeperのクラスタはPulsarクラスタとLocal ZooKeeperのクォーラムを共有します。</p>
+
+<h3 id="bookieの設定">Bookieの設定</h3>
+
+<p>Bookieは<a href="../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a>ファイルを使って設定できます。各Bookieの設定で最も重要な点は<a href="../../reference/Configuration#bookkeeper-zkServers"><code class="highlighter-rouge">zkServers</code></a>パラメータにPulsarクラスタのLocal ZooKeeperをカンマで繋げた文字列が設定されていることを確認することです。</p>
+
+<h3 id="bookieの起動">Bookieの起動</h3>
+
+<p>2つの方法でBookieを起動できます。すなわち、フォアグラウンドで起動する方法とバックグラウンドデーモンとして起動する方法です。</p>
+
+<p>バックグラウンドデーモンとしてBookieを起動するには<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>ツールを使います</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
+
+<p><a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>の<code class="highlighter-rouge">bookiesanity</code>コマンドでBookieが起動しているか確認できます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
+
+<p>これはローカルのBookie上に新しいLedgerを作成し、いくつかのエントリを追加し、それらを読み込み、最終的には作成したLedgerを削除します。</p>
+
+<h3 id="ハードウェアの考慮事項">ハードウェアの考慮事項</h3>
+
+<p><span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>はディスク上にメッセージデータを保存する役割があります。Bookieでは最適なパフォーマンスを提供するために、適切なハードウェア構成が不可欠です。Bookieのハードウェア能力には重要な2つの要素があります:</p>
+
+<ul>
+  <li>読み書きに対するディスクI/O性能</li>
+  <li>ストレージの容量</li>
+</ul>
+
+<p>Bookieに書き込まれるメッセージのエントリはPulsarの<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>にAck (確認応答) を返す前にディスクに同期されます。書き込みのレイテンシを低くするために、BookKeeperは複数のディスクを使用するようにデザインされています:</p>
+
+<ul>
+  <li><strong>Journal</strong>は耐久性を確保します。シーケンシャルな書き込みに対して、Bookie上で高速な<a href="https://linux.die.net/man/2/fsync">fsync</a>の操作は重要です。一般的に容量は小さいが高速な<a href="https://ja.wikipedia.org/wiki/%E3%82%BD%E3%83%AA%E3%83%83%E3%83%89%E3%82%B9%E3%83%86%E3%83%BC%E3%83%88%E3%83%89%E3%83%A9%E3%82%A4%E3%83%96">ソリッドステートドライブ</a> (SSD) か、<a href="https://ja.wikipedia.org/wiki/RAID">RAID</a>コントローラとバッテリバックアップ式のライトキャッシュを備えた<a href="https://ja.wikipedia.org/wiki/%E3%83%8F%E3%83%BC%E3%83%89%E3%83%87%E3%82%A3%E3%82%B9%E3%82%AF%E3%83%89%E3%83%A9%E3%82%A4%E3%83%96">ハードディスクドライブ</a> (HDD) が適しています。どちらのソリューションもfsyncのレイテンシは0.4 ms以下に抑えることができます。</li>
+  <li><strong>Ledger用のストレージデバイス</strong>には全ての<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>が<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を返すまでデータが保持されます。書き込みはバックグラウンドで行われるため、書き込みI/Oは大きな問題ではありません。読み込みはほとんどの場合にシーケンシャルに行われ、バックログはConsumerに排出する場合にのみ排出されます。一般的な構成では大量のデータを保存できるようにRAIDコントローラを備えた複数のHDDを使用します。</li>
+</ul>
+
+<h3 id="bookkeeperの設定">BookKeeperの設定</h3>
+
+<p>BookKeeperの設定可能なパラメータは<a href="../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a>にあります。</p>
+
+<p><code class="highlighter-rouge">conf/bookkeeper.conf</code>において必要とされる最小の設定変更：</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Journal用ディスクのマウントポイントを変更してください
+</span><span class="py">journalDirectory</span><span class="p">=</span><span class="s">data/bookkeeper/journal</span>
+
+<span class="c"># Ledger用ストレージディスクのマウントポイントを指定してください
+</span><span class="py">ledgerDirectories</span><span class="p">=</span><span class="s">data/bookkeeper/ledgers</span>
+
+<span class="c"># Local ZooKeeperのクォーラムを指定してください
+</span><span class="py">zkServers</span><span class="p">=</span><span class="s">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
+
+<span class="c"># Ledgerのマネージャータイプを変更してください
+</span><span class="py">ledgerManagerType</span><span class="p">=</span><span class="s">hierarchical</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>BookKeeperに関する詳細な情報は<a href="http://bookkeeper.apache.org">公式ドキュメント</a>を参照してください。</p>
+
+  </div>
+</div>
+
+<h2 id="bookkeeperの永続性ポリシー">BookKeeperの永続性ポリシー</h2>
+
+<p>Pulsarでは<em>永続性ポリシー</em>を<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>単位での設定が可能です。これは<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>がメッセージの永続ストレージをどう扱うかを定義します。ポリシーは4つの要素から成っています：</p>
+
+<ul>
+  <li>各エントリに対して書き込み成功の<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を待機するBookieの数（保証されるコピーの数）</li>
+  <li>一つのトピックに対して使用される<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>の数</li>
+  <li>各エントリに対して書き込みを行うBookieの数</li>
+  <li>mark-delete操作のスロットル率</li>
+</ul>
+
+<h3 id="永続性ポリシーの設定">永続性ポリシーの設定</h3>
+
+<p>BookKeeperの永続性ポリシーを<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>単位で設定できます。</p>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-set-persistence"><code class="highlighter-rouge">set-persistence</code></a>サブコマンドを使い、ネームスペースと適用したいポリシーを指定してください。以下が利用可能なフラグです：</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">フラグ</th>
+      <th style="text-align: left">説明</th>
+      <th style="text-align: left">デフォルト値</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-a</code>, <code class="highlighter-rouge">--bookkeeper-ack-quorom</code></td>
+      <td style="text-align: left">各エントリに対して書き込み成功の<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を待機するBookieの数（保証されるコピーの数）</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-e</code>, <code class="highlighter-rouge">--bookkeeper-ensemble</code></td>
+      <td style="text-align: left">一つのトピックに対して使用される<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>の数</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-w</code>, <code class="highlighter-rouge">--bookkeeper-write-quorum</code></td>
+      <td style="text-align: left">各エントリに対して書き込みを行うBookieの数</td>
+      <td style="text-align: left">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">-r</code>, <code class="highlighter-rouge">--ml-mark-delete-max-rate</code></td>
+      <td style="text-align: left">mark-delete操作のスロットル率（0は無制限）</td>
+      <td style="text-align: left">0</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="例">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--bookkeeper-ack-quorom</span> 3 <span class="se">\</span>
+  <span class="nt">--bookeeper-ensemble</span> 2
+</code></pre></div></div>
+
+<h4 id="rest-api">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">詳細</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">bkQuorum</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">bkAckQuorum</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<span class="kt">double</span> <span class="n">markDeleteRate</span> <span class="o">=</span> <span class="mf">0.7</span><span class="o">;</span>
+<span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span>
+  <span class="k">new</span> <span class="nf">PersistencePolicies</span><span class="o">(</span><span class="n">ensemble</span><span class="o">,</span> <span class="n">quorum</span><span class="o">,</span> <span class="n">ackQuorum</span><span class="o">,</span> <span class="n">markDeleteRate</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="永続性ポリシーの取得">永続性ポリシーの取得</h3>
+
+<p>ネームスペースに現在適用されている永続性ポリシーを表示できます。</p>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-get-persistence"><code class="highlighter-rouge">get-persistence</code></a>サブコマンドを使い、ネームスペースを指定してください。</p>
+
+<h5 id="例-1">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
+<span class="o">{</span>
+  <span class="s2">"bookkeeperEnsemble"</span>: 1,
+  <span class="s2">"bookkeeperWriteQuorum"</span>: 1,
+  <span class="s2">"bookkeeperAckQuorum"</span>, 1,
+  <span class="s2">"managedLedgerMaxMarkDeleteRate"</span>: 0
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">詳細</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h2 id="pulsarはzookeeperとbookkeeperをどのように利用しているか">PulsarはZooKeeperとBookKeeperをどのように利用しているか</h2>
+
+<p>この図はZooKeeperとBookKeeperのPulsarクラスタ内における役割を表しています：</p>
+
+<p><img src="/img/pulsar_system_architecture.png" alt="ZooKeeperとBookKeeper" /></p>
+
+<p>各Pulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>は一つ以上の<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>から構成されます。各Brokerは<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>のアンサンブルに依存しています。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>ZooKeeperとBookKeeperの管理</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

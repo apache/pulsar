@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar WebSocket API</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar WebSocket API</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <p><strong><em>このAPIは実験的なものであり、仕様は最終的に確定されるまでに変更が加えられる可能性があります。
+私たちはこのWebSocket APIに対するフィードバックを求めています。</em></strong></p>
+
+<p>PulsarのWebSocket APIは、PulsarとJVMの外の言語とのやりとりを簡単に行う方法を提供するためのものです。</p>
+
+<p>WebSocketを通してメッセージのproduceとconsumeを行う事ができ、
+Javaのクライアントライブラリから利用可能な全ての機能を使用できます。</p>
+
+<h2 id="websocketサービスの実行">WebSocketサービスの実行</h2>
+
+<p>既にWebSocketサービスが有効になっているスタンドアローンなPulsarを使用する他に、
+WebSocketサービスをデプロイする2つの方法があります。</p>
+
+<h4 id="pulsar-brokerへの組み込み">Pulsar Brokerへの組み込み</h4>
+
+<p><code class="highlighter-rouge">conf/broker.conf</code> でWebSocketを有効化します:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">webSocketServiceEnabled</span><span class="o">=</span><span class="nb">true</span>
+</code></pre>
+</div>
+
+<p>これによって、既にBrokerで実行されているHTTPサーバの中でWebSocketサービスも実行されます。</p>
+
+<h4 id="独立したコンポーネントとしてのwebsocket">独立したコンポーネントとしてのWebSocket</h4>
+
+<p>WebSocketサービスは別のコンポーネントとして単独で動作する事ができます。</p>
+
+<p>設定は <code class="highlighter-rouge">conf/websocket.conf</code> にあり、変更の必要がある最小限のパラメータは次の通りです:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="nv">globalZookeeperServers</span><span class="o">=</span>...
+
+<span class="c"># Port to use to server HTTP request</span>
+<span class="nv">webServicePort</span><span class="o">=</span>8080
+
+<span class="c"># Name of the pulsar cluster to connect to</span>
+<span class="nv">clusterName</span><span class="o">=</span>...
+</code></pre>
+</div>
+
+<p>そして、WebSocketサービスを実行するには次のようにします:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start websocket
+</code></pre>
+</div>
+
+<h2 id="apiリファレンス">APIリファレンス</h2>
+
+<p>WebSocketのエンドポイントは、メッセージのproduce用とconsume用の2つが存在しています。
+また、全てのやりとりはJSON形式のメッセージを通して行われます。</p>
+
+<h3 id="producer">Producer</h3>
+
+<p>特定のトピックに対するProducerを作成するために、WebSocketのセッションをオープンします。</p>
+
+<div class="language-perl highlighter-rouge"><pre class="highlight"><code><span class="nv">http:</span><span class="sr">//</span><span class="p">{</span><span class="nv">serviceUrl</span><span class="p">}:</span><span class="mi">8080</span><span class="sr">/ws/</span><span class="nv">producer</span><span class="sr">/persistent/</span><span class="p">{</span><span class="nv">property</span><span class="p">}</span><span class="sr">/{cluster}/</span><span class="p">{</span><span class="nv">namespace</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="nv">topic</span><span class="p">}</span>
+</code></pre>
+</div>
+
+<h5 id="メッセージの送信">メッセージの送信</h5>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">キー</th>
+      <th style="text-align: center">型</th>
+      <th style="text-align: center">要求</th>
+      <th style="text-align: center">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">Base-64エンコードされたペイロード</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: center">Key-Value pairs</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">アプリケーションによって定義されたプロパティ</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">アプリケーションによって定義されたリクエスト識別子</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">パーティションドトピックの場合、使用するパーティション</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">replicationClusters</code></td>
+      <td style="text-align: center">List</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">レプリケーションを行うクラスタをここで指定したものだけに制限</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="サーバからの応答">サーバからの応答</h5>
+
+<h6 id="成功時のレスポンス">成功時のレスポンス</h6>
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+   </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+<h6 id="失敗時のレスポンス">失敗時のレスポンス</h6>
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"send-error:3"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"errorMsg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Failed to de-serialize from JSON"</span><span class="p">,</span><span class="w">
+   </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">キー</th>
+      <th style="text-align: center">型</th>
+      <th style="text-align: center">要求</th>
+      <th style="text-align: center">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">result</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">成功時は <code class="highlighter-rouge">ok</code> 、失敗時はエラーメッセージ</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">produceされたメッセージに割り当てられたメッセージID</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">アプリケーションによって定義されたリクエスト識別子</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="consumer">Consumer</h3>
+
+<p>特定のトピックに対するConsumerを作成するために、WebSocketのセッションをオープンします。</p>
+
+<div class="language-perl highlighter-rouge"><pre class="highlight"><code><span class="nv">http:</span><span class="sr">//</span><span class="p">{</span><span class="nv">serviceUrl</span><span class="p">}:</span><span class="mi">8080</span><span class="sr">/ws/co</span><span class="nv">nsumer</span><span class="sr">/persistent/</span><span class="p">{</span><span class="nv">property</span><span class="p">}</span><span class="sr">/{cluster}/</span><span class="p">{</span><span class="nv">namespace</span><span class="p">}</span><span class="sr">/{topic}/</span><span class="p">{</span><span class="nv">subscription</span><span class="p">}</span>
+</code></pre>
+</div>
+
+<h5 id="メッセージの受信">メッセージの受信</h5>
+
+<p>WebSocketセッション上でサーバからメッセージがプッシュされます:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="nt">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">キー</th>
+      <th style="text-align: center">型</th>
+      <th style="text-align: center">要求</th>
+      <th style="text-align: center">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">メッセージID</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">Base-64エンコードされたペイロード</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: center">Key-Value pairs</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">アプリケーションによって定義されたプロパティ</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publishTime</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">produceされた時間のタイムスタンプ</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">アプリケーションによって定義されたリクエスト識別子</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">任意</td>
+      <td style="text-align: center">Producerによってセットされたオリジナルのルーティングキー</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="メッセージへの応答">メッセージへの応答</h5>
+
+<p>Pulsar Brokerがメッセージを削除できるように、Consumerはメッセージが正常に処理できたという応答を返す必要があります。</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">キー</th>
+      <th style="text-align: center">型</th>
+      <th style="text-align: center">要求</th>
+      <th style="text-align: center">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: center">String</td>
+      <td style="text-align: center">必須</td>
+      <td style="text-align: center">処理したメッセージのメッセージID</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="エラーコード">エラーコード</h3>
+
+<p>エラーの場合、サーバは次のエラーコードを使用してWebSocketセッションをクローズします。</p>
+
+<h4 id="可能性のあるさまざまなエラータイプ">可能性のあるさまざまなエラータイプ</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">エラーコード</th>
+      <th style="text-align: left">エラーメッセージ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">1</td>
+      <td style="text-align: left">Producerの作成に失敗</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">2</td>
+      <td style="text-align: left">購読に失敗</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">3</td>
+      <td style="text-align: left">JSONからのデシリアライズに失敗</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">4</td>
+      <td style="text-align: left">JSONへのシリアライズに失敗</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">5</td>
+      <td style="text-align: left">クライアントの認証に失敗</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">6</td>
+      <td style="text-align: left">クライアントが認可されていない</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">7</td>
+      <td style="text-align: left">ペイロードの誤ったエンコード</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">8</td>
+      <td style="text-align: left">未知のエラー</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>アプリケーションは、バックオフ期間後にWebSocketセッションを再確立する責任があります。</p>
+
+<h2 id="実装例">実装例</h2>
+
+<h3 id="python">Python</h3>
+<p>この例では <code class="highlighter-rouge">websocket-client</code> パッケージをインストールする必要があります。
+それは <code class="highlighter-rouge">pip install websocket-client</code> を使用するか、<a href="https://pypi.python.org/pypi/websocket-client">Pypi page</a> からダウンロードしてインストールする事ができます。</p>
+
+<h4 id="python-producer">Python Producer</h4>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span>
+   <span class="s">'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'</span><span class="p">)</span>
+
+<span class="c"># 1つのメッセージを送信します</span>
+<span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+    <span class="s">'payload'</span> <span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="s">'Hello World'</span><span class="p">),</span>
+    <span class="s">'properties'</span><span class="p">:</span> <span class="p">{</span>
+       <span class="s">'key1'</span> <span class="p">:</span> <span class="s">'value1'</span><span class="p">,</span>
+       <span class="s">'key2'</span> <span class="p">:</span> <span class="s">'value2'</span>
+    <span class="p">},</span>
+    <span class="s">'context'</span> <span class="p">:</span> <span class="mi">5</span>
+<span class="p">}))</span>
+
+<span class="n">response</span> <span class="o">=</span>  <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s">'result'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'ok'</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s">'Message published successfully'</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s">'Failed to publish message:'</span><span class="p">,</span> <span class="n">response</span>
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<h4 id="python-consumer">Python Consumer</h4>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span>
+   <span class="s">'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span><span class="p">:</span> <span class="k">break</span>
+
+    <span class="k">print</span> <span class="s">'Received: '</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="s">' - payload:'</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">])</span>
+
+    <span class="c"># 正常に処理できた事を応答します</span>
+    <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
+
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<h3 id="nodejs">NodeJS</h3>
+
+<h4 id="nodejs-producer">NodeJS Producer</h4>
+
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span>
+	  <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">message</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="s2">"payload"</span> <span class="p">:</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="s2">"Hello World"</span><span class="p">).</span><span class="nx">toString</span><span class="p">(</span><span class="s1">'base64'</span><span class="p">),</span>
+  <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"key1"</span> <span class="p">:</span> <span class="s2">"value1"</span><span class="p">,</span>
+    <span class="s2">"key2"</span> <span class="p">:</span> <span class="s2">"value2"</span>
+  <span class="p">},</span>
+  <span class="s2">"context"</span> <span class="p">:</span> <span class="s2">"1"</span>
+<span class="p">};</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'open'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// 1つのメッセージを送信します</span>
+  <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">message</span><span class="p">));</span>
+<span class="p">});</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'received ack: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">);</span>
+<span class="p">});</span>
+
+</code></pre>
+</div>
+
+<h4 id="nodejs-consumer">NodeJS Consumer</h4>
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">socket</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span>
+	<span class="s2">"ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub1"</span><span class="p">)</span>
+
+<span class="nx">socket</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">pckt</span><span class="p">){</span>
+	<span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">pckt</span><span class="p">.</span><span class="nx">data</span><span class="p">);</span>
+	<span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">}</span>
+	<span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>      
+<span class="p">};</span>
+</code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

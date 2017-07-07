@@ -1,0 +1,670 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Manage schema · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="本教程介绍了管理 Schema 的方法："/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Manage schema · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="本教程介绍了管理 Schema 的方法："/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/schema-manage">English</a></li><li><a href="/docs/ja/2.8.3/schema-manage">日本語</a></li><li><a href="/docs/fr/2.8.3/schema-manage">Français</a></li><li><a href="/docs/ko/2.8.3/schema-manage">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/schema-manage">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Schema</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Manage schema</h1></header><article><div><span><p>本教程介绍了管理 Schema 的方法：</p>
+<ul>
+<li><p>自动管理</p>
+<ul>
+<li><a href="#schema-autoupdate">Schema 自动更新</a></li>
+</ul></li>
+<li><p>手动管理</p>
+<ul>
+<li><p><a href="#schema-manual-management">Schema 手动管理</a></p></li>
+<li><p><a href="#custom-schema-storage">自定义schema存储</a></p></li>
+</ul></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="schema-自动更新"></a><a href="#schema-自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 自动更新</h2>
+<p>如果某个 schema 通过了 schema 兼容性检查，Pulsar producer 就会自动将此 schema 更新为 topic 默认创建的 schema。</p>
+<h3><a class="anchor" aria-hidden="true" id="producer-的自动更新"></a><a href="#producer-的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 的自动更新</h3>
+<p>Producer 会在以下情况中执行<code>AutoUpdate</code>（自动更新）：</p>
+<ul>
+<li><p>If a <strong>topic doesn’t have a schema</strong>, Pulsar registers a schema automatically.</p></li>
+<li><p>If a <strong>topic has a schema</strong>:</p>
+<ul>
+<li><p>If a <strong>producer doesn’t carry a schema</strong>:</p>
+<ul>
+<li><p>If <code>isSchemaValidationEnforced</code> or <code>schemaValidationEnforced</code> is <strong>disabled</strong> in the namespace to which the topic belongs, the producer is allowed to connect to the topic and produce data.</p></li>
+<li><p>If <code>isSchemaValidationEnforced</code> or <code>schemaValidationEnforced</code> is <strong>enabled</strong> in the namespace to which the topic belongs, the producer is rejected and disconnected.</p></li>
+</ul></li>
+<li><p>If a <strong>producer carries a schema</strong>:</p>
+<p>Broker 根据 topic 所属命名空间中已配置的兼容性检查策略执行兼容性检查。</p>
+<ul>
+<li><p>已注册 schema，producer 将连接到 broker。</p></li>
+<li><p>未注册 schema：</p>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, the producer is rejected to connect to a broker.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>:</p>
+<ul>
+<li><p>Schema 通过了兼容性检查，则 broker 主动为该 topic 注册一个新的 schema，并连接到 producer。</p></li>
+<li><p>Schema 未通过兼容性检查，则 broker 不会注册 schema，并且 producer 连接到 broker 的请求被拒。</p></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul>
+<p><img src="/docs/assets/schema-producer.png" alt="Producer 自动更新"></p>
+<h3><a class="anchor" aria-hidden="true" id="consumer-的自动更新"></a><a href="#consumer-的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer 的自动更新</h3>
+<p>Consumer 会在以下情况中<code>AutoUpdate</code>（自动更新）：</p>
+<ul>
+<li><p>If a <strong>consumer connects to a topic without a schema</strong> (which means the consumer receiving raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.</p></li>
+<li><p>If a <strong>consumer connects to a topic with a schema</strong>.</p>
+<ul>
+<li><p>Topic 中不同时包含 schema / 数据 / 本地 consumer 和本地 producer：</p>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>, then the consumer registers a schema and it is connected to a broker.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, then the consumer is rejected to connect to a broker.</p></li>
+</ul></li>
+<li><p>Topic 中包含 schema / 数据 / 本地 consumer 和本地 producer 中的一个，则执行 schema 兼容性检查。</p>
+<ul>
+<li><p>Schema 通过兼容性检查，则 consumer 连接到 broker。</p></li>
+<li><p>Schema 未通过兼容性检查，则拒绝 consumer 连接到 broker。</p></li>
+</ul></li>
+</ul></li>
+</ul>
+<p><img src="/docs/assets/schema-consumer.png" alt="Consumer 自动更新"></p>
+<h3><a class="anchor" aria-hidden="true" id="管理自动更新策略"></a><a href="#管理自动更新策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理自动更新策略</h3>
+<p>可以使用 <code>pulsar-admin</code> 命令来管理 <code>自动更新</code> 策略，如下所示：</p>
+<ul>
+<li><p><a href="#enable-autoupdate">启用自动更新</a></p></li>
+<li><p><a href="#disable-autoupdate">禁用自动更新</a></p></li>
+<li><p><a href="#adjust-compatibility">调整兼容性</a></p></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="启用自动更新"></a><a href="#启用自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用自动更新</h4>
+<p>可以使用 <code>pulsar-admin</code>命令在命名空间上启用 <code>AutoUpdate</code>。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-is-allow-auto-update-schema --<span class="hljs-built_in">enable</span> tenant/namespace
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="禁用自动更新"></a><a href="#禁用自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>禁用自动更新</h4>
+<p>要在名称空间上禁用<code>AutoUpdate</code>，可以使用<code>pulsar-admin</code>命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-is-allow-auto-update-schema --<span class="hljs-built_in">disable</span> tenant/namespace
+</code></pre>
+<p>禁用<code>AutoUpdate</code>后，你只能使用<code>pulsar-admin</code>命令注册新的架构。</p>
+<h4><a class="anchor" aria-hidden="true" id="调整兼容性"></a><a href="#调整兼容性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>调整兼容性</h4>
+<p>要调整名称空间上的架构兼容性级别，可以使用<code>pulsar-admin</code>命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-schema-compatibility-strategy --compatibility &lt;compatibility-level&gt; tenant/namespace
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="schema-验证"></a><a href="#schema-验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 验证</h3>
+<p>By default, <code>schemaValidationEnforced</code> is <strong>disabled</strong> for producers:</p>
+<ul>
+<li><p>没有 schema 的 producer 可以使用 schema 向 topic 中生成任何类型的消息，这可能会导致 topic 中有垃圾数据。</p></li>
+<li><p>这样，不支持 schema 的非 Java 语言客户端就可以使用 schema 向 topic 生成消息。</p></li>
+</ul>
+<p>但是，如果你希望对具有架构的主题有更强的保证，则可以在整个群集中或在每个命名空间的基础上启用<code>schemaValidationEnforced</code>。</p>
+<h4><a class="anchor" aria-hidden="true" id="启用-schema-验证"></a><a href="#启用-schema-验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 Schema 验证</h4>
+<p>要在名称空间上启用<code>schemaValidationEnforced</code>，可以使用<code>pulsar-admin</code>命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-schema-validation-enforce --<span class="hljs-built_in">enable</span> tenant/namespace
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="禁用-schema-验证"></a><a href="#禁用-schema-验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>禁用 Schema 验证</h4>
+<p>要在名称空间上禁用<code>schemaValidationEnforced</code>，可以使用<code>pulsar-admin</code>命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-schema-validation-enforce --<span class="hljs-built_in">disable</span> tenant/namespace
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="schema-手动管理"></a><a href="#schema-手动管理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 手动管理</h2>
+<p>若要管理架构，可以使用以下方法之一。</p>
+<table style="table">
+  <tr>
+    <th>Method</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><strong>Admin CLI</strong>
+</td>
+<td>
+可以使用<code>pulsar-admin</code>工具来管理 Pulsar schema、broker、集群、source、sink、topic、租户等。</p>
+<p>更多如何使用 <code>pulsar-admin</code> 的信息，可查阅 <a href="/docs/zh-CN/2.8.3/pulsar-admin">此处</a>。
+</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><strong>REST API</strong>
+</td>
+<td></p>
+<p>Pulsar 在 admin RESTful API 中暴露了与 schema 相关的管理 API。 可以直接访问 admin RESTful 端点来管理 schema。</p>
+<p>关于如何使用 Pulsar REST API 的更多信息，可参阅 <a href="http://pulsar.apache.org/admin-rest-api/">此处</a>。
+</td></p>
+ </tr>
+ <tr>
+    <td>
+<p><strong>Java Admin API</strong>
+</td>
+<td>Pulsar 提供 Java 管理库。</td></p>
+ </tr>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="上传-schema"></a><a href="#上传-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>上传 Schema</h3>
+<p>To upload (register) a new schema for a topic, you can use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38777-tab-38778" class="nav-link active" data-group="group_38777" data-tab="tab-group-38777-content-38778">Admin CLI</div><div id="tab-group-38777-tab-38779" class="nav-link" data-group="group_38777" data-tab="tab-group-38777-content-38779">REST API</div><div id="tab-group-38777-tab-38780" class="nav-link" data-group="group_38777" data-tab="tab-group-38777-content-38780">Java Admin API</div></div><div class="tab-content"><div id="tab-group-38777-content-38778" class="tab-pane active" data-group="group_38777" tabindex="-1"><div><span><p>Use the <code>upload</code> subcommand.</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin schemas upload --filename &lt;schema-definition-file&gt; &lt;topic-name&gt;<br /></code></pre>
+<p>The <code>schema-definition-file</code> is in JSON format.</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"&lt;schema-type&gt;"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">"&lt;an-utf8-encoded-string-of-schema-definition-data&gt;"</span>,<br />    <span class="hljs-attr">"properties"</span>: {} <span class="hljs-comment">// the properties associated with the schema</span><br />}<br /></code></pre>
+<p>The <code>schema-definition-file</code> includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>schema</code>
+</td>
+<td></p>
+<p>Schema 定义数据，编码格式为 UTF 8 字符集。</p>
+<ul>
+<li><p>如果 schema 是 <strong>privitive</strong> schema，则此字段应为空。</p></li>
+<li><p>如果 schema 为 <strong>struct</strong> schema，则此字段应为 Avro schema 定义的 JSON 字符串。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<p><code>properties</code>
+</td>
+<td>与 schema 相关的其他属性。</td></p>
+  </tr>  
+</table>
+</li>
+</ul>
+<p>Here are examples of the <code>schema-definition-file</code> for a JSON schema.</p>
+<p><strong>示例 1</strong></p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"JSON"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">"{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.foo\",\"fields\":[{\"name\":\"file1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file2\",\"type\":\"string\",\"default\":null},{\"name\":\"file3\",\"type\":[\"null\",\"string\"],\"default\":\"dfdf\"}]}"</span>,<br />    <span class="hljs-attr">"properties"</span>: {}<br />}<br /></code></pre>
+<p><strong>示例 2</strong></p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"STRING"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">""</span>,<br />    <span class="hljs-attr">"properties"</span>: {<br />        <span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span><br />    }<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-38777-content-38779" class="tab-pane" data-group="group_38777" tabindex="-1"><div><span><p>向此端点发送<code>POST</code>请求：<a href="https://pulsar.apache.org/admin-rest-api#operation/uploadSchem?version=2.9.1a&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/schemas/:tenant/:namespace/:topic/schema</i></a>
+</p>
+<p>The post payload is in JSON format.</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"&lt;schema-type&gt;"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">"&lt;an-utf8-encoded-string-of-schema-definition-data&gt;"</span>,<br />    <span class="hljs-attr">"properties"</span>: {} <span class="hljs-comment">// the properties associated with the schema</span><br />}<br /></code></pre>
+<p>The post payload includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>schema</code>
+</td>
+<td>
+Schema 定义数据，编码格式为 UTF 8 字符集。</p>
+<ul>
+<li><p>如果 schema 是 <strong>privitive</strong> schema，则此字段应为空。</p></li>
+<li><p>如果 schema 为 <strong>struct</strong> schema，则此字段应为 Avro schema 定义的 JSON 字符串。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<p><code>properties</code>
+</td>
+<td>与 schema 相关的其他属性。</td></p>
+  </tr>  
+</table>
+</li>
+</ul>
+</span></div></div><div id="tab-group-38777-content-38780" class="tab-pane" data-group="group_38777" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSchema</span><span class="hljs-params">(String topic, PostSchemaPayload schemaPayload)</span><br /></span></code></pre>
+<p>The <code>PostSchemaPayload</code> includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>schema</code>
+</td>
+<td>
+Schema 定义数据，编码格式为 UTF 8 字符集。</p>
+<ul>
+<li><p>如果 schema 是 <strong>privitive</strong> schema，则此字段应为空。</p></li>
+<li><p>如果 schema 为 <strong>struct</strong> schema，则此字段应为 Avro schema 定义的 JSON 字符串。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<p><code>properties</code>
+</td>
+<td>与 schema 相关的其他属性。</td></p>
+  </tr>  
+</table>
+</li>
+</ul>
+<p>Here is an example of <code>PostSchemaPayload</code>:</p>
+<pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />PostSchemaPayload payload = <span class="hljs-keyword">new</span> PostSchemaPayload();<br />payload.setType(<span class="hljs-string">"INT8"</span>);<br />payload.setSchema(<span class="hljs-string">""</span>);<br /><br />admin.createSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>, payload); <br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取-schema最新版本"></a><a href="#获取-schema最新版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 Schema（最新版本）</h3>
+<p>To get the latest schema for a topic, you can use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38781-tab-38782" class="nav-link active" data-group="group_38781" data-tab="tab-group-38781-content-38782">Admin CLI</div><div id="tab-group-38781-tab-38783" class="nav-link" data-group="group_38781" data-tab="tab-group-38781-content-38783">REST API</div><div id="tab-group-38781-tab-38784" class="nav-link" data-group="group_38781" data-tab="tab-group-38781-content-38784">Java Admin API</div></div><div class="tab-content"><div id="tab-group-38781-content-38782" class="tab-pane active" data-group="group_38781" tabindex="-1"><div><span><p>使用 <code>get</code> 子命令。</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin schemas get &lt;topic-name&gt;<br /><br />{<br />    <span class="hljs-string">"version"</span>: 0,<br />    <span class="hljs-string">"type"</span>: <span class="hljs-string">"String"</span>,<br />    <span class="hljs-string">"timestamp"</span>: 0,<br />    <span class="hljs-string">"data"</span>: <span class="hljs-string">"string"</span>,<br />    <span class="hljs-string">"properties"</span>: {<br />        <span class="hljs-string">"property1"</span>: <span class="hljs-string">"string"</span>,<br />        <span class="hljs-string">"property2"</span>: <span class="hljs-string">"string"</span><br />    }<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-38781-content-38783" class="tab-pane" data-group="group_38781" tabindex="-1"><div><span><p>向此端点发送<code>GET</code>请求：<a href="https://pulsar.apache.org/admin-rest-api#operation/getSchem?version=2.9.1a&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/schemas/:tenant/:namespace/:topic/schema</i></a>
+</p>
+<p>Here is an example of a response, which is returned in JSON format.</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"version"</span>: <span class="hljs-string">"&lt;the-version-number-of-the-schema&gt;"</span>,<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"&lt;the-schema-type&gt;"</span>,<br />    <span class="hljs-attr">"timestamp"</span>: <span class="hljs-string">"&lt;the-creation-timestamp-of-the-version-of-the-schema&gt;"</span>,<br />    <span class="hljs-attr">"data"</span>: <span class="hljs-string">"&lt;an-utf8-encoded-string-of-schema-definition-data&gt;"</span>,<br />    <span class="hljs-attr">"properties"</span>: {} <span class="hljs-comment">// the properties associated with the schema</span><br />}<br /></code></pre>
+<p>The response includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>version</code>
+</td>
+<td>
+Schema 版本，是一个长数。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>timestamp</code>
+</td>
+<td>
+创建此版本 schema 的时间戳。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>data</code>
+</td>
+<td>
+Schema 定义数据，编码格式为 UTF 8 字符集。</p>
+<ul>
+<li><p>如果 schema 是 <strong>privitive</strong> schema，则此字段应为空。</p></li>
+<li><p>如果 schema 为 <strong>struct</strong> schema，则此字段应为 Avro schema 定义的 JSON 字符串。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<p><code>properties</code>
+</td>
+<td>与 schema 相关的其他属性。</td></p>
+  </tr>  
+</table>
+</li>
+</ul>
+</span></div></div><div id="tab-group-38781-content-38784" class="tab-pane" data-group="group_38781" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SchemaInfo <span class="hljs-title">createSchema</span><span class="hljs-params">(String topic)</span><br /></span></code></pre>
+<p>The <code>SchemaInfo</code> includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>name</code>
+</td>
+<td>
+Schema 名称。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>schema</code>
+</td>
+<td>
+Schema 定义数据的字节数组，以 UTF 8 字符集编码。</p>
+<p>*如果该 schema 是“primitive” schema，则此字节数组应为空。</p>
+<p><em>如果该 schema 是</em>* struct ** schema，则此字段应为由 Avro schema 定义的 JSON 字符串转换成的字节数组。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<pre><code class="hljs">`properties`<br />&lt;/td&gt;<br />&lt;td&gt;与 schema 相关的其他属性。&lt;/td&gt; <br /></code></pre>
+  </tr>  
+</table>
+<p>Here is an example of <code>SchemaInfo</code>:</p>
+<pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />SchemaInfo si = admin.getSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>); <br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取-schema详细信息"></a><a href="#获取-schema详细信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 schema（详细信息）</h3>
+<p>To get a specific version of a schema, you can use one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38785-tab-38786" class="nav-link active" data-group="group_38785" data-tab="tab-group-38785-content-38786">Admin CLI</div><div id="tab-group-38785-tab-38787" class="nav-link" data-group="group_38785" data-tab="tab-group-38785-content-38787">REST API</div><div id="tab-group-38785-tab-38788" class="nav-link" data-group="group_38785" data-tab="tab-group-38785-content-38788">Java Admin API</div></div><div class="tab-content"><div id="tab-group-38785-content-38786" class="tab-pane active" data-group="group_38785" tabindex="-1"><div><span><p>使用 <code>get</code> 子命令。</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin schemas get &lt;topic-name&gt; --version=&lt;version&gt; <br /></code></pre>
+</span></div></div><div id="tab-group-38785-content-38787" class="tab-pane" data-group="group_38785" tabindex="-1"><div><span><p>向 Schema 端点发送<code>GET</code>请求： <a href="https://pulsar.apache.org/admin-rest-api#operation/getSchem?version=2.9.1a&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version</i></a>
+</p>
+<p>Here is an example of a response, which is returned in JSON format.</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"version"</span>: <span class="hljs-string">"&lt;the-version-number-of-the-schema&gt;"</span>,<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"&lt;the-schema-type&gt;"</span>,<br />    <span class="hljs-attr">"timestamp"</span>: <span class="hljs-string">"&lt;the-creation-timestamp-of-the-version-of-the-schema&gt;"</span>,<br />    <span class="hljs-attr">"data"</span>: <span class="hljs-string">"&lt;an-utf8-encoded-string-of-schema-definition-data&gt;"</span>,<br />    <span class="hljs-attr">"properties"</span>: {} <span class="hljs-comment">// the properties associated with the schema</span><br />}<br /></code></pre>
+<p>The response includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>version</code>
+</td>
+<td>
+Schema 版本，是一个长数。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>
+Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>timestamp</code>
+</td>
+<td>
+创建此版本 schema 的时间戳。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>data</code>
+</td>
+<td>
+Schema 定义数据，编码格式为 UTF 8 字符集。</p>
+<ul>
+<li><p>如果 schema 是 <strong>privitive</strong> schema，则此字段应为空。</p></li>
+<li><p>如果 schema 为 <strong>struct</strong> schema，则此字段应为 Avro schema 定义的 JSON 字符串。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<p><code>properties</code>
+</td>
+<td>与 schema 相关的其他属性。</td></p>
+  </tr>  
+</table>
+</li>
+</ul>
+</span></div></div><div id="tab-group-38785-content-38788" class="tab-pane" data-group="group_38785" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SchemaInfo <span class="hljs-title">createSchema</span><span class="hljs-params">(String topic, <span class="hljs-keyword">long</span> version)</span><br /></span></code></pre>
+<p>The <code>SchemaInfo</code> includes the following fields:</p>
+<table style="table">
+  <tr>
+    <th>字段</th>
+    <th>说明</th> 
+  </tr>
+  <tr>
+    <td>
+<p><code>name</code>
+</td>
+<td>Schema 名称。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>type</code>
+</td>
+<td>Schema 类型。</td></p>
+  </tr>
+  <tr>
+    <td>
+<p><code>schema</code>
+</td>
+<td>
+Schema 定义数据的字节数组以 UTF 8 字符集编码。</p>
+<p>*如果该 schema 是“primitive” schema，则此字节数组应为空。</p>
+<p><em>如果该 schema 是</em>* struct ** schema，则此字段应为由 Avro schema 定义的 JSON 字符串转换成的字节数组。</p>
+  </td> 
+  </tr>
+  <tr>
+    <td>
+<pre><code class="hljs">`properties`<br />&lt;/td&gt;<br />&lt;td&gt;与 schema 相关的其他属性。&lt;/td&gt; <br /></code></pre>
+  </tr>  
+</table>
+<p>Here is an example of <code>SchemaInfo</code>:</p>
+<pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />SchemaInfo si = admin.getSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>, <span class="hljs-number">1L</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="解压缩-schema"></a><a href="#解压缩-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>解压缩 schema</h3>
+<p>To provide a schema via a topic, you can use the following method.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38789-tab-38790" class="nav-link active" data-group="group_38789" data-tab="tab-group-38789-content-38790">Admin CLI</div></div><div class="tab-content"><div id="tab-group-38789-content-38790" class="tab-pane active" data-group="group_38789" tabindex="-1"><div><span><p>Use the <code>extract</code> subcommand.</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin schemas extract --classname &lt;class-name&gt; --jar &lt;jar-path&gt; --<span class="hljs-built_in">type</span> &lt;<span class="hljs-built_in">type</span>-name&gt;<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="删除-schema"></a><a href="#删除-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 schema</h3>
+<p>To delete a schema for a topic, you can use one of the following methods.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>In any case, the <strong>delete</strong> action deletes <strong>all versions</strong> of a schema registered for a topic.</p>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38791-tab-38792" class="nav-link active" data-group="group_38791" data-tab="tab-group-38791-content-38792">Admin CLI</div><div id="tab-group-38791-tab-38793" class="nav-link" data-group="group_38791" data-tab="tab-group-38791-content-38793">REST API</div><div id="tab-group-38791-tab-38794" class="nav-link" data-group="group_38791" data-tab="tab-group-38791-content-38794">Java Admin API</div></div><div class="tab-content"><div id="tab-group-38791-content-38792" class="tab-pane active" data-group="group_38791" tabindex="-1"><div><span><p>使用 <code>delete</code> 子命令。</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin schemas delete &lt;topic-name&gt;<br /></code></pre>
+</span></div></div><div id="tab-group-38791-content-38793" class="tab-pane" data-group="group_38791" tabindex="-1"><div><span><p>向 Schema 端点发送<code>DELETE</code>请求：<a href="https://pulsar.apache.org/admin-rest-api#operation/deleteSchema?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/schemas/:tenant/:namespace/:topic/schema</i></a>
+</p>
+<p>Here is an example of a response, which is returned in JSON format.</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"version"</span>: <span class="hljs-string">"&lt;the-latest-version-number-of-the-schema&gt;"</span>,<br />}<br /></code></pre>
+<p>The response includes the following field:</p>
+<table>
+<thead>
+<tr><th>字段</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>version</code></td><td>Schema 版本，是一个长数。</td></tr>
+</tbody>
+</table>
+</span></div></div><div id="tab-group-38791-content-38794" class="tab-pane" data-group="group_38791" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSchema</span><span class="hljs-params">(String topic)</span><br /></span></code></pre>
+<p>Here is an example of deleting a schema.</p>
+<pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />admin.deleteSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>); <br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="自定义schema存储"></a><a href="#自定义schema存储" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自定义schema存储</h2>
+<p>By default, Pulsar stores various data types of schemas in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> deployed alongside Pulsar.</p>
+<p>However, you can use another storage system if needed.</p>
+<h3><a class="anchor" aria-hidden="true" id="实现"></a><a href="#实现" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>实现</h3>
+<p>To use a non-default (non-BookKeeper) storage system for Pulsar schemas, you need to implement the following Java interfaces:</p>
+<ul>
+<li><p><a href="#schemastorage-interface">SchemaStorage 接口</a></p></li>
+<li><p><a href="#schemastoragefactory-interface">SchemaStorageFactory接口</a></p></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="schemastorage-接口"></a><a href="#schemastorage-接口" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SchemaStorage 接口</h4>
+<p><code>SchemaStorage</code>接口包含以下方法：</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">SchemaStorage</span> </span>{
+    <span class="hljs-comment">// 如何更新schema</span>
+    <span class="hljs-function">CompletableFuture&lt;SchemaVersion&gt; <span class="hljs-title">put</span><span class="hljs-params">(String key, <span class="hljs-keyword">byte</span>[] value, <span class="hljs-keyword">byte</span>[] hash)</span></span>;
+
+    <span class="hljs-comment">// 如何从存储中获取schema</span>
+    <span class="hljs-function">CompletableFuture&lt;StoredSchema&gt; <span class="hljs-title">get</span><span class="hljs-params">(String key, SchemaVersion version)</span></span>;
+
+    <span class="hljs-comment">// 如何删除schema</span>
+    <span class="hljs-function">CompletableFuture&lt;SchemaVersion&gt; <span class="hljs-title">delete</span><span class="hljs-params">(String key)</span></span>;
+
+    <span class="hljs-comment">// 用户将schema字节数据转换为SchemaVersion 对象的工具方法</span>
+    <span class="hljs-function">SchemaVersion <span class="hljs-title">versionFromBytes</span><span class="hljs-params">(<span class="hljs-keyword">byte</span>[] version)</span></span>;
+
+    <span class="hljs-comment">// 启动schema存储客户端</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">start</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
+
+    <span class="hljs-comment">// 关闭schema存储客户端</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">close</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
+}
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>For a complete example of <strong>schema storage</strong> implementation, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java">BookKeeperSchemaStorage</a> class.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="schemastoragefactory接口"></a><a href="#schemastoragefactory接口" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SchemaStorageFactory接口</h4>
+<p>The <code>SchemaStorageFactory</code> interface has the following method:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">SchemaStorageFactory</span> </span>{
+    <span class="hljs-meta">@NotNull</span>
+    <span class="hljs-function">SchemaStorage <span class="hljs-title">create</span><span class="hljs-params">(PulsarService pulsar)</span> <span class="hljs-keyword">throws</span> Exception</span>;
+}
+</code></pre>
+<blockquote>
+<p>提示</p>
+<p>For a complete example of <strong>schema storage factory</strong> implementation, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java">BookKeeperSchemaStorageFactory</a> class.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="部署"></a><a href="#部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署</h3>
+<p>To use your custom schema storage implementation, perform the following steps.</p>
+<ol>
+<li><p>将实现打包到 <a href="https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html">JAR</a> 文件中。</p></li>
+<li><p>将 JAR 文件添加到 Pulsar 二进制包或源码中的 <code>lib</code> 文件夹。</p></li>
+<li><p>将 <code>broker.conf</code> 中的 <code>schemaRegistryStorageClassName</code> 配置更改为自定义工厂类。</p></li>
+<li><p>启动 Pulsar。</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="设置-schema-兼容性检查策略"></a><a href="#设置-schema-兼容性检查策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置 schema 兼容性检查策略</h2>
+<p>You can set <a href="/docs/zh-CN/2.8.3/schema-evolution-compatibility#schema-compatibility-check-strategy">schema compatibility check strategy</a> at namespace or broker level.</p>
+<ul>
+<li><p>If you set schema compatibility check strategy at both namespace or broker level, it uses the strategy set for the namespace level.</p></li>
+<li><p>If you do not set schema compatibility check strategy at both namespace or broker level, it uses the <code>FULL</code> strategy.</p></li>
+<li><p>If you set schema compatibility check strategy at broker level rather than namespace level, it uses the strategy set for the broker level.</p></li>
+<li><p>If you set schema compatibility check strategy at namespace level rather than broker level, it uses the strategy set for the namespace level.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="命名空间namespace"></a><a href="#命名空间namespace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间（Namespace）</h3>
+<p>You can set schema compatibility check strategy at namespace level using one of the following methods.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-38795-tab-38796" class="nav-link active" data-group="group_38795" data-tab="tab-group-38795-content-38796">pulsar-admin</div><div id="tab-group-38795-tab-38797" class="nav-link" data-group="group_38795" data-tab="tab-group-38795-content-38797">REST API</div><div id="tab-group-38795-tab-38798" class="nav-link" data-group="group_38795" data-tab="tab-group-38795-content-38798">Java</div></div><div class="tab-content"><div id="tab-group-38795-content-38796" class="tab-pane active" data-group="group_38795" tabindex="-1"><div><span><p>Use the <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin namespaces set-schema-compatibility-strategy</code></a> command.</p>
+<pre><code class="hljs css language-shell">pulsar-admin namespaces set-schema-compatibility-strategy options<br /></code></pre>
+</span></div></div><div id="tab-group-38795-content-38797" class="tab-pane" data-group="group_38795" tabindex="-1"><div><span><p>Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.apache.org/admin-rest-api#operation/schemaCompatibilityStrategy?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-38795-content-38798" class="tab-pane" data-group="group_38795" tabindex="-1"><div><span><p>Use the <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/"><code>setSchemaCompatibilityStrategy</code></a>method.</p>
+<pre><code class="hljs css language-java">admin.namespaces().setSchemaCompatibilityStrategy(<span class="hljs-string">"test"</span>, SchemaCompatibilityStrategy.FULL);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h3>
+<p>You can set schema compatibility check strategy at broker level by setting <code>schemaCompatibilityStrategy</code> in <a href="https://github.com/apache/pulsar/blob/f24b4890c278f72a67fe30e7bf22dc36d71aac6a/conf/broker.conf#L1240"><code>broker.conf</code></a> or <a href="https://github.com/apache/pulsar/blob/master/conf/standalone.conf"><code>standalone.conf</code></a> file.</p>
+<p><strong>示例</strong></p>
+<pre><code class="hljs"><span class="hljs-attr">schemaCompatibilityStrategy</span>=ALWAYS_INCOMPATIBLE
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema 演化和兼容</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#producer-的自动更新">Producer 的自动更新</a></li><li><a href="#consumer-的自动更新">Consumer 的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#上传-schema">上传 Schema</a></li><li><a href="#获取-schema最新版本">获取 Schema（最新版本）</a></li><li><a href="#获取-schema详细信息">获取 schema（详细信息）</a></li><li><a href="#解压缩-schema">解压缩 schema</a></li><li><a href="#删除-schema">删除 schema</a></li></ul></li><li><a href="#自定义schema存储">自定义schema存储</a><ul class="toc-headings"><li><a href="#实现">实现</a></li><li><a href="#部署">部署</a></li></ul></li><li><a href="#设置-schema-兼容性检查策略">设置 schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#命名空间namespace">命名空间（Namespace）</a></li><li><a href="#broker">Broker</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

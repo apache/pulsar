@@ -1,0 +1,316 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content=""/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content=""/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-TW/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class=""><a href="/docs/zh-TW/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en/contributing">English</a></li><li><a href="/ja/contributing">日本語</a></li><li><a href="/fr/contributing">Français</a></li><li><a href="/ko/contributing">한국어</a></li><li><a href="/zh-CN/contributing">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="pageContainer"><div class="container mainContainer documentContainer postContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1>Contributing to Apache Pulsar</h1><hr/></header><div><span><p>The Apache Pulsar community welcomes contributions from anyone with a passion for distributed systems! Pulsar has many different opportunities for contributions --
+write new examples/tutorials, add new user-facing libraries, write new Pulsar IO connectors, or participate on the documentation effort.</p>
+<p>We use a review-then-commit workflow in Pulsar for all contributions.</p>
+<p><strong>For larger contributions or those that affect multiple components:</strong></p>
+<ol>
+<li><strong>Engage</strong>: We encourage you to work with the Pulsar community on the
+<a href="https://github.com/apache/pulsar/issues">Github Issues</a> and
+<a href="/contact">developer’s mailing list</a> to identify
+good areas for contribution.</li>
+<li><strong>Design:</strong> More complicated contributions will likely benefit from some early discussion in
+order to scope and design them well.</li>
+</ol>
+<p><strong>For all contributions:</strong></p>
+<ol>
+<li><strong>Code:</strong> code changes are always welcomed.</li>
+<li><strong>Doc</strong>: it is worth taking the time to make users know your code changes. Pulsar's long-term success rests on its ease of use, maintainability, etc.</li>
+<li><strong>Review:</strong> Submit a pull request with your contribution to our
+<a href="https://github.com/apache/pulsar">GitHub Repo</a>. Work with a committer to review and
+iterate on the code, if needed.</li>
+<li><strong>Commit:</strong> Once at least 2 Pulsar committers have approved the pull request, a Pulsar committer
+will merge it into the master branch (and potentially backport to stable branches in case of
+bug fixes).</li>
+</ol>
+<p>We look forward to working with you!</p>
+<h2><a class="anchor" aria-hidden="true" id="engage"></a><a href="#engage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Engage</h2>
+<h3><a class="anchor" aria-hidden="true" id="mailing-lists"></a><a href="#mailing-lists" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Mailing list(s)</h3>
+<p>We discuss design and implementation issues on the <a href="mailto:dev@pulsar.apache.org">dev@pulsar.apache.org</a>
+mailing list, which is archived <a href="https://lists.apache.org/list.html?dev@pulsar.apache.org">here</a>.
+Join by emailing <a href="mailto:dev-subscribe@pulsar.apache.org"><code>dev-subscribe@pulsar.apache.org</code></a>.</p>
+<p>If interested, you can also join the other <a href="/contact">mailing lists</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="github-issues"></a><a href="#github-issues" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Github Issues</h3>
+<p>We are using <a href="https://github.com/apache/pulsar/issues">Github Issues</a> as the issue tracking
+and project management tool, as well as a way to communicate among a very diverse and distributed set
+of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all
+Pulsar related work are being tracked there.</p>
+<p>If you do not already have an Github account, sign up <a href="https://github.com/join">here</a>.</p>
+<p>If a quick <a href="https://github.com/apache/pulsar/issues">search</a> doesn’t turn up an existing
+Github issue for the work you want to contribute, create it. Please discuss your idea with a
+committer in Github or, alternatively, on the developer mailing list.</p>
+<p>If there’s an existing Github issue for your intended contribution, please comment about your intended
+work. Once the work is understood, a committer will assign the issue to you. If an issue is currently
+assigned, please check with the current assignee before reassigning.</p>
+<p>For moderate or large contributions, you should not start coding or writing a design document unless
+there is a corresponding Github issue assigned to you for that work. Simple changes, like fixing typos,
+do not require an associated issue.</p>
+<h3><a class="anchor" aria-hidden="true" id="online-discussions"></a><a href="#online-discussions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Online discussions</h3>
+<p>We are using <a href="https://apache-pulsar.slack.com/">Apache Pulsar Slack channel</a> for online discussions.
+You can self-invite yourself by accessing <a href="https://apache-pulsar.herokuapp.com/">this link</a>.</p>
+<p>Slack channels are great for quick questions or discussions on specialized topics. Remember that we
+strongly encourage communication via the mailing lists, and we prefer to discuss more complex subjects
+by email. Developers should be careful to move or duplicate all the official or useful discussions to
+the issue tracking system and/or the dev mailing list.</p>
+<h2><a class="anchor" aria-hidden="true" id="design"></a><a href="#design" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Design</h2>
+<p>To avoid potential frustration during the code review cycle, we encourage you to clearly scope and
+design non-trivial contributions with the Pulsar community before you start coding.</p>
+<p>We are using &quot;Pulsar Improvement Proposals&quot; (or &quot;PIP&quot;) for managing major changes to Pulsar. The
+list of all PIPs is maintained in the Pulsar wiki at <a href="https://github.com/apache/pulsar/wiki">https://github.com/apache/pulsar/wiki</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="code"></a><a href="#code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Code</h2>
+<p>To contribute code to Apache Pulsar, you’ll have to do a few administrative steps once, and then
+follow the <a href="../coding-guide">Coding Guide</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="one-time-setup"></a><a href="#one-time-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>One-time Setup</h3>
+<h4><a class="anchor" aria-hidden="true" id="optionally-submit-contributor-license-agreement"></a><a href="#optionally-submit-contributor-license-agreement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>[Optionally] Submit Contributor License Agreement</h4>
+<p>Apache Software Foundation (ASF) desires that all contributors of ideas, code, or documentation to the Apache projects complete, sign, and submit an <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License Agreement</a> (ICLA). The purpose of this agreement is to clearly define the terms under which intellectual property has been contributed to the ASF and thereby allow us to defend the project should there be a legal dispute regarding the software at some future time.</p>
+<p>We require you to have an ICLA on file with the Apache Secretary for larger contributions only. For smaller ones, however, we rely on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions and do not require an ICLA in that case.</p>
+<h4><a class="anchor" aria-hidden="true" id="obtain-a-github-account"></a><a href="#obtain-a-github-account" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Obtain a GitHub account</h4>
+<p>We use GitHub’s pull request functionality to review proposed code changes.</p>
+<p>If you do not already have a personal GitHub account, sign up <a href="https://github.com/join">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="fork-the-repository-on-github"></a><a href="#fork-the-repository-on-github" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fork the repository on GitHub</h4>
+<p>Go to the <a href="https://github.com/apache/pulsar/">Pulsar GitHub Repo</a> and fork the repository
+to your own private account. This will be your private workspace for staging changes.</p>
+<h4><a class="anchor" aria-hidden="true" id="clone-the-repository-locally"></a><a href="#clone-the-repository-locally" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Clone the repository locally</h4>
+<p>You are now ready to create the development environment on your local machine. Feel free to repeat
+these steps on all machines that you want to use for development.</p>
+<p>We assume you are using SSH-based authentication with GitHub. If necessary, exchange SSH keys with
+GitHub by following <a href="https://help.github.com/articles/generating-an-ssh-key/">their instructions</a>.</p>
+<p>Clone your personal Pulsar’s GitHub fork.</p>
+<pre><code class="hljs">$ git clone https://github.com/&lt;Github_user&gt;/pulsar.git
+$ cd pulsar
+</code></pre>
+<p>Add Apache Repo as additional Git remotes, where you can sync the changes (for committers, you need
+these two remotes for pushing changes).</p>
+<pre><code class="hljs">$ git remote add apache https://github.com/apache/pulsar
+</code></pre>
+<p>You are now ready to start developing!</p>
+<h4><a class="anchor" aria-hidden="true" id="ide-setup"></a><a href="#ide-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IDE Setup</h4>
+<p>For how to set up IDE, see <a href="https://github.com/apache/pulsar/blob/master/README.md#setting-up-your-ide">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="create-a-branch-in-your-fork"></a><a href="#create-a-branch-in-your-fork" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a branch in your fork</h3>
+<p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code>master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code>master</code> branch.</p>
+<pre><code class="hljs">$ git fetch apache
+$ git checkout -b &lt;my-branch&gt; apache/master
+</code></pre>
+<p>At this point, you can start making and committing changes to this branch in a standard way.</p>
+<h3><a class="anchor" aria-hidden="true" id="syncing-and-pushing-your-branch"></a><a href="#syncing-and-pushing-your-branch" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Syncing and pushing your branch</h3>
+<p>Periodically while you work, and certainly before submitting a pull request, you should update your branch with the most recent changes to the target branch.</p>
+<pre><code class="hljs">$ git pull --rebase
+</code></pre>
+<p>Remember to always use <code>--rebase</code> parameter to avoid extraneous merge commits.</p>
+<p>Then you can push your local, committed changes to your (forked) repository on GitHub. Since rebase may change that branch's history, you may need to force push. You'll run:</p>
+<pre><code class="hljs">$ git push &lt;GitHub_user&gt; &lt;my-branch&gt; --force
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="testing"></a><a href="#testing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing</h3>
+<p>All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.</p>
+<h3><a class="anchor" aria-hidden="true" id="licensing"></a><a href="#licensing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Licensing</h3>
+<p>All code contributed to Pulsar will be licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License V2</a>. You need to ensure every new files you are adding have the right
+license header. You can add license header to your files by running following command:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> mvn initialize license:format</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="develop-cpython-client"></a><a href="#develop-cpython-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Develop C++/Python Client</h3>
+<p>Currently C++ and Python client are developed under <code>pulsar-client-cpp</code> directory. You can use following commands to build and test your c++ or python code changes.</p>
+<h4><a class="anchor" aria-hidden="true" id="build-cpython-client"></a><a href="#build-cpython-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Build C++/Python Client</h4>
+<pre><code class="hljs">$ ./pulsar-client-cpp/docker-<span class="hljs-keyword">build.sh
+</span></code></pre>
+<h3><a class="anchor" aria-hidden="true" id="run-cpython-client-tests"></a><a href="#run-cpython-client-tests" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run C++/Python Client Tests</h3>
+<pre><code class="hljs">$ ./pulsar-client-cpp/docker-<span class="hljs-keyword">test</span>.<span class="hljs-keyword">sh</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="checkstyle"></a><a href="#checkstyle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Checkstyle</h3>
+<p>Before you push the C++/Python changes for review, you should format the files to apply the checkstyle rule Pulsar is using for C++/Python code.</p>
+<pre><code class="hljs">$ ./pulsar-client-cpp/docker-<span class="hljs-keyword">format</span>.<span class="hljs-keyword">sh</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="review"></a><a href="#review" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Review</h2>
+<p>Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.</p>
+<h3><a class="anchor" aria-hidden="true" id="create-a-pull-request"></a><a href="#create-a-pull-request" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a pull request</h3>
+<p>Organize your commits to make a committer’s job easier when reviewing. Committers normally prefer multiple small pull requests, instead of a single large pull request. Within a pull request, a relatively small number of commits that break the problem into logical steps is preferred. For most pull requests, you'll squash your changes down to 1 commit. You can use the following command to re-order, squash, edit, or change description of individual commits.</p>
+<pre><code class="hljs">$ git rebase -i apache/master
+</code></pre>
+<p>You'll then push to your branch on GitHub. Note: when updating your commit after pull request feedback and use squash to get back to one commit, you will need to do a force submit to the branch on your repo.</p>
+<p>Navigate to the <a href="https://github.com/apache/pulsar">Pulsar GitHub Repo</a> to create a pull request.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Vague, boring, and unclear PR titles decrease team efficiency and productivity. Good titles speed up the review process and increase search efficiency. PR titles should be engaging, easy to understand, and readable. For how to <strong>write self​-explanatory PR titles</strong> and <strong>quality PR title examples</strong>, see <a href="https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#">[Guideline] Pulsar PR Naming Convention</a>.</p>
+</blockquote>
+<p>In the pull request description, please include:</p>
+<ul>
+<li>Motivation : Why is this change needed? What problem is addressing?</li>
+<li>Changes: Summary of what this pull request is changing, to help reviewers at better understanding
+the changes.</li>
+</ul>
+<p>Please include a descriptive pull request message to help make the committer’s job easier when reviewing.
+It’s fine to refer to existing design docs or the contents of the associated issue as appropriate.</p>
+<p>If the pull request is fixing an issue, include a mention to in the description, like:</p>
+<pre><code class="hljs"><span class="hljs-attribute">Fixes</span> <span class="hljs-comment">#1234</span>
+</code></pre>
+<p>This will automatically change the state on the referenced issues.</p>
+<p>If you know a good committer to review your pull request, please make a comment like the following. If not, don’t worry -- a committer will pick it up.</p>
+<pre><code class="hljs">Hi @&lt;GitHub-committer-username&gt;, can you please take a look?
+</code></pre>
+<p>When choosing a committer to review, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main committer, you can explicitly cc them using <code>@&lt;GitHub-committer-username&gt;</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="code-review-and-revision"></a><a href="#code-review-and-revision" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Code Review and Revision</h3>
+<p>During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the committer when reviewing. When you make a revision, always push it in a new commit.</p>
+<p>Our GitHub repo automatically provides pre-commit testing coverage using Jenkins. Please make sure those tests pass; the contribution cannot be merged otherwise.</p>
+<h3><a class="anchor" aria-hidden="true" id="lgtm"></a><a href="#lgtm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LGTM</h3>
+<p>Once the committer is happy with the change, they’ll approve the pull request with an LGTM (“<em>looks good to me!</em>”) or a <code>+1</code>. At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.</p>
+<p>In the case the author is also a committer, either can merge the pull request. Just be sure to communicate clearly whose responsibility it is in this particular case.</p>
+<p>Thank you for your contribution to Pulsar!</p>
+<h3><a class="anchor" aria-hidden="true" id="deleting-your-branch"></a><a href="#deleting-your-branch" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deleting your branch</h3>
+<p>Once the pull request is merged into the Pulsar repository, you can safely delete the branch locally and purge it from your forked repository.</p>
+<p>From another local branch, run:</p>
+<pre><code class="hljs">$ git fetch origin
+$ git branch -d &lt;my-branch&gt;
+$ git push origin --delete &lt;my-branch&gt;
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="commit-committers-only"></a><a href="#commit-committers-only" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Commit (committers only)</h2>
+<p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the Github repo.</p>
+<p>Pull requests should not be merged before the review has approved from at least 2 committers.</p>
+<blockquote>
+<p><strong>Tip</strong></p>
+<p>Git commit message is not only the best way to communicate context about code changes, but also shows whether a developer is a good collaborator. If the first commit message of a PR is not clear but the PR description is clear and concise, when merging a PR, consider copying the PR description to the commit message box or writing a proper one rather than using the default (first) commit message (see image below). In this way, others know the changes clearly, which is beneficial to cut a release or write a release note. Be well cared for git log is a healthy and sustainable thing.</p>
+</blockquote>
+<p><img src="../../img/commit-message.png" alt="Submit clear commit message"></p>
+<h3><a class="anchor" aria-hidden="true" id="contributor-license-agreement"></a><a href="#contributor-license-agreement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Contributor License Agreement</h3>
+<p>If you are merging a larger contribution, please make sure that the contributor has an ICLA on file with the Apache Secretary. You can view the list of committers <a href="http://home.apache.org/phonebook.html?unix=committers">here</a>, as well as <a href="http://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet committers</a>.</p>
+<p>For smaller contributions, however, this is not required. In this case, we rely on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions.</p>
+<h2><a class="anchor" aria-hidden="true" id="documentation"></a><a href="#documentation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Documentation</h2>
+<h3><a class="anchor" aria-hidden="true" id="website"></a><a href="#website" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Website</h3>
+<p>The Pulsar website is in the same <a href="https://github.com/apache/pulsar">Pulsar Github Repo</a>. The source files are hosted under <code>site2</code> directory in <code>master</code> branch,
+the static content is generated by CI job and merged into the <code>asf-site</code> branch.</p>
+<p>Follow the <a href="https://github.com/apache/pulsar/tree/master/site2">README</a> for making contributions to the website.</p>
+<h4><a class="anchor" aria-hidden="true" id="updating-user-logo"></a><a href="#updating-user-logo" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Updating user logo</h4>
+<p>The Apache Pulsar Community welcomes all users to update their company logos on Pulsar website. If your team or organization has adopted Pulsar in production, you can update your company logos on <a href="https://pulsar.apache.org/en/powered-by/">Pulsar website</a>.</p>
+<p>To update your company logo, follow these steps:</p>
+<ol>
+<li><p>Open <a href="https://github.com/apache/pulsar/blob/master/site2/website/data/users.js">link</a> in your browser, then click the <strong>Edit</strong> icon to fork Pulsar repo, create a new branch and edit this file.</p></li>
+<li><p>Add your company’s information at the end of file.</p>
+<p>Example:</p>
+<pre><code class="hljs">{
+<span class="hljs-string">name:</span> <span class="hljs-string">'StreamNative'</span>,
+<span class="hljs-string">url:</span> <span class="hljs-string">'https://streamnative.io/'</span>,
+<span class="hljs-string">logo:</span> <span class="hljs-string">'https://streamnative.io/static/images/streamnative-logo-white-bakground.png'</span>,
+<span class="hljs-string">logo_white:</span> <span class="hljs-literal">true</span>
+}
+</code></pre>
+<blockquote>
+<p>Note
+</br>The <code>logo_white</code> parameter is set to <code>true</code> only when your company logo is in white color. Otherwise, you only need to add <code>name</code>, <code>url</code> and <code>logo</code>.</p>
+</blockquote></li>
+<li><p>Commit the changes in your account’s repo, publish the branch and create pull request.</p></li>
+<li><p>Update comments, if any. If no more comment, your pull request will be approved and merged by reviewers.</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="becoming-a-committer"></a><a href="#becoming-a-committer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Becoming a committer</h2>
+<p>Committers are community members that have write access to the project’s
+repositories, i.e., they can modify the code, documentation, and website
+by themselves and also accept other contributions.</p>
+<p>There is no strict protocol for becoming a committer. Candidates for new
+committers are typically people that are active contributors and
+community members.</p>
+<p>Being an active community member means participating on mailing list
+discussions, helping to answer questions, verifying release candidates,
+being respectful towards others, and following the meritocratic
+principles of community management. Since the
+<a href="https://www.apache.org/foundation/governance/">Apache Way</a>
+has a strong focus on the project community, this part is very important.</p>
+<p>Of course, contributing code and documentation to the project is
+important as well. A good way to start is contributing improvements, new
+features, or bug fixes. You need to show that you take responsibility
+for the code that you contribute, add tests and documentation, and help
+maintaining it.</p>
+<p>Every new committer has to be proposed by a current committer and then
+privately discussed and voted in by the members of the Pulsar PMC.
+For details about this process and for candidate requirements see the
+general <a href="https://community.apache.org/newcommitter.html">Apache guidelines for assessing new candidates for committership</a>.
+Candidates prepare for their nomination as committer by contributing
+to the Pulsar project and its community, by acting according to the
+<a href="https://www.apache.org/foundation/how-it-works.html">Apache Way</a>,
+and by generally following the path from
+<a href="https://community.apache.org/contributors/">contributor to committer</a>
+for Apache projects.</p>
+<p>If you would like to become a committer, you should engage with the
+community and start contributing to Apache Pulsar in any of the above
+ways. You might also want to talk to other committers and ask for their
+advice and guidance.</p>
+<h2><a class="anchor" aria-hidden="true" id="becoming-member-of-pmc"></a><a href="#becoming-member-of-pmc" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Becoming member of PMC</h2>
+<p>The PMC is the project governance body. Committers or contributors that
+have demonstrated continued involvement with the community can be
+nominated to become members of the PMC.</p>
+<p>PMC members nominate new contributors to the project as either
+committers or as new PMC members, and PMC members cast votes on electing
+new committers or PMC members to the project. PMC members also have
+binding votes on any project matters. Refer to
+<a href="http://www.apache.org/foundation/governance/pmcs.html">ASF PMCs governance</a>
+for a more detailed explanation of the duties and roles of the PMC.</p>
+</span></div></div></div></div></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.9.1"]}
+              });
+            </script></body></html>

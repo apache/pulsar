@@ -1,0 +1,425 @@
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Configure Functions runtime · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use the following methods to run functions."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Configure Functions runtime · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use the following methods to run functions."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-runtime">English</a></li><li><a href="/docs/fr/2.8.3/functions-runtime">Français</a></li><li><a href="/docs/ko/2.8.3/functions-runtime">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/functions-runtime">中文</a></li><li><a href="/docs/zh-TW/2.8.3/functions-runtime">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ja/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ja/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Configure Functions runtime</h1></header><article><div><span><p>You can use the following methods to run functions.</p>
+<ul>
+<li><em>Thread</em>: Invoke functions threads in functions worker.</li>
+<li><em>Process</em>: Invoke functions in processes forked by functions worker.</li>
+<li><em>Kubernetes</em>: Submit functions as Kubernetes StatefulSets by functions worker.</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong>  <br>
+Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.</p>
+</blockquote>
+<p>The differences of the thread and process modes are:</p>
+<ul>
+<li>Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with functions worker.</li>
+<li>Process mode: when a function runs in process mode, it runs on the same machine that functions worker runs.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="configure-thread-runtime"></a><a href="#configure-thread-runtime" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure thread runtime</h2>
+<p>It is easy to configure <em>Thread</em> runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-attr">threadGroupName:</span> <span class="hljs-string">"Your Function Container Group"</span>
+</code></pre>
+<p><em>Thread</em> runtime is only supported in Java function.</p>
+<h2><a class="anchor" aria-hidden="true" id="configure-process-runtime"></a><a href="#configure-process-runtime" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure process runtime</h2>
+<p>When you enable <em>Process</em> runtime, you do not need to configure anything.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-comment"># the directory for storing the function logs</span>
+  <span class="hljs-attr">logDirectory:</span>
+  <span class="hljs-comment"># change the jar location only when you put the java instance jar in a different location</span>
+  <span class="hljs-attr">javaInstanceJarLocation:</span>
+  <span class="hljs-comment"># change the python instance location only when you put the python instance jar in a different location</span>
+  <span class="hljs-attr">pythonInstanceLocation:</span>
+  <span class="hljs-comment"># change the extra dependencies location:</span>
+  <span class="hljs-attr">extraFunctionDependenciesDir:</span>
+</code></pre>
+<p><em>Process</em> runtime is supported in Java, Python, and Go functions.</p>
+<h2><a class="anchor" aria-hidden="true" id="configure-kubernetes-runtime"></a><a href="#configure-kubernetes-runtime" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Kubernetes runtime</h2>
+<p>When the functions worker generates Kubernetes manifests and apply the manifests, the Kubernetes runtime works. If you have run functions worker on Kubernetes, you can use the <code>serviceAccount</code> associated with the pod that the functions worker is running in. Otherwise, you can configure it to communicate with a Kubernetes cluster.</p>
+<p>The manifests, generated by the functions worker, include a <code>StatefulSet</code>, a <code>Service</code> (used to communicate with the pods), and a <code>Secret</code> for auth credentials (when applicable). The <code>StatefulSet</code> manifest (by default) has a single pod, with the number of replicas determined by the &quot;parallelism&quot; of the function. On pod boot, the pod downloads the function payload (via the functions worker REST API). The pod's container image is configurable, but must have the functions runtime.</p>
+<p>The Kubernetes runtime supports secrets, so you can create a Kubernetes secret and expose it as an environment variable in the pod. The Kubernetes runtime is extensible, you can implement classes and customize the way how to generate Kubernetes manifests, how to pass auth data to pods, and how to integrate secrets.</p>
+<blockquote>
+<p><strong>Tip</strong></p>
+<p>For the rules of translating Pulsar object names into Kubernetes resource labels, see <a href="/docs/ja/2.8.3/admin-api-overview#how-to-define-pulsar-resource-names-when-running-pulsar-in-kubernetes">here</a>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="basic-configuration"></a><a href="#basic-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Basic configuration</h3>
+<p>It is easy to configure Kubernetes runtime. You can just uncomment the settings of <code>kubernetesContainerFactory</code> in the <code>functions_worker.yaml</code> file. The following is an example.</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory</span>
+<span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
+  <span class="hljs-comment"># uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker</span>
+  <span class="hljs-attr">k8Uri:</span>
+  <span class="hljs-comment"># the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty</span>
+  <span class="hljs-attr">jobNamespace:</span>
+  <span class="hljs-comment"># The Kubernetes pod name to run the function instances. It is set to</span>
+  <span class="hljs-comment"># `pf-&lt;tenant&gt;-&lt;namespace&gt;-&lt;function_name&gt;-&lt;random_uuid(8)&gt;` if this setting is left to be empty</span>
+  <span class="hljs-attr">jobName:</span> 
+  <span class="hljs-comment"># the docker image to run function instance. by default it is `apachepulsar/pulsar`</span>
+  <span class="hljs-attr">pulsarDockerImageName:</span>
+  <span class="hljs-comment"># the docker image to run function instance according to different configurations provided by users.</span>
+  <span class="hljs-comment"># By default it is `apachepulsar/pulsar`.</span>
+  <span class="hljs-comment"># e.g:</span>
+  <span class="hljs-comment"># functionDockerImages:</span>
+  <span class="hljs-comment">#   JAVA: JAVA_IMAGE_NAME</span>
+  <span class="hljs-comment">#   PYTHON: PYTHON_IMAGE_NAME</span>
+  <span class="hljs-comment">#   GO: GO_IMAGE_NAME</span>
+  <span class="hljs-attr">functionDockerImages:</span>
+  <span class="hljs-comment"># "The image pull policy for image used to run function instance. By default it is `IfNotPresent`</span>
+  <span class="hljs-attr">imagePullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
+  <span class="hljs-comment"># the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.</span>
+  <span class="hljs-comment"># if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly</span>
+  <span class="hljs-attr">pulsarRootDir:</span>
+  <span class="hljs-comment"># The config admin CLI allows users to customize the configuration of the admin cli tool, such as:</span>
+  <span class="hljs-comment"># `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl`</span>
+  <span class="hljs-comment"># you need to set this setting accordingly</span>
+  <span class="hljs-attr">configAdminCLI:</span> 
+  <span class="hljs-comment"># this setting only takes effects if `k8Uri` is set to null. if your function worker is running as a k8 pod,</span>
+  <span class="hljs-comment"># setting this to true is let function worker to submit functions to the same k8s cluster as function worker</span>
+  <span class="hljs-comment"># is running. setting this to false if your function worker is not running as a k8 pod.</span>
+  <span class="hljs-attr">submittingInsidePod:</span> <span class="hljs-literal">false</span>
+  <span class="hljs-comment"># setting the pulsar service url that pulsar function should use to connect to pulsar</span>
+  <span class="hljs-comment"># if it is not set, it will use the pulsar service url configured in worker service</span>
+  <span class="hljs-attr">pulsarServiceUrl:</span>
+  <span class="hljs-comment"># setting the pulsar admin url that pulsar function should use to connect to pulsar</span>
+  <span class="hljs-comment"># if it is not set, it will use the pulsar admin url configured in worker service</span>
+  <span class="hljs-attr">pulsarAdminUrl:</span>
+  <span class="hljs-comment"># The flag indicates to install user code dependencies. (applied to python package)</span>
+  <span class="hljs-attr">installUserCodeDependencies:</span>
+  <span class="hljs-comment"># The repository that pulsar functions use to download python dependencies</span>
+  <span class="hljs-attr">pythonDependencyRepository:</span>
+  <span class="hljs-comment"># The repository that pulsar functions use to download extra python dependencies</span>
+  <span class="hljs-attr">pythonExtraDependencyRepository:</span>
+  <span class="hljs-comment"># the custom labels that function worker uses to select the nodes for pods</span>
+  <span class="hljs-attr">customLabels:</span>
+  <span class="hljs-comment"># The expected metrics collection interval, in seconds</span>
+  <span class="hljs-attr">expectedMetricsCollectionInterval:</span> <span class="hljs-number">30</span>
+  <span class="hljs-comment"># Kubernetes Runtime will periodically checkback on</span>
+  <span class="hljs-comment"># this configMap if defined and if there are any changes</span>
+  <span class="hljs-comment"># to the kubernetes specific stuff, we apply those changes</span>
+  <span class="hljs-attr">changeConfigMap:</span>
+  <span class="hljs-comment"># The namespace for storing change config map</span>
+  <span class="hljs-attr">changeConfigMapNamespace:</span>
+  <span class="hljs-comment"># The ratio cpu request and cpu limit to be set for a function/source/sink.</span>
+  <span class="hljs-comment"># The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio</span>
+  <span class="hljs-attr">cpuOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># The ratio memory request and memory limit to be set for a function/source/sink.</span>
+  <span class="hljs-comment"># The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
+  <span class="hljs-attr">memoryOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># The port inside the function pod which is used by the worker to communicate with the pod</span>
+  <span class="hljs-attr">grpcPort:</span> <span class="hljs-number">9093</span>
+  <span class="hljs-comment"># The port inside the function pod on which prometheus metrics are exposed</span>
+  <span class="hljs-attr">metricsPort:</span> <span class="hljs-number">9094</span>
+  <span class="hljs-comment"># The directory inside the function pod where nar packages will be extracted</span>
+  <span class="hljs-attr">narExtractionDirectory:</span>
+  <span class="hljs-comment"># The classpath where function instance files stored</span>
+  <span class="hljs-attr">functionInstanceClassPath:</span>
+  <span class="hljs-comment"># the directory for dropping extra function dependencies</span>
+  <span class="hljs-comment"># if it is not an absolute path, it is relative to `pulsarRootDir`</span>
+  <span class="hljs-attr">extraFunctionDependenciesDir:</span>
+  <span class="hljs-comment"># Additional memory padding added on top of the memory requested by the function per on a per instance basis</span>
+  <span class="hljs-attr">percentMemoryPadding:</span> <span class="hljs-number">10</span>
+</code></pre>
+<p>If you run functions worker embedded in a broker on Kubernetes, you can use the default settings.</p>
+<h3><a class="anchor" aria-hidden="true" id="run-standalone-functions-worker-on-kubernetes"></a><a href="#run-standalone-functions-worker-on-kubernetes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run standalone functions worker on Kubernetes</h3>
+<p>If you run functions worker standalone (that is, not embedded) on Kubernetes, you need to configure <code>pulsarSerivceUrl</code> to be the URL of the broker and <code>pulsarAdminUrl</code> as the URL to the functions worker.</p>
+<p>For example, both Pulsar brokers and Function Workers run in the <code>pulsar</code> K8S namespace. The brokers have a service called <code>brokers</code> and the functions worker has a service called <code>func-worker</code>. The settings are as follows:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">pulsarServiceUrl:</span> <span class="hljs-string">pulsar://broker.pulsar:6650</span> <span class="hljs-string">//</span> <span class="hljs-string">or</span> <span class="hljs-string">pulsar+ssl://broker.pulsar:6651</span> <span class="hljs-string">if</span> <span class="hljs-string">using</span> <span class="hljs-string">TLS</span>
+<span class="hljs-attr">pulsarAdminUrl:</span> <span class="hljs-string">http://func-worker.pulsar:8080</span> <span class="hljs-string">//</span> <span class="hljs-string">or</span> <span class="hljs-string">https://func-worker:8443</span> <span class="hljs-string">if</span> <span class="hljs-string">using</span> <span class="hljs-string">TLS</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="run-rbac-in-kubernetes-clusters"></a><a href="#run-rbac-in-kubernetes-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run RBAC in Kubernetes clusters</h3>
+<p>If you run RBAC in your Kubernetes cluster, make sure that the service account you use for running functions workers (or brokers, if functions workers run along with brokers) have permissions on the following Kubernetes APIs.</p>
+<ul>
+<li>services</li>
+<li>configmaps</li>
+<li>pods</li>
+<li>apps.statefulsets</li>
+</ul>
+<p>The following is sufficient:</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">apiVersion:</span> <span class="hljs-string">rbac.authorization.k8s.io/v1beta1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRole</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">rules:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">apiGroups:</span> <span class="hljs-string">[""]</span>
+  <span class="hljs-attr">resources:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">services</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">configmaps</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">pods</span>
+  <span class="hljs-attr">verbs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">'*'</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">apiGroups:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">apps</span>
+  <span class="hljs-attr">resources:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">statefulsets</span>
+  <span class="hljs-attr">verbs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">'*'</span>
+<span class="hljs-meta">---</span>
+<span class="hljs-attr">apiVersion:</span> <span class="hljs-string">v1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ServiceAccount</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-meta">---</span>
+<span class="hljs-attr">apiVersion:</span> <span class="hljs-string">rbac.authorization.k8s.io/v1beta1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRoleBinding</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">roleRef:</span>
+  <span class="hljs-attr">apiGroup:</span> <span class="hljs-string">rbac.authorization.k8s.io</span>
+  <span class="hljs-attr">kind:</span> <span class="hljs-string">ClusterRole</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+<span class="hljs-attr">subjectsKubernetesSec:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">kind:</span> <span class="hljs-string">ServiceAccount</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">functions-worker</span>
+</code></pre>
+<p>If the service-account is not properly configured, an error message similar to this is displayed:</p>
+<pre><code class="hljs css language-bash">22:04:27.696 [Timer-0] ERROR org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory - Error <span class="hljs-keyword">while</span> trying to fetch configmap example-pulsar-4qvmb5gur3c6fc9dih0x1xn8b-function-worker-config at namespace pulsar
+io.kubernetes.client.ApiException: Forbidden
+    at io.kubernetes.client.ApiClient.handleResponse(ApiClient.java:882) ~[io.kubernetes-client-java-2.0.0.jar:?]
+    at io.kubernetes.client.ApiClient.execute(ApiClient.java:798) ~[io.kubernetes-client-java-2.0.0.jar:?]
+    at io.kubernetes.client.apis.CoreV1Api.readNamespacedConfigMapWithHttpInfo(CoreV1Api.java:23673) ~[io.kubernetes-client-java-api-2.0.0.jar:?]
+    at io.kubernetes.client.apis.CoreV1Api.readNamespacedConfigMap(CoreV1Api.java:23655) ~[io.kubernetes-client-java-api-2.0.0.jar:?]
+    at org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory.fetchConfigMap(KubernetesRuntimeFactory.java:284) [org.apache.pulsar-pulsar-functions-runtime-2.4.0-42c3bf949.jar:2.4.0-42c3bf949]
+    at org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory<span class="hljs-variable">$1</span>.run(KubernetesRuntimeFactory.java:275) [org.apache.pulsar-pulsar-functions-runtime-2.4.0-42c3bf949.jar:2.4.0-42c3bf949]
+    at java.util.TimerThread.mainLoop(Timer.java:555) [?:1.8.0_212]
+    at java.util.TimerThread.run(Timer.java:505) [?:1.8.0_212]
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="integrate-kubernetes-secrets"></a><a href="#integrate-kubernetes-secrets" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Integrate Kubernetes secrets</h3>
+<p>In order to safely distribute secrets, Pulasr Functions can reference Kubernetes secrets. To enable this, set the <code>secretsProviderConfiguratorClassName</code> to <code>org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator</code>.</p>
+<p>You can create a secret in the namespace where your functions are deployed. For example, you deploy functions to the <code>pulsar-func</code> Kubernetes namespace, and you have a secret named <code>database-creds</code> with a field name <code>password</code>, which you want to mount in the pod as an environment variable called <code>DATABASE_PASSWORD</code>. The following functions configuration enables you to reference that secret and mount the value as an environment variable in the pod.</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"mytenant"</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">"mynamespace"</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">"myfunction"</span>
+<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://mytenant/mynamespace/myfuncinput"</span>
+<span class="hljs-attr">className:</span> <span class="hljs-string">"com.company.pulsar.myfunction"</span>
+
+<span class="hljs-attr">secrets:</span>
+  <span class="hljs-comment"># the secret will be mounted from the `password` field in the `database-creds` secret as an env var called `DATABASE_PASSWORD`</span>
+  <span class="hljs-attr">DATABASE_PASSWORD:</span>
+    <span class="hljs-attr">path:</span> <span class="hljs-string">"database-creds"</span>
+    <span class="hljs-attr">key:</span> <span class="hljs-string">"password"</span>
+
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="enable-token-authentication"></a><a href="#enable-token-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable token authentication</h3>
+<p>When you enable authentication for your Pulsar cluster, you need a mechanism for the pod running your function to authenticate with the broker.</p>
+<p>The <code>org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider</code> interface provides support for any authentication mechanism. The <code>functionAuthProviderClassName</code> in <code>function-worker.yml</code> is used to specify your path to this implementation.</p>
+<p>Pulsar includes an implementation of this interface for token authentication, and distributes the certificate authority via the same implementation. The configuration is similar as follows:</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">functionAuthProviderClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider</span>
+</code></pre>
+<p>For token authentication, the functions worker captures the token that is used to deploy (or update) the function. The token is saved as a secret and mounted into the pod.</p>
+<p>For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. If you use token authentication and TLS encryption to secure the communication with the cluster, Pulsar passes your certificate authority (CA) to the client, so the client obtains what it needs to authenticate the cluster, and trusts the cluster with your signed certificate.</p>
+<blockquote>
+<p><strong>Note</strong>   <br>
+If you use tokens that expire when deploying functions, these tokens will expire.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="run-clusters-with-authentication"></a><a href="#run-clusters-with-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run clusters with authentication</h3>
+<p>When you run a functions worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your functions worker to interact with the broker and authenticate incoming requests. So you need to configure properties that the broker requires for authentication or authorization.</p>
+<p>For example, if you use token authentication, you need to configure the following properties in the <code>function-worker.yml</code> file.</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">clientAuthenticationPlugin:</span> <span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
+<span class="hljs-attr">clientAuthenticationParameters:</span> <span class="hljs-string">file:///etc/pulsar/token/admin-token.txt</span>
+<span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">zookeeper-cluster:2181</span> <span class="hljs-comment"># auth requires a connection to zookeeper</span>
+<span class="hljs-attr">authenticationProviders:</span>
+ <span class="hljs-bullet">-</span> <span class="hljs-string">"org.apache.pulsar.broker.authentication.AuthenticationProviderToken"</span>
+<span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">superUserRoles:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">superuser</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">proxy</span>
+<span class="hljs-attr">properties:</span>
+  <span class="hljs-attr">tokenSecretKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/secret</span> <span class="hljs-comment"># if using a secret token, key file must be DER-encoded</span>
+  <span class="hljs-attr">tokenPublicKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/public.key</span> <span class="hljs-comment"># if using public/private key tokens, key file must be DER-encoded</span>
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>   <br>
+You must configure both the Function Worker authorization or authentication for the server to authenticate requests and configure the client to be authenticated to communicate with the broker.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="customize-kubernetes-runtime"></a><a href="#customize-kubernetes-runtime" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Customize Kubernetes runtime</h3>
+<p>The Kubernetes integration enables you to implement a class and customize how to generate manifests. You can configure it by setting <code>runtimeCustomizerClassName</code> in the <code>functions-worker.yml</code> file and use the fully qualified class name. You must implement the <code>org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer</code> interface.</p>
+<p>The functions (and sinks/sources) API provides a flag, <code>customRuntimeOptions</code>, which is passed to this interface.</p>
+<p>To initialize the <code>KubernetesManifestCustomizer</code>, you can provide <code>runtimeCustomizerConfig</code> in the <code>functions-worker.yml</code> file. <code>runtimeCustomizerConfig</code> is passed to the <code>public void initialize(Map&lt;String, Object&gt; config)</code> function of the interface. <code>runtimeCustomizerConfig</code>is different from the <code>customRuntimeOptions</code> as <code>runtimeCustomizerConfig</code> is the same across all functions. If you provide both <code>runtimeCustomizerConfig</code>  and <code>customRuntimeOptions</code>, you need to decide how to manage these two configurations in your implementation of <code>KubernetesManifestCustomizer</code>.</p>
+<p>Pulsar includes a built-in implementation. To use the basic implementation, set <code>runtimeCustomizerClassName</code> to <code>org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer</code>. The built-in implementation initialized with <code>runtimeCustomizerConfig</code> enables you to pass a JSON document as <code>customRuntimeOptions</code> with certain properties to augment, which decides how the manifests are generated. If both <code>runtimeCustomizerConfig</code> and <code>customRuntimeOptions</code> are provided, <code>BasicKubernetesManifestCustomizer</code> uses <code>customRuntimeOptions</code> to override the configuration if there are conflicts in these two configurations.</p>
+<p>Below is an example of <code>customRuntimeOptions</code>.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"jobName"</span>: <span class="hljs-string">"jobname"</span>, <span class="hljs-comment">// the k8s pod name to run this function instance</span>
+  <span class="hljs-attr">"jobNamespace"</span>: <span class="hljs-string">"namespace"</span>, <span class="hljs-comment">// the k8s namespace to run this function in</span>
+  <span class="hljs-attr">"extractLabels"</span>: {           <span class="hljs-comment">// extra labels to attach to the statefulSet, service, and pods</span>
+    <span class="hljs-attr">"extraLabel"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"extraAnnotations"</span>: {        <span class="hljs-comment">// extra annotations to attach to the statefulSet, service, and pods</span>
+    <span class="hljs-attr">"extraAnnotation"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"nodeSelectorLabels"</span>: {      <span class="hljs-comment">// node selector labels to add on to the pod spec</span>
+    <span class="hljs-attr">"customLabel"</span>: <span class="hljs-string">"value"</span>
+  },
+  <span class="hljs-attr">"tolerations"</span>: [             <span class="hljs-comment">// tolerations to add to the pod spec</span>
+    {
+      <span class="hljs-attr">"key"</span>: <span class="hljs-string">"custom-key"</span>,
+      <span class="hljs-attr">"value"</span>: <span class="hljs-string">"value"</span>,
+      <span class="hljs-attr">"effect"</span>: <span class="hljs-string">"NoSchedule"</span>
+    }
+  ],
+  <span class="hljs-attr">"resourceRequirements"</span>: {  <span class="hljs-comment">// values for cpu and memory should be defined as described here: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container</span>
+    <span class="hljs-attr">"requests"</span>: {
+      <span class="hljs-attr">"cpu"</span>: <span class="hljs-number">1</span>,
+      <span class="hljs-attr">"memory"</span>: <span class="hljs-string">"4G"</span>
+    },
+    <span class="hljs-attr">"limits"</span>: {
+      <span class="hljs-attr">"cpu"</span>: <span class="hljs-number">2</span>,
+      <span class="hljs-attr">"memory"</span>: <span class="hljs-string">"8G"</span>
+    }
+  }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="run-clusters-with-geo-replication"></a><a href="#run-clusters-with-geo-replication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run clusters with geo-replication</h2>
+<p>If you run multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster. Otherwise, the function shares a namespace and potentially schedule across clusters.</p>
+<p>For example, if you have two clusters: <code>east-1</code> and <code>west-1</code>, you can configure the functions workers for <code>east-1</code> and <code>west-1</code> perspectively as follows.</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">east-1</span>
+<span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-east-1</span>
+</code></pre>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">pulsarFunctionsCluster:</span> <span class="hljs-string">west-1</span>
+<span class="hljs-attr">pulsarFunctionsNamespace:</span> <span class="hljs-string">public/functions-west-1</span>
+</code></pre>
+<p>This ensures the two different Functions Workers use distinct sets of topics for their internal coordination.</p>
+<h2><a class="anchor" aria-hidden="true" id="configure-standalone-functions-worker"></a><a href="#configure-standalone-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure standalone functions worker</h2>
+<p>When configuring a standalone functions worker, you need to configure properties that the broker requires, especially if you use TLS. And then Functions Worker can communicate with the broker.</p>
+<p>You need to configure the following required properties.</p>
+<pre><code class="hljs css language-Yaml"><span class="hljs-attr">workerPort:</span> <span class="hljs-number">8080</span>
+<span class="hljs-attr">workerPortTls:</span> <span class="hljs-number">8443</span> <span class="hljs-comment"># when using TLS</span>
+<span class="hljs-attr">tlsCertificateFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/tls.crt</span> <span class="hljs-comment"># when using TLS</span>
+<span class="hljs-attr">tlsKeyFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/tls.key</span> <span class="hljs-comment"># when using TLS</span>
+<span class="hljs-attr">tlsTrustCertsFilePath:</span> <span class="hljs-string">/etc/pulsar/tls/ca.crt</span> <span class="hljs-comment"># when using TLS</span>
+<span class="hljs-attr">pulsarServiceUrl:</span> <span class="hljs-string">pulsar://broker.pulsar:6650/</span> <span class="hljs-comment"># or pulsar+ssl://pulsar-prod-broker.pulsar:6651/ when using TLS</span>
+<span class="hljs-attr">pulsarWebServiceUrl:</span> <span class="hljs-string">http://broker.pulsar:8080/</span> <span class="hljs-comment"># or https://pulsar-prod-broker.pulsar:8443/ when using TLS</span>
+<span class="hljs-attr">useTls:</span> <span class="hljs-literal">true</span> <span class="hljs-comment"># when using TLS, critical!</span>
+
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/2.8.3/functions-overview"><span class="arrow-prev">← </span><span>概要</span></a><a class="docs-next button" href="/docs/ja/2.8.3/functions-worker"><span>Setup: Pulsar Functions Worker</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configure-thread-runtime">Configure thread runtime</a></li><li><a href="#configure-process-runtime">Configure process runtime</a></li><li><a href="#configure-kubernetes-runtime">Configure Kubernetes runtime</a><ul class="toc-headings"><li><a href="#basic-configuration">Basic configuration</a></li><li><a href="#run-standalone-functions-worker-on-kubernetes">Run standalone functions worker on Kubernetes</a></li><li><a href="#run-rbac-in-kubernetes-clusters">Run RBAC in Kubernetes clusters</a></li><li><a href="#integrate-kubernetes-secrets">Integrate Kubernetes secrets</a></li><li><a href="#enable-token-authentication">Enable token authentication</a></li><li><a href="#run-clusters-with-authentication">Run clusters with authentication</a></li><li><a href="#customize-kubernetes-runtime">Customize Kubernetes runtime</a></li></ul></li><li><a href="#run-clusters-with-geo-replication">Run clusters with geo-replication</a></li><li><a href="#configure-standalone-functions-worker">Configure standalone functions worker</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ja/contact">Contact</a></li>' +
+            '<li><a href="/ja/contributing">Contributing</a></li>' +
+            '<li><a href="/ja/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ja/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ja/resources">Resources</a></li>' +
+            '<li><a href="/ja/team">Team</a></li>' +
+            '<li><a href="/ja/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ja","version:2.8.3"]}
+              });
+            </script></body></html>

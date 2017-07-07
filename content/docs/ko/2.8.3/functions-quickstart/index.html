@@ -1,0 +1,347 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Get started with Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This tutorial walks you through running a [standalone](/docs/ko/2.8.3/reference-terminology#standalone) Pulsar [cluster](/docs/ko/2.8.3/reference-terminology#cluster) on your machine, and then running your first Pulsar Function using that cluster. The first Pulsar Function runs in local run mode (outside your Pulsar [cluster](/docs/ko/2.8.3/reference-terminology#cluster)), while the second runs in cluster mode (inside your cluster)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Get started with Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="This tutorial walks you through running a [standalone](/docs/ko/2.8.3/reference-terminology#standalone) Pulsar [cluster](/docs/ko/2.8.3/reference-terminology#cluster) on your machine, and then running your first Pulsar Function using that cluster. The first Pulsar Function runs in local run mode (outside your Pulsar [cluster](/docs/ko/2.8.3/reference-terminology#cluster)), while the second runs in cluster mode (inside your cluster)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ko/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class=""><a href="/docs/ko/2.8.3/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-quickstart">English</a></li><li><a href="/docs/ja/2.8.3/functions-quickstart">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-quickstart">Français</a></li><li><a href="/docs/zh-CN/2.8.3/functions-quickstart">中文</a></li><li><a href="/docs/zh-TW/2.8.3/functions-quickstart">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Get started with Pulsar Functions</h1></header><article><div><span><p>This tutorial walks you through running a <a href="/docs/ko/2.8.3/reference-terminology#standalone">standalone</a> Pulsar <a href="/docs/ko/2.8.3/reference-terminology#cluster">cluster</a> on your machine, and then running your first Pulsar Function using that cluster. The first Pulsar Function runs in local run mode (outside your Pulsar <a href="/docs/ko/2.8.3/reference-terminology#cluster">cluster</a>), while the second runs in cluster mode (inside your cluster).</p>
+<blockquote>
+<p>In local run mode, Pulsar Functions communicate with Pulsar cluster, but run outside of the cluster.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="전제-조건"></a><a href="#전제-조건" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>전제 조건</h2>
+<p>Install <a href="https://maven.apache.org/download.cgi">Maven</a> on your machine.</p>
+<h2><a class="anchor" aria-hidden="true" id="run-a-standalone-pulsar-cluster"></a><a href="#run-a-standalone-pulsar-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a standalone Pulsar cluster</h2>
+<p>In order to run Pulsar Functions, you need to run a Pulsar cluster locally first. The easiest way is to run Pulsar in <a href="/docs/ko/2.8.3/reference-terminology#standalone">standalone</a> mode. Follow these steps to start up a standalone cluster.</p>
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz
+$ tar xvfz apache-pulsar-2.9.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
+$ bin/pulsar standalone \
+  --advertised-address 127.0.0.1
+</code></pre>
+<p>When running Pulsar in standalone mode, the <code>public</code> tenant and the <code>default</code> namespace are created automatically. The tenant and namespace are used throughout this tutorial.</p>
+<h2><a class="anchor" aria-hidden="true" id="run-a-pulsar-function-in-local-run-mode"></a><a href="#run-a-pulsar-function-in-local-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a Pulsar Function in local run mode</h2>
+<p>You can start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes the new string to another Pulsar topic. The following is the code for the function.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.apache.pulsar.functions.api.examples;
+
+<span class="hljs-keyword">import</span> java.util.function.Function;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{
+        <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
+    }
+}
+</code></pre>
+<p>A JAR file containing this function and several other functions (written in Java) is included with the binary distribution you have downloaded (in the <code>examples</code> folder). Run the function in local mode on your laptop but outside your Pulsar cluster with the following commands.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+  --jar examples/api-examples.jar \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --name exclamation
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="multiple-input-topics"></a><a href="#multiple-input-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multiple input topics</h4>
+<p>In the example above, a single topic is specified using the <code>--inputs</code> flag. You can also specify multiple input topics with a comma-separated list using the same flag.</p>
+<pre><code class="hljs css language-bash">--inputs topic1,topic2
+</code></pre>
+</blockquote>
+<p>You can open up another shell and use the <a href="/docs/ko/2.8.3/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool to listen for messages on the output topic.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client consume persistent://public/default/exclamation-output \
+  --subscription-name my-subscription \
+  --num-messages 0
+</code></pre>
+<blockquote>
+<p>Setting the <code>--num-messages</code> flag to <code>0</code> means that consumers listen on the topic indefinitely, rather than only accepting a certain number of messages.</p>
+</blockquote>
+<p>With a listener up and running, you can open up another shell and produce a message on the input topic that you specify.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce persistent://public/default/exclamation-input \
+  --num-produce 1 \
+  --messages <span class="hljs-string">"Hello world"</span>
+</code></pre>
+<p>When the message has been successfully processed by the exclamation function, you will see the following output. To shut down the function, press <strong>Ctrl+C</strong>.</p>
+<pre><code class="hljs">----- got message -----
+Hello world!
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="process-explanation"></a><a href="#process-explanation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Process explanation</h3>
+<ul>
+<li>The <code>Hello world</code> message you publish to the input topic (<code>persistent://public/default/exclamation-input</code>) is passed to the exclamation function.</li>
+<li>The exclamation function processes the message (providing a result of <code>Hello world!</code>) and publishes the result to the output topic (<code>persistent://public/default/exclamation-output</code>).</li>
+<li>If the exclamation function <em>does not</em> run, Pulsar will durably store the message data published to the input topic in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> until a consumer consumes and acknowledges the message.</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="run-a-pulsar-function-in-cluster-mode"></a><a href="#run-a-pulsar-function-in-cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a Pulsar Function in cluster mode</h2>
+<p><a href="#run-a-pulsar-function-in-local-run-mode">Local run mode</a> is useful for development and test. However, when you use Pulsar for real deployment, you run it in <strong>cluster mode</strong>. In cluster mode, Pulsar Functions run <em>inside</em> of your Pulsar cluster and are managed using the same <a href="/docs/ko/2.8.3/pulsar-admin#functions"><code>pulsar-admin functions</code></a> interface.</p>
+<p>The following command deploys the same exclamation function you run locally in your Pulsar cluster, rather than outside of it.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar examples/api-examples.jar \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --name exclamation
+</code></pre>
+<p>You will see <code>Created successfully</code> in the output. Check the list of functions running in your cluster.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
+  --tenant public \
+  --namespace default
+</code></pre>
+<p>You will see the <code>exclamation</code> function. Check the status of your deployed function using the <code>getstatus</code> command.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+</code></pre>
+<p>You will see the following JSON output.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"functionStatusList"</span>: [
+    {
+      <span class="hljs-attr">"running"</span>: <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"instanceId"</span>: <span class="hljs-string">"0"</span>
+    }
+  ]
+}
+</code></pre>
+<p>As you can see, the instance is currently running, and an instance with the ID of <code>0</code> is running. With the <code>get</code> command, you can get other information about the function, for example, topics, tenant, namespace, and so on.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+</code></pre>
+<p>You will see the following JSON output.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
+  <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"exclamation"</span>,
+  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span>,
+  <span class="hljs-attr">"output"</span>: <span class="hljs-string">"persistent://public/default/exclamation-output"</span>,
+  <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"inputs"</span>: [
+    <span class="hljs-string">"persistent://public/default/exclamation-input"</span>
+  ],
+  <span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">1</span>
+}
+</code></pre>
+<p>As you can see, only one instance of the function is running in your cluster. Update the parallel functions to <code>3</code> using the <code>update</code> command.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
+  --jar examples/api-examples.jar \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --tenant public \
+  --namespace default \
+  --name exclamation \
+  --parallelism 3
+</code></pre>
+<p>You will see <code>Updated successfully</code> in the output. If you enter the <code>get</code> command, you see that the parallel functions are increased to <code>3</code>, meaning that three instances of the function are running in your cluster.</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
+  <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"exclamation"</span>,
+  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span>,
+  <span class="hljs-attr">"output"</span>: <span class="hljs-string">"persistent://public/default/exclamation-output"</span>,
+  <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"inputs"</span>: [
+    <span class="hljs-string">"persistent://public/default/exclamation-input"</span>
+  ],
+  <span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">3</span>
+}
+</code></pre>
+<p>Shut down the running function with the <code>delete</code> command.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> delete \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+</code></pre>
+<p>When you see <code>Deleted successfully</code> in the output, you've successfully run, updated, and shut down functions running in cluster mode.</p>
+<h2><a class="anchor" aria-hidden="true" id="write-and-run-a-new-function"></a><a href="#write-and-run-a-new-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Write and run a new function</h2>
+<p>In order to write and run <a href="/docs/ko/2.8.3/functions-api#functions-for-python">Python</a> functions, you need to install some dependencies.</p>
+<pre><code class="hljs css language-bash">$ pip install pulsar-client
+</code></pre>
+<p>In the examples above, you run and manage pre-written Pulsar Functions and learn how they work. You can also write your own functions with Python API. In the following example, the function takes a string as input, reverses the string, and publishes the reversed string to the specified topic.</p>
+<p>First, create a new Python file.</p>
+<pre><code class="hljs css language-bash">$ touch reverse.py
+</code></pre>
+<p>Add the following information in the Python file.</p>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+    <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
+</code></pre>
+<p>The <code>process</code> method defines the processing logic of Pulsar Functions. It uses Python slice magic to reverse each incoming string. You can deploy the function using the <code>create</code> command.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --py reverse.py \
+  --classname reverse \
+  --inputs persistent://public/default/backwards \
+  --output persistent://public/default/forwards \
+  --tenant public \
+  --namespace default \
+  --name reverse
+</code></pre>
+<p>If you see <code>Created successfully</code>, the function is ready to accept incoming messages. Because the function is running in cluster mode, you can <strong>trigger</strong> the function using the <a href="/docs/ko/2.8.3/pulsar-admin#trigger"><code>trigger</code></a> command. This command sends a message that you specify to the function and returns the function output. The following is an example.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
+  --name reverse \
+  --tenant public \
+  --namespace default \
+  --trigger-value <span class="hljs-string">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
+</code></pre>
+<p>You will get the following output.</p>
+<pre><code class="hljs">This string was backwards but is now forwards
+</code></pre>
+<p>You have created a new Pulsar Function, deployed it in your Pulsar standalone cluster in <a href="#run-a-pulsar-function-in-cluster-mode">cluster mode</a>, and triggered the Function.</p>
+<h2><a class="anchor" aria-hidden="true" id="write-and-run-a-go-function"></a><a href="#write-and-run-a-go-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Write and run a Go function</h2>
+<p>Go function depends on <code>pulsar-client-go</code>. Make sure that you have built <code>pulsar-client-go</code> before using Go function.</p>
+<p>To write and run a Go function, complete the following steps.</p>
+<ol>
+<li><p>Create a new Go file.</p>
+<p>touch helloFunc.go</p></li>
+</ol>
+<ol start="2">
+<li><p>Append a byte for messages from the input topic.<br>
+The following is a <code>helloFunc.go</code> example. Each message from the input topic is appended with a <code>110</code> byte, and then delivered to the output topic.</p>
+<p>package main</p>
+<p>import (
+&quot;context&quot;</p>
+<pre><code class="hljs"> &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;
+</code></pre>
+<p>)</p>
+<p>func HandleResponse(ctx context.Context, in []byte) ([]byte, error) {
+res := append(in, 110)
+return res, nil
+}</p>
+<p>func main() {
+pf.Start(HandleResponse)
+}</p></li>
+</ol>
+<ol start="3">
+<li><p>Compile code.</p>
+<p>go build -o examplepulsar helloFunc.go</p></li>
+</ol>
+<ol start="4">
+<li><p>Run Go function.</p>
+<p>$ bin/pulsar-admin functions create <br>
+--go examplepulsar <br>
+--inputs <a href="persistent://public/default/backwards">persistent://public/default/backwards</a> <br>
+--output <a href="persistent://public/default/forwards">persistent://public/default/forwards</a> <br>
+--tenant public <br>
+--namespace default <br>
+--name gofunc</p></li>
+</ol>
+<p>If you see <code>Created successfully</code>, the function is ready to accept incoming messages. Start a producer and produce messages to the <code>backwards</code> input topic. Start a consumer and consume messages from the <code>forwards</code> output topic, you will see <code>110</code> is appended to all messages.</p>
+<p>The <code>--classname</code> parameter is not specified when running Go function, because there is no <code>Class</code> concept in Go, which is different from Java and Python.</p>
+<blockquote>
+<p>Note<br>
+When you use the <code>--go</code> command to specify an executable file, make sure you have executable permissions.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="package-python-dependencies"></a><a href="#package-python-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package Python dependencies</h2>
+<p>When you deploy Python functions in a cluster offline, you need to package the required dependencies in a ZIP file before deployment.</p>
+<h3><a class="anchor" aria-hidden="true" id="client-requirements"></a><a href="#client-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client requirements</h3>
+<p>The following programs are required to be installed on the client machine.</p>
+<pre><code class="hljs">pip \\ required for getting python dependencies
+zip \\ for building zip archives
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="python-dependencies"></a><a href="#python-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python dependencies</h3>
+<p>A file named <strong>requirements.txt</strong> is needed with required dependencies for the Python function.</p>
+<pre><code class="hljs">sh==1.12.14
+</code></pre>
+<p>Prepare the Pulsar Function in the <strong>src</strong> folder.</p>
+<p>Run the following command to gather Python dependencies in the <strong>deps</strong> folder.</p>
+<pre><code class="hljs">pip download \
+--only-binary :all: \
+--platform manylinux1_x86_64 \
+--python-version 27 \
+--implementation cp \
+--abi cp27m -r requirements.txt -d deps
+</code></pre>
+<p>Sample output</p>
+<pre><code class="hljs">Collecting sh==1.12.14 (from -r requirements.txt (line 1))
+  Using cached https://files.pythonhosted.org/packages/4a/22/17b22ef5b049f12080f5815c41bf94de3c229217609e469001a8f80c1b3d/sh-1.12.14-py2.py3-none-any.whl
+  Saved ./deps/sh-1.12.14-py2.py3-none-any.whl
+Successfully downloaded sh
+</code></pre>
+<blockquote>
+<p>Note<br>
+<code>pulsar-client</code> is not needed as a dependency as it has already installed in the worker node.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="package"></a><a href="#package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Package</h4>
+<p>Create a destination folder with the desired package name, for example, <strong>exclamation</strong>. Copy the <strong>src</strong> and <strong>deps</strong> folders into it, and compress the folder into a ZIP archive.</p>
+<p>Sample sequence</p>
+<pre><code class="hljs">cp -R deps exclamation/
+cp -R src exclamation/
+
+ls -la exclamation/
+total 7
+drwxr-xr-x   5 a.ahmed  staff  160 Nov  6 17:51 .
+drwxr-xr-x  12 a.ahmed  staff  384 Nov  6 17:52 ..
+drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 deps
+drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 src
+
+zip -r exclamation.zip exclamation
+</code></pre>
+<p>After package all the required dependencies into the <strong>exclamation.zip</strong> file, you can deploy functions in a Pulsar worker. The Pulsar worker does not need internet connectivity to download packages, because they are all included in the ZIP file.</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#전제-조건">전제 조건</a></li><li><a href="#run-a-standalone-pulsar-cluster">Run a standalone Pulsar cluster</a></li><li><a href="#run-a-pulsar-function-in-local-run-mode">Run a Pulsar Function in local run mode</a><ul class="toc-headings"><li><a href="#process-explanation">Process explanation</a></li></ul></li><li><a href="#run-a-pulsar-function-in-cluster-mode">Run a Pulsar Function in cluster mode</a></li><li><a href="#write-and-run-a-new-function">Write and run a new function</a></li><li><a href="#write-and-run-a-go-function">Write and run a Go function</a></li><li><a href="#package-python-dependencies">Package Python dependencies</a><ul class="toc-headings"><li><a href="#client-requirements">Client requirements</a></li><li><a href="#python-dependencies">Python dependencies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.8.3"]}
+              });
+            </script></body></html>

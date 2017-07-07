@@ -1,0 +1,2710 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Authentication and authorization in Pulsar</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/InstanceSetup">
+              Deploying on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-container-engine">
+              Pulsar on Google Container Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Authentication and authorization in Pulsar</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">authentication</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-authentication">authentication</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-authentication">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>authentication</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">authorization</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-authorization">authorization</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-authorization">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>authorization</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">athenz</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-athenz">athenz</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-athenz">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>athenz</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">tls</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-tls">tls</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-tls">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>tls</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">cpp</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-cpp">cpp</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-cpp">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>cpp</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>Pulsar supports a pluggable authentication mechanism that Pulsar clients can use to authenticate with <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>. Pulsar can also be configured to support multiple authentication sources.</p>
+
+<h2 id="role-tokens">Role tokens</h2>
+
+<p>In Pulsar, a <em>role</em> is a string, like <code class="highlighter-rouge">admin</code> or <code class="highlighter-rouge">app1</code>, that can represent a single client or multiple clients. Roles are used to control permission for clients to produce or consume from certain topics, administer the configuration for <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>, and more.</p>
+
+<p>The purpose of the <a href="#authentication-providers">authentication provider</a> is to establish the identity of the client and then assign that client a <em>role token</em>. This role token is then used to determine what the client is authorized to do.</p>
+
+<h2 id="authentication-providers">Authentication providers</h2>
+
+<p>Out of the box, Pulsar supports two authentication providers:</p>
+
+<ul>
+  <li><a href="#tls-client-auth">TLS client auth</a></li>
+  <li><a href="#athenz">Athenz</a></li>
+</ul>
+
+<h3 id="tls-client-auth">TLS client auth</h3>
+
+<p>In addition to providing connection encryption between Pulsar clients and <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, <a href="https://en.wikipedia.org/wiki/Transport_Layer_Security">Transport Layer Security</a> (TLS) can be used to identify clients through a certificate signed by a trusted certificate authority.</p>
+
+<h4 id="creating-certificates">Creating certificates</h4>
+
+<p>Creating TLS certificates for Pulsar involves creating a <a href="#certificate-authority">certificate authority</a> (CA), <a href="#broker-certificate">broker certificate</a>, and <a href="#client-certificate">client certificate</a>.</p>
+
+<h5 id="certificate-authority">Certificate authority</h5>
+
+<p>The first step is to create the certificate for the CA. The CA will be used to sign both the broker and client certificates, in order to ensure that each party will trust the others.</p>
+
+<h6 id="linux">Linux</h6>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>CA.pl -newca
+</code></pre>
+</div>
+
+<h6 id="macos">MacOS</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ /System/Library/OpenSSL/misc/CA.pl -newca
+</code></pre>
+</div>
+
+<p>After answering the question prompts, this will store CA-related files in the <code class="highlighter-rouge">./demoCA</code> directory. Within that directory:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">demoCA/cacert.pem</code> is the public certificate. It is meant to be distributed to all parties involved.</li>
+  <li><code class="highlighter-rouge">demoCA/private/cakey.pem</code> is the private key. This is only needed when signing a new certificate for either broker or clients and it must be safely guarded.</li>
+</ul>
+
+<h5 id="broker-certificate">Broker certificate</h5>
+
+<p>Once a CA certificate has been created, you can create certificate requests and sign them with the CA.</p>
+
+<p>The following commands will ask you a few questions and then create the certificates. When asked for the common name, you need to match the hostname of the broker. You could also use a wildcard to match a group of broker hostnames, for example <code class="highlighter-rouge">*.broker.usw.example.com</code>. This ensures that the same certificate can be reused on multiple machines.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl req <span class="se">\</span>
+  -newkey rsa:2048 <span class="se">\</span>
+  -sha256 <span class="se">\</span>
+  -nodes <span class="se">\</span>
+  -out broker-cert.csr <span class="se">\</span>
+  -outform PEM
+</code></pre>
+</div>
+
+<p>Convert the key to <a href="https://en.wikipedia.org/wiki/PKCS_8">PKCS 8</a> format:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl pkcs8 <span class="se">\</span>
+  -topk8 <span class="se">\</span>
+  -inform PEM <span class="se">\</span>
+  -outform PEM <span class="se">\</span>
+  -in privkey.pem <span class="se">\</span>
+  -out broker-key.pem <span class="se">\</span>
+  -nocrypt
+</code></pre>
+</div>
+
+<p>This will create two broker certificate files named <code class="highlighter-rouge">broker-cert.csr</code> and <code class="highlighter-rouge">broker-key.pem</code>. Now you can create the signed certificate:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl ca <span class="se">\</span>
+  -out broker-cert.pem <span class="se">\</span>
+  -infiles broker-cert.csr
+</code></pre>
+</div>
+
+<p>At this point, you should have a <code class="highlighter-rouge">broker-cert.pem</code> and <code class="highlighter-rouge">broker-key.pem</code> file. These will be needed for the broker.</p>
+
+<h5 id="client-certificate">Client certificate</h5>
+
+<p>To create a client certificate, repeat the steps in the previous section, but did create <code class="highlighter-rouge">client-cert.pem</code> and <code class="highlighter-rouge">client-key.pem</code> files instead.</p>
+
+<p>For the client common name, you need to use a string that you intend to use as the <a href="#role-tokens">role token</a> for this client, though it doesn’t need to match the client hostname.</p>
+
+<h4 id="configure-the-broker-for-tls">Configure the broker for TLS</h4>
+
+<p>To configure a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> to use TLS authentication, you’ll need to make some changes to the <code class="highlighter-rouge">broker.conf</code> configuration file, which is located in the <code class="highlighter-rouge">conf</code> directory of your <a href="../../getting-started/LocalCluster">Pulsar installation</a>.</p>
+
+<p>Add these values to the configuration file (substituting the appropriate certificate paths where necessary):</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Enable TLS and point the broker to the right certs
+</span><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
+<span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/cacert.pem</span>
+
+<span class="c"># Enable the TLS auth provider
+</span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderTls</span>
+</code></pre>
+</div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    
+    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
+
+  </div>
+</div>
+
+<h4 id="configure-the-discovery-service">Configure the discovery service</h4>
+
+<p>The <span class="popover-term" tabindex="0" title="What is (service) discovery in Pulsar?" data-placement="top" data-content="A mechanism provided by Pulsar that enables connecting clients to use just a single URL to interact with all the brokers in a cluster." data-toggle="popover" data-trigger="focus">discovery</span> service used by Pulsar brokers needs to redirect all HTTPS requests, which means that it needs to be trusted by the client as well. Add this configuration in <code class="highlighter-rouge">conf/discovery.conf</code> in your Pulsar installation:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
+<span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
+</code></pre>
+</div>
+
+<h4 id="configure-clients">Configure clients</h4>
+
+<p>For more information on Pulsar client authentication using TLS, see the following language-specific docs:</p>
+
+<ul>
+  <li><a href="../../clients/Java">Java client</a></li>
+  <li><a href="../../clients/Cpp">C++ client</a></li>
+</ul>
+
+<h4 id="configure-cli-tools">Configure CLI tools</h4>
+
+<p><a href="../../reference/CliTools">Command-line tools</a> like <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>, <a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a>, and <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> use the <code class="highlighter-rouge">conf/client.conf</code> config file in a Pulsar installation.</p>
+
+<p>You’ll need to add the following authentication parameters to that file to use TLS with Pulsar’s CLI tools:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
+<span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationTls</span>
+<span class="py">authParams</span><span class="p">=</span><span class="s">tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem</span>
+<span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/cacert.pem</span>
+</code></pre>
+</div>
+
+<h3 id="athenz">Athenz</h3>
+
+<p><a href="https://github.com/yahoo/athenz">Athenz</a> is a role-based authentication/authorization system. In Pulsar, Athenz <a href="#role-tokens">role tokens</a> (aka <em>z-tokens</em>) can be used to establish the identify of the client.</p>
+
+<h4 id="athenz-authentication-settings">Athenz authentication settings</h4>
+
+<p>In a <a href="https://github.com/yahoo/athenz/blob/master/docs/dev_decentralized_access.md">decentralized Athenz system</a> there is both an <a href="https://github.com/yahoo/athenz/blob/master/docs/setup_zms.md">authori<strong>Z</strong>ation <strong>M</strong>anagement <strong>S</strong>ystem</a> (ZMS) server and an  <a href="https://github.com/yahoo/athenz/blob/master/docs/setup_zts.md">authori<strong>Z</strong>ation <strong>T</strong>oken <strong>S</strong>ystem</a> (ZTS) server.</p>
+
+<p>To begin, you need to set up Athenz service access control. You should create domains for the <em>provider</em> (which provides some resources to other services with some authentication/authorization policies) and the <em>tenant</em> (which is provisioned to access some resources in a provider). In this case, the provider corresponds to the Pulsar service itself and the tenant corresponds to each application using Pulsar (typically, a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> in Pulsar).</p>
+
+<h5 id="create-the-tenant-domain-and-service">Create the tenant domain and service</h5>
+
+<p>On the <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> side, you need to:</p>
+
+<ol>
+  <li>Create a domain, such as <code class="highlighter-rouge">shopping</code></li>
+  <li>Generate a private/public key pair</li>
+  <li>Create a service, such as <code class="highlighter-rouge">some_app</code>, on the domain with the public key</li>
+</ol>
+
+<p>Note that the private key generated in step 2 needs to be specified when the Pulsar client connects to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (see client configuration examples for <a href="../../clients/Java#tls-authentication">Java</a> and <a href="../../clients/Cpp#tls-authentication">C++</a>).</p>
+
+<p>For more specific steps involving the Athenz UI, please refer to <a href="https://github.com/yahoo/athenz/blob/master/docs/example_service_athenz_setup.md#client-tenant-domain">this doc</a>.</p>
+
+<h5 id="create-the-provider-domain-and-add-the-tenant-service-to-some-role-members">Create the provider domain and add the tenant service to some role members</h5>
+
+<p>On the provider side, you need to:</p>
+
+<ol>
+  <li>Create a domain, such as <code class="highlighter-rouge">pulsar</code></li>
+  <li>Create a role</li>
+  <li>Add the tenant service to members of the role</li>
+</ol>
+
+<p>Note that in step 2 any action and resource can be specified since they are not used on Pulsar. In other words, Pulsar uses the Athenz role token only for authentication, <em>not</em> for authorization.</p>
+
+<p>For more specific steps involving UI, please refer to <a href="https://github.com/yahoo/athenz/blob/master/docs/example_service_athenz_setup.md#server-provider-domain">this doc</a>.</p>
+
+<h4 id="configure-the-broker-for-athenz">Configure the broker for Athenz</h4>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>TLS encryption strongly recommended</p>
+</span>
+    <p>Please note that using TLS encryption is strongly recommended when using Athenz as an authentication provider, as it can protect role tokens from being intercepted and reused (see also <a href="https://github.com/yahoo/athenz/blob/master/docs/data_model.md">this doc</a>).</p>
+
+  </div>
+</div>
+
+<p>In the <code class="highlighter-rouge">conf/broker.conf</code> configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Add the Athenz auth provider
+</span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz</span>
+<span class="py">athenzDomainNames</span><span class="p">=</span><span class="s">pulsar</span>
+
+<span class="c"># Enable TLS
+</span><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
+<span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
+</code></pre>
+</div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    
+    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
+
+  </div>
+</div>
+
+<h4 id="configure-clients-for-athenz">Configure clients for Athenz</h4>
+
+<p>For more information on Pulsar client authentication using Athenz, see the following language-specific docs:</p>
+
+<ul>
+  <li><a href="../../clients/Java#athenz">Java client</a></li>
+</ul>
+
+<h4 id="configure-cli-tools-for-athenz">Configure CLI tools for Athenz</h4>
+
+<p><a href="../../reference/CliTools">Command-line tools</a> like <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>, <a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a>, and <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> use the <code class="highlighter-rouge">conf/client.conf</code> config file in a Pulsar installation.</p>
+
+<p>You’ll need to add the following authentication parameters to that file to use Athenz with Pulsar’s CLI tools:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># URL for the broker
+</span><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
+
+<span class="c"># Set Athenz auth plugin and its parameters
+</span><span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationAthenz</span>
+<span class="py">authParams</span><span class="p">=</span><span class="s">tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1</span>
+
+<span class="c"># Enable TLS
+</span><span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/cacert.pem</span>
+</code></pre>
+</div>
+
+<h2 id="authorization">Authorization</h2>
+
+<p>In Pulsar, the <a href="#authentication-providers">authentication provider</a> is charged with properly identifying clients and associating them with <a href="#role-tokens">role tokens</a>. <em>Authorization</em> is the process that determines <em>what</em> clients are able to do.</p>
+
+<p>Authorization in Pulsar is managed at the <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> level, which means that you can have multiple authorization schemes active in a single Pulsar instance. You could, for example, create a <code class="highlighter-rouge">shopping</code> property that has one set of <a href="#role-tokens">roles</a> and applies to a shopping application used by your company, while an <code class="highlighter-rouge">inventory</code> property would be used only by an inventory application.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="success">
+    
+    <p>When working with properties, you can specify which of your Pulsar clusters your property is allowed to use. This enables you to also have cluster-level authorization schemes.</p>
+
+  </div>
+</div>
+
+<h2 id="creating-a-new-property">Creating a new property</h2>
+
+<p>A Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> identifies a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and is typically provisioned by Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> administrators or by some kind of self-service portal.</p>
+
+<p>Properties are managed using the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. Here’s an example property creation command:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
+  --admin-roles my-admin-role <span class="se">\</span>
+  --allowed-clusters us-west,us-east
+</code></pre>
+</div>
+
+<p>This command will create a new property <code class="highlighter-rouge">my-property</code> that will be allowed to use the clusters <code class="highlighter-rouge">us-west</code> and <code class="highlighter-rouge">us-east</code>.</p>
+
+<p>A client that successfully identified itself as having the role <code class="highlighter-rouge">my-admin-role</code> would then be allowed to perform all administrative tasks on this property.</p>
+
+<p>The structure of topic names in Pulsar reflects the hierarchy between properties, clusters, and <a href="#managing-namespaces">namespaces</a>:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<h2 id="managing-permissions">Managing permissions</h2>
+
+<p>Permissions in Pulsar are managed at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level (that is, within <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span> and <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>).</p>
+
+<h3 id="grant-permissions">Grant permissions</h3>
+
+<p>You can grant permissions to specific roles for lists of operations such as <code class="highlighter-rouge">produce</code> and <code class="highlighter-rouge">consume</code>.</p>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a> subcommand and specify a namespace, actions using the <code class="highlighter-rouge">--actions</code> flag, and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+  --actions produce,consume <span class="se">\</span>
+  --role admin10
+</code></pre>
+</div>
+
+<p>Wildcard authorization can be performed when <code class="highlighter-rouge">authorizationAllowWildcardsMatching</code> is set to <code class="highlighter-rouge">true</code> in <code class="highlighter-rouge">broker.conf</code>.</p>
+
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.role.*'</span>
+</code></pre>
+</div>
+
+<p>Then, roles <code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>, etc. can produce and consume.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'*.role.my'</span>
+</code></pre>
+</div>
+
+<p>Then, roles <code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>, etc. can produce and consume.</p>
+
+<p><strong>Note</strong>: A wildcard matching works at <strong>the beginning or end of the role name only</strong>.</p>
+
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.*.role'</span>
+</code></pre>
+</div>
+
+<p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
+Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
+
+<h4 id="rest-api">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<h3 id="get-permission">Get permission</h3>
+
+<p>You can see which permissions have been granted to which roles in a namespace.</p>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a> subcommand and specify a namespace:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces permissions <span class="nb">test</span>-property/cl1/ns1
+<span class="o">{</span>
+  <span class="s2">"admin10"</span>: <span class="o">[</span>
+    <span class="s2">"produce"</span>,
+    <span class="s2">"consume"</span>
+  <span class="o">]</span>
+<span class="o">}</span>   
+</code></pre>
+</div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="revoke-permissions">Revoke permissions</h3>
+
+<p>You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.</p>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> subcommand and specify a namespace and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces revoke-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+  --role admin10
+</code></pre>
+</div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h2 id="superusers">Superusers</h2>
+
+<p>In Pulsar you can assign certain roles to be <em>superusers</em> of the system. A superuser is allowed to perform all administrative tasks on all properties and namespaces, as well as to publish and subscribe to all topics.</p>
+
+<p>Superusers are configured in the broker configuration file in <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a> configuration file, using the <a href="../../reference/Configuration#broker-superUserRoles"><code class="highlighter-rouge">superUserRoles</code></a> parameter:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">superUserRoles</span><span class="p">=</span><span class="s">my-super-user-1,my-super-user-2</span>
+</code></pre>
+</div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    
+    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
+
+  </div>
+</div>
+
+<p>Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using <a href="../GeoReplication">geo-replication</a>, every broker
+needs to be able to publish to other clusters’ topics.</p>
+
+<h2 id="pulsar-admin-authentication">Pulsar admin authentication</h2>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p>To use TLS:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre>
+</div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Authentication and authorization in Pulsar</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

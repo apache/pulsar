@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Apache StormのためのPulsarアダプタ</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Apache StormのためのPulsarアダプタ</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <!-- TOC depthFrom:2 depthTo:3 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+<ul>
+  <li><a href="#概要">概要</a></li>
+  <li><a href="#pulsar-stormアダプタの利用">Pulsar Stormアダプタの利用</a>
+    <ul>
+      <li><a href="#pulsar-spout">Pulsar Spout</a></li>
+      <li><a href="#pulsar-bolt">Pulsar Bolt</a></li>
+    </ul>
+  </li>
+  <li><a href="#実装例">実装例</a></li>
+</ul>
+
+<!-- /TOC -->
+
+<h2 id="概要">概要</h2>
+<p>Pulsar StormはApache Storm Topologyと連携するためのアダプタであり、データの送受信を行うためのStromの実装を提供します。</p>
+
+<p>アプリケーションはPulsar Spoutを通してStorm Topologyにデータを注入したり、Pulsar Boltを通してStorm Topologyからデータを取り出すことができます。</p>
+
+<h2 id="pulsar-stormアダプタの利用">Pulsar Stormアダプタの利用</h2>
+<p>Pulsar Stormアダプタの依存をincludeします:</p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-storm<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre>
+</div>
+
+<h2 id="pulsar-spout">Pulsar Spout</h2>
+<p>Pulsar Spoutを使って、Storm Topologyは<a href="Architecture.md#トピック">Pulsarのトピック</a>に発行されたデータをconsumeできます。Pulsar Spoutは受信したメッセージとクライアントが提供するMessageToValuesMapperをもとにStorm Tupleを発行します。</p>
+
+<p>下流のBoltでの処理に失敗したTupleはSpoutから再注入されます。この再注入は指数バックオフアルゴリズムに従い、設定可能なタイムアウト (デフォルト: 60秒) または設定可能なリトライ回数のどちらかに達するまで行われます。その後、Consumerにより処理成功の応答が返されます。</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
+<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+
+<span class="c1">// Pulsar Consumerの設定</span>
+<span class="n">ConsumerConfiguration</span> <span class="n">consumerConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>  
+
+<span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">"serial"</span><span class="o">)</span>
+<span class="n">MessageToValuesMapper</span> <span class="n">messageToValuesMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="n">MessageToValuesMapper</span><span class="o">()</span> <span class="o">{</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Values</span> <span class="nf">toValues</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="k">new</span> <span class="nf">Values</span><span class="o">(</span><span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">declareOutputFields</span><span class="o">(</span><span class="n">OutputFieldsDeclarer</span> <span class="n">declarer</span><span class="o">)</span> <span class="o">{</span>
+        <span class="c1">// 出力フィールドを宣言</span>
+        <span class="n">declarer</span><span class="o">.</span><span class="na">declare</span><span class="o">(</span><span class="k">new</span> <span class="n">Fields</span><span class="o">(</span><span class="s">"string"</span><span class="o">));</span>
+    <span class="o">}</span>
+<span class="o">};</span>
+
+<span class="c1">// Pulsar Spoutの設定</span>
+<span class="n">PulsarSpoutConfiguration</span> <span class="n">spoutConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpoutConfiguration</span><span class="o">();</span>
+<span class="n">spoutConf</span><span class="o">.</span><span class="na">setServiceUrl</span><span class="o">(</span><span class="s">"http://broker.messaging.usw.example.com:8080"</span><span class="o">);</span>
+<span class="n">spoutConf</span><span class="o">.</span><span class="na">setTopic</span><span class="o">(</span><span class="s">"persistent://my-property/usw/my-ns/my-topic1"</span><span class="o">);</span>
+<span class="n">spoutConf</span><span class="o">.</span><span class="na">setSubscriptionName</span><span class="o">(</span><span class="s">"my-subscriber-name1"</span><span class="o">);</span>
+<span class="n">spoutConf</span><span class="o">.</span><span class="na">setMessageToValuesMapper</span><span class="o">(</span><span class="n">messageToValuesMapper</span><span class="o">);</span>
+
+<span class="c1">// Pulsar Spoutの作成</span>
+<span class="n">PulsarSpout</span> <span class="n">spout</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpout</span><span class="o">(</span><span class="n">spoutConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">,</span> <span class="n">consumerConf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h2 id="pulsar-bolt">Pulsar Bolt</h2>
+<p>Pulsar Boltを使って、Storm Topology内のデータを<a href="Architecture.md#トピック">Pulsarのトピック</a>に発行できます。Pulsar Boltは受信したStorm Tupleとクライアントが提供するTupleToMessageMapperをもとにメッセージを発行します。</p>
+
+<p>異なるトピックのメッセージを発行するためにパーティションドトピックを利用できます。その場合TupleToMessageMapperの実装において、メッセージに「キー」を用意する必要があります。同じキーを持つメッセージは同じトピックに送信されるようになります。</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
+<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+
+<span class="c1">// Pulsar Producerの設定  </span>
+<span class="n">ProducerConfiguration</span> <span class="n">producerConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
+
+<span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">"serial"</span><span class="o">)</span>
+<span class="n">TupleToMessageMapper</span> <span class="n">tupleToMessageMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleToMessageMapper</span><span class="o">()</span> <span class="o">{</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Message</span> <span class="nf">toMessage</span><span class="o">(</span><span class="n">Tuple</span> <span class="n">tuple</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">String</span> <span class="n">receivedMessage</span> <span class="o">=</span> <span class="n">tuple</span><span class="o">.</span><span class="na">getString</span><span class="o">(</span><span class="mi">0</span><span class="o">);</span>
+        <span class="c1">// メッセージを処理</span>
+        <span class="n">String</span> <span class="n">processedMsg</span> <span class="o">=</span> <span class="n">receivedMessage</span> <span class="o">+</span> <span class="s">"-processed"</span><span class="o">;</span>
+        <span class="k">return</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">().</span><span class="na">setContent</span><span class="o">(</span><span class="n">processedMsg</span><span class="o">.</span><span class="na">getBytes</span><span class="o">()).</span><span class="na">build</span><span class="o">();</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">declareOutputFields</span><span class="o">(</span><span class="n">OutputFieldsDeclarer</span> <span class="n">declarer</span><span class="o">)</span> <span class="o">{</span>
+        <span class="c1">// 出力フィールドを宣言</span>
+    <span class="o">}</span>
+<span class="o">};</span>
+
+<span class="c1">// Pulsar Boltの設定</span>
+<span class="n">PulsarBoltConfiguration</span> <span class="n">boltConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBoltConfiguration</span><span class="o">();</span>
+<span class="n">boltConf</span><span class="o">.</span><span class="na">setServiceUrl</span><span class="o">(</span><span class="s">"http://broker.messaging.usw.example.com:8080"</span><span class="o">);</span>
+<span class="n">boltConf</span><span class="o">.</span><span class="na">setTopic</span><span class="o">(</span><span class="s">"persistent://my-property/usw/my-ns/my-topic2"</span><span class="o">);</span>
+<span class="n">boltConf</span><span class="o">.</span><span class="na">setTupleToMessageMapper</span><span class="o">(</span><span class="n">tupleToMessageMapper</span><span class="o">);</span>
+
+<span class="c1">// Pulsar Boltの作成</span>
+<span class="n">PulsarBolt</span> <span class="n">bolt</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBolt</span><span class="o">(</span><span class="n">boltConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h2 id="実装例">実装例</h2>
+<p>完全な実装の例は<a href="../../../pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java">StormExample.java</a>を参照してください。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

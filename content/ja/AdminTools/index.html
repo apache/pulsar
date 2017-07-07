@@ -1,0 +1,2551 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>ツール</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a class="active" href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">ツール</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <h2 id="pulsar-adminツールとは">Pulsar adminツールとは？</h2>
+
+<p>Pulsar adminツールはコマンドラインユーティリティであり、プロパティ、クラスタ、トピック、ネームスペースなどPulsar Brokerのさまざまなエンティティを設定および監視するための、Brokerと管理の間のインターフェースを提供します。これはプロパティ、クラスタ、ネームスペースを作成できるようにし、アプリケーションをPulsarに載せるのに便利な管理ツールです。またトピックの状態と使用方法を管理する際にも役立ちます。CLI (command line interface) の他に、上述のエンティティを管理および監視するためにREST APIとJava APIの2つの代替手段を使うこともできます。そこでこのドキュメントではCLI, REST API, Java APIを使ってPulsarのエンティティを管理する方法について説明します。</p>
+
+<h3 id="どのように動作するか">どのように動作するか？</h3>
+
+<p>前述の通り、Pulsar BrokerはPulsarのさまざまなエンティティを設定および管理するためのREST APIを公開しています。Pulsar admin CLIツールはadminコマンドを実行するために、Javaクライアントを使ってこれらのREST APIをコールします。利用可能なREST APIのリストについての詳細は<em>swaggerドキュメント</em>から学ぶことができます。</p>
+
+<h2 id="利用準備">利用準備</h2>
+
+<h3 id="pulsar-admin-cliツール">Pulsar admin CLIツール</h3>
+
+<p>Pulsar Brokerが受け取ったリクエストに対して認証認可を行うことが可能である<em>Pulsarのセキュリティ</em>機能については他の章で述べました。adminツールはコマンドのリストを実行するためにPulsar BrokerのREST APIを呼びます。しかし、Pulsar Brokerのセキュリティが有効になっている場合、認証されたリクエストを得るためにBrokerのREST APIを呼ぶ際にadminツールは追加の情報を渡す必要があります。そこでこの情報が<code class="highlighter-rouge">conf/client.conf</code>ファイルにおいて正しく設定されていることを確認してください。</p>
+
+<p>これでPulsar admin CLIツールを使う準備が整いました。adminツールの利用を開始するため、下記のコマンドを実行してください。</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin --help
+</code></pre>
+</div>
+
+<p>前章でPulsarのエンティティを管理するための他の代替手段 - REST APIとJava API - について述べました。このドキュメントではPulsarのエンティティを管理するためのREST APIのエンドポイントとJava APIのスニペットについても説明します。</p>
+
+<h3 id="rest-api">REST API</h3>
+
+<p>Pulsar admin REST APIの定義については<em>swaggerドキュメント</em>から学ぶことができます。このドキュメントでは各APIの利用方法とadmin CLIコマンドがどのようにREST APIに対応するかについて説明します。</p>
+
+<h3 id="java-api">Java API</h3>
+
+<p>Java APIは<code class="highlighter-rouge">org.apache.pulsar.client.admin.PulsarAdmin</code>によりアクセスできます。</p>
+
+<p>下記のコードスニペットは<em>PulsarAdmin</em>の初期化の方法を示しています。後のドキュメントでPulsarのエンティティを管理するための使用方法について説明します。</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+  <span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
+  <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span><span class="c1">//Pass auth-param if auth-plugin class requires it</span>
+  <span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+  <span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+  <span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+  <span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+  <span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+  <span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+  <span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+  <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+  <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="pulsarエンティティ">Pulsarエンティティ</h3>
+
+<p>主にadminコマンドラインツールを使って下記のBrokerのエンティティにアクセスします。もしまだ下記のエンティティに対する理解が不十分なのであれば、<a href="GettingStarted.md">Pulsar入門</a>で詳細を読むことができます。</p>
+
+<h3 id="brokers">Brokers</h3>
+
+<p>アクティブなBrokerのリストおよび指定されたBrokerが所有するネームスペースのリストを取得できます。</p>
+
+<h4 id="アクティブなbrokerリストの取得">アクティブなBrokerリストの取得</h4>
+<p>トラフィックを処理している利用可能でアクティブなBrokerを取得します。</p>
+
+<h6 id="cli">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin brokers list use
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>broker1.use.org.com:8080
+</code></pre>
+</div>
+
+<h6 id="rest">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/brokers/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="brokerが所有するネームスペースリストの取得">Brokerが所有するネームスペースリストの取得</h4>
+
+<p>指定したBrokerが所有し処理しているすべてのネームスペースを取得します。</p>
+
+<h6 id="cli-1">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin brokers namespaces --url broker1.use.org.com:8080 use
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
+        </span><span class="nt">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+        </span><span class="nt">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+<h6 id="rest-1">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/brokers/{cluster}/{broker}/ownedNamespaces
+</code></pre>
+</div>
+
+<h6 id="java-1">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h3 id="properties">Properties</h3>
+
+<p>プロパティはアプリケーションのドメインを表します。例えばfinance, mail, sportsなどがプロパティの例です。ツールを使ってPulsarのプロパティを管理するためのCRUD操作を行うことができます。</p>
+
+<h4 id="存在するプロパティリストの取得">存在するプロパティリストの取得</h4>
+
+<p>Pulsarシステムに存在しているすべてのプロパティのリストを表示します。</p>
+
+<h6 id="cli-2">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin properties list
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>my-property
+</code></pre>
+</div>
+
+<h6 id="rest-2">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/properties
+</code></pre>
+</div>
+
+<h6 id="java-2">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">properties</span><span class="o">().</span><span class="na">getProperties</span><span class="o">()</span>
+</code></pre>
+</div>
+
+<h4 id="プロパティの作成">プロパティの作成</h4>
+
+<p>Pulsarシステムに新しいプロパティを作成します。プロパティに対し、プロパティの管理権限を持つadminロール（コンマ区切り）とプロパティが利用可能なクラスタ（コンマ区切り）を設定できます。</p>
+
+<h6 id="cli-3">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-admin properties create my-property --admin-roles admin1,admin2 --allowed-clusters cl1,cl2
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-3">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/properties/{property}
+</code></pre>
+</div>
+
+<h6 id="java-3">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">properties</span><span class="o">().</span><span class="na">createProperty</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">propertyAdmin</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="プロパティの取得">プロパティの取得</h4>
+
+<p>指定した既存プロパティの設定を取得します。</p>
+
+<h6 id="cli-4">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$pulsar-admin properties get my-property
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"adminRoles"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"admin1"</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"admin2"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"allowedClusters"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"cl1"</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"cl2"</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-4">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/properties/{property}
+</code></pre>
+</div>
+
+<h6 id="java-4">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">properties</span><span class="o">().</span><span class="na">getPropertyAdmin</span><span class="o">(</span><span class="n">property</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="プロパティの更新">プロパティの更新</h4>
+
+<p>既に作成されたプロパティの設定を更新します。指定した既存プロパティのadminロールとクラスタの情報を更新できます。</p>
+
+<h6 id="cli-5">CLI</h6>
+
+<p><code class="highlighter-rouge">$ pulsar-admin properties update my-property --admin-roles admin-update-1,admin-update-2 --allowed-clusters cl1,cl2</code></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-5">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/properties/{property}
+</code></pre>
+</div>
+
+<h6 id="java-5">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">properties</span><span class="o">().</span><span class="na">updateProperty</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">propertyAdmin</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="プロパティの削除">プロパティの削除</h4>
+
+<p>既存プロパティをPulsarシステムから削除します。</p>
+<h6 id="cli-6">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin properties delete my-property
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-6">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/properties/{property}
+</code></pre>
+</div>
+
+<h6 id="java-6">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">properties</span><span class="o">().</span><span class="na">deleteProperty</span><span class="o">(</span><span class="n">property</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h3 id="clusters">Clusters</h3>
+
+<p>クラスタは一つ以上の地理的位置においてプロパティとそのネームスペースを利用可能にします。クラスタは一般的にはuse, uswなどの地域のコロケーション名に対応します。ツールを使ってPulsarのクラスタを管理するためのCRUD操作を行うことができます。</p>
+
+<h4 id="クラスタの作成">クラスタの作成</h4>
+
+<p>Pulsarに新しいクラスタを作成します。このようなシステムレベルの操作はスーパーユーザ権限でのみ実行できます。</p>
+
+<h6 id="cli-7">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters create --url http://my-cluster.org.com:8080/ --broker-url pulsar://my-cluster.org.com:6650/ cl1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-7">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/clusters/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java-7">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createCluster</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span><span class="n">serviceUrl</span><span class="o">,</span> <span class="n">serviceUrlTls</span><span class="o">,</span> <span class="n">brokerServiceUrl</span><span class="o">,</span> <span class="n">brokerServiceUrlTls</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="クラスタの取得">クラスタの取得</h4>
+
+<p>指定した既存クラスタの設定を取得します。</p>
+
+<h6 id="cli-8">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters get cl1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"serviceUrl"</span><span class="p">:</span><span class="w"> </span><span class="s2">"http://my-cluster.org.com:8080/"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"serviceUrlTls"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"brokerServiceUrl"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pulsar://my-cluster.org.com:6650/"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"brokerServiceUrlTls"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-8">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java-8">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">cluster</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="クラスタの更新">クラスタの更新</h4>
+
+<p>指定した既存クラスタの設定を更新します。</p>
+
+<h6 id="cli-9">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters update --url http://my-cluster.org.com:4081/ --broker-url pulsar://my-cluster.org.com:3350/ cl1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-9">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/clusters/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java-9">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updateCluster</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span><span class="n">serviceUrl</span><span class="o">,</span> <span class="n">serviceUrlTls</span><span class="o">,</span> <span class="n">brokerServiceUrl</span><span class="o">,</span> <span class="n">brokerServiceUrlTls</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="クラスタの削除">クラスタの削除</h4>
+
+<p>Pulsarシステムから既存クラスタを削除します。</p>
+
+<h6 id="cli-10">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters delete cl1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-10">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/clusters/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java-10">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">cluster</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="全クラスタリストの取得">全クラスタリストの取得</h4>
+
+<p>Pulsarシステム内に作成されたすべてのクラスタのリストを取得します。</p>
+
+<h6 id="cli-11">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters list
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cl1
+</code></pre>
+</div>
+
+<h6 id="rest-11">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters
+</code></pre>
+</div>
+
+<h6 id="java-11">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">()</span>
+</code></pre>
+</div>
+
+<h3 id="namespace">Namespace</h3>
+
+<p>ネームスペースはプロパティ内の論理的な区切りの名称です。一つのプロパティはそのプロパティの下で異なるアプリケーションを管理するために複数のネームスペースを持つことができます。</p>
+
+<h4 id="ネームスペースの作成">ネームスペースの作成</h4>
+
+<p>指定した既存クラスタ内のプロパティにネームスペースを作成します。</p>
+
+<h6 id="cli-12">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces create test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-12">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}
+</code></pre>
+</div>
+
+<h6 id="java-12">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">createNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースの取得">ネームスペースの取得</h4>
+
+<p>作成済みネームスペースのポリシー情報を取得します。</p>
+
+<h6 id="cli-13">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$pulsar-admin namespaces policies test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"auth_policies"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"namespace_auth"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+        </span><span class="nt">"destination_auth"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nt">"replication_clusters"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
+    </span><span class="nt">"bundles_activated"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bundles"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"boundaries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"0x00000000"</span><span class="p">,</span><span class="w">
+            </span><span class="s2">"0xffffffff"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"numBundles"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nt">"backlog_quota_map"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+    </span><span class="nt">"persistence"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"latency_stats_sample_rate"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+    </span><span class="nt">"message_ttl_in_seconds"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"retention_policies"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"deleted"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-13">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}
+</code></pre>
+</div>
+
+<h6 id="java-13">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="プロパティ内の全ネームスペースリストの取得">プロパティ内の全ネームスペースリストの取得</h4>
+
+<p>指定したプロパティ内にあるすべての作成済みネームスペースのリストを取得します。</p>
+
+<h6 id="cli-14">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces list test-property
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>test-property/cl1/ns1
+</code></pre>
+</div>
+
+<h6 id="rest-14">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}
+</code></pre>
+</div>
+
+<h6 id="java-14">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="クラスタ内の全ネームスペースリストの取得">クラスタ内の全ネームスペースリストの取得</h4>
+
+<p>指定したクラスタのプロパティ内にあるすべての作成済みネームスペースのリストを取得します。</p>
+
+<h6 id="cli-15">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces list-cluster test-property/cl1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>test-property/cl1/ns1
+</code></pre>
+</div>
+
+<h6 id="rest-15">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}
+</code></pre>
+</div>
+
+<h6 id="java-15">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースの削除">ネームスペースの削除</h4>
+
+<p>既存のネームスペースを削除します。</p>
+
+<h6 id="cli-16">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces delete test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-16">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}
+</code></pre>
+</div>
+
+<h6 id="java-16">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの付与">パーミッションの付与</h4>
+
+<p>特定のクライアントロールに対して、produceやconsumeのような必要な操作のリストを許可します。</p>
+
+<h6 id="cli-17">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces grant-permission --actions produce,consume --role admin10 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-17">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/permissions/{role}
+</code></pre>
+</div>
+
+<h6 id="java-17">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの取得">パーミッションの取得</h4>
+
+<p>指定したネームスペースに対して作成されたパーミッションルールを表示します。</p>
+
+<h6 id="cli-18">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces permissions test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"admin10"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"produce"</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"consume"</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">   
+</span></code></pre>
+</div>
+
+<h6 id="rest-18">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/permissions
+</code></pre>
+</div>
+
+<h6 id="java-18">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの剥奪">パーミッションの剥奪</h4>
+
+<p>特定のクライアントロールのパーミッションを剥奪し、指定したネームスペースにアクセスできないようにします。</p>
+
+<h6 id="cli-19">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces revoke-permission --role admin10 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-19">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/permissions/{role}
+</code></pre>
+</div>
+
+<h6 id="java-19">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="レプリケーションクラスタの設定">レプリケーションクラスタの設定</h4>
+
+<p>ネームスペースにレプリケーションクラスタを設定し、Pulsarが内部的に発行されたメッセージを一つのコロケーションから別のコロケーションにレプリケートできるようにします。しかし、レプリケーションクラスタをセットするためにはネームスペースは<em>test-property/<strong>global</strong>/ns1.</em>のようにグローバルである必要があります。つまりクラスタ名は<em>“global”</em>でなければなりません。</p>
+
+<h6 id="cli-20">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters --clusters cl2 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-20">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/replication
+</code></pre>
+</div>
+
+<h6 id="java-20">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="レプリケーションクラスタの取得">レプリケーションクラスタの取得</h4>
+
+<p>指定したネームスペースのレプリケーションクラスタのリストを取得します。</p>
+
+<h6 id="cli-21">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cl2
+</code></pre>
+</div>
+
+<h6 id="rest-21">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
+</code></pre>
+</div>
+
+<h6 id="java-21">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="バックログクォータポリシーの設定">バックログクォータポリシーの設定</h4>
+
+<p>バックログクォータはBrokerが特定の閾値に達したとき、ネームスペースの帯域幅/ストレージを制限するのに役立ちます。管理者はこの制限と制限に達したときに行う下記のアクションの内一つを設定できます。</p>
+
+<ol>
+  <li>
+    <p>producer_request_hold: Brokerはproduceリクエストのペイロードをホールドし、永続化しないようになります</p>
+  </li>
+  <li>
+    <p>producer_exception: Brokerは例外を発生させてクライアントとの接続を切断します</p>
+  </li>
+  <li>
+    <p>consumer_backlog_eviction: Brokerはバックログメッセージの破棄を開始します</p>
+  </li>
+</ol>
+
+<p>バックログクォータ制限はバックログクォータタイプ: destination_storageを定義することによって考慮されるようになります。</p>
+
+<h6 id="cli-22">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-22">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre>
+</div>
+
+<h6 id="java-22">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="バックログクォータポリシーの取得">バックログクォータポリシーの取得</h4>
+
+<p>指定したネームスペースのバックログクォータ設定を表示します。</p>
+
+<h6 id="cli-23">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+        </span><span class="nt">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">          
+</span></code></pre>
+</div>
+
+<h6 id="rest-23">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
+</code></pre>
+</div>
+
+<h6 id="java-23">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="バックログクォータポリシーの削除">バックログクォータポリシーの削除</h4>
+
+<p>指定したネームスペースのバックログクォータポリシーを削除します。</p>
+
+<h6 id="cli-24">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-24">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre>
+</div>
+
+<h6 id="java-24">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="永続性ポリシーの設定">永続性ポリシーの設定</h4>
+
+<p>永続性ポリシーは指定したネームスペースにあるすべてのトピックの永続性レベルを設定できます。</p>
+
+<ul>
+  <li>
+    <p>Bookkeeper-ack-quorum: 各エントリに対して書き込み成功のAckを待機するBookieの数（保証されるコピーの数）、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Bookkeeper-ensemble: 一つのトピックに対して使用されるBookieの数、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Bookkeeper-write-quorum: 各エントリに対して書き込みを行うBookieの数、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Ml-mark-delete-max-rate: mark-delete操作のスロットル率 (0は無制限)、デフォルト: 0.0</p>
+  </li>
+</ul>
+
+<h6 id="cli-25">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-25">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
+</code></pre>
+</div>
+
+<h6 id="java-25">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="永続性ポリシーの取得">永続性ポリシーの取得</h4>
+
+<p>指定したネームスペースの永続性ポリシーの設定を表示します。</p>
+
+<h6 id="cli-26">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"bookkeeperEnsemble"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bookkeeperWriteQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bookkeeperAckQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"managedLedgerMaxMarkDeleteRate"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-26">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
+</code></pre>
+</div>
+
+<h6 id="java-26">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースbundleのアンロード">ネームスペースBundleのアンロード</h4>
+
+<p>ネームスペースBundleは同じネームスペースに属するトピックの仮想的なグループです。多数のBundleによりBrokerの負荷が高まった場合、このコマンドを使って処理が重いBundleをそのBrokerから取り外し、より負荷が小さい他のBrokerに扱わせることができます。ネームスペースBundleは0x00000000と0xffffffffのように開始と終了のレンジによって定義されます。</p>
+
+<h6 id="cli-27">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-property/pstg-gq1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-27">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
+</code></pre>
+</div>
+
+<h6 id="java-27">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="メッセージttlの設定">メッセージTTLの設定</h4>
+
+<p>メッセージの生存時間（秒）を設定します。</p>
+
+<h6 id="cli-28">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-28">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre>
+</div>
+
+<h6 id="java-28">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="メッセージttlの取得">メッセージTTLの取得</h4>
+
+<p>ネームスペースに対して設定されたメッセージTTLを取得します。</p>
+
+<h6 id="cli-29">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>100
+</code></pre>
+</div>
+
+<h6 id="rest-29">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre>
+</div>
+
+<h6 id="java-29">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="bundleの分割">Bundleの分割</h4>
+
+<p>各ネームスペースのBundleは複数のトピックを含み、各Bundleはただ一つのBrokerによって扱われます。Bundleがそれに含まれる複数のトピックの処理で重くなった場合、Brokerに対し負荷を発生させます。これを解決するため、管理者はこのコマンドを用いてBundleを分割できます。</p>
+
+<h6 id="cli-30">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-30">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+</code></pre>
+</div>
+
+<h6 id="java-30">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="バックログの削除">バックログの削除</h4>
+
+<p>指定したネームスペースに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。</p>
+
+<h6 id="cli-31">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-31">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
+</code></pre>
+</div>
+
+<h6 id="java-31">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="bundleバックログの削除">Bundleバックログの削除</h4>
+
+<p>特定のネームスペースBundleに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。</p>
+
+<h6 id="cli-32">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-32">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
+</code></pre>
+</div>
+
+<h6 id="java-32">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="リテンションの設定">リテンションの設定</h4>
+
+<p>各ネームスペースは複数のトピックを含み、各トピックのリテンションサイズ（ストレージサイズ）は特定の閾値を超えるべきではなく、特定の期間まで保持されるべきです。このコマンドを使って、指定したネームスペース内のトピックのリテンションサイズと時間を設定できます。</p>
+
+<h6 id="cli-33">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-33">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre>
+</div>
+
+<h6 id="java-33">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="リテンションの取得">リテンションの取得</h4>
+
+<p>指定したネームスペースのリテンション情報を表示します。</p>
+
+<h6 id="cli-34">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-34">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre>
+</div>
+
+<h6 id="java-34">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h3 id="persistent">Persistent</h3>
+
+<p>persistentコマンドは、メッセージをproduce/consumeするための論理的なエンドポイントであるトピックにアクセスする際に役立ちます。<br />
+Producerはトピックにメッセージをproduceし、Consumerはトピックにproduceされたメッセージをconsumeするためにトピックを購読します。</p>
+
+<p>以降に説明とコマンドを記載します - パーシステントトピックのフォーマットは次の通りです:</p>
+
+<p><code class="highlighter-rouge">persistent://&lt;property_name&gt; &lt;cluster_name&gt; &lt;namespace_name&gt; &lt;topic-name&gt;</code></p>
+
+<h4 id="パーティションドトピックの作成">パーティションドトピックの作成</h4>
+
+<p>指定されたネームスペース下にパーティションドトピックを作成します。作成のためには、パーティション数は1より大きくなくてはいけません。</p>
+
+<h6 id="cli-35">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent create-partitioned-topic --partitions 2 persistent://test-property/cl1/ns1/pt1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-35">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+</code></pre>
+</div>
+
+<h6 id="java-35">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">createPartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーティションドトピックの取得">パーティションドトピックの取得</h4>
+
+<p>作成されたパーティションドトピックのメタデータを提供します。</p>
+
+<h6 id="cli-36">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent get-partitioned-topic-metadata persistent://test-property/cl1/ns1/pt1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"partitions"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-36">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+</code></pre>
+</div>
+
+<h6 id="java-36">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPartitionedTopicMetadata</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーティションドトピックの削除">パーティションドトピックの削除</h4>
+
+<p>作成されたパーティションドトピックを削除します。</p>
+
+<h6 id="cli-37">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent delete-partitioned-topic persistent://test-property/cl1/ns1/pt1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-37">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitions
+</code></pre>
+</div>
+
+<h6 id="java-37">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deletePartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="トピックの削除">トピックの削除</h4>
+
+<p>トピックを削除します。ただしアクティブなサブスクリプションまたはProducerの接続がある場合には、トピックを削除できません。</p>
+
+<h6 id="cli-38">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-admin persistent delete persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-38">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}
+</code></pre>
+</div>
+
+<h6 id="java-38">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="トピックリストの取得">トピックリストの取得</h4>
+
+<p>指定されたネームスペース下に存在するパーシステントトピックのリストを提供します。</p>
+
+<h6 id="cli-39">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent list test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>my-topic
+</code></pre>
+</div>
+
+<h6 id="rest-39">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}
+</code></pre>
+</div>
+
+<h6 id="java-39">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの付与-1">パーミッションの付与</h4>
+
+<p>指定されたトピックに対して特定のアクションを実行するためのパーミッションをクライアントロールに付与します。</p>
+
+<h6 id="cli-40">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent grant-permission --actions produce,consume --role application1 persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-40">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
+</code></pre>
+</div>
+
+<h6 id="java-40">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">))</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの取得-1">パーミッションの取得</h4>
+
+<p>指定されたトピックに対してのクライアントロールのパーミッションのリストを表示します。</p>
+
+<h6 id="cli-41">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin permissions persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"application1"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"consume"</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"produce"</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-41">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions
+</code></pre>
+</div>
+
+<h6 id="java-41">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーミッションの剥奪-1">パーミッションの剥奪</h4>
+
+<p>クライアントロールに対して付与されたパーミッションを剥奪します。</p>
+
+<h6 id="cli-42">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent revoke-permission --role application1 persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-42">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
+</code></pre>
+</div>
+
+<h6 id="java-42">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="パーティションドトピックの統計情報の取得">パーティションドトピックの統計情報の取得</h4>
+
+<p>パーティションドトピックの現在の統計情報を表示します。</p>
+
+<h6 id="cli-43">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent partitioned-stats --per-partition persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">4641.528542257553</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">44663039.74947473</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">1232439.816728665</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">135532389160</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">57.855383881403576</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">558994.7078932219</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">613135</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"my-topic_subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">116632</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">36.98245516804671</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span><span class="p">}</span><span class="w">          
+</span></code></pre>
+</div>
+
+<h6 id="rest-43">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/partitioned-stats
+</code></pre>
+</div>
+
+<h6 id="java-43">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPartitionedStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">perPartition</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="統計情報の取得">統計情報の取得</h4>
+
+<p>パーティションドトピックではないトピックの現在の統計情報を表示します。</p>
+
+<ul>
+  <li>
+    <p><strong>msgRateIn</strong>: 全てのローカルとレプリケーション用のPublisherの発行レートの合計で、1秒あたりのメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>msgThroughputIn</strong>: 上記と同様ですが、1秒あたりのバイト数です。</p>
+  </li>
+  <li>
+    <p><strong>msgRateOut</strong>: 全てのローカルとレプリケーション用のConsumerへの配送レートの合計で、1秒あたりのメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>msgThroughputOut</strong>: 上記と同様ですが、1秒あたりのバイト数です。</p>
+  </li>
+  <li>
+    <p><strong>averageMsgSize</strong>: 直近のインターバル内で発行されたメッセージの平均バイトサイズです。</p>
+  </li>
+  <li>
+    <p><strong>storageSize</strong>: このトピックのLedgerのストレージサイズの合計です。</p>
+  </li>
+  <li>
+    <p><strong>publishers</strong>: トピック内の全てのローカルPublisherの一覧です。0または何千もの可能性があります。</p>
+  </li>
+  <li>
+    <p><strong>averageMsgSize</strong>: 直近のインターバル内でこのPublisherからのメッセージの平均バイトサイズです。</p>
+  </li>
+  <li>
+    <p><strong>producerId</strong>: このトピック上での、このProducerの内部的な識別子です。</p>
+  </li>
+  <li>
+    <p><strong>producerName</strong>: クライアントライブラリによって生成されたこのProducerの内部的な識別子です。</p>
+  </li>
+  <li>
+    <p><strong>address</strong>: このProducerの接続用のIPアドレスと送信元ポートです。</p>
+  </li>
+  <li>
+    <p><strong>connectedSince</strong>: このProducerが作成または最後に再接続したタイムスタンプです。</p>
+  </li>
+  <li>
+    <p><strong>subscriptions</strong>: トピックに対してのローカルの全サブスクリプションリストです。</p>
+  </li>
+  <li>
+    <p><strong>my-subscription</strong>: このサブスクリプションの名前です (クライアントが定義します) 。</p>
+  </li>
+  <li>
+    <p><strong>msgBacklog</strong>: このサブスクリプションのバックログ内のメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>type</strong>: このサブスクリプションのタイプです。</p>
+  </li>
+  <li>
+    <p><strong>msgRateExpired</strong>: TTLのためにこのサブスクリプションから配送されずに破棄されたメッセージのレートです。</p>
+  </li>
+  <li>
+    <p><strong>consumers</strong>: このサブスクリプションに接続しているConsumerリストです。</p>
+  </li>
+  <li>
+    <p><strong>consumerName</strong>: クライアントライブラリによって生成されたこのConsumerの内部的な識別子です。</p>
+  </li>
+  <li>
+    <p><strong>availablePermits</strong>: このConsumerがクライアントライブラリのlistenキューに格納できるメッセージ数です。0はクライアントライブラリのキューがいっぱいであり、receive()はコールされないことを意味します。0でない場合には、このConsumerはメッセージを配送される準備ができています。</p>
+  </li>
+  <li>
+    <p><strong>replication</strong>: このセクションは、トピックのクラスタ間でのレプリケーションの統計情報を示します。</p>
+  </li>
+  <li>
+    <p><strong>replicationBacklog</strong>: レプリケーション先のバックログに送信されるメッセージです。</p>
+  </li>
+  <li>
+    <p><strong>connected</strong>: 送信レプリケータが接続されているかどうかです。</p>
+  </li>
+  <li>
+    <p><strong>replicationDelayInSeconds</strong>: connectedがtrueの場合で、最も古いメッセージが送信されるのを待っている時間です。</p>
+  </li>
+  <li>
+    <p><strong>inboundConnection</strong>: このBrokerに対しての、リモートクラスタのPublisher接続におけるそのBrokerのIPとポートです。</p>
+  </li>
+  <li>
+    <p><strong>inboundConnectedSince</strong>: リモートクラスタにメッセージを発行するためにTCP接続が使われます。もし接続しているローカルのPublisherがいない場合には、この接続は数分後に自動的に閉じられます。</p>
+    <h6 id="cli-44">CLI</h6>
+  </li>
+</ul>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent stats persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">11814</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gq1-54-4001"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/10.215.138.238:44458"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-16 22:56:56.509"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">17</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Shared"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.1771406267194497</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+                </span><span class="p">{</span><span class="w">
+                    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"a67f7"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">1186</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/10.215.166.121:35095"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-25 00:05:58.312"</span><span class="w">
+                </span><span class="p">}</span><span class="w">
+            </span><span class="p">]</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-44">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/stats
+</code></pre>
+</div>
+
+<h6 id="java-44">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="詳細な統計情報の取得">詳細な統計情報の取得</h4>
+
+<p>トピックの詳細な統計情報を表示します。</p>
+
+<ul>
+  <li>
+    <p><strong>entriesAddedCounter</strong>: このBrokerがこのトピックを読み込んでから発行されたメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>numberOfEntries</strong>: 書き込まれたメッセージの総数です。</p>
+  </li>
+  <li>
+    <p><strong>totalSize</strong>: 全メッセージのバイト単位での合計ストレージサイズです。</p>
+  </li>
+  <li>
+    <p><strong>currentLedgerEntries</strong>: 現在openしているLedgerに書き込まれたメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>currentLedgerSize</strong>: 現在openしているLedgerに書き込まれたメッセージのバイトサイズです。</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerCreatedTimestamp</strong>: 最後のLedgerが作成された時刻です。</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerCreationFailureTimestamp:</strong> 最後のLedgerに障害が発生した時刻です。</p>
+  </li>
+  <li>
+    <p><strong>waitingCursorsCount</strong>:”キャッチアップ状態”で新しいメッセージが発行されるのを待っているカーソル数です。</p>
+  </li>
+  <li>
+    <p><strong>pendingAddEntriesCount</strong>:  完了を待っている (非同期) 書き込みリクエストのメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>lastConfirmedEntry</strong>: 書き込みに成功した最後のメッセージのledgerid:entryid。entryidが−1の場合、Ledgerがすでにオープンされているか現在オープンされていますが、まだ書き込まれたエントリがないことを意味します。</p>
+  </li>
+  <li>
+    <p><strong>state</strong>: このLedgerの書き込みのための状態です。LedgerOpenedは、発行されたメッセージを保存するためのLedgerをオープンしていることを意味します。</p>
+  </li>
+  <li>
+    <p><strong>ledgers</strong>:　このトピックのメッセージを保持している全てのLedgerの順序付きリストです。</p>
+  </li>
+  <li>
+    <p><strong>cursors</strong>: このトピック上の全てのカーソルのリストです。トピックの統計情報上に表示されたサブスクリプションごとに1つ表示されます。</p>
+  </li>
+  <li>
+    <p><strong>markDeletePosition</strong>: Ackのポジション:SubscriberからAckが返された最後のメッセージです。</p>
+  </li>
+  <li>
+    <p><strong>readPosition</strong>: メッセージを読むためのSubscriberの最新のポジションです。</p>
+  </li>
+  <li>
+    <p><strong>waitingReadOp</strong>: サブスクリプションが最新のメッセージを読み込み、新しいメッセージが発行されるのを待っている時に、これはtrueになります。</p>
+  </li>
+  <li>
+    <p><strong>pendingReadOps</strong>: 進行中のBookKeeperへの未解決の読み取りリクエスト数です。</p>
+  </li>
+  <li>
+    <p><strong>messagesConsumedCounter</strong>: このBrokerがこのトピックを読み込んでからこのカーソルがAckしたメッセージ数です。</p>
+  </li>
+  <li>
+    <p><strong>cursorLedger</strong>: 永続的に現在のmarkDeletePositionを保存するために利用されているLedgerです。</p>
+  </li>
+  <li>
+    <p><strong>cursorLedgerLastEntry</strong>: 永続的に現在のmarkDeletePositionを保存するために使われた最後のentryidです。</p>
+  </li>
+  <li>
+    <p><strong>individuallyDeletedMessages</strong>: もしAckが順不同で行われている場合に、markDeletePositionと読み込みポジションの間でAckされたメッセージの範囲を表示します。</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerSwitchTimestamp</strong>: カーソルLedgerがロールオーバされた最後の時刻です。</p>
+  </li>
+  <li>
+    <p><strong>state</strong>: カーソルLedgerの状態: Openは、markDeletePositionのアップデートを保存するためのカーソルLedgerが存在することを意味します。</p>
+  </li>
+</ul>
+
+<h6 id="cli-45">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent stats-internal persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"entriesAddedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449518</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"numberOfEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"totalSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"currentLedgerEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"currentLedgerSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastLedgerCreatedTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 03:00:23.825"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastLedgerCreationFailureTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"waitingCursorsCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"pendingAddEntriesCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastConfirmedEntry"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3232"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LedgerOpened"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"ledgers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"ledgerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">324711539</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"cursors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"markDeletePosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3133"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"readPosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3233"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"waitingReadOp"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"pendingReadOps"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"messagesConsumedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449501</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"cursorLedger"</span><span class="p">:</span><span class="w"> </span><span class="mi">324702104</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"cursorLedgerLastEntry"</span><span class="p">:</span><span class="w"> </span><span class="mi">21</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"individuallyDeletedMessages"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"lastLedgerSwitchTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 01:30:19.313"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Open"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-45">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/internalStats
+</code></pre>
+</div>
+
+<h6 id="java-45">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="メッセージを見る">メッセージを見る</h4>
+
+<p>指定されたトピックの特定のサブスクリプションのNつのメッセージを覗き見ます。</p>
+
+<h6 id="cli-46">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent peek-messages --count 10 --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>Message ID: 315674752:0  
+Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
+msg-payload
+</code></pre>
+</div>
+
+<h6 id="rest-46">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}
+</code></pre>
+</div>
+
+<h6 id="java-46">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="メッセージのスキップ">メッセージのスキップ</h4>
+
+<p>指定されたトピックの指定されたサブスクリプションのNつのメッセージをスキップします。</p>
+
+<h6 id="cli-47">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent skip --count 10 --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-47">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip/{numMessages}
+</code></pre>
+</div>
+
+<h6 id="java-47">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="全メッセージのスキップ">全メッセージのスキップ</h4>
+
+<p>指定されたトピックの特定のサブスクリプションの全ての古いメッセージをスキップします。</p>
+
+<h6 id="cli-48">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent skip-all --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-48">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip_all
+</code></pre>
+</div>
+
+<h6 id="java-48">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="メッセージを有効期限切れにする">メッセージを有効期限切れにする</h4>
+
+<p>指定された有効期限 (秒単位) よりも古い、指定されたトピック上の特定のサブスクリプションのメッセージを有効期限切れにします。</p>
+
+<h6 id="cli-49">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent expire-messages --subscription my-subscription --expireTime 120 persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-49">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}
+</code></pre>
+</div>
+
+<h6 id="java-49">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">expireMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">expireTimeInSeconds</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="全メッセージを有効期限切れにする">全メッセージを有効期限切れにする</h4>
+
+<p>指定された有効期限 (秒単位) よりも古い、トピック上の全てのサブスクリプションのメッセージを有効期限切れにします。</p>
+
+<h6 id="cli-50">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent expire-messages-all-subscriptions --expireTime 120 persistent://test-property/cl1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-50">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}
+</code></pre>
+</div>
+
+<h6 id="java-50">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">expireMessagesForAllSubscriptions</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">expireTimeInSeconds</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="カーソルのリセット">カーソルのリセット</h4>
+
+<p>サブスクリプションのカーソル位置をX分前に記録された位置まで戻します。
+これは、X分前の時間とカーソル位置を計算し、その位置にリセットします。</p>
+
+<h6 id="cli-51">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent reset-cursor --subscription my-subscription --time 10 persistent://test-property/pstg-gq1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-51">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}
+</code></pre>
+</div>
+
+<h6 id="java-51">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">resetCursor</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="トピックのルックアップ">トピックのルックアップ</h4>
+
+<p>指定されたトピックに対応しているBrokerのurlを探します。</p>
+
+<h6 id="cli-52">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent lookup persistent://test-property/pstg-gq1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>"pulsar://broker1.org.com:4480"
+</code></pre>
+</div>
+
+<h6 id="rest-52">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET http://&lt;broker-url&gt;:&lt;port&gt;/lookup/v2/destination/persistent/{property}/{cluster}/{namespace}/{dest}
+(\* this api serves by “lookup” resource and not “persistent”)
+</code></pre>
+</div>
+
+<h6 id="java-52">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">lookups</span><span class="o">().</span><span class="na">lookupDestination</span><span class="o">(</span><span class="n">destination</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="サブスクリプションリストの取得">サブスクリプションリストの取得</h4>
+
+<p>指定されたトピックの全てのサブスクリプション名を表示します。</p>
+
+<h6 id="cli-53">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent subscriptions persistent://test-property/pstg-gq1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>my-subscription
+</code></pre>
+</div>
+
+<h6 id="rest-53">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscriptions
+</code></pre>
+</div>
+
+<h6 id="java-53">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="購読解除">購読解除</h4>
+
+<p>これ以上メッセージを処理しないサブスクリプションを購読解除する際にも役立ちます。</p>
+
+<h6 id="cli-54">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$pulsar-admin persistent unsubscribe --subscription my-subscription persistent://test-property/pstg-gq1/ns1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-54">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}
+</code></pre>
+</div>
+
+<h6 id="java-54">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h3 id="ネームスペースの隔離ポリシー">ネームスペースの隔離ポリシー</h3>
+
+<h4 id="ネームスペースの隔離ポリシーの作成更新">ネームスペースの隔離ポリシーの作成/更新</h4>
+
+<p>ネームスペースの隔離ポリシーを作成します。</p>
+
+<ul>
+  <li>
+    <p>auto-failover-policy-params: 自動フェイルオーバーポリシーのパラメータで、カンマ区切りでname=value形式で指定します。</p>
+  </li>
+  <li>
+    <p>auto-failover-policy-type: 自動フェイルオーバーポリシーのタイプ名です。</p>
+  </li>
+  <li>
+    <p>namespaces: カンマ区切りのネームスペースの正規表現リストです。</p>
+  </li>
+  <li>
+    <p>primary: カンマ区切りのプライマリBrokerの正規表現リストです。</p>
+  </li>
+  <li>
+    <p>secondary: カンマ区切りのセカンダリBrokerの正規表現リストです。</p>
+  </li>
+</ul>
+
+<h6 id="cli-55">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy --auto-failover-policy-params min_limit=0 --auto-failover-policy-type min_available --namespaces test-property/cl1/ns.*|test-property/cl1/test-ns*.* --secondary broker2.* --primary broker1.* cl1 ns-is-policy1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-55">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-55">Java</h6>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">,</span> <span class="n">namespaceIsolationData</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースの隔離ポリシーの取得">ネームスペースの隔離ポリシーの取得</h4>
+
+<p>ネームスペースの隔離ポリシーを表示します。</p>
+
+<h6 id="cli-56">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy get cl1 ns-is-policy1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"broker1.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"broker2.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
+        </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-56">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-56">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースの隔離ポリシーの削除">ネームスペースの隔離ポリシーの削除</h4>
+
+<p>ネームスペースの隔離ポリシーを削除します。</p>
+
+<h6 id="cli-57">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy delete ns-is-policy1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-57">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-57">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースの隔離ポリシー全リストの取得">ネームスペースの隔離ポリシー全リストの取得</h4>
+
+<p>指定されたクラスタによって提供されているネームスペースの隔離ポリシーの全リストを表示します。</p>
+
+<h6 id="cli-58">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy list cl1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"ns-is-policy1"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"broker1.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"broker2.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+                </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
+            </span><span class="p">}</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-58">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies
+</code></pre>
+</div>
+
+<h6 id="java-58">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicies</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h3 id="リソース割り当て">リソース割り当て</h3>
+
+<h4 id="ネームスペースへのリソース割り当ての設定">ネームスペースへのリソース割り当ての設定</h4>
+
+<p>指定されたネームスペースBundleに対して独自の割り当て情報をセットします。</p>
+
+<h6 id="cli-59">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas set --bandwidthIn 10 --bandwidthOut 10 --bundle 0x00000000_0xffffffff --memory 10 --msgRateIn 10 --msgRateOut 10 --namespace test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-59">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-59">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">setNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">quota</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースへのリソース割り当ての取得">ネームスペースへのリソース割り当ての取得</h4>
+
+<p>リソース割り当ての情報を表示します。</p>
+
+<h6 id="cli-60">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas get  --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">80.40352101165782</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">132.58187392933146</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">144273.8819600397</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">234497.9190227951</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"memory"</span><span class="p">:</span><span class="w"> </span><span class="mf">199.91739142481595</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"dynamic"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="p">}</span><span class="w">          
+</span></code></pre>
+</div>
+
+<h6 id="rest-60">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-60">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">getNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="ネームスペースへのリソース割り当てのリセット">ネームスペースへのリソース割り当てのリセット</h4>
+
+<p>独自のリソース割り当てをデフォルトの設定に戻します。</p>
+
+<h6 id="cli-61">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas reset-namespace-bundle-quota --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-61">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-61">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">resetNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h2 id="pulsarの付加的なツール">Pulsarの付加的なツール</h2>
+
+<h3 id="pulsarクライアントツール">Pulsarクライアントツール</h3>
+
+<p>Pulsarは任意のトピック上でメッセージのproduceとconsumeを行うためのJavaのAPIを提供しています。
+しかし、Pulsarではトピック上でのメッセージのproduceとconsumeに役立つCLIユーティリティも提供しています。</p>
+
+<p>ターミナル上で次のディレクトリに移動して、クライアントツールを試してみてください。</p>
+
+<p><code class="highlighter-rouge">$ $PULSAR_HOME/bin</code></p>
+
+<p><code class="highlighter-rouge">$ ./pulsar-client --help</code></p>
+
+<h4 id="メッセージをproduceするコマンド">メッセージをproduceするコマンド</h4>
+<table>
+  <tbody>
+  <tr>
+      <td colspan="2">```pulsar-client produce```</td>
+    </tr>
+    <tr>
+      <th>オプション</th>
+      <th>説明</th>
+    </tr>
+    <tr>
+      <td>```-f, --files```</td>
+      <td>```送信するファイルのパスをコンマ区切りで指定。-mと一緒に使用する事はできません。-fか-mのどちらかは指定しなければなりません```</td>
+    </tr>
+    <tr>
+      <td>```-m, --messages```</td>
+      <td>```送信するメッセージの文字列をコンマ区切りで指定。-fと一緒に使用する事はできません。-mか-fのどちらかは指定しなければなりません```</td>
+    </tr>
+    <tr>
+      <td>```-n, --num-produce```</td>
+      <td>```メッセージを送信する回数 (デフォルト：1) ```</td>
+    </tr>
+    <tr>
+      <td>```-r, --rate```</td>
+      <td>```メッセージをproduceするレート (メッセージ/秒) 。0の場合、メッセージは可能な限り速くproduceされます (デフォルト：0.0) ```</td>
+    </tr>
+<table>
+
+#### メッセージをconsumeするコマンド
+<table>
+  <tbody>
+  <tr>
+      <td colspan="2">```pulsar-client consume```</td>
+    </tr>
+    <tr>
+      <th>オプション</th>
+      <th>説明</th>
+    </tr>
+    <tr>
+      <td>```--hex```</td>
+      <td>```バイナリメッセージを16進数で表示 (デフォルト：false) ```</td>
+    </tr>
+    <tr>
+      <td>```-n, --num-messages```</td>
+      <td>```consumeするメッセージの数 (デフォルト：1) ```</td>
+    </tr>
+    <tr>
+      <td>```-r, --rate```</td>
+      <td>```メッセージをconsumeするレート (メッセージ/秒) 。0の場合、メッセージは可能な限り速くconsumeされます (デフォルト：0.0) ```</td>
+    </tr>
+    <tr>
+      <td>```-s, --subscription-name```</td>
+      <td>```サブスクリプション名```</td>
+    </tr>
+    <tr>
+      <td>```-t, --subscription-type```</td>
+      <td>```Exclusive, Shared, Failoverの内どれか1つのサブスクリプションタイプ (デフォルト：Exclusive) ```</td>
+    </tr>
+<table>
+</table></tbody></table></table></tbody></table>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

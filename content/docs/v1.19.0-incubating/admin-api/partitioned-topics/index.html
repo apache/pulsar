@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Managing partitioned topics</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+ 
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/InstanceSetup">
+              Deploying on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-container-engine">
+              Pulsar on Google Container Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Managing partitioned topics</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>You can use Pulsar’s <a href="../../admin/AdminInterface">admin API</a> to create and manage partitioned topics.</p>
+
+<p>In all of the instructions and commands below, the topic name structure is:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<h2 id="partitioned-topics-resources">Partitioned topics resources</h2>
+
+<p>You can use Pulsar’s <a href="../../admin/AdminInterface">admin API</a> to create and manage partitioned topics.</p>
+
+<p>In all of the instructions and commands below, the topic name structure is:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<h3 id="create">Create</h3>
+
+<p>Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Global partitioned topics</p>
+</span>
+    
+<p>If you’d like to create a <a href="">global</a> partitioned topic, you need to create a partitioned topic using the instructions here and specify <code class="highlighter-rouge">global</code> as the cluster in the topic name.</p>
+
+  </div>
+</div>
+
+<h4 id="pulsar-admin">pulsar-admin</h4>
+
+<p>You can create partitioned topics using the <a href="../../reference/CliTools#pulsar-admin-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></a> command and specifying the topic name as an argument and the number of partitions using the <code class="highlighter-rouge">-p</code> or <code class="highlighter-rouge">--partitions</code> flag. Here’s an example:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent create-partitioned-topic <span class="se">\</span>
+  persistent://my-property/my-cluster-my-namespace/my-topic <span class="se">\</span>
+  --partitions 4
+</code></pre>
+</div>
+
+<h4 id="rest-api">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">numPartitions</span> <span class="o">=</span> <span class="mi">4</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">createPartitionedTopic</span><span class="o">(</span><span class="n">topicName</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-metadata">Get metadata</h3>
+
+<p>Partitioned topics have metadata associated with them that you can fetch as a JSON object. The following metadata fields are currently available:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Field</th>
+      <th style="text-align: left">Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">partitions</code></td>
+      <td style="text-align: left">The number of partitions into which the topic is divided</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p>You can see the see number of partitions in a partitioned topic using the <a href="../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></a> subcommand. Here’s an example:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent get-partitioned-topic-metadata <span class="se">\</span>
+  persistent://my-property/my-cluster-my-namespace/my-topic
+<span class="o">{</span>
+  <span class="s2">"partitions"</span>: 4
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>:/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPartitionedTopicMetadata</span><span class="o">(</span><span class="n">topicName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="update">Update</h3>
+
+<p>You can update the number of partitions on an existing partitioned topic <em>if</em> the topic is non-global. To update, the new number of partitions must be greater than the existing number.</p>
+
+<p>Decrementing the number of partitions would deleting the topic, which is not supported in Pulsar.</p>
+
+<p>Already created partitioned producers and consumers can’t see newly created partitions and it requires to recreate them at application so, newly created producers and consumers can connect to newly added partitions as well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.</p>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p>Partitioned topics can be deleted using the <a href="../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic"><code class="highlighter-rouge">update-partitioned-topic</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent update-partitioned-topic <span class="se">\</span>
+  persistent://my-property/my-cluster-my-namespace/my-topic <span class="se">\</span>
+  --partitions 8
+</code></pre>
+</div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">updatePartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="delete">Delete</h3>
+
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
+
+<p>Partitioned topics can be deleted using the <a href="../../reference/CliTools#pulsar-admin-persistent-delete-partitioned-topic"><code class="highlighter-rouge">delete-partitioned-topic</code></a> command, specifying the topic by name:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent delete-partitioned-topic <span class="se">\</span>
+  persistent://my-property/my-cluster-my-namespace/my-topic
+</code></pre>
+</div>
+
+<h4 id="rest-api-3">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
+
+<h4 id="java-3">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="list">List</h3>
+
+<p>It provides a list of persistent topics existing under a given namespace.</p>
+
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent list prop-1/cluster-1/namespace
+persistent://property/cluster/namespace/topic
+persistent://property/cluster/namespace/topic
+</code></pre>
+</div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace">More info</a></p>
+
+<h4 id="java-4">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="stats">Stats</h3>
+
+<p>It shows current statistics of a given partitioned topic. Here’s an example payload:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">4641.528542257553</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">44663039.74947473</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">1232439.816728665</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">135532389160</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">57.855383881403576</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">558994.7078932219</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">613135</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"my-topic_subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">116632</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">36.98245516804671</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>The following stats are available:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="stats">
+  <thead>
+    <tr>
+      <th>Stat</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr>
+      <td>msgRateIn</td>
+      <td>The sum of all local and replication publishers’ publish rates in messages per second
+</td>
+    </tr>
+    
+    <tr>
+      <td>msgThroughputIn</td>
+      <td>Same as <code class="highlighter-rouge">msgRateIn</code> but in bytes per second instead of messages per second
+</td>
+    </tr>
+    
+    <tr>
+      <td>msgRateOut</td>
+      <td>The sum of all local and replication consumers’ dispatch rates in messages per second
+</td>
+    </tr>
+    
+    <tr>
+      <td>msgThroughputOut</td>
+      <td>Same as <code class="highlighter-rouge">msgRateOut</code> but in bytes per second instead of messages per second
+</td>
+    </tr>
+    
+    <tr>
+      <td>averageMsgSize</td>
+      <td>Average message size, in bytes, from this publisher within the last interval
+</td>
+    </tr>
+    
+    <tr>
+      <td>storageSize</td>
+      <td>The sum of the ledgers’ storage size for this topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>publishers</td>
+      <td>The list of all local publishers into the topic. There can be anywhere from zero to thousands.
+</td>
+    </tr>
+    
+    <tr>
+      <td>producerId</td>
+      <td>Internal identifier for this producer on this topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>producerName</td>
+      <td>Internal identifier for this producer, generated by the client library
+</td>
+    </tr>
+    
+    <tr>
+      <td>address</td>
+      <td>IP address and source port for the connection of this producer
+</td>
+    </tr>
+    
+    <tr>
+      <td>connectedSince</td>
+      <td>Timestamp this producer was created or last reconnected
+</td>
+    </tr>
+    
+    <tr>
+      <td>subscriptions</td>
+      <td>The list of all local subscriptions to the topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>my-subscription</td>
+      <td>The name of this subscription (client defined)
+</td>
+    </tr>
+    
+    <tr>
+      <td>msgBacklog</td>
+      <td>The count of messages in backlog for this subscription
+</td>
+    </tr>
+    
+    <tr>
+      <td>type</td>
+      <td>This subscription type
+</td>
+    </tr>
+    
+    <tr>
+      <td>msgRateExpired</td>
+      <td>The rate at which messages were discarded instead of dispatched from this subscription due to TTL
+</td>
+    </tr>
+    
+    <tr>
+      <td>consumers</td>
+      <td>The list of connected consumers for this subscription
+</td>
+    </tr>
+    
+    <tr>
+      <td>consumerName</td>
+      <td>Internal identifier for this consumer, generated by the client library
+</td>
+    </tr>
+    
+    <tr>
+      <td>availablePermits</td>
+      <td>The number of messages this consumer has space for in the client library’s listen queue. A value of 0 means the client library’s queue is full and receive() isn’t being called. A nonzero value means this consumer is ready to be dispatched messages.
+</td>
+    </tr>
+    
+    <tr>
+      <td>replication</td>
+      <td>This section gives the stats for cross-colo replication of this topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>replicationBacklog</td>
+      <td>The outbound replication backlog in messages
+</td>
+    </tr>
+    
+    <tr>
+      <td>connected</td>
+      <td>Whether the outbound replicator is connected
+</td>
+    </tr>
+    
+    <tr>
+      <td>replicationDelayInSeconds</td>
+      <td>How long the oldest message has been waiting to be sent through the connection, if connected is true
+</td>
+    </tr>
+    
+    <tr>
+      <td>inboundConnection</td>
+      <td>The IP and port of the broker in the remote cluster’s publisher connection to this broker
+</td>
+    </tr>
+    
+    <tr>
+      <td>inboundConnectedSince</td>
+      <td>The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-persistent-partitioned-stats"><code class="highlighter-rouge">partitioned-stats</code></a></p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent partitioned-stats <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  --per-partition        
+</code></pre>
+</div>
+
+<h4 id="rest-api-5">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitioned-stats</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitioned-stats">More info</a></p>
+
+<h4 id="java-5">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="internal-stats">Internal stats</h3>
+
+<p>It shows detailed statistics of a topic.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="stats">
+  <thead>
+    <tr>
+      <th>Stat</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr>
+      <td>entriesAddedCounter</td>
+      <td>Messages published since this broker loaded this topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>numberOfEntries</td>
+      <td>Total number of messages being tracked
+</td>
+    </tr>
+    
+    <tr>
+      <td>totalSize</td>
+      <td>Total storage size in bytes of all messages
+</td>
+    </tr>
+    
+    <tr>
+      <td>currentLedgerEntries</td>
+      <td>Count of messages written to the ledger currently open for writing
+</td>
+    </tr>
+    
+    <tr>
+      <td>currentLedgerSize</td>
+      <td>Size in bytes of messages written to ledger currently open for writing
+</td>
+    </tr>
+    
+    <tr>
+      <td>lastLedgerCreatedTimestamp</td>
+      <td>Time when last ledger was created
+</td>
+    </tr>
+    
+    <tr>
+      <td>lastLedgerCreationFailureTimestamp</td>
+      <td>time when last ledger was failed
+</td>
+    </tr>
+    
+    <tr>
+      <td>waitingCursorsCount</td>
+      <td>How many cursors are caught up and waiting for a new message to be published
+</td>
+    </tr>
+    
+    <tr>
+      <td>pendingAddEntriesCount</td>
+      <td>How many messages have (asynchronous) write requests we are waiting on completion
+</td>
+    </tr>
+    
+    <tr>
+      <td>lastConfirmedEntry</td>
+      <td>The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.
+</td>
+    </tr>
+    
+    <tr>
+      <td>state</td>
+      <td>The state of the cursor ledger. Open means we have a cursor ledger for saving updates of the markDeletePosition.
+</td>
+    </tr>
+    
+    <tr>
+      <td>ledgers</td>
+      <td>The ordered list of all ledgers for this topic holding its messages
+</td>
+    </tr>
+    
+    <tr>
+      <td>cursors</td>
+      <td>The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
+</td>
+    </tr>
+    
+    <tr>
+      <td>markDeletePosition</td>
+      <td>The ack position: the last message the subscriber acknowledged receiving
+</td>
+    </tr>
+    
+    <tr>
+      <td>readPosition</td>
+      <td>The latest position of subscriber for reading message
+</td>
+    </tr>
+    
+    <tr>
+      <td>waitingReadOp</td>
+      <td>This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.
+</td>
+    </tr>
+    
+    <tr>
+      <td>pendingReadOps</td>
+      <td>The counter for how many outstanding read requests to the BookKeepers we have in progress
+</td>
+    </tr>
+    
+    <tr>
+      <td>messagesConsumedCounter</td>
+      <td>Number of messages this cursor has acked since this broker loaded this topic
+</td>
+    </tr>
+    
+    <tr>
+      <td>cursorLedger</td>
+      <td>The ledger being used to persistently store the current markDeletePosition
+</td>
+    </tr>
+    
+    <tr>
+      <td>cursorLedgerLastEntry</td>
+      <td>The last entryid used to persistently store the current markDeletePosition
+</td>
+    </tr>
+    
+    <tr>
+      <td>individuallyDeletedMessages</td>
+      <td>If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position
+</td>
+    </tr>
+    
+    <tr>
+      <td>lastLedgerSwitchTimestamp</td>
+      <td>The last time the cursor ledger was rolled over
+</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"entriesAddedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449518</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"numberOfEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"totalSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"currentLedgerEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"currentLedgerSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"lastLedgerCreatedTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 03:00:23.825"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"lastLedgerCreationFailureTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"waitingCursorsCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"pendingAddEntriesCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"lastConfirmedEntry"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3232"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LedgerOpened"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"ledgers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"ledgerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">324711539</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nt">"cursors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"markDeletePosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3133"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"readPosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3233"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"waitingReadOp"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"pendingReadOps"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"messagesConsumedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449501</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"cursorLedger"</span><span class="p">:</span><span class="w"> </span><span class="mi">324702104</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"cursorLedgerLastEntry"</span><span class="p">:</span><span class="w"> </span><span class="mi">21</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"individuallyDeletedMessages"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"lastLedgerSwitchTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 01:30:19.313"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Open"</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h4 id="pulsar-admin-6">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1
+</code></pre>
+</div>
+
+<h4 id="rest-api-6">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/internalStats">More info</a></p>
+
+<h4 id="java-6">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre>
+</div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Managing partitioned topics</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

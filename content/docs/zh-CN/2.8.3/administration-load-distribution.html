@@ -1,0 +1,171 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar load distribution · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Pulsar broker 间的负载分配"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar load distribution · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="## Pulsar broker 间的负载分配"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/administration-load-distribution">English</a></li><li><a href="/docs/ja/2.8.3/administration-load-distribution">日本語</a></li><li><a href="/docs/fr/2.8.3/administration-load-distribution">Français</a></li><li><a href="/docs/ko/2.8.3/administration-load-distribution">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/administration-load-distribution">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar load distribution</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="pulsar-broker-间的负载分配"></a><a href="#pulsar-broker-间的负载分配" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar broker 间的负载分配</h2>
+<p>Pulsar 作为一种横向可扩展的消息系统，因此它的核心需求是逻辑集群中的流量必须在所有可用的 Pulsar broker 之间尽可能均匀的分配开。</p>
+<p>多数情况下，Pulsar 是即时可用的，不必为此而担心。 不过 Pulsar 有多种设置和工具用于控制流量分配。理解 Pulsar 中的流量管理方式，需要了解一些背景知识。</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-负载管理架构"></a><a href="#pulsar-负载管理架构" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 负载管理架构</h2>
+<h3><a class="anchor" aria-hidden="true" id="向-broker-动态分配主题"></a><a href="#向-broker-动态分配主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>向 broker 动态分配主题</h3>
+<p>Pulsar 会根据集群中所有 broker 的负载状态，将主题动态分配给 broker。</p>
+<p>When a clients starts using new topics that are not assigned to any broker, it will trigger a process that, given the load conditions, it will choose the best suited broker to acquire ownership of such topic.</p>
+<p>In case of partitioned topics, different partitions might be assigned to different brokers. We talk about &quot;topic&quot; in this context to mean either a non-partitioned topic or one partition of a topic.</p>
+<p>The assignment is &quot;dynamic&quot; because it can change very quickly. 例如，如果负责该主题的 broker 崩溃，则该主题将立即重新分配给另一个 broker。 另一种情况是负责该主题的 broker 过载。 In this case too, the topic will be reassigned to a less loaded broker.</p>
+<p>The dynamic assignment is made possible by the stateless nature of brokers. This also ensure that we can quickly expand or shrink the cluster based on usage.</p>
+<h3><a class="anchor" aria-hidden="true" id="分配粒度"></a><a href="#分配粒度" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分配粒度</h3>
+<p>The assignment of topics/partitions to brokers is not done at the individual level. The reason for it is to amortize the amount of information that we need to keep track (eg. which topics are assigned to a particular broker, what's the load on topics for a broker and similar).</p>
+<p>每个 broker 都拥有主题子集的所有权以用于命名空间，而不是单独的主题/分区分配。 该子集称为“<em>bundle</em>”，实际上是一种分片机制。</p>
+<p>命名空间是“管理”单元：许多配置调节器或操作在命名空间级别完成。</p>
+<p>具体分配策略是，命名空间切分为一个 ”bundles“ 列表，每个 bundle 覆盖命名空间的一段哈希值范围。</p>
+<p>主题根据其名字算出的哈希值，会被分配到一个特定的 bundle。</p>
+<p>每个 bundle 都是独立的，因此会被独立的分配到不同的 broker。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建命名空间和-bundle"></a><a href="#创建命名空间和-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建命名空间和 bundle</h3>
+<p>创建一个新的命名空间的时候，将使用默认的 bundle 数量。这个配置项在<code>conf/broker.conf</code>里面：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 当命名空间创建时没有指定 bundle 数量时，将使用这个默认的值。</span>
+<span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-string">4</span>
+</code></pre>
+<p>你可以修改系统默认设置，或者在创建命名空间的时候指定它：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
+</code></pre>
+<p>上面这个命令行，创建命名空间的时候指定了16个bundle。因此，命名空间里面的所有主题能够分布在16个 broker 上。</p>
+<p>一般情况下，如果流量和主题数量的发展是可以预期的，我们建议一开始就设置合理的 bundle 数量，不要等待系统去自动调整。</p>
+<p>正常情况下， 应设置 bundle 数量大于 broker数量。因为主题是根据哈希自动分布到 bundle 里面的。 例如，命令空间内有1000个主题，可以使用比如 64 个 bundle ，让流量均匀的分布在 16 个broker上。</p>
+<h3><a class="anchor" aria-hidden="true" id="卸载主题和-bundle"></a><a href="#卸载主题和-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载主题和 bundle</h3>
+<p>在 Pulsar 中，你能够通过管理操作去 “卸载“ 主题。卸载的意思是关闭这个主题，即根据负载将主题从当前 broker 剥离，并分配到新的 broker。</p>
+<p>执行卸载操作的时候，客户端会出现一个短暂的延时增加，通常是几十毫秒左右，此时主题将被重新分配。</p>
+<p>卸载是负载管理器用来执行负载调度的一种机制，你也可以手动触发卸载操作。例如，你可以在任何 broker 出现超负载之前就纠正之前的分配并重新分配流量。</p>
+<p>卸载主题对任务没有影响，因为它仅仅只关闭并重新打开特定主题：</p>
+<pre><code class="hljs css language-shell">pulsar-admin topics unload persistent://tenant/namespace/topic
+</code></pre>
+<p>如下命令是，卸载命名空间的所有主题，并触发重新分配：</p>
+<pre><code class="hljs css language-shell">pulsar-admin namespaces unload tenant/namespace
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="拆分命名空间中的-bundle"></a><a href="#拆分命名空间中的-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>拆分命名空间中的 bundle</h3>
+<p>由于 bundle 中主题的负载会随着时间的变化而变化，或者在前期很难预测流量的变化。所以，broker 支持将一个 bundle 拆分为两个。 此时新建的 bundle 会被重新分配到其他的 broker。</p>
+<p>拆分操作是基于一些可配置的阈值来判断执行的。 任何已存在的 bundle 如果超过下列任何阈值，则该 bundle 将会被拆分。 默认情况下，新拆出来的 bundle 总是立刻分配到其他的broker，以平衡流量分布。</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 启用/禁用 自动拆分命名空间中的bundle</span>
+<span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
+# 启用/禁用 自动卸载切分的bundle</span>
+<span class="hljs-attr">loadBalancerAutoUnloadSplitBundlesEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
+# bundle 中最大的主题数, 一旦超过这个值，将触发拆分操作。</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxTopics</span>=<span class="hljs-string">1000</span>
+<span class="hljs-comment">
+# bundle 最大的session数量(生产 + 消费), 一旦超过这个值，将触发拆分操作。</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxSessions</span>=<span class="hljs-string">1000</span>
+<span class="hljs-comment">
+# bundle 最大的msgRate(进+出)的值, 一旦超过这个值，将触发拆分操作。</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxMsgRate</span>=<span class="hljs-string">30000</span>
+<span class="hljs-comment">
+# bundle 最大的带宽(进+出)的值, 一旦超过这个值，将触发拆分操作</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxBandwidthMbytes</span>=<span class="hljs-string">100</span>
+<span class="hljs-comment">
+# 命名空间中最大的 bundle 数量 (用于自动拆分bundle时)</span>
+<span class="hljs-attr">loadBalancerNamespaceMaximumBundles</span>=<span class="hljs-string">128</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="自动负载切分"></a><a href="#自动负载切分" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自动负载切分</h3>
+<p>Pulsar 的负载管理器支持自动的负载切分。 这意味着，当系统检测到某个 broker 过载时，系统会强制将一些流量自动分配到一些低负载的broker。</p>
+<p>这意味着，当系统检测到某个 broker 过载时，系统会强制将一些流量自动分配到一些低负载的broker。</p>
+<p>例如，默认阈值是85%，如果 broker cpu率 使用超过了95%。那么broker 卸载的百分比差会加上5%： 即<code>(95% - 85%) + 5% = 15%</code>。</p>
+<p>卸载的 bundle 是基于流量(作为cpu，网络，内存的代理指标)来选择的，在上面的例子中，broker 卸载的 bundle 至少要占有整个broker 15%的流量。</p>
+<p>默认情况下，自动负载切分是启用的。 你能够通过如下配置项禁用自动负载切分：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 启用/禁用自动负载拆分</span>
+<span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-string">true</span>
+</code></pre>
+<p>关于负载切分的其他配置：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 负载切分时间间隔。 Broker 定期检查，是否有一些流量需要从一些负载比较高的 broker，转移到负载较低的 broker 上。</span>
+<span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# 防止同一个主题，在同一个时间窗口，被多次迁移的时间间隔。</span>
+<span class="hljs-attr">loadBalancerSheddingGracePeriodMinutes</span>=<span class="hljs-string">30</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="broker-过载阈值"></a><a href="#broker-过载阈值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker 过载阈值</h4>
+<p>确定 broker 何时过载要基于 CPU、网络和内存使用的阈值。 这些指标中的任何一个达到阈值，都将触发脱落（如已启用）。</p>
+<p>默认情况下，负载阈值设置为85%：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 使用阈值确定 broker 是否过载</span>
+<span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-string">85</span>
+</code></pre>
+<p>Pulsar 会从系统中采集这些指标的使用情况。</p>
+<p>有一种特殊的情况需要注意。以网络指标为例，在某些情况下，Linux 上报的网络接口速率是不正确的，那就必须手动指定该值。 AWS EC2 实例就是这种情况，它的网卡是 1Gbps的，但是系统上报的是 10Gbps。</p>
+<p>因为最大的速度是不正确的， Pulsar 负载管理器会认为 broker 还没到达到网卡的最大服务能力，实际上 broker 已经使用完了网卡的所有资源，此时网络传输就会变慢。</p>
+<p>以下设置可修正最大网卡速度：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 覆盖自动获取的网卡最大速度</span>
+<span class="hljs-comment"># 此选项在某些环境中是有用的(例如：EC2 VMs) ，因为Linux报告的网卡最大速度不是 broker 真实的值。</span>
+<span class="hljs-comment"># 因为负载管理器是根据网络使用情况来判断 broker 是否负载，为了确保信息是正确的，你可以通过这个参数来指定正确的值。 这个配置值可以是一个 double 类型的值(比如: 0.8)。</span>
+<span class="hljs-comment"># 能够通过这个配置项在网卡带宽使用完之前，触发负载切分操作。</span>
+<span class="hljs-attr">loadBalancerOverrideBrokerNicSpeedGbps</span>=<span class="hljs-string"></span>
+</code></pre>
+<p>当值为空时，Pulsar 将使用 OS 提供的值。</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-broker-间的负载分配">Pulsar broker 间的负载分配</a></li><li><a href="#pulsar-负载管理架构">Pulsar 负载管理架构</a><ul class="toc-headings"><li><a href="#向-broker-动态分配主题">向 broker 动态分配主题</a></li><li><a href="#分配粒度">分配粒度</a></li><li><a href="#创建命名空间和-bundle">创建命名空间和 bundle</a></li><li><a href="#卸载主题和-bundle">卸载主题和 bundle</a></li><li><a href="#拆分命名空间中的-bundle">拆分命名空间中的 bundle</a></li><li><a href="#自动负载切分">自动负载切分</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

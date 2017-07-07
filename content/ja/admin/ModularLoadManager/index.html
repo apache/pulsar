@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>モジュラロードマネージャ</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">モジュラロードマネージャ</h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><a target="_blank" href="/api/broker/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html"><code class="highlighter-rouge">ModularLoadManagerImpl</code></a>として実装されている<em>モジュラロードマネージャ</em>は、これまでに実装されていたロードマネージャ<a target="_blank" href="/api/broker/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.html"><code class="highlighter-rouge">SimpleLoadManagerImpl</code></a>のより柔軟な代替手段です。これは複雑な負荷管理戦略を実装できるように抽象化を提供しつつ、負荷管理の方法をより簡単にしようと試みています。</p>
+
+<h2 id="使用方法">使用方法</h2>
+
+<p>2通りの方法でモジュラロードマネージャを有効にできます:</p>
+
+<ol>
+  <li><code class="highlighter-rouge">conf/broker.conf</code>の<code class="highlighter-rouge">loadManagerClassName</code>パラメータの値を<code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</code>から<code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl</code>に変更します。</li>
+  <li>
+    <p><code class="highlighter-rouge">pulsar-admin</code>ツールを使用します。以下はその例です:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin update-dynamic-config <span class="se">\</span>
+  <span class="nt">--config</span> loadManagerClassName <span class="se">\</span>
+  <span class="nt">--value</span> org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
+</code></pre></div>    </div>
+
+    <p>同じ方法で元々の値に戻す事も可能です。どちらの場合でも、ロードマネージャの指定に誤りがあればPulsarはデフォルトの<code class="highlighter-rouge">SimpleLoadManagerImpl</code>を使用します。</p>
+  </li>
+</ol>
+
+<h2 id="検証">検証</h2>
+
+<p>どちらのロードマネージャが使用されているかを判断する方法はいくつかあります:</p>
+
+<ol>
+  <li>
+    <p><code class="highlighter-rouge">pulsar-admin</code>を使用して<code class="highlighter-rouge">loadManagerClassName</code>要素を確認してください:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin brokers get-all-dynamic-config
+<span class="o">{</span>
+  <span class="s2">"loadManagerClassName"</span> : <span class="s2">"org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"</span>
+<span class="o">}</span>
+</code></pre></div>    </div>
+
+    <p><code class="highlighter-rouge">loadManagerClassName</code>要素が存在しなければ、デフォルトのロードマネージャが使用されます。</p>
+  </li>
+  <li>
+    <p>ZooKeeperの負荷レポートを参照してください。モジュラロードマネージャでは、<code class="highlighter-rouge">/loadbalance/brokers/...</code>の負荷レポートに多くの違いがあります。例えば<code class="highlighter-rouge">systemResourceUsage</code>の子要素 (<code class="highlighter-rouge">bandwidthIn</code>や<code class="highlighter-rouge">bandwidthOut</code>など) は全てトップレベルになります。以下はモジュラロードマネージャからの負荷レポートの例です:</p>
+
+    <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">4.256510416666667</span><span class="w">
+   </span><span class="p">},</span><span class="w">
+   </span><span class="s2">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.287239583333333</span><span class="w">
+   </span><span class="p">},</span><span class="w">
+   </span><span class="s2">"bundles"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
+   </span><span class="s2">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.7353247655435915</span><span class="w">
+   </span><span class="p">},</span><span class="w">
+   </span><span class="s2">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
+   </span><span class="p">}</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre></div>    </div>
+
+    <p>シンプルロードマネージャでは<code class="highlighter-rouge">/loadbalance/brokers/...</code>の負荷レポートは次のようになります:</p>
+
+    <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"systemResourceUsage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+     </span><span class="p">},</span><span class="w">
+     </span><span class="s2">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+     </span><span class="p">},</span><span class="w">
+     </span><span class="s2">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+     </span><span class="p">},</span><span class="w">
+     </span><span class="s2">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
+     </span><span class="p">},</span><span class="w">
+     </span><span class="s2">"memory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">8192.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">3903.0</span><span class="w">
+     </span><span class="p">}</span><span class="w">
+   </span><span class="p">}</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre></div>    </div>
+  </li>
+  <li>
+    <p>コマンドライン上で<a href="../../reference/CliTools/#pulsar-perf-monitor-brokers">Brokerの監視</a>を行うと、使用されているロードマネージャの実装に応じて異なる形式で結果を出力します。</p>
+
+    <p>以下はモジュラロードマネージャの例です:</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> ===================================================================================================================
+ ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+ ||               |0.00           |48.33          |0.01           |0.00           |0.00           |48.33          ||
+ ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+ ||               |4              |4              |0              |2              |4              |0              ||
+ ||LATEST         |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+ ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+ ||SHORT          |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+ ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+ ||LONG           |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+ ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+ ===================================================================================================================
+</code></pre></div>    </div>
+
+    <p>以下はシンプルロードマネージャの例です:</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> ===================================================================================================================
+ ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+ ||               |4              |4              |0              |2              |0              |0              ||
+ ||RAW SYSTEM     |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+ ||               |0.25           |47.94          |0.01           |0.00           |0.00           |47.94          ||
+ ||ALLOC SYSTEM   |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+ ||               |0.20           |1.89           |               |1.27           |3.21           |3.21           ||
+ ||RAW MSG        |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+ ||               |0.00           |0.00           |0.00           |0.01           |0.01           |0.01           ||
+ ||ALLOC MSG      |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+ ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
+ ===================================================================================================================
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<p>モジュラロードマネージャは <em>中央集権的</em> である事に注意する必要があります。つまり、バンドルを割り当てる全てのリクエストは—それを以前に経験したかあるいは初めてであるかに関わらず— <em>リーダー</em> Broker (時間と共に変更される可能性があります) によってのみ処理されます。現在のリーダーBrokerを調べるには、ZooKeeperの<code class="highlighter-rouge">/loadbalance/leader</code>ノードを確認してください。</p>
+
+<h2 id="実装">実装</h2>
+
+<h3 id="データ">データ</h3>
+
+<p>モジュラロードマネージャによって監視されるデータは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/loadbalance/LoadData.html"><code class="highlighter-rouge">LoadData</code></a>クラスに含まれています。利用可能なデータはバンドルデータとBrokerデータに細分化されます。</p>
+
+<h4 id="broker">Broker</h4>
+
+<p>Brokerデータは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/BrokerData.html"><code class="highlighter-rouge">BrokerData</code></a>クラスに含まれます。それはさらに2つの部分に細分化され、1つは各BrokerがZooKeeperに書き込むローカルデータであり、もう1つはリーダーBrokerがZooKeeperに書き込むヒストリカルBrokerデータです。</p>
+
+<h5 id="ローカルbrokerデータ">ローカルBrokerデータ</h5>
+<p>ローカルBrokerデータは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/LocalBrokerData.html"><code class="highlighter-rouge">LocalBrokerData</code></a>に含まれ、次のリソースに関する情報を提供します:</p>
+
+<ul>
+  <li>CPU使用率</li>
+  <li>JVMのヒープメモリ使用率</li>
+  <li>ダイレクトメモリ使用率</li>
+  <li>入出力それぞれの帯域幅使用率</li>
+  <li>全てのバンドルを合計した最新のメッセージの入出力レート</li>
+  <li>トピック、バンドル、Producer、Consumerの総数</li>
+  <li>このBrokerに割り当てられた全てのバンドルの名前</li>
+  <li>このBrokerに対するバンドル割り当ての最新の変更</li>
+</ul>
+
+<p>ローカルBrokerデータは”loadBalancerReportUpdateMaxIntervalMinutes”の設定に従って定期的に更新されます。いずれかのBrokerがそのローカルBrokerデータを更新した後、リーダーBrokerはZooKeeperのウォッチを通して直ちに更新を受け取ります。ローカルデータはZooKeeperのノード<code class="highlighter-rouge">/loadbalance/brokers/&lt;broker host/port&gt;</code>から読み込まれます。</p>
+
+<h5 id="ヒストリカルbrokerデータ">ヒストリカルBrokerデータ</h5>
+
+<p>ヒストリカルBrokerデータは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/TimeAverageBrokerData.html"><code class="highlighter-rouge">TimeAverageBrokerData</code></a>クラスに含まれます。</p>
+
+<p>定常状態における良好な決定および致命的な状態における反応的な決定を行う必要性を調整するために、ヒストリカルデータは2つの部分に分割されます。すなわち、反応的な決定のための短期データと定常的な決定のための長期データです。どちらの時間枠も次の情報を保持します:</p>
+
+<ul>
+  <li>Broker全体のメッセージの入出力レート</li>
+  <li>Broker全体のメッセージの入出力スループット</li>
+</ul>
+
+<p>バンドルデータとは異なり、BrokerデータはグローバルなBrokerのメッセージレートとスループットのサンプルを保持しません。これらのサンプルは新しくバンドルが削除または追加されるため一定に保たれる事は期待できません。その代わりに、このデータはバンドルの短期データと長期データに集約されます。データがどのように収集・保持されているかを知るにはバンドルデータのセクションを参照してください。</p>
+
+<p>ヒストリカルBrokerデータは、いずれかのBrokerがローカルデータをZooKeeperに書き込む度に、リーダーBrokerによってメモリ内で更新されます。そして、リーダーBrokerは<code class="highlighter-rouge">loadBalancerResourceQuotaUpdateIntervalMinutes</code>の設定に従って定期的にヒストリカルデータをZooKeeperに書き込みます。</p>
+
+<h5 id="バンドルデータ">バンドルデータ</h5>
+
+<p>バンドルデータは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/BundleData.html"><code class="highlighter-rouge">BundleData</code></a>に含まれます。ヒストリカルBrokerデータと同様に、バンドルデータも短期データと長期データに分けられます。それぞれの時間枠で保持される情報は次の通りです:</p>
+
+<ul>
+  <li>このバンドルのメッセージの入出力レート</li>
+  <li>このバンドルのメッセージの入出力スループット</li>
+  <li>このバンドルの現在のサンプル数</li>
+</ul>
+
+<p>前述の時間枠は、これらの値の平均を限られたサンプル数だけ保持する事によって実現されます。サンプルはローカルデータの中のメッセージレートとスループットから得られます。したがって、ローカルデータの更新間隔が2分、短期サンプルの数が10、長期サンプルの数が1000である場合、短期データは<code class="highlighter-rouge">10サンプル * 2分 / サンプル = 20分</code>だけ維持され、長期データは同様に2000分だけ維持されます。与えられた時間枠を満たすだけの十分なサンプルがない場合、存在するサンプルのみの平均がとられます。利用可能なサンプルがない場合、最初のサンプルによって上書きされるまでデフォルトの値が仮定されます。現在、デフォルトは次の値になっています:</p>
+
+<ul>
+  <li>入出力メッセージレート: 50 msg/sec</li>
+  <li>入出力メッセージスループット: 50 KB/sec</li>
+</ul>
+
+<p>バンドルデータはいずれかのBrokerがローカルデータをZooKeeperに書き込む度に、リーダーBrokerのメモリ内で更新されます。そして、ヒストリカルBrokerデータと同様にリーダーBrokerは<code class="highlighter-rouge">loadBalancerResourceQuotaUpdateIntervalMinutes</code>の設定に従って定期的にバンドルデータをZooKeeperに書き込みます。</p>
+
+<h3 id="トラフィック分散">トラフィック分散</h3>
+
+<p>モジュラロードマネージャは<a target="_blank" href="/api/broker/org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.html"><code class="highlighter-rouge">ModularLoadManagerStrategy</code></a>によって提供される抽象化を使用してバンドルの割り当てを決定します。戦略はサービスの設定、負荷データ全体、割り当てるバンドルのバンドルデータを考慮して決定を行います。現在サポートされている唯一の戦略は<a target="_blank" href="/api/broker/org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html"><code class="highlighter-rouge">LeastLongTermMessageRate</code></a>だけですが、ユーザは望めば独自の戦略をすぐに盛り込む事ができます。</p>
+
+<h4 id="最低長期メッセージレート戦略">最低長期メッセージレート戦略</h4>
+
+<p>その名前が示すように、最低長期メッセージレート戦略では各Brokerの長期時間ウィンドウの中のメッセージレートがほぼ均等になるようにバンドルをBrokerに分散させようとします。ただし、単純にメッセージレートに基づいて負荷を分散させるだけでは各Brokerのメッセージごとの非対称なリソース負担の問題には対応できません。したがって、割り当て処理ではCPU、メモリ、ダイレクトメモリ、入出力の帯域幅といったシステムリソースの使用率も考慮されます。これは<code class="highlighter-rouge">1 / (overload_threshold - max_usage)</code>に従った最終的なメッセージレートへの重み付けによって行われ、<code class="highlighter-rouge">overload_threshold</code>は<code class="highlighter-rouge">loadBalancerBrokerOverloadedThresholdPercentage</code>の設定に対応し、<code class="highlighter-rouge">max_usage</code>は割り当て候補となっているBrokerのシステムリソースの使用率の最大値です。この乗算によって、同じメッセージレートでより負荷の大きいマシンには割り当てられる負荷が小さくなるようにします。特に、ある1つのマシンが過負荷になった場合には、全てのマシンがほぼ過負荷になるようにします。Brokerの最大使用量が過負荷の閾値を超えた場合、そのBrokerへのバンドル割り当ては検討されません。全てのBrokerが過負荷の場合、バンドルはランダムに割り当てられます。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>モジュラロードマネージャ</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

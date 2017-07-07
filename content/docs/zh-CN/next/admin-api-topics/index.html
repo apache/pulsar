@@ -1,0 +1,998 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>管理主题 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **重要**"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="管理主题 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; **重要**"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/admin-api-topics">English</a></li><li><a href="/docs/ja/next/admin-api-topics">日本語</a></li><li><a href="/docs/fr/next/admin-api-topics">Français</a></li><li><a href="/docs/ko/next/admin-api-topics">한국어</a></li><li><a href="/docs/zh-TW/next/admin-api-topics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone">本地运行 Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone-docker">在 Docker 中运行 Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/kubernetes-helm">在 Kubernetes 中运行 Pulsar</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-messaging">消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-architecture-overview">架构</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-clients">客户端</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-replication">跨机房复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multi-tenancy">多租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-authentication">认证和授权</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-topic-compaction">消息压缩</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-proxy-sni-routing">Pulsar Proxy 支持 SNI 路由</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multiple-advertised-listeners">配置 Advertised 监听器</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-get-started">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-understand">理解 schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-evolution-compatibility">Schema 演化和兼容</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-manage">管理 Schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-runtime">设置：配置 Pulsar Functions 运行时</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-worker">设置：Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-develop">操作：开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-package">如何打包</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-debug">操作：调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-deploy">操作：部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-cli">参考：命令</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/window-functions-context">窗口函数：上下文</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-quickstart">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-use">使用</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-debug">调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-connectors">内置 connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-develop">开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-getting-started">查询数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-deployment-configurations">配置和部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-rest-api">REST API</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aws">亚马逊 AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aliyun">阿里云 OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-why">为什么需要事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-what">什么是事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-how">事务运行原理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-use">如何使用事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-monitor">如何监控事务？</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-prepare">准备</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-install">安装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-deploy">部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-tools">所需工具</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-aws">Amazon Web Services (Aws)</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal">裸机</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">裸机多集群部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-zk-bk">ZooKeeper 和 BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-geo">跨地域复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-stats">Pulsar 统计数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-load-balance">负载均衡</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-proxy">Pulsar 代理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-isolation">Pulsar 隔离</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-policy-and-supported-versions">安全政策和支持的版本</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-transport">使用TLS进行传输加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-authentication">使用TLS进行认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-keystore">使用 TLS 配置KeyStore</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-jwt">使用 JWT 认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-athenz">使用 Athenz 验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-kerberos">使用 Kerberos 进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-oauth2">使用 OAuth 2.0 访问令牌进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-authorization">授权和ACL</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-encryption">端到端加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/performance-pulsar-perf">Pulsar Perf 性能测试</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-node">Node.js
+</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-dotnet">C#</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-clusters">集群</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-tenants">租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-namespaces">命名空间</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-permissions">权限管理</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/next/admin-api-topics">Topic</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-packages">Package</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-kafka">Kafka 客户端封装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-deduplication">消息去重</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-non-persistent">非持久化消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-retention-expiry">消息保留和过期</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-encryption">加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-message-queue">消息队列</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-bookkeepermetadata">BookKeeper Ledger 元数据</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-tools">模拟工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-binary-protocol">二进制协议</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-load-manager">模块化负载管理器</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-terminology">术语</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-cli-tools">Pulsar 命令行工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">管理主题</h1></header><article><div><span><blockquote>
+<p><strong>重要</strong></p>
+<p>此页面仅显示 <strong>部分常用操作</strong>。</p>
+<ul>
+<li><p>有关 <code>Pulsar admin</code> 的最新完整信息，包括命令、标志、描述等，请参阅 <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin 文档</a></p></li>
+<li><p>关于 <code>REST API</code> 最新最完整的信息，包括参数、响应、示例等等，可参阅 <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
+ API 文档。</p></li>
+<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
+</ul>
+</blockquote>
+<p>Pulsar 提供持久化与非持久化两种topic。 持久化topic是消息发布、消费的逻辑端点。 持久化主题地址的命名格式如下:</p>
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
+</code></pre>
+<p>非持久主题应用在仅消费实时发布消息与不需要持久化保证的应用程序。 通过这种方式，它通过删除持久消息的开销来减少消息发布延迟。 非持久化topic地址的命名格式如下:</p>
+<pre><code class="hljs css language-shell">non-persistent://tenant/namespace/topic
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="管理主题资源"></a><a href="#管理主题资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理主题资源</h2>
+<p>无论是持久化还是非持久化主题，你可以通过<code>pulsar-admin</code>工具、REST API 、 Java 获取到主题资源。</p>
+<blockquote>
+<p><strong>备注</strong>    <br>
+REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persistent（非持久化）。 <code>:tenant</code>，<code>:namespace</code>，<code>:x</code> 是变量，在使用时候请注意使用真正的租户、命名空间，和 <code>x</code> 替换。<br>
+以 <a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+ 为例， 若要获取 REST API 中持久化主题列表，请参考 <code>https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace</code>。 若要获取 REST API 中非持久化主题的列表，请参考 <code>https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace</code>。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="列出-topic"></a><a href="#列出-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>列出 topic</h3>
+<p>你可以通过以下方式获得特定命名空间下的 topic 列表。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2226-tab-2227" class="nav-link active" data-group="group_2226" data-tab="tab-group-2226-content-2227">pulsar-admin</div><div id="tab-group-2226-tab-2228" class="nav-link" data-group="group_2226" data-tab="tab-group-2226-content-2228">REST API</div><div id="tab-group-2226-tab-2229" class="nav-link" data-group="group_2226" data-tab="tab-group-2226-content-2229">Java</div></div><div class="tab-content"><div id="tab-group-2226-content-2227" class="tab-pane active" data-group="group_2226" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list \</span><br />  my-tenant/my-namespace<br /></code></pre>
+</span></div></div><div id="tab-group-2226-content-2228" class="tab-pane" data-group="group_2226" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-2226-content-2229" class="tab-pane" data-group="group_2226" tabindex="-1"><div><span><pre><code class="hljs css language-java">String namespace = <span class="hljs-string">"my-tenant/my-namespace"</span>;<br />admin.topics().getList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="授权"></a><a href="#授权" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>授权</h3>
+<p>通过以下方式可以在客户端角色上授权，以便于在指定的主题上执行具体的操作。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2230-tab-2231" class="nav-link active" data-group="group_2230" data-tab="tab-group-2230-content-2231">pulsar-admin</div><div id="tab-group-2230-tab-2232" class="nav-link" data-group="group_2230" data-tab="tab-group-2230-content-2232">REST API</div><div id="tab-group-2230-tab-2233" class="nav-link" data-group="group_2230" data-tab="tab-group-2230-content-2233">Java</div></div><div class="tab-content"><div id="tab-group-2230-content-2231" class="tab-pane active" data-group="group_2230" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics grant-permission \</span><br />  --actions produce,consume --role application1 \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2230-content-2232" class="tab-pane" data-group="group_2230" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/grantPermissionsOnTopic?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role</i></a>
+</p>
+</span></div></div><div id="tab-group-2230-content-2233" class="tab-pane" data-group="group_2230" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String role = <span class="hljs-string">"test-role"</span>;<br />Set&lt;AuthAction&gt; actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);<br />admin.topics().grantPermission(topic, role, actions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取权限"></a><a href="#获取权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取权限</h3>
+<p>通过以下方式获取权限认证。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2234-tab-2235" class="nav-link active" data-group="group_2234" data-tab="tab-group-2234-content-2235">pulsar-admin</div><div id="tab-group-2234-tab-2236" class="nav-link" data-group="group_2234" data-tab="tab-group-2234-content-2236">REST API</div><div id="tab-group-2234-tab-2237" class="nav-link" data-group="group_2234" data-tab="tab-group-2234-content-2237">Java</div></div><div class="tab-content"><div id="tab-group-2234-content-2235" class="tab-pane active" data-group="group_2234" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics permissions \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br />{<br />    "application1": [<br />        "consume",<br />        "produce"<br />    ]<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-2234-content-2236" class="tab-pane" data-group="group_2234" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPermissionsOnTopic?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions</i></a>
+</p>
+</span></div></div><div id="tab-group-2234-content-2237" class="tab-pane" data-group="group_2234" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getPermissions(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="取消权限"></a><a href="#取消权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消权限</h3>
+<p>您可以通过以下方式撤销授予客户端角色的权限。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2238-tab-2239" class="nav-link active" data-group="group_2238" data-tab="tab-group-2238-content-2239">pulsar-admin</div><div id="tab-group-2238-tab-2240" class="nav-link" data-group="group_2238" data-tab="tab-group-2238-content-2240">REST API</div><div id="tab-group-2238-tab-2241" class="nav-link" data-group="group_2238" data-tab="tab-group-2238-content-2241">Java</div></div><div class="tab-content"><div id="tab-group-2238-content-2239" class="tab-pane active" data-group="group_2238" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics revoke-permission \</span><br />  --role application1 \<br />  persistent://test-tenant/ns1/tp1 \<br /><br />{<br />  "application1": [<br />    "consume",<br />    "produce"<br />  ]<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-2238-content-2240" class="tab-pane" data-group="group_2238" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/revokePermissionsOnTopic?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role</i></a>
+</p>
+</span></div></div><div id="tab-group-2238-content-2241" class="tab-pane" data-group="group_2238" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String role = <span class="hljs-string">"test-role"</span>;<br />admin.topics().revokePermissions(topic, role);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="删除-topic"></a><a href="#删除-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 topic</h3>
+<p>您可以通过以下方式删除一个主题。 如果某个主题拥有任何活跃的订阅或者生产者，则不能对其删除。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2242-tab-2243" class="nav-link active" data-group="group_2242" data-tab="tab-group-2242-content-2243">pulsar-admin</div><div id="tab-group-2242-tab-2244" class="nav-link" data-group="group_2242" data-tab="tab-group-2242-content-2244">REST API</div><div id="tab-group-2242-tab-2245" class="nav-link" data-group="group_2242" data-tab="tab-group-2242-content-2245">Java</div></div><div class="tab-content"><div id="tab-group-2242-content-2243" class="tab-pane active" data-group="group_2242" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics delete \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2242-content-2244" class="tab-pane" data-group="group_2242" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTopic?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-2242-content-2245" class="tab-pane" data-group="group_2242" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="卸载-topic"></a><a href="#卸载-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载 topic</h3>
+<p>通过以下方式卸载主题。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2246-tab-2247" class="nav-link active" data-group="group_2246" data-tab="tab-group-2246-content-2247">pulsar-admin</div><div id="tab-group-2246-tab-2248" class="nav-link" data-group="group_2246" data-tab="tab-group-2246-content-2248">REST API</div><div id="tab-group-2246-tab-2249" class="nav-link" data-group="group_2246" data-tab="tab-group-2246-content-2249">Java</div></div><div class="tab-content"><div id="tab-group-2246-content-2247" class="tab-pane active" data-group="group_2246" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics unload \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2246-content-2248" class="tab-pane" data-group="group_2246" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/unloadTopic?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/unload</i></a>
+</p>
+</span></div></div><div id="tab-group-2246-content-2249" class="tab-pane" data-group="group_2246" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().unload(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取统计信息"></a><a href="#获取统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取统计信息</h3>
+<p>你可以检查给定的未分区主题的以下统计数据。</p>
+<ul>
+<li><p><strong>msgRateIn</strong>：所有本地和副本发布者每秒发布消息速率之和（msg/s）。</p></li>
+<li><p><strong>msgThroughputIn</strong>：所有本地和副本发布者每秒发布消息字节数之和（byte/s）。</p></li>
+<li><p><strong>msgRateOut</strong>：所有本地和副本消费者每秒调度消息率之和（msg/s）。</p></li>
+<li><p><strong>msgThroughputOut</strong>：所有本地和副本消费者每秒调度消息字节数之和（byte/s）。</p></li>
+<li><p><strong>averageMsgSize</strong>：在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
+<li><p><strong>storageSize</strong>：当前 topic 对应 ledger 存储大小之和。 用于存储该主题消息的空间。</p></li>
+<li><p><strong>earliestMsgPublishTimeInBacklogs</strong>: 积压消息中最早的发布时间（ms）。</p></li>
+<li><p><strong>bytesInCounter</strong>: 发布到 topic 的总字节数。</p></li>
+<li><p><strong>msgInCounter</strong>: 发布到topic的消息总数。</p></li>
+<li><p><strong>bytesOutCounter</strong>: 发送到消费者的总字节数。</p></li>
+<li><p><strong>msgOutCounter</strong>: 发送到消费者的消息总数。</p></li>
+<li><p><strong>msgChunkPublished</strong>: 主题是否有被切块的消息。</p></li>
+<li><p><strong>backlogSize</strong>: 估计的未消费或积压的总大小（以字节为单位）。</p></li>
+<li><p><strong>offloadedStorageSize</strong>: 用于存储该主题已经卸载消息的空间（以字节为单位）。</p></li>
+<li><p><strong>waitingPublishers</strong>: 排他访问模式下，队列中等待的生产者数量。</p></li>
+<li><p><strong>deduplicationStatus</strong>: topic消息去重的状态。</p></li>
+<li><p><strong>topicEpoch</strong>: topic的时期，如果没有设置则为空。</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: 非连续删除消息的范围</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: 非连续删除消息范围的序列化大小。</p></li>
+<li><p><strong>publishers</strong>: The list of all local publishers into the topic. 该列表的范围从零到千不等。</p>
+<ul>
+<li><p><strong>accessMode</strong>: 生产者需要的访问主题的模式。</p></li>
+<li><p><strong>msgRateIn</strong>：发布者每秒发布消息的总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputIn</strong>：发布者发布消息的总吞吐量（byte/s）。</p></li>
+<li><p><strong>averageMsgSize</strong>：发布者在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
+<li><p><strong>chunkedMessageRate</strong>: 生产者发布切块消息的总速率。</p></li>
+<li><p><strong>producerId</strong>：该主题对应的生产者内部识别号。</p></li>
+<li><p><strong>producerName</strong>：由客户端生成的生产者内部识别名称。</p></li>
+<li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
+<li><p><strong>connectedSince</strong>：生产者上次创建或者重新连接时的时间戳。</p></li>
+<li><p>** clientVersion**: 生产者客户端库的版本。</p></li>
+<li><p>** metadata **: 与生产者关联的元数据（键/值字符串）。</p></li>
+</ul></li>
+<li><p><strong>subscriptions</strong>：该主题下的所有本地订阅列表。</p>
+<ul>
+<li><p><strong>my-subscription</strong>：当前订阅的订阅名称。 通过客户端去定义。</p>
+<ul>
+<li><p><strong>msgRateOut</strong>：在此订阅中发送消息的总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputOut</strong>：在此订阅上发送消息的总吞吐量（byte/s）。</p></li>
+<li><p><strong>msgBacklog</strong>：在此订阅上积压的消息数量。</p></li>
+<li><p><strong>type</strong>：订阅类型。</p></li>
+<li><p><strong>msgRateExpired</strong>：由于 TTL 的原因，消息被丢弃而不是发送到此订阅中的比例。</p></li>
+<li><p><strong>lastExpireTimestamp</strong>：最后一条执行消息过期的时间戳。</p></li>
+<li><p><strong>lastConsumedFlowTimestamp</strong>：收到的最后一条流量指令的时间戳。</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>：消费者所有已消费消息的最新时间戳。</p></li>
+<li><p><strong>lastAckedTimestamp</strong>：消费者所有已被 ack 消息的最新时间戳</p></li>
+<li><p><strong>bytesOutCounter</strong>: 发送到消费者的总字节数。</p></li>
+<li><p><strong>msgOutCounter</strong>: 发送到消费者的消息总数。</p></li>
+<li><p><strong>msgRateRedeliver</strong>: 订阅中发送消息的总速率（msg/s）</p></li>
+<li><p><strong>chunkedMessageRate</strong>: 被切分的消息发送速率。</p></li>
+<li><p><strong>backlogSize</strong>: 订阅中积压的大小（字节）。</p></li>
+<li><p><strong>earliestMsgPublishTimeInBacklog</strong>: 订阅的积压消息中最早的发布时间（ms）</p></li>
+<li><p><strong>msgBacklogNoDelayed</strong>: 订阅积压中不包含延迟消息的消息数。</p></li>
+<li><p><strong>blockedConsumerOnUnackedMsgs</strong>：用于验证订阅是否因达到未确认消息阈值而被阻止的标志。</p></li>
+<li><p><strong>msgDelayed</strong>: 当前正在跟踪的延迟消息数量。</p></li>
+<li><p><strong>unackedMessages</strong>: 订阅的未确认消息数。</p></li>
+<li><p><strong>activeConsumerName</strong>: 活动消费者订阅中处于活动状态的消费者的名称。 例如, failover 或者 exclusive。</p></li>
+<li><p><strong>totalMsgExpired</strong>: 订阅过期的消息总数。</p></li>
+<li><p><strong>last MarkDeleteAdvancedTimestamp</strong>: 最后标记删除位置的高级时间戳。</p></li>
+<li><p><strong>durable</strong>: 订阅是持久的还是短暂的(例如来自一个reader)。</p></li>
+<li><p><strong>replicated</strong>: 标记订阅状态在不同区域保持同步。</p></li>
+<li><p>** allowOutOfOrderDelivery **: Key_Shared订阅模式是否允许无序传递。</p></li>
+<li><p>** keySharedMode **: Key_Shared 订阅模式是AUTO_SPLIT(自动拆分) 还是STICKY(粘性)。</p></li>
+<li><p><strong>consumersAfterMarkDeletePosition</strong>: 这是为了让Key_Shared 订阅获取在Key_Shared 订阅中最近加入的消费者。</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: 非连续删除消息的范围</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: 非连续删除消息范围的序列化大小。</p></li>
+<li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
+<ul>
+<li><p><strong>msgRateOut</strong>：发送给消费者的消息总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputOut</strong>: 发送给消费者的总吞吐量（byte/s）。</p></li>
+<li><p><strong>consumerName</strong>：由客户端生成的消费者内部标识符。</p></li>
+<li><p><strong>availablePermits</strong>：消费者在客户端库的监听队列中有空闲的消息数量。 <code>0</code> 意味着客户端库的队列已经满了，<code>receive()</code> 方法不会再接收消息。 非 0 值意味着该消费者可以接收消息。</p></li>
+<li><p><strong>unackedMessages</strong>：消费者未确认消息的数量。</p></li>
+<li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
+<li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
+<li><p><strong>address</strong>: 消费者连接的IP地址和端口。</p></li>
+<li><p><strong>connectedSince</strong>：消费者上次创建或者重新连接时的时间戳。</p></li>
+<li><p>** clientVersion**: 消费者客户端库的版本。</p></li>
+<li><p><strong>bytesOutCounter</strong>: 发送到消费者的总字节数。</p></li>
+<li><p><strong>msgOutCounter</strong>: 发送到消费者的消息总数。</p></li>
+<li><p><strong>msgRateRedeliver</strong>: 消费者重新传递消息的总速率（msg/s）。</p></li>
+<li><p><strong>chunkedMessageRate</strong>: 传递到消费者的分块消息的总速率。</p></li>
+<li><p><strong>avgMessagesPerEntry</strong>: 消费者消费的每个条目的平均消息数。</p></li>
+<li><p><strong>readPositionWhenJoining</strong>: 消费者加入时游标读取的位置。</p></li>
+<li><p><strong>keyHashRanges</strong>: 如果是Key_Shared 子模式，指派给该消费者的哈希范围。</p></li>
+<li><p>** metadata **: 与消费者关联的元数据（键/值字符串）。</p></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p>
+<ul>
+<li><p><strong>msgRateIn</strong>：从远程集群中收到消息的总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputIn</strong>：从远程集群中收到消息的总吞吐量（byte/s）。</p></li>
+<li><p><strong>msgRateOut</strong>：发送给副本订阅的消息总速率（msg/s）。</p></li>
+<li><p><strong>msgThroughputOut</strong>：发送给副本订阅的消息总吞吐量（byte/s）。</p></li>
+<li><p><strong>msgRateExpired</strong>：过期消息的总速率（msg/s）。</p></li>
+<li><p><strong>replicationBacklog</strong>：待复制到远程集群的消息数量。</p></li>
+<li><p><strong>connected</strong>：验证外部副本连接器是否已经连接。</p></li>
+<li><p><strong>replicationDelayInSeconds</strong>：如果连接是 <code>true</code> 的话，最早消息的已等待被发送的时长。</p></li>
+<li><p><strong>inboundConnection</strong>：远程集群中的 broker 要连接到此 broker 的 IP 和端口。</p></li>
+<li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
+<li><p><strong>outboundConnection</strong>：外部副本连接的地址。</p></li>
+<li><p><strong>outboundConnectedSince</strong>：建立对外连接时的时间戳。</p></li>
+</ul></li>
+</ul>
+<p>下面是主题状态的示例：</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"bytesInCounter"</span> : <span class="hljs-number">504</span>,
+  <span class="hljs-attr">"msgInCounter"</span> : <span class="hljs-number">9</span>,
+  <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+  <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+  <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgChunkPublished"</span> : <span class="hljs-literal">false</span>,
+  <span class="hljs-attr">"storageSize"</span> : <span class="hljs-number">504</span>,
+  <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"earliestMsgPublishTimeInBacklogs"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"offloadedStorageSize"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"publishers"</span> : [ {
+    <span class="hljs-attr">"accessMode"</span> : <span class="hljs-string">"Shared"</span>,
+    <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"producerId"</span> : <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"metadata"</span> : { },
+    <span class="hljs-attr">"address"</span> : <span class="hljs-string">"/127.0.0.1:65402"</span>,
+    <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:55.913+08:00"</span>,
+    <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>,
+    <span class="hljs-attr">"producerName"</span> : <span class="hljs-string">"standalone-1-0"</span>
+  } ],
+  <span class="hljs-attr">"waitingPublishers"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"subscriptions"</span> : {
+    <span class="hljs-attr">"sub-demo"</span> : {
+      <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+      <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+      <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"earliestMsgPublishTimeInBacklog"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklogNoDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"blockedSubscriptionOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"msgDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"type"</span> : <span class="hljs-string">"Exclusive"</span>,
+      <span class="hljs-attr">"activeConsumerName"</span> : <span class="hljs-string">"20b81"</span>,
+      <span class="hljs-attr">"msgRateExpired"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"totalMsgExpired"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastExpireTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedFlowTimestamp"</span> : <span class="hljs-number">1623230565356</span>,
+      <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">1623230583946</span>,
+      <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+      <span class="hljs-attr">"lastMarkDeleteAdvancedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+      <span class="hljs-attr">"consumers"</span> : [ {
+        <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">2296</span>,
+        <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">41</span>,
+        <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+        <span class="hljs-attr">"consumerName"</span> : <span class="hljs-string">"20b81"</span>,
+        <span class="hljs-attr">"availablePermits"</span> : <span class="hljs-number">959</span>,
+        <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+        <span class="hljs-attr">"avgMessagesPerEntry"</span> : <span class="hljs-number">314</span>,
+        <span class="hljs-attr">"blockedConsumerOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+        <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">1623230584033</span>,
+        <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">1623230583946</span>,
+        <span class="hljs-attr">"metadata"</span> : { },
+        <span class="hljs-attr">"address"</span> : <span class="hljs-string">"/127.0.0.1:65172"</span>,
+        <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:45.353+08:00"</span>,
+        <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>
+      } ],
+      <span class="hljs-attr">"allowOutOfOrderDelivery"</span>: <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"consumersAfterMarkDeletePosition"</span> : { },
+      <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"durable"</span> : <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"replicated"</span> : <span class="hljs-literal">false</span>
+    }
+  },
+  <span class="hljs-attr">"replication"</span> : { },
+  <span class="hljs-attr">"deduplicationStatus"</span> : <span class="hljs-string">"Disabled"</span>,
+  <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>
+}
+</code></pre>
+<p>使用以下方式来获取一个主题的状态：</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2250-tab-2251" class="nav-link active" data-group="group_2250" data-tab="tab-group-2250-content-2251">pulsar-admin</div><div id="tab-group-2250-tab-2252" class="nav-link" data-group="group_2250" data-tab="tab-group-2250-content-2252">REST API</div><div id="tab-group-2250-tab-2253" class="nav-link" data-group="group_2250" data-tab="tab-group-2250-content-2253">Java</div></div><div class="tab-content"><div id="tab-group-2250-content-2251" class="tab-pane active" data-group="group_2250" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2250-content-2252" class="tab-pane" data-group="group_2250" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getStats?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/stats</i></a>
+</p>
+</span></div></div><div id="tab-group-2250-content-2253" class="tab-pane" data-group="group_2250" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取内部统计信息"></a><a href="#获取内部统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计信息</h3>
+<p>主题中的详细统计数据如下：</p>
+<ul>
+<li><p><strong>entriesAddedCounter</strong>：自此 broker 加载该主题以来发布的消息总量。</p></li>
+<li><p><strong>numberOfEntries</strong>：追踪消息的总数。</p></li>
+<li><p><strong>totalSize</strong>：消息的总存储大小（以字节为单位）。</p></li>
+<li><p><strong>currentLedgerEntries</strong>：当前打开写入操作的 ledger 中，写入的消息总数。</p></li>
+<li><p><strong>currentLedgerSize</strong>：当前打开写入操作的 ledger 中，写入的消息字节大小。</p></li>
+<li><p><strong>lastLedgerCreatedTimestamp</strong>：最后一个 ledger 创建的时间。</p></li>
+<li><p><strong>lastLedgerCreationFailureTimestamp:</strong> 最后一个 ledger 失败的时间。</p></li>
+<li><p><strong>waitingCursorsCount</strong>：等待新消息发布并标记为 &quot;caught up&quot;的游标数量。</p></li>
+<li><p><strong>pendingAddEntriesCount</strong>：完成（异步）写请求的消息数。</p></li>
+<li><p><strong>lastConfirmedEntry</strong>：最后一条成功写入消息的 ledger:entryid。 如果 entryid 为 <code>-1</code>，即 ledger 是开启状态，但没有写入任何的 entry 。</p></li>
+<li><p><strong>state</strong>：用来写入的 ledger 状态。 <code>LedgerOpened</code> 意味着 ledger 是开启状态，可以保存已发布的消息。</p></li>
+<li><p><strong>ledgers</strong>：主题中所保存消息的有序 ledger 列表。</p>
+<ul>
+<li><p><strong>ledgerId</strong>: 此 ledger 的 ID。</p></li>
+<li><p><strong>entries</strong>：属于该 ledger 的 entry 总数。</p></li>
+<li><p><strong>size</strong>：写入该 ledger 的消息大小（以字节为单位）。</p></li>
+<li><p><strong>offloaded</strong>：该 ledger 是否已卸载。</p></li>
+<li><p><strong>metadata</strong>: 该 ledger 的元数据。</p></li>
+</ul></li>
+<li><p><strong>schemaLedgers</strong>：该主题模式下所有 ledger 的有序列表。</p>
+<ul>
+<li><p><strong>ledgerId</strong>: 此 ledger 的 ID。</p></li>
+<li><p><strong>entries</strong>：属于该 ledger 的 entry 总数。</p></li>
+<li><p><strong>size</strong>：写入该 ledger 的消息大小（以字节为单位）。</p></li>
+<li><p><strong>offloaded</strong>：该 ledger 是否已卸载。</p></li>
+<li><p><strong>metadata</strong>: 该 ledger 的元数据。</p></li>
+</ul></li>
+<li><p><strong>compactedLedger</strong>：在主题压缩消息后，Ledger 保留未确认的消息。</p>
+<ul>
+<li><p><strong>ledgerId</strong>: 此 ledger 的 ID。</p></li>
+<li><p><strong>entries</strong>：属于该 ledger 的 entry 总数。</p></li>
+<li><p><strong>size</strong>：写入该 ledger 的消息大小（以字节为单位）。</p></li>
+<li><p><strong>offloaded</strong>：该 ledger 是否已卸载。 值为 <code>false</code> ，则用于已压缩的主题 ledger。</p></li>
+</ul></li>
+<li><p><strong>cursors</strong>: The list of all cursors on this topic. Each subscription in the topic stats has a cursor.</p>
+<ul>
+<li><p><strong>markDeletePosition</strong>: All messages before the markDeletePosition are acknowledged by the subscriber.</p></li>
+<li><p><strong>readPosition</strong>: The latest position of subscriber for reading message.</p></li>
+<li><p><strong>waitingReadOp</strong>: This is true when the subscription has read the latest message published to the topic and is waiting for new messages to be published.</p></li>
+<li><p><strong>pendingReadOps</strong>: The counter for how many outstanding read requests to the BookKeepers in progress.</p></li>
+<li><p><strong>messagesConsumedCounter</strong>: The number of messages this cursor has acked since this broker loaded this topic.</p></li>
+<li><p><strong>cursorLedger</strong>: The ledger being used to persistently store the current markDeletePosition.</p></li>
+<li><p><strong>cursorLedgerLastEntry</strong>: The last entryid used to persistently store the current markDeletePosition.</p></li>
+<li><p><strong>individuallyDeletedMessages</strong>: If acknowledges are being done out of order, the ranges of messages acknowledged between the markDeletePosition and the read-position shows.</p></li>
+<li><p><strong>lastLedgerSwitchTimestamp</strong>: The last time the cursor ledger is rolled over.</p></li>
+<li><p><strong>state</strong>: The state of the cursor ledger: <code>Open</code> means you have a cursor ledger for saving updates of the markDeletePosition.</p></li>
+</ul></li>
+</ul>
+<p>下面是关于一个主题的详细统计示例。</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"entriesAddedCounter"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"numberOfEntries"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"totalSize"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"currentLedgerEntries"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"currentLedgerSize"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>:<span class="hljs-string">"2021-01-22T21:12:14.868+08:00"</span>,
+    <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>:<span class="hljs-literal">null</span>,
+    <span class="hljs-attr">"waitingCursorsCount"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"pendingAddEntriesCount"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"lastConfirmedEntry"</span>:<span class="hljs-string">"3:-1"</span>,
+    <span class="hljs-attr">"state"</span>:<span class="hljs-string">"LedgerOpened"</span>,
+    <span class="hljs-attr">"ledgers"</span>:[
+        {
+            <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">3</span>,
+            <span class="hljs-attr">"entries"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"size"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
+        }
+    ],
+    <span class="hljs-attr">"cursors"</span>:{
+        <span class="hljs-attr">"test"</span>:{
+            <span class="hljs-attr">"markDeletePosition"</span>:<span class="hljs-string">"3:-1"</span>,
+            <span class="hljs-attr">"readPosition"</span>:<span class="hljs-string">"3:-1"</span>,
+            <span class="hljs-attr">"waitingReadOp"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"pendingReadOps"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"messagesConsumedCounter"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"cursorLedger"</span>:<span class="hljs-number">4</span>,
+            <span class="hljs-attr">"cursorLedgerLastEntry"</span>:<span class="hljs-number">1</span>,
+            <span class="hljs-attr">"individuallyDeletedMessages"</span>:<span class="hljs-string">"[]"</span>,
+            <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>:<span class="hljs-string">"2021-01-22T21:12:14.966+08:00"</span>,
+            <span class="hljs-attr">"state"</span>:<span class="hljs-string">"Open"</span>,
+            <span class="hljs-attr">"numberOfEntriesSinceFirstNotAckedMessage"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"totalNonContiguousDeletedMessagesRange"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"properties"</span>:{
+
+            }
+        }
+    },
+    <span class="hljs-attr">"schemaLedgers"</span>:[
+        {
+            <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">1</span>,
+            <span class="hljs-attr">"entries"</span>:<span class="hljs-number">11</span>,
+            <span class="hljs-attr">"size"</span>:<span class="hljs-number">10</span>,
+            <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
+        }
+    ],
+    <span class="hljs-attr">"compactedLedger"</span>:{
+        <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"entries"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"size"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+        <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
+    }
+}
+</code></pre>
+<p>可以使用以下方式来获取一个主题的内部状态。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2254-tab-2255" class="nav-link active" data-group="group_2254" data-tab="tab-group-2254-content-2255">pulsar-admin</div><div id="tab-group-2254-tab-2256" class="nav-link" data-group="group_2254" data-tab="tab-group-2254-content-2256">REST API</div><div id="tab-group-2254-tab-2257" class="nav-link" data-group="group_2254" data-tab="tab-group-2254-content-2257">Java</div></div><div class="tab-content"><div id="tab-group-2254-content-2255" class="tab-pane active" data-group="group_2254" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats-internal \</span><br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2254-content-2256" class="tab-pane" data-group="group_2254" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getInternalStats?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/internalStats</i></a>
+</p>
+</span></div></div><div id="tab-group-2254-content-2257" class="tab-pane" data-group="group_2254" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getInternalStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="查看消息"></a><a href="#查看消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查看消息</h3>
+<p>可以使用以下方式为某一主题的特定订阅提供一些信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2258-tab-2259" class="nav-link active" data-group="group_2258" data-tab="tab-group-2258-content-2259">pulsar-admin</div><div id="tab-group-2258-tab-2260" class="nav-link" data-group="group_2258" data-tab="tab-group-2258-content-2260">REST API</div><div id="tab-group-2258-tab-2261" class="nav-link" data-group="group_2258" data-tab="tab-group-2258-content-2261">Java</div></div><div class="tab-content"><div id="tab-group-2258-content-2259" class="tab-pane active" data-group="group_2258" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics peek-messages \</span><br />  --count 10 --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /><br />Message ID: 315674752:0<br />Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }<br />msg-payload<br /></code></pre>
+</span></div></div><div id="tab-group-2258-content-2260" class="tab-pane" data-group="group_2258" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation?version=2.9.1/peekNthMessage&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition</i></a>
+</p>
+</span></div></div><div id="tab-group-2258-content-2261" class="tab-pane" data-group="group_2258" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;<br />admin.topics().peekMessages(topic, subName, numMessages);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="按-id-获取消息"></a><a href="#按-id-获取消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>按 ID 获取消息</h3>
+<p>可以使用以下方式获取给定 ledger ID 和 entry ID 的信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2262-tab-2263" class="nav-link active" data-group="group_2262" data-tab="tab-group-2262-content-2263">pulsar-admin</div><div id="tab-group-2262-tab-2264" class="nav-link" data-group="group_2262" data-tab="tab-group-2262-content-2264">REST API</div><div id="tab-group-2262-tab-2265" class="nav-link" data-group="group_2262" data-tab="tab-group-2262-content-2265">Java</div></div><div class="tab-content"><div id="tab-group-2262-content-2263" class="tab-pane active" data-group="group_2262" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> ./bin/pulsar-admin topics get-message-by-id \</span><br />  persistent://public/default/my-topic \<br />  -l 10 -e 0<br /></code></pre>
+</span></div></div><div id="tab-group-2262-content-2264" class="tab-pane" data-group="group_2262" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getMessageById?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId</i></a>
+</p>
+</span></div></div><div id="tab-group-2262-content-2265" class="tab-pane" data-group="group_2262" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br /><span class="hljs-keyword">long</span> ledgerId = <span class="hljs-number">10</span>;<br /><span class="hljs-keyword">long</span> entryId = <span class="hljs-number">10</span>;<br />admin.topics().getMessageById(topic, ledgerId, entryId);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="检查消息"></a><a href="#检查消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>检查消息</h3>
+<p>您可以根据相对于最早或最新消息的位置来检查某个主题上的特定消息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2266-tab-2267" class="nav-link active" data-group="group_2266" data-tab="tab-group-2266-content-2267">pulsar-admin</div><div id="tab-group-2266-tab-2268" class="nav-link" data-group="group_2266" data-tab="tab-group-2266-content-2268">REST API</div><div id="tab-group-2266-tab-2269" class="nav-link" data-group="group_2266" data-tab="tab-group-2266-content-2269">Java</div></div><div class="tab-content"><div id="tab-group-2266-content-2267" class="tab-pane active" data-group="group_2266" tabindex="-1"><div><span><pre><code class="hljs css language-shell">./bin/pulsar-admin topics examine-messages \<br />  persistent://public/default/my-topic \<br />  -i latest -m 1<br /></code></pre>
+</span></div></div><div id="tab-group-2266-content-2268" class="tab-pane" data-group="group_2266" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/examineMessage?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/examinemessage?initialPosition=:initialPosition&amp;messagePosition=:messagePosition</i></a>
+</p>
+</span></div></div><div id="tab-group-2266-content-2269" class="tab-pane" data-group="group_2266" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().examineMessage(topic, <span class="hljs-string">"latest"</span>, <span class="hljs-number">1</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="按-id-获取消息-1"></a><a href="#按-id-获取消息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>按 ID 获取消息</h3>
+<p>您可以获得在指定日期时间或日期时间之后发布的消息ID。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2270-tab-2271" class="nav-link active" data-group="group_2270" data-tab="tab-group-2270-content-2271">pulsar-admin</div><div id="tab-group-2270-tab-2272" class="nav-link" data-group="group_2270" data-tab="tab-group-2270-content-2272">REST API</div><div id="tab-group-2270-tab-2273" class="nav-link" data-group="group_2270" data-tab="tab-group-2270-content-2273">Java</div></div><div class="tab-content"><div id="tab-group-2270-content-2271" class="tab-pane active" data-group="group_2270" tabindex="-1"><div><span><pre><code class="hljs css language-shell">./bin/pulsar-admin topics get-message-id \<br />  persistent://public/default/my-topic \<br />  -d 2021-06-28T19:01:17Z<br /></code></pre>
+</span></div></div><div id="tab-group-2270-content-2272" class="tab-pane" data-group="group_2270" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getMessageIdByTimestamp?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/messageid/:timestamp</i></a>
+</p>
+</span></div></div><div id="tab-group-2270-content-2273" class="tab-pane" data-group="group_2270" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br /><span class="hljs-keyword">long</span> timestamp = System.currentTimeMillis()<br />admin.topics().getMessageIdByTimestamp(topic, timestamp);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="跳过消息"></a><a href="#跳过消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>跳过消息</h3>
+<p>可以使用以下方式跳过某一主题的特定订阅的一些信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2274-tab-2275" class="nav-link active" data-group="group_2274" data-tab="tab-group-2274-content-2275">pulsar-admin</div><div id="tab-group-2274-tab-2276" class="nav-link" data-group="group_2274" data-tab="tab-group-2274-content-2276">REST API</div><div id="tab-group-2274-tab-2277" class="nav-link" data-group="group_2274" data-tab="tab-group-2274-content-2277">Java</div></div><div class="tab-content"><div id="tab-group-2274-content-2275" class="tab-pane active" data-group="group_2274" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics skip \</span><br />  --count 10 --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2274-content-2276" class="tab-pane" data-group="group_2274" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/skipMessages?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages</i></a>
+</p>
+</span></div></div><div id="tab-group-2274-content-2277" class="tab-pane" data-group="group_2274" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;<br />admin.topics().skipMessages(topic, subName, numMessages);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="跳过所有消息"></a><a href="#跳过所有消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>跳过所有消息</h3>
+<p>跳过某一主题的特定订阅的所有旧消息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2278-tab-2279" class="nav-link active" data-group="group_2278" data-tab="tab-group-2278-content-2279">pulsar-admin</div><div id="tab-group-2278-tab-2280" class="nav-link" data-group="group_2278" data-tab="tab-group-2278-content-2280">REST API</div><div id="tab-group-2278-tab-2281" class="nav-link" data-group="group_2278" data-tab="tab-group-2278-content-2281">Java</div></div><div class="tab-content"><div id="tab-group-2278-content-2279" class="tab-pane active" data-group="group_2278" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics skip-all \</span><br />  --subscription my-subscription \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2278-content-2280" class="tab-pane" data-group="group_2278" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/skipAllMessages?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all</i></a>
+</p>
+</span></div></div><div id="tab-group-2278-content-2281" class="tab-pane" data-group="group_2278" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().skipAllMessages(topic, subName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="重置cursor"></a><a href="#重置cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重置cursor</h3>
+<p>可以将一个订阅的游标位置重新设置为 X 分钟前记录的位置。 实际上通过计算时间和X分钟之前的cursor位置，来重置回到那个位置。 你可以用下面方式重置 cursor。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2282-tab-2283" class="nav-link active" data-group="group_2282" data-tab="tab-group-2282-content-2283">pulsar-admin</div><div id="tab-group-2282-tab-2284" class="nav-link" data-group="group_2282" data-tab="tab-group-2282-content-2284">REST API</div><div id="tab-group-2282-tab-2285" class="nav-link" data-group="group_2282" data-tab="tab-group-2282-content-2285">Java</div></div><div class="tab-content"><div id="tab-group-2282-content-2283" class="tab-pane active" data-group="group_2282" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics reset-cursor \</span><br />  --subscription my-subscription --time 10 \<br />  persistent://test-tenant/ns1/tp1 \<br /></code></pre>
+</span></div></div><div id="tab-group-2282-content-2284" class="tab-pane" data-group="group_2282" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/resetCursor?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp</i></a>
+</p>
+</span></div></div><div id="tab-group-2282-content-2285" class="tab-pane" data-group="group_2282" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subName = <span class="hljs-string">"my-subscription"</span>;<br /><span class="hljs-keyword">long</span> timestamp = <span class="hljs-number">2342343L</span>;<br />admin.topics().resetCursor(topic, subName, timestamp);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="查询topic"></a><a href="#查询topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询topic</h3>
+<p>可以通过以下方式找到服务于特定主题的 broker URL。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2286-tab-2287" class="nav-link active" data-group="group_2286" data-tab="tab-group-2286-content-2287">pulsar-admin</div><div id="tab-group-2286-tab-2288" class="nav-link" data-group="group_2286" data-tab="tab-group-2286-content-2288">REST API</div><div id="tab-group-2286-tab-2289" class="nav-link" data-group="group_2286" data-tab="tab-group-2286-content-2289">Java</div></div><div class="tab-content"><div id="tab-group-2286-content-2287" class="tab-pane active" data-group="group_2286" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics lookup \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> "pulsar://broker1.org.com:4480"<br /></code></pre>
+</span></div></div><div id="tab-group-2286-content-2288" class="tab-pane" data-group="group_2286" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/lookup/v2/topic/:schema/:tenant:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-2286-content-2289" class="tab-pane" data-group="group_2286" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.lookup().lookupDestination(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="查找已分区主题"></a><a href="#查找已分区主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查找已分区主题</h3>
+<p>你可以通过以下方式找到为给定主题提供服务的每个已分区主题的 broker URL。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2290-tab-2291" class="nav-link active" data-group="group_2290" data-tab="tab-group-2290-content-2291">pulsar-admin</div><div id="tab-group-2290-tab-2292" class="nav-link" data-group="group_2290" data-tab="tab-group-2290-content-2292">Java</div></div><div class="tab-content"><div id="tab-group-2290-content-2291" class="tab-pane active" data-group="group_2290" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics partitioned-lookup \</span><br />  persistent://test-tenant/ns1/my-topic \<br /><br />  "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"<br />  "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"<br />  "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"<br />  "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"<br /></code></pre>
+</span></div></div><div id="tab-group-2290-content-2292" class="tab-pane" data-group="group_2290" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.lookup().lookupPartitionedTopic(topic);<br /></code></pre>
+<p>查找按 broker URL 排序的已分区主题</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics partitioned-lookup \</span><br />  persistent://test-tenant/ns1/my-topic --sort-by-broker \<br /><br />  "pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取bundle"></a><a href="#获取bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取bundle</h3>
+<p>可以通过以下方式检查包含给定主题的 bundle 范围。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2293-tab-2294" class="nav-link active" data-group="group_2293" data-tab="tab-group-2293-content-2294">pulsar-admin</div><div id="tab-group-2293-tab-2295" class="nav-link" data-group="group_2293" data-tab="tab-group-2293-content-2295">REST API</div><div id="tab-group-2293-tab-2296" class="nav-link" data-group="group_2293" data-tab="tab-group-2293-content-2296">Java</div></div><div class="tab-content"><div id="tab-group-2293-content-2294" class="tab-pane active" data-group="group_2293" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics bundle-range \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> "0x00000000_0xffffffff"<br /></code></pre>
+</span></div></div><div id="tab-group-2293-content-2295" class="tab-pane" data-group="group_2293" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle</i></a>
+</p>
+</span></div></div><div id="tab-group-2293-content-2296" class="tab-pane" data-group="group_2293" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.lookup().getBundleRange(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取订阅"></a><a href="#获取订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取订阅</h3>
+<p>可以通过以下方式查看某个主题的所有订阅名称。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2297-tab-2298" class="nav-link active" data-group="group_2297" data-tab="tab-group-2297-content-2298">pulsar-admin</div><div id="tab-group-2297-tab-2299" class="nav-link" data-group="group_2297" data-tab="tab-group-2297-content-2299">REST API</div><div id="tab-group-2297-tab-2300" class="nav-link" data-group="group_2297" data-tab="tab-group-2297-content-2300">Java</div></div><div class="tab-content"><div id="tab-group-2297-content-2298" class="tab-pane active" data-group="group_2297" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics subscriptions \</span><br />  persistent://test-tenant/ns1/tp1 \<br /><br /> my-subscription<br /></code></pre>
+</span></div></div><div id="tab-group-2297-content-2299" class="tab-pane" data-group="group_2297" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getSubscriptions?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions</i></a>
+</p>
+</span></div></div><div id="tab-group-2297-content-2300" class="tab-pane" data-group="group_2297" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getSubscriptions(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="最后一条消息id"></a><a href="#最后一条消息id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>最后一条消息Id</h3>
+<p>可以获得一个持久化主题最后提交的消息 ID 。 2.3.0 往后版本都可用。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2301-tab-2302" class="nav-link active" data-group="group_2301" data-tab="tab-group-2301-content-2302">pulsar-admin</div><div id="tab-group-2301-tab-2303" class="nav-link" data-group="group_2301" data-tab="tab-group-2301-content-2303">REST API</div><div id="tab-group-2301-tab-2304" class="nav-link" data-group="group_2301" data-tab="tab-group-2301-content-2304">Java</div></div><div class="tab-content"><div id="tab-group-2301-content-2302" class="tab-pane active" data-group="group_2301" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics last-message-id topic-name<br /></code></pre>
+</span></div></div><div id="tab-group-2301-content-2303" class="tab-pane" data-group="group_2301" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=2.9.1&amp;apiVersion=v2"><b>Get</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=2.9.1</i></a>
+</p>
+</span></div></div><div id="tab-group-2301-content-2304" class="tab-pane" data-group="group_2301" tabindex="-1"><div><span><pre><code class="hljs css language-Java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getLastMessage(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取-backlog-大小"></a><a href="#获取-backlog-大小" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 backlog 大小</h3>
+<p>你可以使用给定消息 ID ( 以字节为单位) 来获取单个分区主题或非分区主题的 backlog 大小。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2305-tab-2306" class="nav-link active" data-group="group_2305" data-tab="tab-group-2305-content-2306">pulsar-admin</div><div id="tab-group-2305-tab-2307" class="nav-link" data-group="group_2305" data-tab="tab-group-2305-content-2307">REST API</div><div id="tab-group-2305-tab-2308" class="nav-link" data-group="group_2305" data-tab="tab-group-2305-content-2308">Java</div></div><div class="tab-content"><div id="tab-group-2305-content-2306" class="tab-pane active" data-group="group_2305" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics get-backlog-size \</span><br />  -m 1:1 \<br />  persistent://test-tenant/ns1/tp1-partition-0 \<br /></code></pre>
+</span></div></div><div id="tab-group-2305-content-2307" class="tab-pane" data-group="group_2305" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getBacklogSizeByMessageId?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize</i></a>
+</p>
+</span></div></div><div id="tab-group-2305-content-2308" class="tab-pane" data-group="group_2305" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />MessageId messageId = MessageId.earliest;<br />admin.topics().getBacklogSizeByMessageId(topic, messageId);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="配置去重快照间隔"></a><a href="#配置去重快照间隔" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置去重快照间隔</h3>
+<h4><a class="anchor" aria-hidden="true" id="获取去重快照间隔"></a><a href="#获取去重快照间隔" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取去重快照间隔</h4>
+<p>获取主题级去重快照间隔可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2309-tab-2310" class="nav-link active" data-group="group_2309" data-tab="tab-group-2309-content-2310">Pulsar-admin API</div><div id="tab-group-2309-tab-2311" class="nav-link" data-group="group_2309" data-tab="tab-group-2309-content-2311">REST API</div><div id="tab-group-2309-tab-2312" class="nav-link" data-group="group_2309" data-tab="tab-group-2309-content-2312">Java API</div></div><div class="tab-content"><div id="tab-group-2309-content-2310" class="tab-pane active" data-group="group_2309" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-deduplication-snapshot-interval</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-2309-content-2311" class="tab-pane" data-group="group_2309" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2309-content-2312" class="tab-pane" data-group="group_2309" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getDeduplicationSnapshotInterval(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="设置去重快照间隔"></a><a href="#设置去重快照间隔" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置去重快照间隔</h4>
+<p>设置主题级去重快照间隔，可以使用以下方法之一。</p>
+<blockquote>
+<p><strong>前提条件</strong> <code>brokerDeduplicationEnabled</code>必须设置为<code>true</code>。</p>
+</blockquote>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2313-tab-2314" class="nav-link active" data-group="group_2313" data-tab="tab-group-2313-content-2314">Pulsar-admin API</div><div id="tab-group-2313-tab-2315" class="nav-link" data-group="group_2313" data-tab="tab-group-2313-content-2315">REST API</div><div id="tab-group-2313-tab-2316" class="nav-link" data-group="group_2313" data-tab="tab-group-2313-content-2316">Java API</div></div><div class="tab-content"><div id="tab-group-2313-content-2314" class="tab-pane active" data-group="group_2313" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-deduplication-snapshot-interval</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-2313-content-2315" class="tab-pane" data-group="group_2313" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+<pre><code class="hljs css language-json">{<br />  <span class="hljs-attr">"interval"</span>: <span class="hljs-number">1000</span><br />}<br /></code></pre>
+</span></div></div><div id="tab-group-2313-content-2316" class="tab-pane" data-group="group_2313" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setDeduplicationSnapshotInterval(topic, <span class="hljs-number">1000</span>)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="移除去重快照间隔"></a><a href="#移除去重快照间隔" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>移除去重快照间隔</h4>
+<p>移除主题级去重快照间隔，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2317-tab-2318" class="nav-link active" data-group="group_2317" data-tab="tab-group-2317-content-2318">Pulsar-admin API</div><div id="tab-group-2317-tab-2319" class="nav-link" data-group="group_2317" data-tab="tab-group-2317-content-2319">REST API</div><div id="tab-group-2317-tab-2320" class="nav-link" data-group="group_2317" data-tab="tab-group-2317-content-2320">Java API</div></div><div class="tab-content"><div id="tab-group-2317-content-2318" class="tab-pane active" data-group="group_2317" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-deduplication-<span class="hljs-keyword">snapshot</span>-<span class="hljs-type">interval</span> <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-2317-content-2319" class="tab-pane" data-group="group_2317" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2317-content-2320" class="tab-pane" data-group="group_2317" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeDeduplicationSnapshotInterval(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="配置非活跃主题策略"></a><a href="#配置非活跃主题策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置非活跃主题策略</h3>
+<h4><a class="anchor" aria-hidden="true" id="获取非活跃主题策略"></a><a href="#获取非活跃主题策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取非活跃主题策略</h4>
+<p>获取主题级非活跃主题策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2321-tab-2322" class="nav-link active" data-group="group_2321" data-tab="tab-group-2321-content-2322">Pulsar-admin API</div><div id="tab-group-2321-tab-2323" class="nav-link" data-group="group_2321" data-tab="tab-group-2321-content-2323">REST API</div><div id="tab-group-2321-tab-2324" class="nav-link" data-group="group_2321" data-tab="tab-group-2321-content-2324">Java API</div></div><div class="tab-content"><div id="tab-group-2321-content-2322" class="tab-pane active" data-group="group_2321" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-inactive-topic-policies</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-2321-content-2323" class="tab-pane" data-group="group_2321" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2321-content-2324" class="tab-pane" data-group="group_2321" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getInactiveTopicPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="设置非活跃主题策略"></a><a href="#设置非活跃主题策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置非活跃主题策略</h4>
+<p>设置主题级非活跃主题策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2325-tab-2326" class="nav-link active" data-group="group_2325" data-tab="tab-group-2325-content-2326">Pulsar-admin API</div><div id="tab-group-2325-tab-2327" class="nav-link" data-group="group_2325" data-tab="tab-group-2325-content-2327">REST API</div><div id="tab-group-2325-tab-2328" class="nav-link" data-group="group_2325" data-tab="tab-group-2325-content-2328">Java API</div></div><div class="tab-content"><div id="tab-group-2325-content-2326" class="tab-pane active" data-group="group_2325" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-inactive-topic-policies</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-2325-content-2327" class="tab-pane" data-group="group_2325" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2325-content-2328" class="tab-pane" data-group="group_2325" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="移除非活跃主题策略"></a><a href="#移除非活跃主题策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>移除非活跃主题策略</h4>
+<p>移除主题级非活跃主题策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2329-tab-2330" class="nav-link active" data-group="group_2329" data-tab="tab-group-2329-content-2330">Pulsar-admin API</div><div id="tab-group-2329-tab-2331" class="nav-link" data-group="group_2329" data-tab="tab-group-2329-content-2331">REST API</div><div id="tab-group-2329-tab-2332" class="nav-link" data-group="group_2329" data-tab="tab-group-2329-content-2332">Java API</div></div><div class="tab-content"><div id="tab-group-2329-content-2330" class="tab-pane active" data-group="group_2329" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-inactive-topic-policies <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-2329-content-2331" class="tab-pane" data-group="group_2329" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2329-content-2332" class="tab-pane" data-group="group_2329" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeInactiveTopicPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="配置卸载策略"></a><a href="#配置卸载策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置卸载策略</h3>
+<h4><a class="anchor" aria-hidden="true" id="获取卸载策略"></a><a href="#获取卸载策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取卸载策略</h4>
+<p>获取主题级卸载策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2333-tab-2334" class="nav-link active" data-group="group_2333" data-tab="tab-group-2333-content-2334">Pulsar-admin API</div><div id="tab-group-2333-tab-2335" class="nav-link" data-group="group_2333" data-tab="tab-group-2333-content-2335">REST API</div><div id="tab-group-2333-tab-2336" class="nav-link" data-group="group_2333" data-tab="tab-group-2333-content-2336">Java API</div></div><div class="tab-content"><div id="tab-group-2333-content-2334" class="tab-pane active" data-group="group_2333" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-offload-policies</span> <span class="hljs-string">options<br /></span></code></pre>
+</span></div></div><div id="tab-group-2333-content-2335" class="tab-pane" data-group="group_2333" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2333-content-2336" class="tab-pane" data-group="group_2333" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getOffloadPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="设置卸载策略"></a><a href="#设置卸载策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置卸载策略</h4>
+<p>设置主题级卸载策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2337-tab-2338" class="nav-link active" data-group="group_2337" data-tab="tab-group-2337-content-2338">Pulsar-admin API</div><div id="tab-group-2337-tab-2339" class="nav-link" data-group="group_2337" data-tab="tab-group-2337-content-2339">REST API</div><div id="tab-group-2337-tab-2340" class="nav-link" data-group="group_2337" data-tab="tab-group-2337-content-2340">Java API</div></div><div class="tab-content"><div id="tab-group-2337-content-2338" class="tab-pane active" data-group="group_2337" tabindex="-1"><div><span><pre><code class="hljs"><span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">set-offload-policies</span> <span class="hljs-string">options </span><br /></code></pre>
+</span></div></div><div id="tab-group-2337-content-2339" class="tab-pane" data-group="group_2337" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2337-content-2340" class="tab-pane" data-group="group_2337" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().setOffloadPolicies(topic, offloadPolicies)<br /></code></pre>
+</span></div></div></div></div>
+<h4><a class="anchor" aria-hidden="true" id="移除卸载策略"></a><a href="#移除卸载策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>移除卸载策略</h4>
+<p>移除主题级卸载策略，可以使用以下方法之一。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2341-tab-2342" class="nav-link active" data-group="group_2341" data-tab="tab-group-2341-content-2342">Pulsar-admin API</div><div id="tab-group-2341-tab-2343" class="nav-link" data-group="group_2341" data-tab="tab-group-2341-content-2343">REST API</div><div id="tab-group-2341-tab-2344" class="nav-link" data-group="group_2341" data-tab="tab-group-2341-content-2344">Java API</div></div><div class="tab-content"><div id="tab-group-2341-content-2342" class="tab-pane active" data-group="group_2341" tabindex="-1"><div><span><pre><code class="hljs">pulsar-<span class="hljs-keyword">admin</span> topics remove-offload-policies <span class="hljs-keyword">options</span><br /></code></pre>
+</span></div></div><div id="tab-group-2341-content-2343" class="tab-pane" data-group="group_2341" tabindex="-1"><div><span><pre><code class="hljs">{<span class="hljs-variable">@inject:</span> endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[<span class="hljs-attribute">pulsar</span>:version_number]]}<br /></code></pre>
+</span></div></div><div id="tab-group-2341-content-2344" class="tab-pane" data-group="group_2341" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().removeOffloadPolicies(topic)<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="管理非分区主题"></a><a href="#管理非分区主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理非分区主题</h2>
+<p>可以使用 Pulsar <a href="/docs/zh-CN/next/admin-api-overview">admin API</a> 来创建、删除和检查非分区主题的状态。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建"></a><a href="#创建" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建</h3>
+<p>必须明确创建非分区主题。 当创建一个新的非分区主题时，需要为该主题提供一个名称。</p>
+<p>默认情况下，创建 60 秒后，主题会被视为不活跃，并自动删除，以避免生成垃圾数据。 To disable this feature, set <code>brokerDeleteInactiveTopicsEnabled</code> to <code>false</code>. 设置 <code>brokerDeleteInactiveTopicsFrequencySeconds</code> 为特殊值以改变检查非活动主题的频率。</p>
+<p>关于这两个参数的更多信息，请参阅 <a href="/docs/zh-CN/next/reference-configuration#broker">这里</a>。</p>
+<p>可以通过以下方式创建非分区主题。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2345-tab-2346" class="nav-link active" data-group="group_2345" data-tab="tab-group-2345-content-2346">pulsar-admin</div><div id="tab-group-2345-tab-2347" class="nav-link" data-group="group_2345" data-tab="tab-group-2345-content-2347">REST API</div><div id="tab-group-2345-tab-2348" class="nav-link" data-group="group_2345" data-tab="tab-group-2345-content-2348">Java</div></div><div class="tab-content"><div id="tab-group-2345-content-2346" class="tab-pane active" data-group="group_2345" tabindex="-1"><div><span><p>When you create non-partitioned topics with the <a href="/docs/zh-CN/next/pulsar-admin#create-3"><code>create</code></a> command, you need to specify the topic name as an argument.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+<blockquote>
+<p><strong>备注</strong>    <br>
+当你创建一个后缀为 ''-partition-' 的非分区主题时，主题名称后跟数字值，如 'xyz-topic-partition-x' ，如果存在 'xyz-topic-partition-y' 的分区主题，那么非分区主题的数字值（x）必须大于分区主题的分区数（y）。 否则就无法创建未分区主题。</p>
+</blockquote>
+</span></div></div><div id="tab-group-2345-content-2347" class="tab-pane" data-group="group_2345" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createNonPartitionedTopic?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-2345-content-2348" class="tab-pane" data-group="group_2345" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().createNonPartitionedTopic(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="删除"></a><a href="#删除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除</h3>
+<p>可以通过以下方式来删除非分区主题。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2349-tab-2350" class="nav-link active" data-group="group_2349" data-tab="tab-group-2349-content-2350">pulsar-admin</div><div id="tab-group-2349-tab-2351" class="nav-link" data-group="group_2349" data-tab="tab-group-2349-content-2351">REST API</div><div id="tab-group-2349-tab-2352" class="nav-link" data-group="group_2349" data-tab="tab-group-2349-content-2352">Java</div></div><div class="tab-content"><div id="tab-group-2349-content-2350" class="tab-pane active" data-group="group_2349" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics delete \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+</span></div></div><div id="tab-group-2349-content-2351" class="tab-pane" data-group="group_2349" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTopic?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-2349-content-2352" class="tab-pane" data-group="group_2349" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取资源列表"></a><a href="#获取资源列表" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取资源列表</h3>
+<p>你可以通过以下方式获得特定命名空间下的 topic 列表。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2353-tab-2354" class="nav-link active" data-group="group_2353" data-tab="tab-group-2353-content-2354">pulsar-admin</div><div id="tab-group-2353-tab-2355" class="nav-link" data-group="group_2353" data-tab="tab-group-2353-content-2355">REST API</div><div id="tab-group-2353-tab-2356" class="nav-link" data-group="group_2353" data-tab="tab-group-2353-content-2356">Java</div></div><div class="tab-content"><div id="tab-group-2353-content-2354" class="tab-pane active" data-group="group_2353" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list tenant/namespace</span><br />persistent://tenant/namespace/topic1<br />persistent://tenant/namespace/topic2<br /></code></pre>
+</span></div></div><div id="tab-group-2353-content-2355" class="tab-pane" data-group="group_2353" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getList?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-2353-content-2356" class="tab-pane" data-group="group_2353" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="统计信息"></a><a href="#统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>统计信息</h3>
+<p>检查某个主题的当前统计数据。 The following is an example. 关于每个统计数据的描述，参见 <a href="#get-stats">get stats</a>。</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
+  <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">1232439.816728665</span>,
+  <span class="hljs-attr">"storageSize"</span>: <span class="hljs-number">135532389160</span>,
+  <span class="hljs-attr">"publishers"</span>: [
+    {
+      <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">57.855383881403576</span>,
+      <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">558994.7078932219</span>,
+      <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">613135</span>,
+      <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"producerName"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"address"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-literal">null</span>
+    }
+  ],
+  <span class="hljs-attr">"subscriptions"</span>: {
+    <span class="hljs-attr">"my-topic_subscription"</span>: {
+      <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span>: <span class="hljs-number">116632</span>,
+      <span class="hljs-attr">"type"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"msgRateExpired"</span>: <span class="hljs-number">36.98245516804671</span>,
+      <span class="hljs-attr">"consumers"</span>: []
+    }
+  },
+  <span class="hljs-attr">"replication"</span>: {}
+}
+</code></pre>
+<p>可以通过以下方式检查某个主题及其相关生产者和消费者的当前统计数据。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2357-tab-2358" class="nav-link active" data-group="group_2357" data-tab="tab-group-2357-content-2358">pulsar-admin</div><div id="tab-group-2357-tab-2359" class="nav-link" data-group="group_2357" data-tab="tab-group-2357-content-2359">REST API</div><div id="tab-group-2357-tab-2360" class="nav-link" data-group="group_2357" data-tab="tab-group-2357-content-2360">Java</div></div><div class="tab-content"><div id="tab-group-2357-content-2358" class="tab-pane active" data-group="group_2357" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats \</span><br />  persistent://test-tenant/namespace/topic \<br />  --get-precise-backlog<br /></code></pre>
+</span></div></div><div id="tab-group-2357-content-2359" class="tab-pane" data-group="group_2357" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getStats?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/stats</i></a>
+</p>
+</span></div></div><div id="tab-group-2357-content-2360" class="tab-pane" data-group="group_2357" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getStats(topic, <span class="hljs-keyword">false</span> <span class="hljs-comment">/* is precise backlog */</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="管理分区主题"></a><a href="#管理分区主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理分区主题</h2>
+<p>可以使用 Pulsar <a href="/docs/zh-CN/next/admin-api-overview">admin API</a> 来创建、更新、删除和检查分区主题的状态。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建-1"></a><a href="#创建-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建</h3>
+<p>必须明确创建分区主题。 当创建一个新的分区主题时，需要为该主题提供一个名称和分区数量。</p>
+<p>默认情况下，创建 60 秒后，主题会被视为不活跃，并自动删除，以避免生成垃圾数据。 To disable this feature, set <code>brokerDeleteInactiveTopicsEnabled</code> to <code>false</code>. 设置 <code>brokerDeleteInactiveTopicsFrequencySeconds</code> 为特殊值以改变检查非活动主题的频率。</p>
+<p>关于这两个参数的更多信息，请参阅 <a href="/docs/zh-CN/next/reference-configuration#broker">这里</a>。</p>
+<p>可以通过以下方式创建分区主题。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2361-tab-2362" class="nav-link active" data-group="group_2361" data-tab="tab-group-2361-content-2362">pulsar-admin</div><div id="tab-group-2361-tab-2363" class="nav-link" data-group="group_2361" data-tab="tab-group-2361-content-2363">REST API</div><div id="tab-group-2361-tab-2364" class="nav-link" data-group="group_2361" data-tab="tab-group-2361-content-2364">Java</div></div><div class="tab-content"><div id="tab-group-2361-content-2362" class="tab-pane active" data-group="group_2361" tabindex="-1"><div><span><p>When you create partitioned topics with the <a href="/docs/zh-CN/next/pulsar-admin#create-partitioned-topic"><code>create-partitioned-topic</code></a> command, you need to specify the topic name as an argument and the number of partitions using the <code>-p</code> or <code>--partitions</code> flag.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br />  --partitions 4<br /></code></pre>
+<blockquote>
+<p><strong>备注</strong>    <br>
+如果一个非分区主题的后缀是 '-partition-' 并且后面跟着一个数字值，比如 'xyz-topic-partition-10'，那么就不能创建名为 'xyz-topic' 的分区主题，因为分区主题的分区可以覆盖现有的非分区主题。 必须删除上述的非分区主题，才能创建该分区主题。</p>
+</blockquote>
+</span></div></div><div id="tab-group-2361-content-2363" class="tab-pane" data-group="group_2361" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createPartitionedTopic?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-2361-content-2364" class="tab-pane" data-group="group_2361" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br /><span class="hljs-keyword">int</span> numPartitions = <span class="hljs-number">4</span>;<br />admin.topics().createPartitionedTopic(topicName, numPartitions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="create-missed-partitions"></a><a href="#create-missed-partitions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create missed partitions</h3>
+<p>在主题的 auto-creation 是禁用状态并且有一个没有任何分区的主题时，可以使用 <a href="/docs/zh-CN/next/pulsar-admin#create-missed-partitions"><code>create-missed-partitions</code></a> 命令为主题创建分区。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2365-tab-2366" class="nav-link active" data-group="group_2365" data-tab="tab-group-2365-content-2366">pulsar-admin</div><div id="tab-group-2365-tab-2367" class="nav-link" data-group="group_2365" data-tab="tab-group-2365-content-2367">REST API</div><div id="tab-group-2365-tab-2368" class="nav-link" data-group="group_2365" data-tab="tab-group-2365-content-2368">Java</div></div><div class="tab-content"><div id="tab-group-2365-content-2366" class="tab-pane active" data-group="group_2365" tabindex="-1"><div><span><p>可以用 <a href="/docs/zh-CN/next/pulsar-admin#create-missed-partitions"><code>create-missed-partitions</code></a> 命令指定主题名称作为参数来创建 miss 分区。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-missed-partitions \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br /></code></pre>
+</span></div></div><div id="tab-group-2365-content-2367" class="tab-pane" data-group="group_2365" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createMissedPartitions?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic</i></a>
+</p>
+</span></div></div><div id="tab-group-2365-content-2368" class="tab-pane" data-group="group_2365" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().createMissedPartitions(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取元数据"></a><a href="#获取元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取元数据</h3>
+<p>已分区的主题与元数据相关联，可以将其看作一个 JSON 对象。 以下元数据字段是可用的。</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>分区</code></td><td style="text-align:left">主题中的分区数量。</td></tr>
+</tbody>
+</table>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2369-tab-2370" class="nav-link active" data-group="group_2369" data-tab="tab-group-2369-content-2370">pulsar-admin</div><div id="tab-group-2369-tab-2371" class="nav-link" data-group="group_2369" data-tab="tab-group-2369-content-2371">REST API</div><div id="tab-group-2369-tab-2372" class="nav-link" data-group="group_2369" data-tab="tab-group-2369-content-2372">Java</div></div><div class="tab-content"><div id="tab-group-2369-content-2370" class="tab-pane active" data-group="group_2369" tabindex="-1"><div><span><p>可以通过 <a href="/docs/zh-CN/next/pulsar-admin#get-partitioned-topic-metadata"><code>get-partitioned-topic-metadata</code></a> 子命令检查分区主题的分区数量。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics get-partitioned-topic-metadata \</span><br />  persistent://my-tenant/my-namespace/my-topic<br />{<br />  "partitions": 4<br />}<br /></code></pre>
+</span></div></div><div id="tab-group-2369-content-2371" class="tab-pane" data-group="group_2369" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedMetadata?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-2369-content-2372" class="tab-pane" data-group="group_2369" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getPartitionedTopicMetadata(topicName);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="更新"></a><a href="#更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新</h3>
+<p><em>如果</em> 主题是非全局的，你可以更新现有已分区主题的分区数量。 然而，你只能添加分区号。 减少分区的数量就会删除对应主题，在 Pulsar 中是不支持的。</p>
+<p>生产者和消费者可以自动找到新创建的分区。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2373-tab-2374" class="nav-link active" data-group="group_2373" data-tab="tab-group-2373-content-2374">pulsar-admin</div><div id="tab-group-2373-tab-2375" class="nav-link" data-group="group_2373" data-tab="tab-group-2373-content-2375">REST API</div><div id="tab-group-2373-tab-2376" class="nav-link" data-group="group_2373" data-tab="tab-group-2373-content-2376">Java</div></div><div class="tab-content"><div id="tab-group-2373-content-2374" class="tab-pane active" data-group="group_2373" tabindex="-1"><div><span><p>可以使用 <a href="/docs/zh-CN/next/pulsar-admin#update-partitioned-topic"><code>update-partitioned-topic</code></a> 命令更新分区主题。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics update-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic \<br />  --partitions 8<br /></code></pre>
+</span></div></div><div id="tab-group-2373-content-2375" class="tab-pane" data-group="group_2373" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updatePartitionedTopic?version=2.9.1&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-2373-content-2376" class="tab-pane" data-group="group_2373" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().updatePartitionedTopic(topic, numPartitions);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="删除-1"></a><a href="#删除-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除</h3>
+<p>可以使用 <a href="/docs/zh-CN/next/pulsar-admin#delete-partitioned-topic"><code>delete-partitioned-topic</code></a> 命令、REST API 或者 Java 删除分区主题。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2377-tab-2378" class="nav-link active" data-group="group_2377" data-tab="tab-group-2377-content-2378">pulsar-admin</div><div id="tab-group-2377-tab-2379" class="nav-link" data-group="group_2377" data-tab="tab-group-2377-content-2379">REST API</div><div id="tab-group-2377-tab-2380" class="nav-link" data-group="group_2377" data-tab="tab-group-2377-content-2380">Java</div></div><div class="tab-content"><div id="tab-group-2377-content-2378" class="tab-pane active" data-group="group_2377" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics delete-partitioned-topic \</span><br />  persistent://my-tenant/my-namespace/my-topic<br /></code></pre>
+</span></div></div><div id="tab-group-2377-content-2379" class="tab-pane" data-group="group_2377" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deletePartitionedTopic?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/:schema/:topic/:namespace/:destination/partitions</i></a>
+</p>
+</span></div></div><div id="tab-group-2377-content-2380" class="tab-pane" data-group="group_2377" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().delete(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取资源列表-1"></a><a href="#获取资源列表-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取资源列表</h3>
+<p>你可以通过以下方式获取给定命名空间下的分区主题列表。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2381-tab-2382" class="nav-link active" data-group="group_2381" data-tab="tab-group-2381-content-2382">pulsar-admin</div><div id="tab-group-2381-tab-2383" class="nav-link" data-group="group_2381" data-tab="tab-group-2381-content-2383">REST API</div><div id="tab-group-2381-tab-2384" class="nav-link" data-group="group_2381" data-tab="tab-group-2381-content-2384">Java</div></div><div class="tab-content"><div id="tab-group-2381-content-2382" class="tab-pane active" data-group="group_2381" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list-partitioned-topics tenant/namespace</span><br />persistent://tenant/namespace/topic1<br />persistent://tenant/namespace/topic2<br /></code></pre>
+</span></div></div><div id="tab-group-2381-content-2383" class="tab-pane" data-group="group_2381" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedTopicList?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace</i></a>
+</p>
+</span></div></div><div id="tab-group-2381-content-2384" class="tab-pane" data-group="group_2381" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getPartitionedTopicList(namespace);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="统计信息-1"></a><a href="#统计信息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>统计信息</h3>
+<p>可以查看某个主题的当前统计数据。 The following is an example. 关于每个统计数据的描述，参见 <a href="#get-stats">get stats</a>。</p>
+<p>请注意，在订阅的 JSON 对象中， <code>chuckedMessageRate</code> 已被废弃。 请使用 <code>chunkedMessageRate</code>。 两者目前都将发送到 JSON 中。</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">999.992947159793</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">1070918.4635439808</span>,
+  <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+  <span class="hljs-attr">"bytesInCounter"</span> : <span class="hljs-number">270318763</span>,
+  <span class="hljs-attr">"msgInCounter"</span> : <span class="hljs-number">252489</span>,
+  <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">1070.926056966454</span>,
+  <span class="hljs-attr">"msgChunkPublished"</span> : <span class="hljs-literal">false</span>,
+  <span class="hljs-attr">"storageSize"</span> : <span class="hljs-number">270316646</span>,
+  <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">200921133</span>,
+  <span class="hljs-attr">"publishers"</span> : [ {
+    <span class="hljs-attr">"msgRateIn"</span> : <span class="hljs-number">999.992947159793</span>,
+    <span class="hljs-attr">"msgThroughputIn"</span> : <span class="hljs-number">1070918.4635439808</span>,
+    <span class="hljs-attr">"averageMsgSize"</span> : <span class="hljs-number">1070.3333333333333</span>,
+    <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0.0</span>,
+    <span class="hljs-attr">"producerId"</span> : <span class="hljs-number">0</span>
+  } ],
+  <span class="hljs-attr">"subscriptions"</span> : {
+    <span class="hljs-attr">"test"</span> : {
+      <span class="hljs-attr">"msgRateOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"bytesOutCounter"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgOutCounter"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgRateRedeliver"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"chuckedMessageRate"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span> : <span class="hljs-number">144318</span>,
+      <span class="hljs-attr">"msgBacklogNoDelayed"</span> : <span class="hljs-number">144318</span>,
+      <span class="hljs-attr">"blockedSubscriptionOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"msgDelayed"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"unackedMessages"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgRateExpired"</span> : <span class="hljs-number">0.0</span>,
+      <span class="hljs-attr">"lastExpireTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedFlowTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastConsumedTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"lastAckedTimestamp"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"consumers"</span> : [ ],
+      <span class="hljs-attr">"isDurable"</span> : <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"isReplicated"</span> : <span class="hljs-literal">false</span>
+    }
+  },
+  <span class="hljs-attr">"replication"</span> : { },
+  <span class="hljs-attr">"metadata"</span> : {
+    <span class="hljs-attr">"partitions"</span> : <span class="hljs-number">3</span>
+  },
+  <span class="hljs-attr">"partitions"</span> : { }
+}
+</code></pre>
+<p>你可以通过以下方式检查给定分区主题及其当前连接的生产者和消费者的统计信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2385-tab-2386" class="nav-link active" data-group="group_2385" data-tab="tab-group-2385-content-2386">pulsar-admin</div><div id="tab-group-2385-tab-2387" class="nav-link" data-group="group_2385" data-tab="tab-group-2385-content-2387">REST API</div><div id="tab-group-2385-tab-2388" class="nav-link" data-group="group_2385" data-tab="tab-group-2385-content-2388">Java</div></div><div class="tab-content"><div id="tab-group-2385-content-2386" class="tab-pane active" data-group="group_2385" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics partitioned-stats \</span><br />  persistent://test-tenant/namespace/topic \<br />  --per-partition<br /></code></pre>
+</span></div></div><div id="tab-group-2385-content-2387" class="tab-pane" data-group="group_2385" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPartitionedStats?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats</i></a>
+</p>
+</span></div></div><div id="tab-group-2385-content-2388" class="tab-pane" data-group="group_2385" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getPartitionedStats(topic, <span class="hljs-keyword">true</span> <span class="hljs-comment">/* per partition */</span>, <span class="hljs-keyword">false</span> <span class="hljs-comment">/* is precise backlog */</span>);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="internal-stats"></a><a href="#internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Internal stats</h3>
+<p>你可以检查主题的详细统计数据。 The following is an example. 有关每个统计信息的说明，详见<a href="#get-internal-stats">获取内部统计信息</a>。</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
+  <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"currentLedgerEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"currentLedgerSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>: <span class="hljs-string">"2016-06-29 03:00:23.825"</span>,
+  <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>: <span class="hljs-literal">null</span>,
+  <span class="hljs-attr">"waitingCursorsCount"</span>: <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"pendingAddEntriesCount"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"lastConfirmedEntry"</span>: <span class="hljs-string">"324711539:3232"</span>,
+  <span class="hljs-attr">"state"</span>: <span class="hljs-string">"LedgerOpened"</span>,
+  <span class="hljs-attr">"ledgers"</span>: [
+    {
+      <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
+      <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>
+    }
+  ],
+  <span class="hljs-attr">"cursors"</span>: {
+    <span class="hljs-attr">"my-subscription"</span>: {
+      <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
+      <span class="hljs-attr">"readPosition"</span>: <span class="hljs-string">"324711539:3233"</span>,
+      <span class="hljs-attr">"waitingReadOp"</span>: <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"pendingReadOps"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"messagesConsumedCounter"</span>: <span class="hljs-number">20449501</span>,
+      <span class="hljs-attr">"cursorLedger"</span>: <span class="hljs-number">324702104</span>,
+      <span class="hljs-attr">"cursorLedgerLastEntry"</span>: <span class="hljs-number">21</span>,
+      <span class="hljs-attr">"individuallyDeletedMessages"</span>: <span class="hljs-string">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span>,
+      <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>: <span class="hljs-string">"2016-06-29 01:30:19.313"</span>,
+      <span class="hljs-attr">"state"</span>: <span class="hljs-string">"Open"</span>
+    }
+  }
+}
+</code></pre>
+<p>你可以通过以下方式获取分区主题的内部统计信息。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2389-tab-2390" class="nav-link active" data-group="group_2389" data-tab="tab-group-2389-content-2390">pulsar-admin</div><div id="tab-group-2389-tab-2391" class="nav-link" data-group="group_2389" data-tab="tab-group-2389-content-2391">REST API</div><div id="tab-group-2389-tab-2392" class="nav-link" data-group="group_2389" data-tab="tab-group-2389-content-2392">Java</div></div><div class="tab-content"><div id="tab-group-2389-content-2390" class="tab-pane active" data-group="group_2389" tabindex="-1"><div><span><pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats-internal \</span><br />  persistent://test-tenant/namespace/topic<br /></code></pre>
+</span></div></div><div id="tab-group-2389-content-2391" class="tab-pane" data-group="group_2389" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getInternalStats?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/internalStats</i></a>
+</p>
+</span></div></div><div id="tab-group-2389-content-2392" class="tab-pane" data-group="group_2389" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.topics().getInternalStats(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h2><a class="anchor" aria-hidden="true" id="发布到分区主题"></a><a href="#发布到分区主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发布到分区主题</h2>
+<p>默认情况下，Pulsar 主题由单个 broker 提供服务，这限制了主题的最大吞吐量。 <em>分区主题</em>可以跨越多个 broker，从而实现更高的吞吐量。</p>
+<p>你可以使用 Pulsar 客户端库发布到分区主题。 发布到分区主题时，必须指定路由模式。 如果在创建新的生产者时没有指定任何路由方式，则使用轮询路由模式。</p>
+<h3><a class="anchor" aria-hidden="true" id="routing-mode"></a><a href="#routing-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing mode</h3>
+<p>You can specify the routing mode in the ProducerConfiguration object that you use to configure your producer. 路由模式决定了每条消息应该发往哪个分区（内部主题）。</p>
+<p>以下
+<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRoutingMode">MessageRoutingMode</a>
+ 选项是可用的。</p>
+<table>
+<thead>
+<tr><th style="text-align:left">发送模式</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">如果没有提供 key，生产者将在所有分区中以轮训策略进行发布消息，以达到最大的吞吐量。 请注意轮训并不是作用于每条单独的消息，而是作用于延迟处理的批次边界，以确保批处理有效。 如果在消息上指定了 key ，分区生产者会根据 key 的 hash 值将消息分配给对应的分区。 这是默认的模式。</td></tr>
+<tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">如果消息没有指定 key，生产者会随机挑选一个分区，并发布所有消息到该分区。 如果在消息上指定了 key ，分区生产者会根据 key 的 hash 值将消息分配给对应的分区。</td></tr>
+<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">使用自定义消息路由器实现来决定特定消息的分区。 你可以通过使用 Java 客户端和实现 <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+ 接口来创建一个自定义路由模式。</td></tr>
+</tbody>
+</table>
+<p>如下所示：</p>
+<pre><code class="hljs css language-java">String pulsarBrokerRootUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
+producer.send(<span class="hljs-string">"Partitioned topic message"</span>.getBytes());
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="custom-message-router"></a><a href="#custom-message-router" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Custom message router</h3>
+<p>要使用自定义消息路由器，您需要提供<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+ 接口的实现，该接口只有一个<code>choosePartition</code>方法：</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">MessageRouter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Serializable</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">choosePartition</span><span class="hljs-params">(Message msg)</span></span>;
+}
+</code></pre>
+<p>下面的路由模式表示所有的消息都会被发送到分区10：</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">AlwaysTenRouter</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">MessageRouter</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">choosePartition</span><span class="hljs-params">(Message msg)</span> </span>{
+        <span class="hljs-keyword">return</span> <span class="hljs-number">10</span>;
+    }
+}
+</code></pre>
+<p>通过该实现，你可以发送：</p>
+<pre><code class="hljs css language-java">String pulsarBrokerRootUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+String topic = <span class="hljs-string">"persistent://my-tenant/my-cluster-my-namespace/my-topic"</span>;
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(<span class="hljs-keyword">new</span> AlwaysTenRouter())
+        .create();
+producer.send(<span class="hljs-string">"Partitioned topic message"</span>.getBytes());
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="使用-key-时如何选择分区"></a><a href="#使用-key-时如何选择分区" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Key 时如何选择分区</h3>
+<p>If a message has a key, it supersedes the round robin routing policy. 以下示例说明当使用key时如何选择分区。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// 如果消息存在key，轮询路由策略将被替换</span>
+        <span class="hljs-keyword">if</span> (msg.hasKey()) {
+            <span class="hljs-keyword">return</span> signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
+        }
+
+        <span class="hljs-keyword">if</span> (isBatchingEnabled) { <span class="hljs-comment">// 如果开启批处理，请在  `partitionSwitchMs`  边界上选择分区。</span>
+            <span class="hljs-keyword">long</span> currentMs = clock.millis();
+            <span class="hljs-keyword">return</span> signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartiations());
+        other.
+            <span class="hljs-keyword">return</span> signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(<span class="hljs-keyword">this</span>), topicMetadata.numPartiations());
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="管理订阅"></a><a href="#管理订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理订阅</h2>
+<p>你可以使用 <a href="/docs/zh-CN/next/admin-api-overview">Pulsar admin Apl</a> 创建、检查和删除订阅。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建订阅"></a><a href="#创建订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建订阅</h3>
+<p>你可以使用以下方法之一为主题创建订阅。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2393-tab-2394" class="nav-link active" data-group="group_2393" data-tab="tab-group-2393-content-2394">pulsar-admin</div><div id="tab-group-2393-tab-2395" class="nav-link" data-group="group_2393" data-tab="tab-group-2393-content-2395">REST API</div><div id="tab-group-2393-tab-2396" class="nav-link" data-group="group_2393" data-tab="tab-group-2393-content-2396">Java</div></div><div class="tab-content"><div id="tab-group-2393-content-2394" class="tab-pane active" data-group="group_2393" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics create-subscription \<br />--subscription my-subscription \<br />persistent://test-tenant/ns1/tp1<br /></code></pre>
+</span></div></div><div id="tab-group-2393-content-2395" class="tab-pane" data-group="group_2393" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createSubscriptions?version=2.9.1&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription</i></a>
+</p>
+</span></div></div><div id="tab-group-2393-content-2396" class="tab-pane" data-group="group_2393" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subscriptionName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="获取订阅-1"></a><a href="#获取订阅-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取订阅</h3>
+<p>你可以使用以下方法之一检查给定主题的所有订阅名称。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2397-tab-2398" class="nav-link active" data-group="group_2397" data-tab="tab-group-2397-content-2398">pulsar-admin</div><div id="tab-group-2397-tab-2399" class="nav-link" data-group="group_2397" data-tab="tab-group-2397-content-2399">REST API</div><div id="tab-group-2397-tab-2400" class="nav-link" data-group="group_2397" data-tab="tab-group-2397-content-2400">Java</div></div><div class="tab-content"><div id="tab-group-2397-content-2398" class="tab-pane active" data-group="group_2397" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics subscriptions \<br />persistent://test-tenant/ns1/tp1 \<br />my-subscription<br /></code></pre>
+</span></div></div><div id="tab-group-2397-content-2399" class="tab-pane" data-group="group_2397" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getSubscriptions?version=2.9.1&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions</i></a>
+</p>
+</span></div></div><div id="tab-group-2397-content-2400" class="tab-pane" data-group="group_2397" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />admin.topics().getSubscriptions(topic);<br /></code></pre>
+</span></div></div></div></div>
+<h3><a class="anchor" aria-hidden="true" id="取消订阅"></a><a href="#取消订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消订阅</h3>
+<p>当订阅不再处理消息时，你可以使用以下方法之一取消订阅。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2401-tab-2402" class="nav-link active" data-group="group_2401" data-tab="tab-group-2401-content-2402">pulsar-admin</div><div id="tab-group-2401-tab-2403" class="nav-link" data-group="group_2401" data-tab="tab-group-2401-content-2403">REST API</div><div id="tab-group-2401-tab-2404" class="nav-link" data-group="group_2401" data-tab="tab-group-2401-content-2404">Java</div></div><div class="tab-content"><div id="tab-group-2401-content-2402" class="tab-pane active" data-group="group_2401" tabindex="-1"><div><span><pre><code class="hljs css language-shell">pulsar-admin topics unsubscribe \<br />--subscription my-subscription \<br />persistent://test-tenant/ns1/tp1 <br /></code></pre>
+</span></div></div><div id="tab-group-2401-content-2403" class="tab-pane" data-group="group_2401" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteSubscription?version=2.9.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription</i></a>
+</p>
+</span></div></div><div id="tab-group-2401-content-2404" class="tab-pane" data-group="group_2401" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subscriptionName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().deleteSubscription(topic, subscriptionName);<br /></code></pre>
+</span></div></div></div></div>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-permissions"><span class="arrow-prev">← </span><span>权限管理</span></a><a class="docs-next button" href="/docs/zh-CN/next/admin-api-functions"><span>Functions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#管理主题资源">管理主题资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载-topic">卸载 topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计信息">获取内部统计信息</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#按-id-获取消息">按 ID 获取消息</a></li><li><a href="#检查消息">检查消息</a></li><li><a href="#按-id-获取消息-1">按 ID 获取消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#查找已分区主题">查找已分区主题</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#最后一条消息id">最后一条消息Id</a></li><li><a href="#获取-backlog-大小">获取 backlog 大小</a></li><li><a href="#配置去重快照间隔">配置去重快照间隔</a></li><li><a href="#配置非活跃主题策略">配置非活跃主题策略</a></li><li><a href="#配置卸载策略">配置卸载策略</a></li></ul></li><li><a href="#管理非分区主题">管理非分区主题</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#统计信息">统计信息</a></li></ul></li><li><a href="#管理分区主题">管理分区主题</a><ul class="toc-headings"><li><a href="#创建-1">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除-1">删除</a></li><li><a href="#获取资源列表-1">获取资源列表</a></li><li><a href="#统计信息-1">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li><li><a href="#发布到分区主题">发布到分区主题</a><ul class="toc-headings"><li><a href="#routing-mode">Routing mode</a></li><li><a href="#custom-message-router">Custom message router</a></li><li><a href="#使用-key-时如何选择分区">使用 Key 时如何选择分区</a></li></ul></li><li><a href="#管理订阅">管理订阅</a><ul class="toc-headings"><li><a href="#创建订阅">创建订阅</a></li><li><a href="#获取订阅-1">获取订阅</a></li><li><a href="#取消订阅">取消订阅</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:next"]}
+              });
+            </script></body></html>

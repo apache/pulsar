@@ -1,0 +1,480 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](/docs/fr/2.3.0/admin-api-overview). La version courante du client Java est **2.9.1**."/><meta name="docsearch:version" content="2.3.0"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="The Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](/docs/fr/2.3.0/admin-api-overview). La version courante du client Java est **2.9.1**."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.3.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.3.0/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.3.0/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.3.0/client-libraries-java">English</a></li><li><a href="/docs/ja/2.3.0/client-libraries-java">日本語</a></li><li><a href="/docs/ko/2.3.0/client-libraries-java">한국어</a></li><li><a href="/docs/zh-CN/2.3.0/client-libraries-java">中文</a></li><li><a href="/docs/zh-TW/2.3.0/client-libraries-java">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Client Libraries</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Getting Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/standalone-docker">Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/client-libraries">Client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-api">API</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-deploying">Deploying functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-guarantees">Processing guarantees</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-state">State Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/functions-metrics">Metrics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-quickstart">Getting started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-managing">Managing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-connectors">Builtin Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-develop">Developing Connectors</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/io-cdc">CDC Connector</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/sql-getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/sql-deployment-configurations">Deployment and Configuration</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-load-distribution">Load distribution</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/administration-proxy">Pulsar proxy</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-token-client">Client Authentication using tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-token-admin">Token authentication admin</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.3.0/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/admin-api-schemas">Schemas</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.3.0/reference-configuration">Pulsar configuration</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Java client</h1></header><article><div><span><p>The Pulsar Java client can be used both to create Java producers, consumers, and <a href="#readers">readers</a> of messages and to perform <a href="/docs/fr/2.3.0/admin-api-overview">administrative tasks</a>. La version courante du client Java est <strong>2.9.1</strong>.</p>
+<p>La javadoc pour le client Pulsar est divisée en deux domaines, par package :</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Package</th><th style="text-align:left">Description</th><th style="text-align:left">Artifact Maven</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><a href="/api/client/2.9.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">L'API du producteur et du consommateur</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.9.1%7Cjar">org.apache.pulsar:pulsar-client:2.9.1</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/admin/2.9.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">L'API d'administration Java <a href="/docs/fr/2.3.0/admin-api-overview"></a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.9.1%7Cjar">org.apache.pulsar:pulsar-client-admin:2.9.1</a></td></tr>
+</tbody>
+</table>
+<p>Ce document ne se concentre que sur l'API de production et de consommation de messages de topics Pulsar. Pour un guide d'utilisation du client d'administration Java, voir <a href="/docs/fr/2.3.0/admin-api-overview">L'interface d'administration Pulsar</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.9.1%7Cjar">Maven Central</a>. To use the latest version, add the <code>pulsar-client</code> library to your build configuration.</p>
+<h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
+<p>Si vous utilisez Maven, ajoutez ceci à votre <code>pom.xml</code>:</p>
+<pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- dans la section &lt;properties&gt; --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.9.1<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!--dans la section &lt;dependencies&gt; --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
+<p>Si vous utilisez Gradle, ajoutez ceci à votre fichier <code>build.gradle</code>:</p>
+<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.9.1'</span>
+
+dependencies {
+    compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-client'</span>, <span class="hljs-string">version:</span> pulsarVersion
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/fr/2.3.0/develop-binary-protocol">Pulsar protocol</a> URL.</p>
+<p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6650
+</code></pre>
+<p>A URL for a production Pulsar cluster may look something like this:</p>
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
+</code></pre>
+<p>If you're using <a href="/docs/fr/2.3.0/security-tls-authentication">TLS</a> authentication, the URL will look like something like this:</p>
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="configuration-du-client"></a><a href="#configuration-du-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration du client</h2>
+<p>Vous pouvez instancier un objet <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ en fournissant simplement l'URL du <a href="/docs/fr/2.3.0/reference-terminology#cluster">cluster</a> Pulsar cible, comme ceci :</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .build();
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="url-par-défaut-pour-les-clusters-en-mode-standalone"></a><a href="#url-par-défaut-pour-les-clusters-en-mode-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>URL par défaut pour les clusters en mode standalone</h4>
+<p>Si vous exécutez un cluster en mode <a href="/docs/fr/2.3.0/standalone">standalone</a>, le broker sera disponible à l'URL <code>pulsar://localhost:6650</code> par défaut.</p>
+</blockquote>
+<p>Consultez la javadoc pour la classe <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ pour une liste complète des paramètres configurables.</p>
+<blockquote>
+<p>En plus de la configuration du niveau client, vous pouvez également appliquer une configuration spécifique aux <a href="#configuring-producers">producteurs</a> et aux <a href="#configuring-consumers">consommateurs</a> , comme vous le verrez dans les sections ci-dessous.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
+<p>Dans Pulsar, les producteurs écrivent des messages dans des topics. Une fois que vous avez instancié un objet <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ (comme dans la section <a href="#client-configuration"> ci-dessus</a>), vous pouvez créer une instance de javadoc:Producteur:/client/org/apache/pulsar/client/api/Producer pour un <a href="/docs/fr/2.3.0/reference-terminology#topic">topic</a> Pulsar spécifique.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .create();
+
+<span class="hljs-comment">// Vous pouvez ensuite envoyer des messages au broker et au topic que vous avez spécifié:</span>
+producer.send(<span class="hljs-string">"My message"</span>.getBytes());
+</code></pre>
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
+<pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .create();
+stringProducer.send(<span class="hljs-string">"My message"</span>);
+</code></pre>
+<blockquote>
+<p>Vous devriez toujours vous assurer de fermer vos producteurs, consommateurs et clients quand ils ne sont plus nécessaires :</p>
+<pre><code class="hljs css language-java">producer.close();
+consumer.close();
+client.close();
+</code></pre>
+<p>Les opérations de fermeture peuvent également être asynchrones :</p>
+<pre><code class="hljs css language-java">producer.closeAsync()
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>));
+   .exceptionally((ex) -&gt; {
+       System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
+       <span class="hljs-keyword">return</span> ex;
+   });
+</code></pre>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="configuration-des-producteurs"></a><a href="#configuration-des-producteurs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des producteurs</h3>
+<p>Si vous instanciez un objet <code>Producer</code> en spécifiant seulement un nom detopic, comme dans l'exemple ci-dessus, le producteur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. For a full listing, see the Javadoc for the {@inject javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+    .topic(<span class="hljs-string">"my-topic"</span>)
+    .batchingMaxPublishDelay(<span class="hljs-number">10</span>, TimeUnit.MILLISECONDS)
+    .sendTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
+    .blockIfQueueFull(<span class="hljs-keyword">true</span>)
+    .create();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="routage-des-messages"></a><a href="#routage-des-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routage des messages</h3>
+<p>Lorsque vous utilisez des topics partitionnés, vous pouvez spécifier le mode de routage lorsque vous publiez des messages avec un producteur. Pour plus d'informations sur la spécification d'un mode de routage en utilisant le client Java, voir le cookbook <a href="/docs/fr/2.3.0/cookbooks-partitioned">Topics Partitionnés</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="envoi-asynchrone"></a><a href="#envoi-asynchrone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Envoi Asynchrone</h3>
+<p>Vous pouvez également publier des messages en mode <a href="/docs/fr/2.3.0/concepts-messaging#send-modes">asynchrone</a> avec le client Java. En mode asynchrone, le producteur mettra le message dans une file d'attente bloquante et retournera immédiatement. La bibliothèque cliente enverra ensuite le message au broker en arrière-plan. Si la file d'attente est pleine (taille max configurable), le producteur pourrait être bloqué ou échouer immédiatement lors de l'appel de l'API, selon les arguments passés au producteur.</p>
+<p>Voici un exemple d'opération d'envoi asynchrone :</p>
+<pre><code class="hljs css language-java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
+    System.out.printf(<span class="hljs-string">"Message with ID %s successfully sent"</span>, msgId);
+});
+</code></pre>
+<p>As you can see from the example above, async send operations return a {@inject javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="configuration-des-messages"></a><a href="#configuration-des-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des messages</h3>
+<p>En plus d'une valeur, il est possible de définir des éléments supplémentaires sur un message donné :</p>
+<pre><code class="hljs css language-java">producer.newMessage()
+    .key(<span class="hljs-string">"my-message-key"</span>)
+    .value(<span class="hljs-string">"my-async-message"</span>.getBytes())
+    .property(<span class="hljs-string">"my-key"</span>, <span class="hljs-string">"my-value"</span>)
+    .property(<span class="hljs-string">"my-other-key"</span>, <span class="hljs-string">"my-other-value"</span>)
+    .send();
+</code></pre>
+<p>Comme dans le cas précédent, il est également possible de mettre fin à la construction du message avec <code>sendAsync()</code> et d'obtenir une future en retour.</p>
+<h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
+<p>Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau <a href="/docs/fr/2.3.0/reference-terminology#consumer">consommateur</a> en instanciant d'abord un objet <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ et en lui passant l'URL d'un broker Pulsar (comme <a href="#client-configuration">ci-dessus</a>).</p>
+<p>Une fois que vous avez instancié un objet <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+, vous pouvez créer un <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+ en précisant un <a href="/docs/fr/2.3.0/reference-terminology#topic">topic</a> et un <a href="/docs/fr/2.3.0/concepts-messaging#subscription-modes">abonnement</a>.</p>
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+        .subscribe();
+</code></pre>
+<p>La méthode d'<code>abonnement</code> va automatiquement souscrire le consommateur au topic et à l'abonnement spécifiés. Une façon de faire écouter le consommateur sur le topic est de configurer une boucle <code>while</code>. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then <a href="/docs/fr/2.3.0/reference-terminology#acknowledgment-ack">acknowledges</a> that the message has been processed:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">do</span> {
+  <span class="hljs-comment">// Wait for a message</span>
+  Message msg = consumer.receive();
+
+  System.out.printf(<span class="hljs-string">"Message received: %s"</span>, <span class="hljs-keyword">new</span> String(msg.getData()));
+
+  <span class="hljs-comment">// Acknowledge the message so that it can be deleted by the message broker</span>
+  consumer.acknowledge(msg);
+} <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configuration-des-consommateurs"></a><a href="#configuration-des-consommateurs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des consommateurs</h3>
+<p>Si vous instanciez un objet <code>Consumer</code> spécifiant seulement un topic et un nom d'abonnement, comme dans l'exemple ci-dessus, le consommateur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. Pour une liste complète, voir la javadoc pour la classe <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
+ . Here's an example:</p>
+<p>Voici un exemple de configuration :</p>
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+        .ackTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="réception-asynchrone"></a><a href="#réception-asynchrone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Réception Asynchrone</h3>
+<p>La méthode <code>receive</code> recevra des messages de manière synchrone (le processus de consommation sera bloqué jusqu'à ce qu'un message soit disponible). Vous pouvez également utiliser <a href="/docs/fr/2.3.0/concepts-messaging#receive-modes">async receive</a>, qui retournera immédiatement un objet <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a> qui se termine une fois qu'un nouveau message est disponible.</p>
+<p>Here's an example:</p>
+<pre><code class="hljs css language-java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
+</code></pre>
+<p>Async receive operations return a {@inject javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="abonnements-multi-topics"></a><a href="#abonnements-multi-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Abonnements multi-topics</h3>
+<p>En plus d'abonner un consommateur à un unique topic Pulsar, vous pouvez également vous abonner à plusieurs topic simultanément en utilisant <a href="/docs/fr/2.3.0/concepts-messaging#multi-topic-subscriptions">les abonnements multi-topics</a>. Pour utiliser les abonnements multi-topics, vous pouvez fournir une expression régulière (regex) ou une <code>List</code> de topics. Si vous sélectionnez des topics via des regex, tous les topics doivent être dans le même espace de nommage Pulsar.</p>
+<p>Voici quelques exemples :</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
+<span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
+
+<span class="hljs-keyword">import</span> java.util.Arrays;
+<span class="hljs-keyword">import</span> java.util.List;
+<span class="hljs-keyword">import</span> java.util.regex.Pattern;
+
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
+        .subscriptionName(subscription);
+
+<span class="hljs-comment">// Abonnement à tous les topics d'un namespace</span>
+Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/.*"</span>);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(allTopicsInNamespace)
+        .subscribe();
+
+<span class="hljs-comment">// Abonnement à un sous-ensemble des topics d'un namespace, basé sur une regex</span>
+Pattern someTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/foo.*"</span>);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(someTopicsInNamespace)
+        .subscribe();
+</code></pre>
+<p>Vous pouvez également vous abonner à une liste explicite de topics (à travers les namespaces si vous le souhaitez) :</p>
+<pre><code class="hljs css language-java">List&lt;String&gt; topics = Arrays.asList(
+        <span class="hljs-string">"topic-1"</span>,
+        <span class="hljs-string">"topic-2"</span>,
+        <span class="hljs-string">"topic-3"</span>
+);
+
+Consumer multiTopicConsumer = consumerBuilder
+        .topics(topics)
+        .subscribe();
+
+<span class="hljs-comment">// Sinon, vous pouvez aussi:</span>
+Consumer multiTopicConsumer = consumerBuilder
+        .topics(
+            <span class="hljs-string">"topic-1"</span>,
+            <span class="hljs-string">"topic-2"</span>,
+            <span class="hljs-string">"topic-3"</span>
+        )
+        .subscribe();
+</code></pre>
+<p>You can also subscribe to multiple topics asynchronously using the <code>subscribeAsync</code> method rather than the synchronous <code>subscribe</code> method. Here's an example:</p>
+<pre><code class="hljs css language-java">Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default.*"</span>);
+consumerBuilder
+        .topics(topics)
+        .subscribeAsync()
+        .thenAccept(consumer -&gt; {
+            <span class="hljs-keyword">do</span> {
+                <span class="hljs-keyword">try</span> {
+                    Message msg = consumer.receive();
+                    <span class="hljs-comment">// Do something with the received message</span>
+                } <span class="hljs-keyword">catch</span> (PulsarClientException e) {
+                    e.printStackTrace();
+                }
+            } <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>);
+        });
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="reader-interface-readers"></a><a href="#reader-interface-readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader interface {#readers}</h2>
+<p>Avec l'interface <a href="/docs/fr/2.3.0/concepts-clients#reader-interface">reader</a>, les clients Pulsar peuvent se positionner manuellement dans un topic, en lisant tous les messages à partir d'un message spécifié. The Pulsar API for Java enables you to create <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
+ objects by specifying a topic, a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+, and {@inject javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.</p>
+<p>Here's an example:</p>
+<pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
+<span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// ID d'un message </span>
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(id)
+        .create();
+
+<span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+    Message message = reader.readNext();
+    <span class="hljs-comment">// Traitement du message</span>
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, un objet <code>Reader</code> est instancié avec un topic et un id de message spécifiques; le lecteur itère ensuite sur chaque message dans le topic après le message identifié par <code>msgIdBytes</code> (la façon dont cette valeur est obtenue dépend de l'application).</p>
+<p>L'exemple de code ci-dessus montre l'objet <code>Reader</code>pointant vers un message spécifique (identifié par un ID), mais vous pouvez également utiliser <code>MessageId.earliest</code> pour pointer vers le message disponible le plus ancien sur le topic ou <code>MessageId.latest</code> pour pointer vers le message disponible le plus récent.</p>
+<h2><a class="anchor" aria-hidden="true" id="schémas"></a><a href="#schémas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schémas</h2>
+<p>Dans Pulsar, en interne, toutes les données de message se composent de tableaux d'octets. <a href="/docs/fr/2.3.0/concepts-schema-registry">Les schémas de messages</a> vous permettent d'utiliser d'autres types de données lors de la construction et la manipulation de messages (de types simples comme des strings à des types plus complexes et spécifiques à l'application). Si vous construisez, par exemple, un <a href="#producers">producteur</a> sans spécifier un schéma, alors le producteur ne peut produire que des messages de type <code>byte[]</code>. Here's an example:</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+        .topic(topic)
+        .create();
+</code></pre>
+<p>Le producteur ci-dessus est équivalent à un <code>Producer&lt;byte[]&gt;</code> (en fait, vous devriez <em>toujours</em> spécifier explicitement le type). Si vous souhaitez utiliser un producteur pour un type de données différent, vous devrez spécifier un <strong>schéma</strong> qui informe Pulsar quel type de données sera transmis sur le <a href="/docs/fr/2.3.0/reference-terminology#topic">topic</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="exemple-de-schéma"></a><a href="#exemple-de-schéma" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exemple de schéma</h3>
+<p>Disons que vous avez une classe <code>SensorReading</code> que vous souhaitez transmettre sur un topic Pulsar :</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SensorReading</span> </span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">float</span> temperature;
+
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">SensorReading</span><span class="hljs-params">(<span class="hljs-keyword">float</span> temperature)</span> </span>{
+        <span class="hljs-keyword">this</span>.temperature = temperature;
+    }
+
+    <span class="hljs-comment">// A no-arg constructor is required</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">SensorReading</span><span class="hljs-params">()</span> </span>{
+    }
+
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">float</span> <span class="hljs-title">getTemperature</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-keyword">return</span> temperature;
+    }
+
+    <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">setTemperature</span><span class="hljs-params">(<span class="hljs-keyword">float</span> temperature)</span> </span>{
+        <span class="hljs-keyword">this</span>.temperature = temperature;
+    }
+}
+</code></pre>
+<p>Vous pouvez alors créer un <code>Producer&lt;SensorReading&gt;</code> (ou <code>Consumer&lt;SensorReading&gt;</code>) ainsi :</p>
+<pre><code class="hljs css language-java">Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+</code></pre>
+<p>Les formats de schéma suivants sont actuellement disponibles pour Java :</p>
+<ul>
+<li><p>Aucun schéma ou schéma de tableau d'octets (qui peut être appliqué en utilisant <code>Schema.BYTES</code>):</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
+    .topic(<span class="hljs-string">"some-raw-bytes-topic"</span>)
+    .create();
+</code></pre>
+<p>Ou, de manière équivalente :</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer()
+    .topic(<span class="hljs-string">"some-raw-bytes-topic"</span>)
+    .create();
+</code></pre></li>
+<li><p><code>String</code> for normal UTF-8-encoded string data. This schema can be applied using <code>Schema.STRING</code>:</p>
+<pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+    .topic(<span class="hljs-string">"some-string-topic"</span>)
+    .create();
+</code></pre></li>
+<li><p>JSON schemas can be created for POJOs using the <code>JSONSchema</code> class. Here's an example:</p>
+<pre><code class="hljs css language-java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo<span class="hljs-class">.<span class="hljs-keyword">class</span>)</span>;
+Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
+    .topic(<span class="hljs-string">"some-pojo-topic"</span>)
+    .create();
+</code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="authentication"></a><a href="#authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication</h2>
+<p>Pulsar currently supports two authentication schemes: <a href="/docs/fr/2.3.0/security-tls-authentication">TLS</a> and <a href="/docs/fr/2.3.0/security-athenz">Athenz</a>. The Pulsar Java client can be used with both.</p>
+<h3><a class="anchor" aria-hidden="true" id="tls-authentication"></a><a href="#tls-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS Authentication</h3>
+<p>Pour utiliser <a href="/docs/fr/2.3.0/security-tls-authentication">TLS</a>, vous devez mettre TLS à <code>true</code> en utilisant la méthode <code>setUseTls</code> et faire pointer votre client Pulsar vers un cert path TLS, et fournir les chemins pour les fichiers des certificats et des clés.</p>
+<p>Voici un exemple de configuration :</p>
+<pre><code class="hljs css language-java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
+authParams.put(<span class="hljs-string">"tlsCertFile"</span>, <span class="hljs-string">"/path/to/client-cert.pem"</span>);
+authParams.put(<span class="hljs-string">"tlsKeyFile"</span>, <span class="hljs-string">"/path/to/client-key.pem"</span>);
+
+Authentication tlsAuth = AuthenticationFactory
+        .create(AuthenticationTls<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>)
+        .enableTls(<span class="hljs-keyword">true</span>)
+        .tlsTrustCertsFilePath(<span class="hljs-string">"/path/to/cacert.pem"</span>)
+        .authentication(tlsAuth)
+        .build();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="athenz"></a><a href="#athenz" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Athenz</h3>
+<p>Pour utiliser <a href="/docs/fr/2.3.0/security-athenz">Athenz</a> comme fournisseur d'authentification, vous devez <a href="#tls-authentication">utiliser TLS</a> et fournir des valeurs pour quatre paramètres dans une map :</p>
+<ul>
+<li><code>tenantDomain</code></li>
+<li><code>tenantService</code></li>
+<li><code>providerDomain</code></li>
+<li><code>privateKey</code></li>
+</ul>
+<p>You can also set an optional <code>keyId</code>. Voici un exemple de configuration :</p>
+<pre><code class="hljs css language-java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
+authParams.put(<span class="hljs-string">"tenantDomain"</span>, <span class="hljs-string">"shopping"</span>); <span class="hljs-comment">// Tenant domain name</span>
+authParams.put(<span class="hljs-string">"tenantService"</span>, <span class="hljs-string">"some_app"</span>); <span class="hljs-comment">// Tenant service name</span>
+authParams.put(<span class="hljs-string">"providerDomain"</span>, <span class="hljs-string">"pulsar"</span>); <span class="hljs-comment">// Provider domain name</span>
+authParams.put(<span class="hljs-string">"privateKey"</span>, <span class="hljs-string">"file:///path/to/private.pem"</span>); <span class="hljs-comment">// Tenant private key path</span>
+authParams.put(<span class="hljs-string">"keyId"</span>, <span class="hljs-string">"v1"</span>); <span class="hljs-comment">// Key id for the tenant private key (optional, default: "0")</span>
+
+Authentication athenzAuth = AuthenticationFactory
+        .create(AuthenticationAthenz<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>)
+        .enableTls(<span class="hljs-keyword">true</span>)
+        .tlsTrustCertsFilePath(<span class="hljs-string">"/path/to/cacert.pem"</span>)
+        .authentication(athenzAuth)
+        .build();
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="formats-de-modèle-supportés"></a><a href="#formats-de-modèle-supportés" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Formats de modèle supportés</h4>
+<p>Le paramètre <code>privateKey</code> supporte les trois formats de schéma suivants : * <code>fichier:///chemin/vers/fichier</code>* * <code>fichier:/chemin/vers/fichier</code>* * <code>data:application/x-pem-file;base64,&lt;base64-encoded value&gt;</code></p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.3.0/security-extending"><span class="arrow-prev">← </span><span>Extend Authentication and Authorization</span></a><a class="docs-next button" href="/docs/fr/2.3.0/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#configuration-du-client">Configuration du client</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#configuration-des-producteurs">Configuration des producteurs</a></li><li><a href="#routage-des-messages">Routage des messages</a></li><li><a href="#envoi-asynchrone">Envoi Asynchrone</a></li><li><a href="#configuration-des-messages">Configuration des messages</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#configuration-des-consommateurs">Configuration des consommateurs</a></li><li><a href="#réception-asynchrone">Réception Asynchrone</a></li><li><a href="#abonnements-multi-topics">Abonnements multi-topics</a></li></ul></li><li><a href="#reader-interface-readers">Reader interface {#readers}</a></li><li><a href="#schémas">Schémas</a><ul class="toc-headings"><li><a href="#exemple-de-schéma">Exemple de schéma</a></li></ul></li><li><a href="#authentication">Authentication</a><ul class="toc-headings"><li><a href="#tls-authentication">TLS Authentication</a></li><li><a href="#athenz">Athenz</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.3.0"]}
+              });
+            </script></body></html>

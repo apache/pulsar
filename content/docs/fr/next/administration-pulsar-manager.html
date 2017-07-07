@@ -1,0 +1,274 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Manager · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Pulsar Manager · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/next/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/administration-pulsar-manager">English</a></li><li><a href="/docs/ja/next/administration-pulsar-manager">日本語</a></li><li><a href="/docs/ko/next/administration-pulsar-manager">한국어</a></li><li><a href="/docs/zh-CN/next/administration-pulsar-manager">中文</a></li><li><a href="/docs/zh-TW/next/administration-pulsar-manager">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Administration</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Schéma Pulsar</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-worker">Configuration : Worker des fonctions Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-develop">Mode d&#x27;emploi : Développer</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-debug">Mode d&#x27;emploi : déboguer</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-deploy">Mode d&#x27;emploi : Déployer</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/functions-cli">Référence: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/sql-rest-api">API REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-geo">Geo-replication</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-policy-and-supported-versions">Security Policy and Supported Versions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-dotnet">C#</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-namespaces">Espaces de nommage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/adaptors-kafka">Wrapper de client Kafka</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/next/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Manager</h1></header><article><div><span><p>Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments.</p>
+<blockquote>
+<p><strong>Note</strong> If you are monitoring your current stats with <a href="administration-dashboard.md">Pulsar dashboard</a>, we recommend you use Pulsar Manager instead. Pulsar dashboard is deprecated.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="install"></a><a href="#install" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install</h2>
+<h3><a class="anchor" aria-hidden="true" id="quick-install"></a><a href="#quick-install" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Quick Install</h3>
+<p>The easiest way to use the Pulsar Manager is to run it inside a <a href="https://www.docker.com/products/docker">Docker</a> container.</p>
+<pre><code class="hljs css language-shell">docker pull apachepulsar/pulsar-manager:v0.2.0
+docker run -it \
+    -p 9527:9527 -p 7750:7750 \
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.2.0
+</code></pre>
+<ul>
+<li>Pulsar Manager is divided into front-end and back-end, the front-end service port is <code>9527</code> and the back-end service port is <code>7750</code>.</li>
+<li><code>SPRING_CONFIGURATION_FILE</code>: Default configuration file for spring.</li>
+<li>By default, Pulsar Manager uses the <code>herddb</code> database. HerdDB is a SQL distributed database implemented in Java and can be found at <a href="https://herddb.org/">herddb.org</a> for more information.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-database-or-jwt-authentication"></a><a href="#configure-database-or-jwt-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Database or JWT authentication</h3>
+<h4><a class="anchor" aria-hidden="true" id="configure-database-optional"></a><a href="#configure-database-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Database (optional)</h4>
+<p>If you have a large amount of data, you can use a custom database, otherwise, some display errors may occur, such as the topic information cannot be displayed when the topic exceeds 10000. The following is an example of PostgreSQL.</p>
+<ol>
+<li>Initialize database and table structures using the <a href="https://github.com/apache/pulsar-manager/blob/master/src/main/resources/META-INF/sql/postgresql-schema.sql">file</a>.</li>
+<li>Download and modify the <a href="https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties">configuration file</a>, then add the PostgreSQL configuration.</li>
+</ol>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">spring.datasource.driver-class-name</span>=<span class="hljs-string">org.postgresql.Driver</span>
+<span class="hljs-meta">spring.datasource.url</span>=<span class="hljs-string">jdbc:postgresql://127.0.0.1:5432/pulsar_manager</span>
+<span class="hljs-meta">spring.datasource.username</span>=<span class="hljs-string">postgres</span>
+<span class="hljs-meta">spring.datasource.password</span>=<span class="hljs-string">postgres</span>
+</code></pre>
+<ol start="3">
+<li>Add a configuration mount and start with a docker image.</li>
+</ol>
+<pre><code class="hljs css language-bash">docker pull apachepulsar/pulsar-manager:v0.2.0
+docker run -it \
+    -p 9527:9527 -p 7750:7750 \
+    -v /your-path/application.properties:/pulsar-manager/pulsar-
+manager/application.properties
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.2.0
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="enable-jwt-authentication-optional"></a><a href="#enable-jwt-authentication-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable JWT authentication (optional)</h4>
+<p>If you want to turn on JWT authentication, configure the <code>application.properties</code> file.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">backend.jwt.token</span>=<span class="hljs-string">token</span>
+
+<span class="hljs-meta">jwt.broker.token.mode</span>=<span class="hljs-string">PRIVATE</span>
+<span class="hljs-meta">jwt.broker.public.key</span>=<span class="hljs-string">file:///path/broker-public.key</span>
+<span class="hljs-meta">jwt.broker.private.key</span>=<span class="hljs-string">file:///path/broker-private.key</span>
+
+<span class="hljs-attr">or</span> <span class="hljs-string"></span>
+<span class="hljs-meta">jwt.broker.token.mode</span>=<span class="hljs-string">SECRET</span>
+<span class="hljs-meta">jwt.broker.secret.key</span>=<span class="hljs-string">file:///path/broker-secret.key</span>
+</code></pre>
+<p>•   <code>backend.jwt.token</code>: token for the superuser. You need to configure this parameter during cluster initialization. •   <code>jwt.broker.token.mode</code>: multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET. •   <code>jwt.broker.public.key</code>: configure this option if you use the PUBLIC mode. •   <code>jwt.broker.private.key</code>: configure this option if you use the PRIVATE mode. •   <code>jwt.broker.secret.key</code>: configure this option if you use the SECRET mode. For more information, see <a href="https://pulsar.apache.org/docs/en/security-token-admin/">Token Authentication Admin of Pulsar</a>.</p>
+<p>Docker command to add profile and key files mount.</p>
+<pre><code class="hljs css language-bash">docker pull apachepulsar/pulsar-manager:v0.2.0
+docker run -it \
+    -p 9527:9527 -p 7750:7750 \
+    -v /your-path/application.properties:/pulsar-manager/pulsar-
+manager/application.properties
+    -v /your-path/private.key:/pulsar-manager/private.key
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.2.0
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="set-the-administrator-account-and-password"></a><a href="#set-the-administrator-account-and-password" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set the administrator account and password</h3>
+<pre><code class="hljs css language-bash">CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+curl \
+   -H <span class="hljs-string">'X-XSRF-TOKEN: $CSRF_TOKEN'</span> \
+   -H <span class="hljs-string">'Cookie: XSRF-TOKEN=$CSRF_TOKEN;'</span> \
+   -H <span class="hljs-string">"Content-Type: application/json"</span> \
+   -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+   -d <span class="hljs-string">'{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'</span>
+</code></pre>
+<p>The request parameter in curl command:</p>
+<pre><code class="hljs css language-json">{<span class="hljs-attr">"name"</span>: <span class="hljs-string">"admin"</span>, <span class="hljs-attr">"password"</span>: <span class="hljs-string">"apachepulsar"</span>, <span class="hljs-attr">"description"</span>: <span class="hljs-string">"test"</span>, <span class="hljs-attr">"email"</span>: <span class="hljs-string">"username@test.org"</span>}
+</code></pre>
+<ul>
+<li><code>name</code> is the Pulsar Manager login username, currently <code>admin</code>.</li>
+<li><code>password</code> is the password of the current user of Pulsar Manager, currently <code>apachepulsar</code>. The password should be more than or equal to 6 digits.</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="configure-the-environment"></a><a href="#configure-the-environment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure the environment</h3>
+<ol>
+<li><p>Login to the system, Visit <a href="http://localhost:9527">http://localhost:9527</a> to login.  The current default account is  <code>admin/apachepulsar</code></p></li>
+<li><p>Click &quot;New Environment&quot; button to add an environment.</p></li>
+<li><p>Input the &quot;Environment Name&quot;. The environment name is used for identifying an environment.</p></li>
+<li><p>Input the &quot;Service URL&quot;. The Service URL is the admin service url of your Pulsar cluster.</p></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="other-installation"></a><a href="#other-installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Other Installation</h2>
+<h3><a class="anchor" aria-hidden="true" id="bare-metal-installation"></a><a href="#bare-metal-installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bare-metal installation</h3>
+<p>When using binary packages for direct deployment, you can follow these steps.</p>
+<ul>
+<li><p>Download and unzip the binary package, which is available on the <a href="https://pulsar.apache.org/en/download/">Pulsar Download</a> page.</p>
+<pre><code class="hljs css language-bash">  wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
+  tar -zxvf apache-pulsar-manager-0.2.0-bin.tar.gz
+</code></pre></li>
+<li><p>Extract the back-end service binary package and place the front-end resources in the back-end service directory.</p>
+<pre><code class="hljs css language-bash">  <span class="hljs-built_in">cd</span> pulsar-manager
+  tar -zxvf pulsar-manager.tar
+  <span class="hljs-built_in">cd</span> pulsar-manager
+  cp -r ../dist ui
+</code></pre></li>
+<li><p>Modify <code>application.properties</code> configuration on demand.</p>
+<blockquote>
+<p>If you don't want to modify the <code>application.properties</code> file, you can add the configuration to the startup parameters via <code>. /bin/pulsar-manager --backend.jwt.token=token</code> to add the configuration to the startup parameters. This is a capability of the spring boot framework.</p>
+</blockquote></li>
+<li><p>Start Pulsar Manager</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-manager 
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="custom-docker-image-installation"></a><a href="#custom-docker-image-installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Custom docker image installation</h3>
+<p>You can find the docker image in the <a href="https://github.com/apache/pulsar-manager/tree/master/docker">Docker Hub</a> directory and build an image from the source code as well:</p>
+<pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar-manager
+<span class="hljs-built_in">cd</span> pulsar-manager/front-end
+npm install --save
+npm run build:prod
+<span class="hljs-built_in">cd</span> ..
+./gradlew build -x <span class="hljs-built_in">test</span>
+<span class="hljs-built_in">cd</span> ..
+docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +<span class="hljs-string">"%Y-%m-%dT%H:%M:%SZ"</span>` --build-arg VCS_REF=`latest` --build-arg VERSION=`latest` -t apachepulsar/pulsar-manager .
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<table>
+<thead>
+<tr><th>application.properties</th><th>System env on Docker Image</th><th>Desc</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>backend.jwt.token</td><td>JWT_TOKEN</td><td>token for the superuser. You need to configure this parameter during cluster initialization.</td><td><code>token</code></td></tr>
+<tr><td>jwt.broker.token.mode</td><td>N/A</td><td>multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET.</td><td><code>PUBLIC</code> or <code>PRIVATE</code> or <code>SECRET</code>.</td></tr>
+<tr><td>jwt.broker.public.key</td><td>PUBLIC_KEY</td><td>configure this option if you use the PUBLIC mode.</td><td><code>file:///path/broker-public.key</code></td></tr>
+<tr><td>jwt.broker.private.key</td><td>PRIVATE_KEY</td><td>configure this option if you use the PRIVATE mode.</td><td><code>file:///path/broker-private.key</code></td></tr>
+<tr><td>jwt.broker.secret.key</td><td>SECRET_KEY</td><td>configure this option if you use the SECRET mode.</td><td><code>file:///path/broker-secret.key</code></td></tr>
+<tr><td>spring.datasource.driver-class-name</td><td>DRIVER_CLASS_NAME</td><td>the driver class name of the database.</td><td><code>org.postgresql.Driver</code></td></tr>
+<tr><td>spring.datasource.url</td><td>URL</td><td>the JDBC URL of your  database.</td><td><code>jdbc:postgresql://127.0.0.1:5432/pulsar_manager</code></td></tr>
+<tr><td>spring.datasource.username</td><td>USERNAME</td><td>the username of database.</td><td><code>postgres</code></td></tr>
+<tr><td>spring.datasource.password</td><td>PASSWORD</td><td>the password of database.</td><td><code>postgres</code></td></tr>
+<tr><td>N/A</td><td>LOG_LEVEL</td><td>the level of log.</td><td>DEBUG</td></tr>
+</tbody>
+</table>
+<ul>
+<li>For more information about backend configurations, see <a href="https://github.com/apache/pulsar-manager/blob/master/src/README.md">here</a>.</li>
+<li>For more information about frontend configurations, see <a href="https://github.com/apache/pulsar-manager/tree/master/front-end">here</a>.</li>
+</ul>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/next/administration-geo"><span class="arrow-prev">← </span><span>Geo-replication</span></a><a class="docs-next button" href="/docs/fr/next/administration-stats"><span>Pulsar statistics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install">Install</a><ul class="toc-headings"><li><a href="#quick-install">Quick Install</a></li><li><a href="#configure-database-or-jwt-authentication">Configure Database or JWT authentication</a></li><li><a href="#set-the-administrator-account-and-password">Set the administrator account and password</a></li><li><a href="#configure-the-environment">Configure the environment</a></li></ul></li><li><a href="#other-installation">Other Installation</a><ul class="toc-headings"><li><a href="#bare-metal-installation">Bare-metal installation</a></li><li><a href="#custom-docker-image-installation">Custom docker image installation</a></li></ul></li><li><a href="#configuration">Configuration</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:next"]}
+              });
+            </script></body></html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>What’s New in Apache Pulsar 2.7.4 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits."/><meta name="docsearch:language" content="en"/><meta property="og:title" content="What’s New in Apache Pulsar 2.7.4 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4"/><meta property="og:description" content="The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class=""><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class="siteNavGroupActive"><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/ja">日本語</a></li><li><a href="/fr">Français</a></li><li><a href="/ko">한국어</a></li><li><a href="/zh-CN">中文</a></li><li><a href="/zh-TW">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Recent Posts</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Recent Posts</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/12/11/Log4j-CVE">Log4j2 Zero Day vulnerability (CVE-2021-44228)</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/09/23/Apache-Pulsar-2-8-1">Apache Pulsar 2.8.1</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/18/asia-cfp">Announcing Pulsar Summit Asia 2021: CFP Is Open!</a></li><li class="navListItem"><a class="navItem" href="/blog/2021/08/11/Apache-Pulsar-2-7-3">Apache Pulsar 2.7.3</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer postContainer blogContainer"><div class="wrapper"><div class="lonePost"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle"><a href="/blog/2021/12/14/Apache-Pulsar-2-7-4">What’s New in Apache Pulsar 2.7.4</a></h1><p class="post-meta">December 14, 2021</p><div class="authorBlock"><p class="post-authorName"><a target="_blank" rel="noreferrer noopener">Technoboy-, Anonymitaet</a></p></div></header><div><span><p>The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits.</p>
+<p>Highlights of this release are as below:</p>
+<ul>
+<li><p>Upgrade Log4j to 2.17.0 - <a href="https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/">CVE-2021-45105</a>. <a href="https://github.com/apache/pulsar/pull/13392">PR-13392</a></p></li>
+<li><p><code>ManagedLedger</code> can be referenced correctly when <code>OpAddEntry</code> is recycled. <a href="https://github.com/apache/pulsar/pull/12103">PR-12103</a></p></li>
+<li><p>NPE does not occur on <code>OpAddEntry</code> while ManagedLedger is closing. <a href="https://github.com/apache/pulsar/pull/12364">PR-12364</a></p></li>
+</ul>
+<p>This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the <a href="https://pulsar.apache.org/en/release-notes/#274">Pulsar 2.7.4 Release Notes</a>.</p>
+<h1><a class="anchor" aria-hidden="true" id="notable-bug-fixes-and-enhancements"></a><a href="#notable-bug-fixes-and-enhancements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Notable bug fixes and enhancements</h1>
+<h3><a class="anchor" aria-hidden="true" id="upgrade-log4j-to-2170---cve-2021-45105httpspulsarapacheorgblog20211211log4j-cve-pr-13392httpsgithubcomapachepulsarpull13392"></a><a href="#upgrade-log4j-to-2170---cve-2021-45105httpspulsarapacheorgblog20211211log4j-cve-pr-13392httpsgithubcomapachepulsarpull13392" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade Log4j to 2.17.0 - <a href="https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/">CVE-2021-45105</a>. <a href="https://github.com/apache/pulsar/pull/13392">PR-13392</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>A serious vulnerability was reported regarding Log4j that can allow remote execution for attackers. The vulnerability issue is described and tracked under <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228">CVE-2021-44228</a>.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Pulsar 2.7.4 upgraded Log4j to 2.17.0.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="managedledger-can-be-referenced-correctly-when-opaddentry-is-recycled-pr-12103httpsgithubcomapachepulsarpull12103"></a><a href="#managedledger-can-be-referenced-correctly-when-opaddentry-is-recycled-pr-12103httpsgithubcomapachepulsarpull12103" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ManagedLedger</code> can be referenced correctly when <code>OpAddEntry</code> is recycled. <a href="https://github.com/apache/pulsar/pull/12103">PR-12103</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, after a write failure, a task was scheduled in the background to force close the ledger and trigger the creation of  a new ledger. If the <code>OpAddEntry</code> instance was already recycled, that could lead to either an NPE or undefined behavior.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>The <code>ManagedLedgerImpl</code> object reference is copied to a final variable so the background task will not be dependent on the lifecycle of the <code>OpAddEntry</code> instance.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="no-potential-race-condition-in-the-blobstorebackedreadhandler-pr-12123httpsgithubcomapachepulsarpull12123"></a><a href="#no-potential-race-condition-in-the-blobstorebackedreadhandler-pr-12123httpsgithubcomapachepulsarpull12123" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No potential race condition in the <code>BlobStoreBackedReadHandler</code>. <a href="https://github.com/apache/pulsar/pull/12123">PR-12123</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, <code>BlobStoreBackedReadHandler</code> entered an infinite loop when reading an offload ledger. There was a race condition between the operation of reading entries and closing BlobStoreBackedReadHandler.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Added a state check before reading entries and made the <code>BlobStoreBackedReadHandler</code> exit loop when the <code>entryID</code> is bigger than the <code>lastEntryID</code>.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="npe-does-not-occur-on-opaddentry-while-managedledger-is-closing-pr-12364httpsgithubcomapachepulsarpull12364"></a><a href="#npe-does-not-occur-on-opaddentry-while-managedledger-is-closing-pr-12364httpsgithubcomapachepulsarpull12364" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NPE does not occur on <code>OpAddEntry</code> while ManagedLedger is closing. <a href="https://github.com/apache/pulsar/pull/12364">PR-12364</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, the test <code>ManagedLedgerBkTest#managedLedgerClosed</code> closed ManagedLedger object on some <code>asyncAddEntry</code> operations and failed with NPE.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Closed <code>OpAddEntry</code>  when <code>ManagedLedger</code> signaled  <code>OpAddEntry</code> to fail. In this way, the <code>OpAddEntry</code> object was correctly recycled and the failed callback was correctly triggered.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="set-a-topic-policy-through-the-topic-name-of-a-partition-correctly-pr-11294httpsgithubcomapachepulsarpull11294"></a><a href="#set-a-topic-policy-through-the-topic-name-of-a-partition-correctly-pr-11294httpsgithubcomapachepulsarpull11294" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set a topic policy through the topic name of a partition correctly. <a href="https://github.com/apache/pulsar/pull/11294">PR-11294</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, the topic name of a partition could not be used to set a topic policy.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Allowed setting a topic policy through a topic name of a partition by converting the topic name of a partition in <code>SystemTopicBasedTopicPoliciesService</code>.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="dispatch-rate-limiter-takes-effect-for-consumers-pr-8611httpsgithubcomapachepulsarpull8611"></a><a href="#dispatch-rate-limiter-takes-effect-for-consumers-pr-8611httpsgithubcomapachepulsarpull8611" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dispatch rate limiter takes effect for consumers. <a href="https://github.com/apache/pulsar/pull/8611">PR-8611</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, dispatch rate limiter did not take effect in cases where all consumers started reading in the next second since <code>acquiredPermits</code> was reset to 0 every second.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Changed the behaviour of <code>DispatchRateLimiter</code> by minus <code>permits</code> every second instead of reset <code>acquiredPermits</code> to 0. Consumers stopped reading entries temporarily until <code>acquiredPermits</code> returned to a value less than <code>permits</code> .</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="npe-does-not-occur-when-executing-unload-bundles-operations-pr-11310httpsgithubcomapachepulsarpull11310"></a><a href="#npe-does-not-occur-when-executing-unload-bundles-operations-pr-11310httpsgithubcomapachepulsarpull11310" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NPE does not occur when executing unload bundles operations. <a href="https://github.com/apache/pulsar/pull/11310">PR-11310</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>When performing pressure tests on persistent partitioned topics, NPE occurred when executing unload bundles operations. Concurrently, producers did not write messages.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Added more safety checks to fix this issue.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="fix-inconsistent-behavior-for-namespace-bundles-cache-pr-11346httpsgithubcomapachepulsarpull11346"></a><a href="#fix-inconsistent-behavior-for-namespace-bundles-cache-pr-11346httpsgithubcomapachepulsarpull11346" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fix inconsistent behavior for Namespace bundles cache. <a href="https://github.com/apache/pulsar/pull/11346">PR-11346</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, namespace bundle cache was not invalidated after a namespace was deleted.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Invalidated namespace policy cache when bundle cache was invalidated.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="close-the-replicator-and-replication-client-after-a-cluster-is-deleted-pr-11342httpsgithubcomapachepulsarpull11342"></a><a href="#close-the-replicator-and-replication-client-after-a-cluster-is-deleted-pr-11342httpsgithubcomapachepulsarpull11342" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Close the replicator and replication client after a cluster is deleted. <a href="https://github.com/apache/pulsar/pull/11342">PR-11342</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, the replicator and the replication client were not closed after a cluster was deleted. The producer of the replicator would then try to reconnect to the deleted cluster continuously.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Closed the relative replicator and replication client.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="publish-rate-limiter-takes-effect-as-expected-pr-10384httpsgithubcomapachepulsarpull10384"></a><a href="#publish-rate-limiter-takes-effect-as-expected-pr-10384httpsgithubcomapachepulsarpull10384" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Publish rate limiter takes effect as expected. <a href="https://github.com/apache/pulsar/pull/10384">PR-10384</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>Previously, there were various issues if <code>preciseTopicPublishRateLimiterEnable</code>  was set to <code>true</code> for rate limiting:</p>
+<ul>
+<li><p>Updating the limits did not set a boundary when changing the limits from a bounded limit to an unbounded limit.</p></li>
+<li><p>Each topic created a scheduler thread for each limiter instance.</p></li>
+<li><p>Topics did not release the scheduler thread when the topic was unloaded or the operation closed.</p></li>
+<li><p>Updating the limits did not close the scheduler thread related to the replaced limiter instance</p></li>
+</ul></li>
+<li><p><strong>Resolution</strong></p>
+<ul>
+<li><p>Cleaned up the previous limiter instances before creating new limiter instances.</p></li>
+<li><p>Used <code>brokerService.pulsar().getExecutor()</code> as the scheduler for the rate limiter instances.</p></li>
+<li><p>Added resource cleanup hooks for topic closing (unload).</p></li>
+</ul></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="clean-up-newly-created--ledgers-if-fails-to-update-znode-list-pr-12015httpsgithubcomapachepulsarpull12015"></a><a href="#clean-up-newly-created--ledgers-if-fails-to-update-znode-list-pr-12015httpsgithubcomapachepulsarpull12015" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Clean up newly created  ledgers if fails to update ZNode list. <a href="https://github.com/apache/pulsar/pull/12015">PR-12015</a></h3>
+<ul>
+<li><p><strong>Issue</strong></p>
+<p>When updating a ZNode list, ZooKeeper threw an exception and did not clean up the created ledger. Newly created ledgers were not  indexed to a topic <code>managedLedger</code> list and could not be cleared up as topic retention. Also, ZNode numbers increased in ZooKeeper if the ZNode version mismatch exception was thrown out.</p></li>
+<li><p><strong>Resolution</strong></p>
+<p>Deleted the created ledger from broker cache and BookKeeper regardless of exception type when the ZNode list failed to update.</p></li>
+</ul>
+<h1><a class="anchor" aria-hidden="true" id="whats-next"></a><a href="#whats-next" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What’s Next?</h1>
+<p>If you are interested in learning more about Pulsar 2.7.4, you can <a href="https://pulsar.apache.org/en/versions/">download</a> and try it out now!</p>
+<p>Pulsar Summit Asia 2021 will take place on January 15-16, 2022. <a href="https://pulsar-summit.org/">Register now</a> and help us make it an even bigger success by spreading the word on social media!</p>
+<p>For more information about the Apache Pulsar project and current  progress, visit
+the <a href="https://pulsar.apache.org">Pulsar website</a>, follow the project on Twitter
+<a href="https://twitter.com/apache_pulsar">@apache_pulsar</a>, and join <a href="https://apache-pulsar.herokuapp.com/">Pulsar Slack</a>!</p>
+</span></div></div><div class="blogSocialSection"><div class="blogSocialSectionItem"><a href="https://twitter.com/share" class="twitter-share-button" data-text="What’s New in Apache Pulsar 2.7.4" data-url="https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4" data-related="true" data-show-count="false">Tweet</a></div></div></div><div class="blog-recent"><a class="button" href="/blog/">Recent Posts</a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
+            '<li><a href="/en/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/en/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/en/resources">Resources</a></li>' +
+            '<li><a href="/en/team">Team</a></li>' +
+            '<li><a href="/en/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:en","version:2.9.1"]}
+              });
+            </script></body></html>

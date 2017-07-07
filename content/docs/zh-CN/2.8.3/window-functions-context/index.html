@@ -1,0 +1,529 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Window Functions Context · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Java SDK 提供了对可用于窗口函数中的**窗口上下文对象**的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Window Functions Context · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Java SDK 提供了对可用于窗口函数中的**窗口上下文对象**的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.8.3/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/window-functions-context">English</a></li><li><a href="/docs/ja/2.8.3/window-functions-context">日本語</a></li><li><a href="/docs/fr/2.8.3/window-functions-context">Français</a></li><li><a href="/docs/ko/2.8.3/window-functions-context">한국어</a></li><li><a href="/docs/zh-TW/2.8.3/window-functions-context">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Window Functions Context</h1></header><article><div><span><p>Java SDK 提供了对可用于窗口函数中的<strong>窗口上下文对象</strong>的访问。 该上下文对象为 Pulsar 窗口函数提供了各种各样的信息和功能，如下所示。</p>
+<ul>
+<li><p><a href="#spec">规格说明</a></p>
+<ul>
+<li>和函数有关的所有的输入主题和输出主题名称。</li>
+<li>与该函数相关联的租户和命名空间。</li>
+<li>Pulsar 窗口函数的名称、ID 和版本。</li>
+<li>运行窗口函数的 Pulsar 函数实例 ID。</li>
+<li>调用窗口函数的实例数量。</li>
+<li>输出 Schema 的内置类型或自定义类名称。</li>
+</ul></li>
+<li><p><a href="#logger">Logger</a></p>
+<ul>
+<li>窗口函数使用的 Logger 对象，可创建窗口函数的日志信息。</li>
+</ul></li>
+<li><p><a href="#user-config">User config</a></p>
+<ul>
+<li>访问任意的用户配置信息。</li>
+</ul></li>
+<li><p><a href="#routing">路由</a></p>
+<ul>
+<li>Pulsar 的窗口函数支持路由功能。 Pulsar 的窗口函数可以通过 <code>publish</code> 接口向任意主题发送消息。</li>
+</ul></li>
+<li><p><a href="#metrics">Metrics</a></p>
+<ul>
+<li>记录指标的接口。</li>
+</ul></li>
+<li><p><a href="#state-storage">State storage</a></p>
+<ul>
+<li>存储和检索状态的接口：<a href="#state-storage">状态存储</a>。</li>
+</ul></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="规格说明"></a><a href="#规格说明" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>规格说明</h2>
+<p>细则描述包含了函数的基本信息。</p>
+<h3><a class="anchor" aria-hidden="true" id="获取输入主题"></a><a href="#获取输入主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输入主题</h3>
+<p>通过方法 <code>getInputTopics</code> 获取所有输入主题的<strong>名称清单</strong>。</p>
+<p>此示例演示如何在 Java 窗口函数中获取所有输入主题的名称列表。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInputTopicsWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Collection&lt;String&gt; inputTopics = context.getInputTopics();
+        System.out.println(inputTopics);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取输出主题"></a><a href="#获取输出主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输出主题</h3>
+<p>通过 <code>getOutputTopic</code> 方法获得消息发送的目标 <strong>主题名称</strong>。</p>
+<p>此示例演示如何在 Java 窗口函数中获取输出主题的名称。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputTopicWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String outputTopic = context.getOutputTopic();
+        System.out.println(outputTopic);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取租户"></a><a href="#获取租户" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取租户</h3>
+<p>通过 <code>getTenant</code> 方法可以获取窗口函数关联的租户名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取租户的名称。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetTenantWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String tenant = context.getTenant();
+        System.out.println(tenant);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取命名空间"></a><a href="#获取命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取命名空间</h3>
+<p>通过 <code>getNamespace</code> 方法获取窗口函数关联的命名空间名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取命名空间名称。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNamespaceWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String ns = context.getNamespace();
+        System.out.println(ns);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取函数名称"></a><a href="#获取函数名称" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数名称</h3>
+<p>通过 <code>getFunctionName</code> 方法获取窗口函数的名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的名称。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNameOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionName = context.getFunctionName();
+        System.out.println(functionName);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取函数-id"></a><a href="#获取函数-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数 ID</h3>
+<p>通过 <code>getFunctionId</code> 方法获取窗口函数 ID。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的 ID。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetFunctionIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionID = context.getFunctionId();
+        System.out.println(functionID);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取函数版本"></a><a href="#获取函数版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取函数版本</h3>
+<p>通过 <code>getFunctionVersion</code> 方法获取窗口函数的版本。</p>
+<p>此示例演示如何在 Java 窗口函数中获取函数的版本。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetVersionOfWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String functionVersion = context.getFunctionVersion();
+        System.out.println(functionVersion);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取实例-id"></a><a href="#获取实例-id" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取实例 ID</h3>
+<p>通过 <code>getInstanceId</code> 方法获取窗口函数的实例 ID。</p>
+<p>此示例演示如何在 Java 窗口函数中获取实例 ID。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetInstanceIDWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">int</span> instanceId = context.getInstanceId();
+        System.out.println(instanceId);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取实例个数"></a><a href="#获取实例个数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取实例个数</h3>
+<p>通过 <code>getNumInstances</code> 方法获取某窗口函数调用生成的实例数。</p>
+<p>此示例演示如何在 Java 窗口函数中获取该函数的实例数。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetNumInstancesWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">int</span> numInstances = context.getNumInstances();
+        System.out.println(numInstances);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取输出-schema-类型"></a><a href="#获取输出-schema-类型" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取输出 Schema 类型</h3>
+<p>通过 <code>getOutputSchemaType</code> 方法获取输出 Schema 的内置类型或自定义类名称。</p>
+<p>此示例演示如何在 Java 窗口函数中获取输出 Schema 的类型。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">GetOutputSchemaTypeWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String schemaType = context.getOutputSchemaType();
+        System.out.println(schemaType);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="logger"></a><a href="#logger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Logger</h2>
+<p>使用 Java SDK 的 Pulsar 窗口函数可以通过 <a href="https://www.slf4j.org/">SLF4j</a> <a href="https://www.slf4j.org/api/org/apache/log4j/Logger.html"><code>Logger</code></a> 对象去生成指定级别的日志。</p>
+<p>以下代码示范了在 Java 方法中根据日志内容是否包含 <code>danger</code> 关键字来记录 <code>WARNING</code> 级别或 <code>INFO</code> 级别的日志。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Collection;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Record;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowContext;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowFunction;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggingWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Logger log = context.getLogger();
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; record : inputs) {
+            log.info(record + <span class="hljs-string">"-window-log"</span>);
+        }
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<p>如果你需要你的函数来生成日志，请在创建或运行函数时指定一个日志主题。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar my-functions.jar \
+  --classname my.package.LoggingFunction \
+  --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
+  <span class="hljs-comment"># 其他函数配置</span>
+</code></pre>
+<p>你可以通过 <code>persistent://public/default/logging-function-logs</code> 主题访问由 <code>LoggingFunction</code> 生成的所有日志。</p>
+<h2><a class="anchor" aria-hidden="true" id="metrics"></a><a href="#metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metrics</h2>
+<p>Pulsar 窗口函数可以发布可查询的任意指标到指标接口。</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>如果 Pulsar 窗口函数使用了 JNI，则该函数将无法把指标或状态信息发布到 Pulsar。</p>
+</blockquote>
+<p>你可以在遍历每条记录的时候使用上下文对象来记录指标信息。</p>
+<p>以下代码示例了如何在 Java 函数中每次处理消息时为 <code>process-count</code> 键设置指标，同时为 <code>elevens-count</code> 键设置另外一个指标。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Collection;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Record;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowContext;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.WindowFunction;
+
+
+<span class="hljs-comment">/**
+ * 示例函数：跟踪每条消息发送时的事件时间。
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserMetricWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; record : inputs) {
+            <span class="hljs-keyword">if</span> (record.getEventTime().isPresent()) {
+                context.recordMetric(<span class="hljs-string">"消息事件时间："</span>, record.getEventTime().get().doubleValue());
+            }
+        }
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="user-config"></a><a href="#user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User config</h2>
+<p>当你使用 SDK 运行或者更新函数时，你能够通过 <code>--user-config</code> 标志传递任意的 key/value 格式的参数。 key/value 参数<strong>必须</strong>使用 JSON 格式。</p>
+<p>以下代码示例了如何给函数传递用户自定义的 key/value 参数。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --name word-filter \
+  --user-config <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span> \
+  <span class="hljs-comment"># 函数的其他配置</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="api"></a><a href="#api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API</h3>
+<p>你可以使用以下 API 获取窗口函数的用户自定义信息。</p>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigmap"></a><a href="#getuserconfigmap" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigMap</h4>
+<p><code>getUserConfigMap</code> API：获取窗口函数所有用户定义的 key/value 配置。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * 获取函数内所有用户自定义的 key/value 配置。
+     *
+     * <span class="hljs-doctag">@return</span> 所有用户自定义的配置值映射
+     */</span>
+    <span class="hljs-function">Map&lt;String, Object&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigvalue"></a><a href="#getuserconfigvalue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValue</h4>
+<p><code>getUserConfigValue</code> API：获得一个用户自定义的 key/value。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * 获取任意用户自定义配置的 key/value。
+     *
+     * <span class="hljs-doctag">@param</span> key 参数的 key
+     * <span class="hljs-doctag">@return</span> Optional 对象：指定 key 对应的配置值。
+     */</span>
+    <span class="hljs-function">Optional&lt;Object&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getuserconfigvalueordefault"></a><a href="#getuserconfigvalueordefault" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getUserConfigValueOrDefault</h4>
+<p><code>getUserConfigValueOrdefault</code> API：获取一个用户自定义的 key/value，若没有设置值，则返回默认值。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">/**
+     * 获取任意用户自定义的 key/value，若未设置，则返回默认值。
+     *
+     * <span class="hljs-doctag">@param</span> key
+     * <span class="hljs-doctag">@param</span> defaultValue
+     * <span class="hljs-doctag">@return</span> 对应 key 用户自定义的值或者是指定的默认值。
+     */</span>
+    <span class="hljs-function">Object <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, Object defaultValue)</span></span>;
+</code></pre>
+<p>这个示例演示如何访问 Pulsar 窗口函数中配置的键值对。</p>
+<p>Java SDK 上下文对象允许你通过命令行访问 Pulsar 窗口函数中配置的 key/value 值（以 JSON 形式）。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>Java 窗口函数，所有配置的键/值对，<code>key</code> 和 <code>value</code> 都是 <code>String</code> 类型。 要将值设置为其他类型，则需要对 <code>String</code> 类型反序列化。</p>
+</blockquote>
+<p>以下代码示范如何在 Java 窗口函数中配置键/值对。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+   --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span> \
+  <span class="hljs-comment"># 函数的其他配置</span>
+</code></pre>
+<p>以下代码示范如何在窗口函数中访问值。</p>
+<p>在每次调用本函数时，<code>UserConfigFunction</code> 方法都会去记录字符串 <code>&quot;The word of the day is verdure&quot;</code>（即在每次消息到达时）。 <strong>只有</strong>当函数使用一个新的配置值进行更新之后，用户配置项 <code>word-of-the-day</code> 的值才会被改变。更新函数值有多种方式，例如通过命令行或者 REST API。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+<span class="hljs-keyword">import</span> org.slf4j.Logger;
+
+<span class="hljs-keyword">import</span> java.util.Optional;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserConfigWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        Optional&lt;Object&gt; whatToWrite = context.getUserConfigValue(<span class="hljs-string">"WhatToWrite"</span>);
+        <span class="hljs-keyword">if</span> (whatToWrite.get() != <span class="hljs-keyword">null</span>) {
+            <span class="hljs-keyword">return</span> (String)whatToWrite.get();
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"好像没有数据哟~"</span>;
+        }
+    }
+
+}
+</code></pre>
+<p>如果没有找到任何预先设置的值，你可以访问整个用户配置映射或设置默认值。</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Get the whole config map</span>
+Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
+
+<span class="hljs-comment">// Get value or resort to default</span>
+String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"word-of-the-day"</span>, <span class="hljs-string">"perspicacious"</span>);
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="路由"></a><a href="#路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由</h2>
+<p>你可以使用 <code>context.publish()</code> 接口来发布尽可能多的结果。</p>
+<p>在下述 Java 代码中，<code>PublishFunction</code> 类使用上下文对象的内置方法在函数中发布消息到 <code>publishTopic</code> 中。</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PublishWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; input, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        String publishTopic = (String) context.getUserConfigValueOrDefault(<span class="hljs-string">"publish-topic"</span>, <span class="hljs-string">"publishtopic"</span>);
+        String output = String.format(<span class="hljs-string">"%s!"</span>, input);
+        context.publish(publishTopic, output);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+    }
+
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
+<p>Pulsar 窗口函数使用 <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> 作为状态存储接口。 在安装 Apache Pulsar 的时候（包含 Standalone 安装），都会同时包含部署 BookKeeper。</p>
+<p>Apache Pulsar 集成了 Apache BookKeeper <code>table service</code> 用来存储函数的 <code>state</code> 信息。 例如， <code>WordCount</code> 函数可以通过 Pulsar Functions 的状态 API 将其 <code>counters</code> 状态存储到 BookKeeper table service 中。</p>
+<p>状态是以键值对形式存储的，key 是一个字符串，value 是任意的二进制数据：counters 是以64位大端二进制数值存储的。 key 的有效范围仅在 Pulsar 函数内，该函数的所有实例都会共享同一个 key。</p>
+<p>目前，Pulsar 窗口函数暴露了读取、更新和状态管理的 Java API。 当你使用 Java SDK 函数时，这些 API 都可以在 context 对象访问到。</p>
+<table>
+<thead>
+<tr><th>Java API</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>incrCounter</code></td><td>增加 key 引用的 counter 的值。</td></tr>
+<tr><td><code>getCounter</code></td><td>获取 key 引用的 counter 的值。</td></tr>
+<tr><td><code>putState</code></td><td>更新 key 的状态值。</td></tr>
+</tbody>
+</table>
+<p>你可以使用下述 API 访问、更新和管理 Java 窗口函数中的状态。</p>
+<h4><a class="anchor" aria-hidden="true" id="incrcounter"></a><a href="#incrcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>incrCounter</h4>
+<p>API <code>incrCounter</code> 用于增加 key 引用 counter 的值。</p>
+<p><code>incrCounter</code> 为应用提供了根据指定 <code>key</code> 增加指定 <code>amount</code> 的计数器功能。 If the <code>key</code> does not exist, a new key is created.</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * 增加指定 key 引用的 counter 的值
+     * @参数 key - key 的名称
+     * @参数 amount - 需要增加的值
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="getcounter"></a><a href="#getcounter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>getCounter</h4>
+<p>API <code>getCounter</code> 用于获取 key 引用 counter 的值。</p>
+<p>应用可以使用 API <code>getCounter</code> 根据 <code>key</code> 获取到 <code>incrCounter</code> 方法累加后的 counter 的值。</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * Retrieve the counter value for the key.
+     *
+     * <span class="hljs-doctag">@param</span> key name of the key
+     * <span class="hljs-doctag">@return</span> the amount of the counter value for this key
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
+</code></pre>
+<p>除了API <code>getCounter</code>，Pulsar 还暴露了用于存储一般 key/value 状态的函数接口（<code>putState</code>）。</p>
+<h4><a class="anchor" aria-hidden="true" id="putstate"></a><a href="#putstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>putState</h4>
+<p>API <code>putState</code> 用于更新 key 对应的值。</p>
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
+     * Update the state value for the key.
+     *
+     * <span class="hljs-doctag">@param</span> key name of the key
+     * <span class="hljs-doctag">@param</span> value state value of the key
+     */</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
+</code></pre>
+<p>以下代码演示了应用如何存储 Pulsar 窗口函数的状态。</p>
+<p><code>WordCountWindowFunction</code> 的逻辑是简单和直接的。</p>
+<ol>
+<li><p>该函数首先使用正则表达式 <code>\\.</code> 将接收到的字符串拆分为多个单词。</p></li>
+<li><p>对于每个 <code>word</code>，该函数将相应的 <code>counter</code> 递增1（通过 <code>incrCounter(key, amount)</code>）。</p></li>
+</ol>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
+
+<span class="hljs-keyword">import</span> java.util.Arrays;
+
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">WordCountWindowFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">WindowFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(Collection&lt;Record&lt;String&gt;&gt; inputs, WindowContext context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
+        <span class="hljs-keyword">for</span> (Record&lt;String&gt; input : inputs) {
+            Arrays.asList(input.getValue().split(<span class="hljs-string">"\\."</span>)).forEach(word -&gt; context.incrCounter(word, <span class="hljs-number">1</span>));
+        }
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+
+    }
+}
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.8.3/functions-cli"><span class="arrow-prev">← </span><span>参考：命令</span></a><a class="docs-next button" href="/docs/zh-CN/2.8.3/io-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#规格说明">规格说明</a><ul class="toc-headings"><li><a href="#获取输入主题">获取输入主题</a></li><li><a href="#获取输出主题">获取输出主题</a></li><li><a href="#获取租户">获取租户</a></li><li><a href="#获取命名空间">获取命名空间</a></li><li><a href="#获取函数名称">获取函数名称</a></li><li><a href="#获取函数-id">获取函数 ID</a></li><li><a href="#获取函数版本">获取函数版本</a></li><li><a href="#获取实例-id">获取实例 ID</a></li><li><a href="#获取实例个数">获取实例个数</a></li><li><a href="#获取输出-schema-类型">获取输出 Schema 类型</a></li></ul></li><li><a href="#logger">Logger</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#user-config">User config</a><ul class="toc-headings"><li><a href="#api">API</a></li></ul></li><li><a href="#路由">路由</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.3"]}
+              });
+            </script></body></html>

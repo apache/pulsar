@@ -1,0 +1,217 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>CDC Debezium Connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="### Source 配置选项"/><meta name="docsearch:version" content="2.3.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="CDC Debezium Connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="### Source 配置选项"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.3.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/zh-CN/2.3.0/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class=""><a href="/docs/zh-CN/2.3.0/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.3.0/io-cdc-debezium">English</a></li><li><a href="/docs/ja/2.3.0/io-cdc-debezium">日本語</a></li><li><a href="/docs/fr/2.3.0/io-cdc-debezium">Français</a></li><li><a href="/docs/ko/2.3.0/io-cdc-debezium">한국어</a></li><li><a href="/docs/zh-TW/2.3.0/io-cdc-debezium">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">CDC Debezium Connector</h1></header><article><div><span><h3><a class="anchor" aria-hidden="true" id="source-配置选项"></a><a href="#source-配置选项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source 配置选项</h3>
+<p>The Configuration is mostly related to Debezium task config, besides this we should provides the service URL of Pulsar cluster, and topic names that used to store offset and history.</p>
+<table>
+<thead>
+<tr><th>配置项</th><th>Required</th><th>默认值</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>task.class</code></td><td><code>true</code></td><td><code>null</code></td><td>A source task class that implemented in Debezium.</td></tr>
+<tr><td><code>database.hostname</code></td><td><code>true</code></td><td><code>null</code></td><td>The address of the Database server.</td></tr>
+<tr><td><code>database.port</code></td><td><code>true</code></td><td><code>null</code></td><td>The port number of the Database server..</td></tr>
+<tr><td><code>database.user</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the Database user that has the required privileges.</td></tr>
+<tr><td><code>database.password</code></td><td><code>true</code></td><td><code>null</code></td><td>The password for the Database user that has the required privileges.</td></tr>
+<tr><td><code>database.server.id</code></td><td><code>true</code></td><td><code>null</code></td><td>The connector’s identifier that must be unique within the Database cluster and similar to Database’s server-id configuration property.</td></tr>
+<tr><td><code>database.server.name</code></td><td><code>true</code></td><td><code>null</code></td><td>The logical name of the Database server/cluster, which forms a namespace and is used in all the names of the Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used.</td></tr>
+<tr><td><code>database.whitelist</code></td><td><code>false</code></td><td><code>null</code></td><td>A list of all databases hosted by this server that this connector will monitor. This is optional, and there are other properties for listing the databases and tables to include or exclude from monitoring.</td></tr>
+<tr><td><code>key.converter</code></td><td><code>true</code></td><td><code>null</code></td><td>The converter provided by Kafka Connect to convert record key.</td></tr>
+<tr><td><code>value.converter</code></td><td><code>true</code></td><td><code>null</code></td><td>The converter provided by Kafka Connect to convert record value.</td></tr>
+<tr><td><code>database.history</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history class name.</td></tr>
+<tr><td><code>database.history.pulsar.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>The name of the database history topic where the connector will write and recover DDL statements. This topic is for internal use only and should not be used by consumers.</td></tr>
+<tr><td><code>database.history.pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Pulsar cluster service url for history topic.</td></tr>
+<tr><td><code>pulsar.service.url</code></td><td><code>true</code></td><td><code>null</code></td><td>Debezium 使用 offset 主题的 Pulsar 集群服务 URL。 可以使用 <code>bin/pulsar-admin --admin-url http://pulsar:8080 sources localrun --source-config-file configs/pg-pulsar-config.yaml</code> 命令指向目标 Pulsar 集群。</td></tr>
+<tr><td><code>offset.storage.topic</code></td><td><code>true</code></td><td><code>null</code></td><td>Record the last committed offsets that the connector successfully completed.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="configuration-example"></a><a href="#configuration-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Example</h3>
+<p>Here is a configuration Json example:</p>
+<pre><code class="hljs css language-$json { &quot;tenant&quot;: &quot;public&quot;, &quot;namespace&quot;: &quot;default&quot;, &quot;name&quot;: &quot;debezium-kafka-source&quot;, &quot;className&quot;: &quot;org.apache.pulsar.io.kafka.connect.KafkaConnectSource&quot; , &quot;topicName&quot;: &quot;kafka-connect-topic&quot;, &quot;configs&quot;: { &quot;task.class&quot;: &quot;io.debezium.connector.mysql.MySqlConnectorTask&quot;, &quot;database.hostname&quot;: &quot;localhost&quot;, &quot;database.port&quot;: &quot;3306&quot;, &quot;database.user&quot;: &quot;debezium&quot;, &quot;database.password&quot;: &quot;dbz&quot;, &quot;database.server.id&quot;: &quot;184054&quot;, &quot;database.server.name&quot;: &quot;dbserver1&quot;, &quot;database.whitelist&quot;: &quot;inventory&quot;, &quot;database.history&quot;: &quot;org.apache.pulsar.io.debezium.PulsarDatabaseHistory&quot;, &quot;database.history.pulsar.topic&quot;: &quot;history-topic&quot;, &quot;database.history.pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;, &quot;key.converter&quot;: &quot;org.apache.kafka.connect.json.JsonConverter&quot;, &quot;value.converter&quot;: &quot;org.apache.kafka.connect.json.JsonConverter&quot;, &quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;, &quot;offset.storage.topic&quot;: &quot;offset-topic&quot; }, &quot;archive&quot;: &quot;connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar&quot; }">
+    &lt;br /&gt;You could also find the yaml example <span class="hljs-keyword">in</span> this <span class="hljs-literal">[<span class="hljs-identifier">file</span>]</span>(https:<span class="hljs-comment">//github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml), which has similar content below:</span>
+    
+    ```$yaml
+    tenant: <span class="hljs-string">"public"</span>
+    namespace: <span class="hljs-string">"default"</span>
+    name: <span class="hljs-string">"debezium-kafka-source"</span>
+    topicName: <span class="hljs-string">"kafka-connect-topic"</span>
+    archive: <span class="hljs-string">"connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"</span>
+    
+    ##autoAck: <span class="hljs-literal">true</span>
+    parallelism: <span class="hljs-number">1</span>
+    
+    configs:
+      ## sourceTask
+      task.<span class="hljs-keyword">class</span>: <span class="hljs-string">"io.debezium.connector.mysql.MySqlConnectorTask"</span>
+    
+      ## config for mysql, docker image: debezium/example-mysql:<span class="hljs-number">0.8</span>
+      database.hostname: <span class="hljs-string">"localhost"</span>
+      database.port: <span class="hljs-string">"3306"</span>
+      database.user: <span class="hljs-string">"debezium"</span>
+      database.password: <span class="hljs-string">"dbz"</span>
+      database.server.id: <span class="hljs-string">"184054"</span>
+      database.server.name: <span class="hljs-string">"dbserver1"</span>
+      database.whitelist: <span class="hljs-string">"inventory"</span>
+    
+      database.history: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>
+      database.history.pulsar.topic: <span class="hljs-string">"history-topic"</span>
+      database.history.pulsar.service.url: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+      ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
+      key.converter: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+      value.converter: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+      ## PULSAR_SERVICE_URL_CONFIG
+      pulsar.service.url: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+      ## OFFSET_STORAGE_TOPIC_CONFIG
+      offset.storage.topic: <span class="hljs-string">"offset-topic"</span>
+    
+
+### Usage example
+
+Here is a simple example <span class="hljs-keyword">to</span> store MySQL change data using above example config.
+
+- Start a MySQL server <span class="hljs-keyword">with</span> an example database, from which Debezium can capture changes. ```$bash docker run -it --rm --name mysql -p <span class="hljs-number">3306</span>:<span class="hljs-number">3306</span> -e MYSQL_ROOT_PASSWORD=debezium -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw debezium/example-mysql:<span class="hljs-number">0.8</span>
+
+    &lt;br /&gt;- Start a Pulsar service locally <span class="hljs-keyword">in</span> standalone mode.
+    ```$bash
+     bin/pulsar standalone
+    
+
+- Start pulsar debezium connector, <span class="hljs-keyword">with</span> local run mode, <span class="hljs-keyword">and</span> using above yaml config file. Please make sure that the nar file is available <span class="hljs-keyword">as</span> configured <span class="hljs-keyword">in</span> path `connectors/pulsar-io-kafka-connect-adaptor-<span class="hljs-number">2.3</span>.<span class="hljs-number">0</span>-<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">SNAPSHOT</span>.</span></span>nar`. ```$bash bin/pulsar-admin source localrun --sourceConfigFile debezium-mysql-source-config.yaml
+
+    &lt;br /&gt;- Subscribe the topic for table `inventory.products`.
+    
+
+bin/pulsar-client consume -s <span class="hljs-string">"sub-products"</span> public/default/dbserver1.inventory.products -n <span class="hljs-number">0</span>
+
+    &lt;br /&gt;- start a MySQL cli docker connector, <span class="hljs-keyword">and</span> use it we could change <span class="hljs-keyword">to</span> the table `products` <span class="hljs-keyword">in</span> MySQL server.
+    ```$bash
+    $docker run -it --rm --name mysqlterm --link mysql --rm mysql:<span class="hljs-number">5.7</span> sh -c 'exec mysql -h<span class="hljs-string">"$MYSQL_PORT_3306_TCP_ADDR"</span> -P<span class="hljs-string">"$MYSQL_PORT_3306_TCP_PORT"</span> -uroot -p<span class="hljs-string">"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"</span>'
+    
+
+This command will pop out MySQL cli, <span class="hljs-keyword">in</span> this cli, we could <span class="hljs-keyword">do</span> a change <span class="hljs-keyword">in</span> table products, use commands below <span class="hljs-keyword">to</span> change the name <span class="hljs-keyword">of</span> <span class="hljs-number">2</span> items <span class="hljs-keyword">in</span> table products:
+
+    mysql&gt; use inventory;
+    mysql&gt; show tables;
+    mysql&gt; SELECT<span class="hljs-operator"> * </span>FROM  products ;
+    mysql&gt; UPDATE products SET name='<span class="hljs-number">1111111111</span>' WHERE id=<span class="hljs-number">101</span>;
+    mysql&gt; UPDATE products SET name='<span class="hljs-number">1111111111</span>' WHERE id=<span class="hljs-number">107</span>;
+    
+
+- In above subscribe topic terminal tab, we could find that <span class="hljs-number">2</span> changes has been kept into products topic.
+
+## FAQ
+
+### Debezium postgres connector will hang <span class="hljs-keyword">when</span> create snap
+
+```$xslt
+
+# <span class="hljs-number">18</span> prio=<span class="hljs-number">5</span> os_prio=<span class="hljs-number">31</span> tid=<span class="hljs-number">0x00007fd83096f800</span> nid=<span class="hljs-number">0xa403</span> waiting on condition <span class="hljs-literal">[<span class="hljs-number">0x000070000f534000</span>]</span>
+
+    java.lang.Thread.State: WAITING (parking)
+     at sun.misc.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Unsafe</span>.</span></span>park(Native Method)
+     - parking <span class="hljs-keyword">to</span> wait for  &lt;<span class="hljs-number">0x00000007ab025a58</span>&gt; (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+     at java.util.concurrent.locks.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">LockSupport</span>.</span></span>park(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">LockSupport</span>.</span></span>java:<span class="hljs-number">175</span>)
+     at java.util.concurrent.locks.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">AbstractQueuedSynchronizer$ConditionObject</span>.</span></span>await(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">AbstractQueuedSynchronizer</span>.</span></span>java:<span class="hljs-number">2039</span>)
+     at java.util.concurrent.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">LinkedBlockingDeque</span>.</span></span>put<span class="hljs-constructor">Last(LinkedBlockingDeque.<span class="hljs-params">java</span>:396)</span>
+     at java.util.concurrent.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">LinkedBlockingDeque</span>.</span></span>put(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">LinkedBlockingDeque</span>.</span></span>java:<span class="hljs-number">649</span>)
+     at io.debezium.connector.base.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">ChangeEventQueue</span>.</span></span>enqueue(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">ChangeEventQueue</span>.</span></span>java:<span class="hljs-number">132</span>)
+     at io.debezium.connector.postgresql.PostgresConnectorTask$$Lambda$<span class="hljs-number">203</span>/<span class="hljs-number">385424085.</span>accept(Unknown Source)
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>send<span class="hljs-constructor">CurrentRecord(RecordsSnapshotProducer.<span class="hljs-params">java</span>:402)</span>
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>read<span class="hljs-constructor">Table(RecordsSnapshotProducer.<span class="hljs-params">java</span>:321)</span>
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>lambda<span class="hljs-constructor">$takeSnapshot$6(RecordsSnapshotProducer.<span class="hljs-params">java</span>:226)</span>
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$<span class="hljs-number">240</span>/<span class="hljs-number">1347039967.</span>accept(Unknown Source)
+     at io.debezium.jdbc.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">JdbcConnection</span>.</span></span>query<span class="hljs-constructor">WithBlockingConsumer(JdbcConnection.<span class="hljs-params">java</span>:535)</span>
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>take<span class="hljs-constructor">Snapshot(RecordsSnapshotProducer.<span class="hljs-params">java</span>:224)</span>
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>lambda<span class="hljs-constructor">$start$0(RecordsSnapshotProducer.<span class="hljs-params">java</span>:87)</span>
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$<span class="hljs-number">206</span>/<span class="hljs-number">589332928.</span>run(Unknown Source)
+     at java.util.concurrent.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">CompletableFuture</span>.</span></span>uni<span class="hljs-constructor">Run(CompletableFuture.<span class="hljs-params">java</span>:705)</span>
+     at java.util.concurrent.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">CompletableFuture</span>.</span></span>uni<span class="hljs-constructor">RunStage(CompletableFuture.<span class="hljs-params">java</span>:717)</span>
+     at java.util.concurrent.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">CompletableFuture</span>.</span></span><span class="hljs-keyword">then</span><span class="hljs-constructor">Run(CompletableFuture.<span class="hljs-params">java</span>:2010)</span>
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>start(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">RecordsSnapshotProducer</span>.</span></span>java:<span class="hljs-number">87</span>)
+     at io.debezium.connector.postgresql.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PostgresConnectorTask</span>.</span></span>start(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PostgresConnectorTask</span>.</span></span>java:<span class="hljs-number">126</span>)
+     at io.debezium.connector.common.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">BaseSourceTask</span>.</span></span>start(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">BaseSourceTask</span>.</span></span>java:<span class="hljs-number">47</span>)
+     at org.apache.pulsar.io.kafka.connect.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">KafkaConnectSource</span>.</span></span><span class="hljs-keyword">open</span>(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">KafkaConnectSource</span>.</span></span>java:<span class="hljs-number">127</span>)
+     at org.apache.pulsar.io.debezium.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">DebeziumSource</span>.</span></span><span class="hljs-keyword">open</span>(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">DebeziumSource</span>.</span></span>java:<span class="hljs-number">100</span>)
+     at org.apache.pulsar.functions.instance.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">JavaInstanceRunnable</span>.</span></span>setup<span class="hljs-constructor">Input(JavaInstanceRunnable.<span class="hljs-params">java</span>:690)</span>
+     at org.apache.pulsar.functions.instance.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">JavaInstanceRunnable</span>.</span></span>setup<span class="hljs-constructor">JavaInstance(JavaInstanceRunnable.<span class="hljs-params">java</span>:200)</span>
+     at org.apache.pulsar.functions.instance.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">JavaInstanceRunnable</span>.</span></span>run(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">JavaInstanceRunnable</span>.</span></span>java:<span class="hljs-number">230</span>)
+     at java.lang.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Thread</span>.</span></span>run(<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Thread</span>.</span></span>java:<span class="hljs-number">748</span>)
+    
+
+    &lt;br /&gt;If you encounter the above problems <span class="hljs-keyword">in</span> synchronizing data, please refer <span class="hljs-keyword">to</span> <span class="hljs-literal">[<span class="hljs-identifier">this</span>]</span>(https:<span class="hljs-comment">//github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:</span>
+    
+    ```$xslt
+    max.queue.size=</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.3.0"]}
+              });
+            </script></body></html>

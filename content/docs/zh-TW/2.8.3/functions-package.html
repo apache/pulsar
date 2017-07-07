@@ -1,0 +1,458 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Package Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can package Pulsar functions in Java, Python, and Go. Packaging the window function in Java is the same as [packaging a function in Java](#java)."/><meta name="docsearch:version" content="2.8.3"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Package Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can package Pulsar functions in Java, Python, and Go. Packaging the window function in Java is the same as [packaging a function in Java](#java)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.8.3</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/2.8.3/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.8.3/functions-package">English</a></li><li><a href="/docs/ja/2.8.3/functions-package">日本語</a></li><li><a href="/docs/fr/2.8.3/functions-package">Français</a></li><li><a href="/docs/ko/2.8.3/functions-package">한국어</a></li><li><a href="/docs/zh-CN/2.8.3/functions-package">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Functions</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/kubernetes-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/concepts-multiple-advertised-listeners">Multiple advertised listeners</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-develop">How-to: Develop</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-package">How-to: Package</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered Storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/tiered-storage-aliyun">Aliyun OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Transactions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-why">Why transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-what">What are transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-how">How transactions work?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-use">How to use transactions?</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/txn-monitor">How to monitor transactions?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/administration-isolation">Pulsar isolation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client Libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-topics">Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/admin-api-packages">Packages</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/develop-load-manager">Modular load manager</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/2.8.3/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Package Pulsar Functions</h1></header><article><div><span><p>You can package Pulsar functions in Java, Python, and Go. Packaging the window function in Java is the same as <a href="#java">packaging a function in Java</a>.</p>
+<blockquote>
+<p><strong>Note</strong>    <br>
+Currently, the window function is not available in Python and Go.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="prerequisite"></a><a href="#prerequisite" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerequisite</h2>
+<p>Before running a Pulsar function, you need to start Pulsar. You can <a href="/docs/zh-TW/2.8.3/standalone-docker">run a standalone Pulsar in Docker</a>, or <a href="/docs/zh-TW/2.8.3/kubernetes-helm">run Pulsar in Kubernetes</a>.</p>
+<p>To check whether the Docker image starts, you can use the <code>docker ps</code> command.</p>
+<h2><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h2>
+<p>To package a function in Java, complete the following steps.</p>
+<ol>
+<li><p>Create a new maven project with a pom file. In the following code sample, the value of <code>mainClass</code> is your package name.</p>
+<pre><code class="hljs css language-Java">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;groupId&gt;java-function&lt;/groupId&gt;
+    &lt;artifactId&gt;java-function&lt;/artifactId&gt;
+    &lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;
+
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.pulsar&lt;/groupId&gt;
+            &lt;artifactId&gt;pulsar-functions-api&lt;/artifactId&gt;
+            &lt;version&gt;2.6.0&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+                &lt;configuration&gt;
+                    &lt;appendAssemblyId&gt;false&lt;/appendAssemblyId&gt;
+                    &lt;descriptorRefs&gt;
+                        &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                    &lt;/descriptorRefs&gt;
+                    &lt;archive&gt;
+                    &lt;manifest&gt;
+                        &lt;mainClass&gt;org.example.test.ExclamationFunction&lt;/mainClass&gt;
+                    &lt;/manifest&gt;
+                &lt;/archive&gt;
+                &lt;/configuration&gt;
+                &lt;executions&gt;
+                    &lt;execution&gt;
+                        &lt;id&gt;make-assembly&lt;/id&gt;
+                        &lt;phase&gt;package&lt;/phase&gt;
+                        &lt;goals&gt;
+                            &lt;goal&gt;assembly&lt;/goal&gt;
+                        &lt;/goals&gt;
+                    &lt;/execution&gt;
+                &lt;/executions&gt;
+            &lt;/plugin&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;configuration&gt;
+                    &lt;source&gt;8&lt;/source&gt;
+                    &lt;target&gt;8&lt;/target&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+
+&lt;/project&gt;
+</code></pre></li>
+<li><p>Write a Java function.</p>
+<pre><code class="hljs">package org.example.test;
+
+<span class="hljs-keyword">import</span> java.util<span class="hljs-function">.<span class="hljs-keyword">function</span>.<span class="hljs-title">Function</span></span>;
+
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> ExclamationFunction <span class="hljs-keyword">implements</span> <span class="hljs-built_in">Function</span>&lt;<span class="hljs-built_in">String</span>, <span class="hljs-built_in">String</span>&gt; {
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-built_in">String</span> apply(<span class="hljs-built_in">String</span> s) {
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"This is my function!"</span>;
+    }
+}
+</code></pre>
+<p>For the imported package, you can use one of the following interfaces:</p>
+<ul>
+<li>Function interface provided by Java 8: <code>java.util.function.Function</code></li>
+<li>Pulsar Function interface: <code>org.apache.pulsar.functions.api.Function</code></li>
+</ul>
+<p>The main difference between the two interfaces is that the <code>org.apache.pulsar.functions.api.Function</code> interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.</p>
+<p>The following example uses <code>org.apache.pulsar.functions.api.Function</code> interface with context.</p>
+<pre><code class="hljs">package org.example.<span class="hljs-keyword">functions</span>;
+<span class="hljs-keyword">import</span> org.apache.pulsar.<span class="hljs-keyword">functions</span>.api.Context;
+<span class="hljs-keyword">import</span> org.apache.pulsar.<span class="hljs-keyword">functions</span>.api.<span class="hljs-keyword">Function</span>;
+
+<span class="hljs-keyword">import</span> java.util.Arrays;
+<span class="hljs-built_in">public</span> <span class="hljs-keyword">class</span> WordCountFunction implements <span class="hljs-keyword">Function</span>&lt;String, <span class="hljs-type">Void</span>&gt; {
+   // This <span class="hljs-keyword">function</span> <span class="hljs-keyword">is</span> invoked every <span class="hljs-type">time</span> a message <span class="hljs-keyword">is</span> published <span class="hljs-keyword">to</span> the <span class="hljs-keyword">input</span> topic
+    @Override
+    <span class="hljs-built_in">public</span> <span class="hljs-type">Void</span> process(String <span class="hljs-keyword">input</span>, Context context) throws <span class="hljs-keyword">Exception</span> {
+       Arrays.asList(<span class="hljs-keyword">input</span>.split(" ")).<span class="hljs-keyword">forEach</span>(word -&gt; {
+           String counterKey = word.toLowerCase();
+           context.incrCounter(counterKey, <span class="hljs-number">1</span>);
+        });
+       <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+   }
+ }
+</code></pre></li>
+<li><p>Package the Java function.</p>
+<pre><code class="hljs css language-bash">mvn package
+</code></pre>
+<p>After the Java function is packaged, a <code>target</code> directory is created automatically. Open the <code>target</code> directory to check if there is a JAR package similar to <code>java-function-1.0-SNAPSHOT.jar</code>.</p></li>
+</ol>
+<ol start="4">
+<li><p>Run the Java function.</p>
+<p>(1) Copy the packaged jar file to the Pulsar image.</p>
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
+docker cp &lt;path of java-function-1.0-SNAPSHOT.jar&gt;  CONTAINER ID:/pulsar
+</code></pre>
+<p>(2) Run the Java function using the following command.</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+--classname org.example.test.ExclamationFunction \
+--jar java-function-1.0-SNAPSHOT.jar \
+--inputs persistent://public/default/my-topic-1 \
+--output persistent://public/default/<span class="hljs-built_in">test</span>-1 \
+--tenant public \
+--namespace default \
+--name JavaFunction
+</code></pre>
+<p>The following log indicates that the Java function starts successfully.</p>
+<pre><code class="hljs css language-text">...
+07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
+...
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h2>
+<p>Python Function supports the following three formats:</p>
+<ul>
+<li>One python file</li>
+<li>ZIP file</li>
+<li>PIP</li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="one-python-file"></a><a href="#one-python-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>One python file</h3>
+<p>To package a function with <strong>one python file</strong> in Python, complete the following steps.</p>
+<ol>
+<li><p>Write a Python function.</p>
+<pre><code class="hljs"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function //  <span class="hljs-keyword">import</span> the Function module <span class="hljs-keyword">from</span> Pulsar
+
+<span class="hljs-comment"># The classic ExclamationFunction that appends an exclamation at the end</span>
+<span class="hljs-comment"># of the input</span>
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span><span class="hljs-params">(Function)</span>:</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span><span class="hljs-params">(self)</span>:</span>
+    <span class="hljs-keyword">pass</span>
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
+    <span class="hljs-keyword">return</span> input + <span class="hljs-string">'!'</span>
+</code></pre>
+<p>In this example, when you write a Python function, you need to inherit the Function class and implement the <code>process()</code> method.</p>
+<p><code>process()</code> mainly has two parameters:</p>
+<ul>
+<li><p><code>input</code> represents your input.</p></li>
+<li><p><code>context</code> represents an interface exposed by the Pulsar Function. You can get the attributes in the Python function based on the provided context object.</p></li>
+</ul></li>
+<li><p>Install a Python client.</p>
+<p>The implementation of a Python function depends on the Python client, so before deploying a Python function, you need to install the corresponding version of the Python client.</p>
+<pre><code class="hljs css language-bash">pip install pulsar-client==2.6.0
+</code></pre></li>
+<li><p>Run the Python Function.</p>
+<p>(1) Copy the Python function file to the Pulsar image.</p>
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
+docker cp &lt;path of Python <span class="hljs-keyword">function</span> file&gt;  CONTAINER ID:/pulsar
+</code></pre>
+<p>(2) Run the Python function using the following command.</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+--classname &lt;Python Function file name&gt;.&lt;Python Function class name&gt; \
+--py &lt;path of Python Function file&gt; \
+--inputs persistent://public/default/my-topic-1 \
+--output persistent://public/default/<span class="hljs-built_in">test</span>-1 \
+--tenant public \
+--namespace default \
+--name PythonFunction
+</code></pre>
+<p>The following log indicates that the Python function starts successfully.</p>
+<pre><code class="hljs css language-text">...
+07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
+...
+</code></pre></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="zip-file"></a><a href="#zip-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIP file</h3>
+<p>To package a function with the <strong>ZIP file</strong> in Python, complete the following steps.</p>
+<ol>
+<li><p>Prepare the ZIP file.</p>
+<p>The following is required when packaging the ZIP file of the Python Function.</p>
+<pre><code class="hljs css language-text">Assuming the zip file is named as `func.zip`, unzip the `func.zip` folder:
+    "func/src"
+    "func/requirements.txt"
+    "func/deps"
+</code></pre>
+<p>Take <a href="https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples">exclamation.zip</a> as an example. The internal structure of the example is as follows.</p>
+<pre><code class="hljs css language-text">.
+├── deps
+│   └── sh-1.12.14-py2.py3-none-any.whl
+└── src
+    └── exclamation.py
+</code></pre></li>
+<li><p>Run the Python Function.</p>
+<p>(1) Copy the ZIP file to the Pulsar image.</p>
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
+docker cp &lt;path of ZIP file&gt;  CONTAINER ID:/pulsar
+</code></pre>
+<p>(2) Run the Python function using the following command.</p>
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+--classname exclamation \
+--py &lt;path of ZIP file&gt; \
+--inputs persistent://public/default/<span class="hljs-keyword">in</span>-topic \
+--output persistent://public/default/out-topic \
+--tenant public \
+--namespace default \
+--name PythonFunction
+</code></pre>
+<p>The following log indicates that the Python function starts successfully.</p>
+<pre><code class="hljs css language-text">...
+07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
+...
+</code></pre></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="pip"></a><a href="#pip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>PIP</h3>
+<p>The PIP method is only supported in Kubernetes runtime. To package a function with <strong>PIP</strong> in Python, complete the following steps.</p>
+<ol>
+<li><p>Configure the <code>functions_worker.yml</code> file.</p>
+<pre><code class="hljs css language-text">#### Kubernetes Runtime ####
+installUserCodeDependencies: true
+</code></pre></li>
+<li><p>Write your Python Function.</p>
+<pre><code class="hljs"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<span class="hljs-keyword">import</span> js2xml
+
+# The classic ExclamationFunction that appends an exclamation at the end
+# of the input
+<span class="hljs-keyword">class</span> <span class="hljs-symbol">ExclamationFunction</span>(<span class="hljs-symbol">Function</span>):
+ <span class="hljs-symbol">def</span> <span class="hljs-symbol">__init__</span>(<span class="hljs-symbol">self</span>):
+   <span class="hljs-symbol">pass</span>
+
+ <span class="hljs-symbol">def</span> <span class="hljs-symbol">process</span>(<span class="hljs-symbol">self, <span class="hljs-symbol">input</span>, <span class="hljs-symbol">context</span></span>):
+  // <span class="hljs-symbol">add</span> <span class="hljs-symbol">your</span> <span class="hljs-symbol">logic</span>
+  <span class="hljs-symbol">return</span> <span class="hljs-symbol">input</span> + '!'
+</code></pre>
+<p>You can introduce additional dependencies. When Python Function detects that the file currently used is <code>whl</code> and the <code>installUserCodeDependencies</code> parameter is specified, the system uses the <code>pip install</code> command to install the dependencies required in Python Function.</p></li>
+<li><p>Generate the <code>whl</code> file.</p>
+<pre><code class="hljs css language-shell script"><span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> <span class="hljs-variable">$PULSAR_HOME</span>/pulsar-functions/scripts/python</span>
+<span class="hljs-meta">$</span><span class="bash"> chmod +x generate.sh</span>
+<span class="hljs-meta">$</span><span class="bash"> ./generate.sh &lt;path of your Python Function&gt; &lt;path of the whl output dir&gt; &lt;the version of whl&gt;</span>
+<span class="hljs-meta">#</span><span class="bash"> e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0</span>
+</code></pre>
+<p>The output is written in <code>/path/to/python/output</code>:</p>
+<pre><code class="hljs css language-text">-rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
+-rw-r--r--  1 root  staff   1.4K  8 27 14:29 pulsarfunction-1.0.0.tar.gz
+-rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="go"></a><a href="#go" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Go</h2>
+<p>To package a function in Go, complete the following steps.</p>
+<ol>
+<li><p>Write a Go function.</p>
+<p>Currently, Go function can be <strong>only</strong> implemented using SDK and the interface of the function is exposed in the form of SDK. Before using the Go function, you need to import &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;.</p>
+<pre><code class="hljs"><span class="hljs-keyword">import</span> (
+    <span class="hljs-string">"context"</span>
+    <span class="hljs-string">"fmt"</span>
+
+    <span class="hljs-string">"github.com/apache/pulsar/pulsar-function-go/pf"</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">HandleRequest</span><span class="hljs-params">(ctx context.Context, input []<span class="hljs-keyword">byte</span>)</span> <span class="hljs-title">error</span></span> {
+    fmt.Println(<span class="hljs-keyword">string</span>(input) + <span class="hljs-string">"!"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+    pf.Start(HandleRequest)
+}
+</code></pre>
+<p>You can use context to connect to the Go function.</p>
+<pre><code class="hljs">if fc, ok := pf.FromContext(ctx); ok {
+    fmt.Printf(<span class="hljs-string">"function ID is:%s, "</span>, fc.GetFuncID())
+    fmt.Printf(<span class="hljs-string">"function version is:%s\n"</span>, fc.GetFuncVersion())
+ }
+</code></pre>
+<p>When writing a Go function, remember that</p>
+<ul>
+<li><p>In <code>main()</code>, you <strong>only</strong> need to register the function name to <code>Start()</code>. <strong>Only</strong> one function name is received in <code>Start()</code>.</p></li>
+<li><p>Go function uses Go reflection, which is based on the received function name, to verify whether the parameter list and returned value list are correct. The parameter list and returned value list <strong>must be</strong> one of the following sample functions:</p>
+<pre><code class="hljs"> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">()</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">()</span> <span class="hljs-title">error</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(input)</span> <span class="hljs-title">error</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">()</span> <span class="hljs-params">(output, error)</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(input)</span> <span class="hljs-params">(output, error)</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(context.Context)</span> <span class="hljs-title">error</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(context.Context, input)</span> <span class="hljs-title">error</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(context.Context)</span> <span class="hljs-params">(output, error)</span></span>
+ <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(context.Context, input)</span> <span class="hljs-params">(output, error)</span></span>
+</code></pre></li>
+</ul></li>
+<li><p>Build the Go function.</p>
+<pre><code class="hljs">go build &lt;your Go <span class="hljs-keyword">Function</span> <span class="hljs-title">filename&gt;.go</span> 
+</code></pre></li>
+<li><p>Run the Go Function.</p>
+<p>(1) Copy the Go function file to the Pulsar image.</p>
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -it [CONTAINER ID] /bin/bash
+docker cp &lt;your go <span class="hljs-keyword">function</span> path&gt;  CONTAINER ID:/pulsar
+</code></pre>
+<p>(2) Run the Go function with the following command.</p>
+<pre><code class="hljs">./bin/pulsar-admin functions localrun \
+    --go [your go <span class="hljs-function"><span class="hljs-keyword">function</span></span> path] 
+    --inputs [input topics] \
+    --output [output topic] \
+    --tenant [<span class="hljs-keyword">default</span>:<span class="hljs-keyword">public</span>] \
+    --namespace [<span class="hljs-keyword">default</span>:<span class="hljs-keyword">default</span>] \
+    --<span class="hljs-keyword">name</span> [custom unique go <span class="hljs-function"><span class="hljs-keyword">function</span></span> <span class="hljs-keyword">name</span>] 
+</code></pre>
+<p>The following log indicates that the Go function starts successfully.</p>
+<pre><code class="hljs css language-text">...
+07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
+...
+</code></pre></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="start-functions-in-cluster-mode"></a><a href="#start-functions-in-cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Functions in cluster mode</h2>
+<p>If you want to start a function in cluster mode, replace <code>localrun</code> with <code>create</code> in the commands above. The following log indicates that your function starts successfully.</p>
+<pre><code class="hljs css language-text">  "Created successfully"
+</code></pre>
+<p>For information about parameters on <code>--classname</code>, <code>--jar</code>, <code>--py</code>, <code>--go</code>, <code>--inputs</code>, run the command <code>./bin/pulsar-admin functions</code> or see <a href="/docs/zh-TW/2.8.3/pulsar-admin#functions">here</a>.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.8.3/functions-develop"><span class="arrow-prev">← </span><span>How-to: Develop</span></a><a class="docs-next button" href="/docs/zh-TW/2.8.3/functions-debug"><span>How-to: Debug</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#prerequisite">Prerequisite</a></li><li><a href="#java">Java</a></li><li><a href="#python">Python</a><ul class="toc-headings"><li><a href="#one-python-file">One python file</a></li><li><a href="#zip-file">ZIP file</a></li><li><a href="#pip">PIP</a></li></ul></li><li><a href="#go">Go</a></li><li><a href="#start-functions-in-cluster-mode">Start Functions in cluster mode</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-TW/contact">Contact</a></li>' +
+            '<li><a href="/zh-TW/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-TW/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-TW/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-TW/resources">Resources</a></li>' +
+            '<li><a href="/zh-TW/team">Team</a></li>' +
+            '<li><a href="/zh-TW/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.8.3"]}
+              });
+            </script></body></html>

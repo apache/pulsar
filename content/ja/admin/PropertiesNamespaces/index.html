@@ -1,0 +1,2557 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>プロパティとネームスペースの管理</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">プロパティとネームスペースの管理</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">properties</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-properties">properties</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-properties">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>properties</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/admin/PropertiesNamespaces/">プロパティとネームスペースの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">namespaces</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-namespaces">namespaces</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-namespaces">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>namespaces</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/admin/PropertiesNamespaces/">プロパティとネームスペースの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>admin</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
+          
+          
+          
+          <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/admin/ClustersBrokers/">PulsarクラスタとBrokerの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/deployment/InstanceSetup/">Pulsarインスタンスのデプロイ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
+          
+          <li><a href="/ja/admin/PropertiesNamespaces/">プロパティとネームスペースの管理</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内で<a href="#プロパティ">プロパティ</a>は最も上位の管理単位です。各プロパティは複数の<a href="#ネームスペース">ネームスペース</a>で構成されています。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarの3つのadminインターフェース—<a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>CLIツール, <a href="/api/admin">Java admin API</a>, <a href="../../reference/RestApi">REST API</a>—は、Pulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>で<a href="../../admin/Authz#認証プロバイダ">認証</a>を有効にしている場合にいくつかの特別なセットアップを必要とします。</p>
+
+<h3 id="pulsar-admin">pulsar-admin</h3>
+
+<p>もし<a href="../../admin/Authz#認証プロバイダ">認証</a>を有効にしている場合、<a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>ツールを利用するために認証の設定をする必要があります。デフォルトでは、<code class="highlighter-rouge">pulsar-admin</code>ツールの設定は<a href="../../reference/Configuration#クライアント"><code class="highlighter-rouge">conf/client.conf</code></a>にあります。以下は設定可能なパラメータです:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="client-webServiceUrl">
+      <td>webServiceUrl</td>
+      <td>The web URL for the cluster.
+</td>
+      <td>http://localhost:8080/</td>
+    </tr>
+    
+    <tr id="client-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>The Pulsar protocol URL for the cluster.
+</td>
+      <td>pulsar://localhost:6650/</td>
+    </tr>
+    
+    <tr id="client-authPlugin">
+      <td>authPlugin</td>
+      <td>The authentication plugin.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-authParams">
+      <td>authParams</td>
+      <td>The authentication parameters for the cluster, as a comma-separated string.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-useTls">
+      <td>useTls</td>
+      <td>Whether or not TLS authentication will be enforced in the cluster.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="client-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h3 id="rest-api">REST API</h3>
+
+<p>この<a href="../../reference/RestApi">リファレンス</a>上でPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>が提供しているREST APIのドキュメントを参照できます。</p>
+
+<h3 id="java-adminクライアント">Java adminクライアント</h3>
+
+<p>Java admin APIを利用するために、Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLと<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>を指定して<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a>オブジェクトをインスタンス化します。 以下は<code class="highlighter-rouge">localhost</code>を利用した最小限の例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//認証が有効な場合にauth-pluginクラスの完全修飾名を渡します。</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span> <span class="c1">//auth-pluginクラスが要求しているパラメータを渡します。</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h2 id="プロパティの管理">プロパティの管理</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>プロパティはネームスペースと同様に<a href="../../admin/AdminInterface">admin API</a>を使用して管理できます。現在、プロパティの設定可能な要素は次の2つです:</p>
+
+<ul>
+  <li>adminロール</li>
+  <li>許可されたクラスタ</li>
+</ul>
+
+<h3 id="リストの取得">リストの取得</h3>
+
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-properties-list"><code class="highlighter-rouge">list</code></a>サブコマンドを使用して<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>に関連付けられた全てのプロパティのリストを取得できます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties list
+</code></pre></div></div>
+
+<p>これは次のようなシンプルなリストを返します:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>my-property-1
+my-property-2
+</code></pre></div></div>
+
+<h3 id="作成">作成</h3>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">create</code></a>サブコマンドを使用して新しいプロパティを作成できます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties create my-property
+</code></pre></div></div>
+
+<p>プロパティを作成する際、<code class="highlighter-rouge">-r</code>/<code class="highlighter-rouge">--admin-roles</code>オプションを使用してadminロールを割り当てる事ができます。カンマ区切りのリストとして複数のロールを指定する事も可能です。以下にいくつかの例を示します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">--admin-roles</span> role1,role2,role3
+
+<span class="nv">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">-r</span> role1
+</code></pre></div></div>
+
+<h3 id="設定の取得">設定の取得</h3>
+
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-properties-get"><code class="highlighter-rouge">get</code></a>サブコマンドを使用し、プロパティの名前を指定する事でプロパティの設定をJSONオブジェクトとして参照できます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties get my-property
+<span class="o">{</span>
+  <span class="s2">"adminRoles"</span>: <span class="o">[</span>
+    <span class="s2">"admin1"</span>,
+    <span class="s2">"admin2"</span>
+  <span class="o">]</span>,
+  <span class="s2">"allowedClusters"</span>: <span class="o">[</span>
+    <span class="s2">"cl1"</span>,
+    <span class="s2">"cl2"</span>
+  <span class="o">]</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="削除">削除</h3>
+
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-properties-delete"><code class="highlighter-rouge">delete</code></a>サブコマンドを使用し、プロパティの名前を指定する事でプロパティを削除できます:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties delete my-property
+</code></pre></div></div>
+
+<h3 id="更新">更新</h3>
+
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-properties-update"><code class="highlighter-rouge">update</code></a>サブコマンドを使用してプロパティの設定を更新できます。</p>
+
+<h2 id="ネームスペースの管理">ネームスペースの管理</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarの<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>は<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>の論理的なグループです。</p>
+
+<p>ネームスペースは以下のように管理されます:</p>
+
+<ul>
+  <li><a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>ツールの<a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a>コマンド</li>
+  <li>admin <a href="../../reference/RestApi">REST API</a>のエンドポイント<code class="highlighter-rouge">/admin/namespaces</code></li>
+  <li>Java <a href="../../admin/AdminInterface">admin API</a>の<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a>オブジェクトの<code class="highlighter-rouge">namespaces</code>メソッド</li>
+</ul>
+
+<h3 id="作成-1">作成</h3>
+
+<p>指定した<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>およびPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>内に新しいネームスペースを作成できます。</p>
+
+<h4 id="pulsar-admin-6">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-create"><code class="highlighter-rouge">create</code></a>サブコマンドを使用し、ネームスペースを指定します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces create test-property/cl1/ns1
+</code></pre></div></div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">詳細</a></p>
+
+<h4 id="java">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">createNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="ポリシーの取得">ポリシーの取得</h3>
+
+<p>ネームスペースに関連付けられた現在のポリシーはいつでも取得できます。</p>
+
+<h4 id="pulsar-admin-7">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-policies"><code class="highlighter-rouge">policies</code></a>サブコマンドを使用して、ネームスペースを指定します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces policies test-property/cl1/ns1
+<span class="o">{</span>
+  <span class="s2">"auth_policies"</span>: <span class="o">{</span>
+    <span class="s2">"namespace_auth"</span>: <span class="o">{}</span>,
+    <span class="s2">"destination_auth"</span>: <span class="o">{}</span>
+  <span class="o">}</span>,
+  <span class="s2">"replication_clusters"</span>: <span class="o">[]</span>,
+  <span class="s2">"bundles_activated"</span>: <span class="nb">true</span>,
+  <span class="s2">"bundles"</span>: <span class="o">{</span>
+    <span class="s2">"boundaries"</span>: <span class="o">[</span>
+      <span class="s2">"0x00000000"</span>,
+      <span class="s2">"0xffffffff"</span>
+    <span class="o">]</span>,
+    <span class="s2">"numBundles"</span>: 1
+  <span class="o">}</span>,
+  <span class="s2">"backlog_quota_map"</span>: <span class="o">{}</span>,
+  <span class="s2">"persistence"</span>: null,
+  <span class="s2">"latency_stats_sample_rate"</span>: <span class="o">{}</span>,
+  <span class="s2">"message_ttl_in_seconds"</span>: 0,
+  <span class="s2">"retention_policies"</span>: null,
+  <span class="s2">"deleted"</span>: <span class="nb">false</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">詳細</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="プロパティ内のネームスペースのリストを取得">プロパティ内のネームスペースのリストを取得</h3>
+
+<p>指定されたPulsarの<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>内のすべてのネームスペースのリストを取得することができます。</p>
+
+<h4 id="pulsar-admin-8">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a>サブコマンドを使用して、プロパティを指定します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list test-property
+test-property/cl1/ns1
+test-property/cl2/ns2
+</code></pre></div></div>
+
+<h4 id="rest-api-3">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property">詳細</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="クラスタ内のネームスペースのリストを取得">クラスタ内のネームスペースのリストを取得</h3>
+
+<p>指定したPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>内のすべてのネームスペースを表示できます。</p>
+
+<h4 id="pulsar-admin-9">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a>サブコマンドを使用して、クラスタを指定します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list-cluster test-property/cl1
+test-property/cl1/ns1
+test-property/cl1/ns1
+</code></pre></div></div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster">詳細</a></p>
+
+<h4 id="java-3">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="削除-1">削除</h3>
+
+<p>プロパティ/クラスタから既存のネームスペースを削除できます。</p>
+
+<h4 id="pulsar-admin-10">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a>サブコマンドを使用して、ネームスペースを指定します:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces delete test-property/cl1/ns1
+</code></pre></div></div>
+
+<h4 id="rest">REST</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">詳細</a></p>
+
+<h4 id="java-4">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h2 id="パーミッションの管理">パーミッションの管理</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarにおけるパーミッションは<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>レベル (つまり<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>および<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>内) で管理されます。</p>
+
+<h3 id="パーミッションの付与">パーミッションの付与</h3>
+
+<p><code class="highlighter-rouge">produce</code>や<code class="highlighter-rouge">consume</code>のような操作のリストに対して、特定のロールにパーミッションを与える事ができます。</p>
+
+<h4 id="pulsar-admin-11">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">--actions</code>オプションでアクションを、<code class="highlighter-rouge">--role</code>オプションでロールを指定してください:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">broker.conf</code>で<code class="highlighter-rouge">authorizationAllowWildcardsMatching</code>が<code class="highlighter-rouge">true</code>に設定されている場合、ワイルドカードを用いた認可が行われます。</p>
+
+<p>例:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.role.*'</span>
+</code></pre></div></div>
+
+<p>この時、<code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>などのロールがproduce/consume可能となります。</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'*.role.my'</span>
+</code></pre></div></div>
+
+<p>この時、<code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>などのロールがproduce/consume可能となります。</p>
+
+<p><strong>注意</strong>: ワイルドカードを用いたマッチングは<strong>ロール名の先頭または末尾でのみ</strong>機能します。</p>
+
+<p>例:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.*.role'</span>
+</code></pre></div></div>
+
+<p>この場合、ロール<code class="highlighter-rouge">my.*.role</code>のみがパーミッションを持っています。<code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>のようなロールはproduce/consumeが<strong>できません</strong>。</p>
+
+<h4 id="rest-api-5">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">詳細</a></p>
+
+<h4 id="java-5">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
+</code></pre></div></div>
+
+<h3 id="パーミッションの取得">パーミッションの取得</h3>
+
+<p>ネームスペースにおいて、どのロールにどのパーミッションが与えられているかを確認できます。</p>
+
+<h4 id="pulsar-admin-12">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a>サブコマンドを使用しネームスペースを指定してください:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces permissions test-property/cl1/ns1
+<span class="o">{</span>
+  <span class="s2">"admin10"</span>: <span class="o">[</span>
+    <span class="s2">"produce"</span>,
+    <span class="s2">"consume"</span>
+  <span class="o">]</span>
+<span class="o">}</span>   
+</code></pre></div></div>
+
+<h4 id="rest-api-6">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">詳細</a></p>
+
+<h4 id="java-6">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="パーミッションの剥奪">パーミッションの剥奪</h3>
+
+<p>特定のロールからパーミッションを剥奪できます。つまり、そのロールは指定されたネームスペースにアクセスできなくなります。</p>
+
+<h4 id="pulsar-admin-13">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">--role</code>オプションでロールを指定してください:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces revoke-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
+
+<h4 id="rest-api-7">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">詳細</a></p>
+
+<h4 id="java-7">Java</h4>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h4 id="レプリケーションクラスタの設定">レプリケーションクラスタの設定</h4>
+
+<p>ネームスペースにレプリケーションクラスタを設定し、Pulsarが内部的に発行されたメッセージを一つのコロケーションから別のコロケーションにレプリケートできるようにします。しかし、レプリケーションクラスタをセットするためにはネームスペースは<em>test-property/<strong>global</strong>/ns1</em>のようにグローバルである必要があります。つまりクラスタ名は<em>“global”</em>でなければなりません。</p>
+
+<h6 id="cli">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters test-property/cl1/ns1 \
+  --clusters cl2
+</code></pre></div></div>
+
+<h6 id="rest-1">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:property&lt;/span&gt;/&lt;span class="endpoint"&gt;:cluster&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+</code></pre></div></div>
+
+<h6 id="java-8">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="レプリケーションクラスタの取得">レプリケーションクラスタの取得</h4>
+
+<p>指定されたネームスペースのレプリケーションクラスタのリストを提供します。</p>
+
+<h6 id="cli-1">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cl2
+</code></pre></div></div>
+
+<h6 id="rest-2">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
+</code></pre></div></div>
+
+<h6 id="java-9">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="バックログクォータポリシーの設定">バックログクォータポリシーの設定</h4>
+
+<p>バックログクォータはBrokerが特定の閾値に達したとき、ネームスペースの帯域幅/ストレージを制限するのに役立ちます。管理者はこの制限と制限に達したときに行う下記のアクションの内一つを設定できます。</p>
+
+<ol>
+  <li>
+    <p>producer_request_hold: Brokerはproduceリクエストのペイロードをホールドし、永続化しないようになります</p>
+  </li>
+  <li>
+    <p>producer_exception: Brokerは例外を発生させてクライアントとの接続を切断します</p>
+  </li>
+  <li>
+    <p>consumer_backlog_eviction: Brokerはバックログメッセージの破棄を開始します</p>
+  </li>
+</ol>
+
+<p>バックログクォータ制限はバックログクォータタイプ: destination_storageを定義することによって考慮されるようになります。</p>
+
+<h6 id="cli-2">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-3">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre></div></div>
+
+<h6 id="java-10">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
+</code></pre></div></div>
+
+<h4 id="バックログクォータポリシーの取得">バックログクォータポリシーの取得</h4>
+
+<p>指定したネームスペースのバックログクォータ設定を表示します。</p>
+
+<h6 id="cli-3">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="s2">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">          
+</span></code></pre></div></div>
+
+<h6 id="rest-4">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
+</code></pre></div></div>
+
+<h6 id="java-11">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="バックログクォータポリシーの削除">バックログクォータポリシーの削除</h4>
+
+<p>指定したネームスペースのバックログクォータポリシーを削除します。</p>
+
+<h6 id="cli-4">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-5">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre></div></div>
+
+<h6 id="java-12">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="永続性ポリシーの設定">永続性ポリシーの設定</h4>
+
+<p>永続性ポリシーは指定したネームスペースにあるすべてのトピックの永続性レベルを設定できます。</p>
+
+<ul>
+  <li>
+    <p>Bookkeeper-ack-quorum: 各エントリに対して書き込み成功のAckを待機するBookieの数（保証されるコピーの数）、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Bookkeeper-ensemble: 一つのトピックに対して使用されるBookieの数、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Bookkeeper-write-quorum: 各エントリに対して書き込みを行うBookieの数、デフォルト: 0</p>
+  </li>
+  <li>
+    <p>Ml-mark-delete-max-rate: mark-delete操作のスロットル率 (0は無制限)、デフォルト: 0.0</p>
+  </li>
+</ul>
+
+<h6 id="cli-5">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-6">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
+</code></pre></div></div>
+
+<h6 id="java-13">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
+</code></pre></div></div>
+
+<h4 id="永続性ポリシーの取得">永続性ポリシーの取得</h4>
+
+<p>指定したネームスペースの永続性ポリシーの設定を表示します。</p>
+
+<h6 id="cli-6">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"bookkeeperEnsemble"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"bookkeeperWriteQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"bookkeeperAckQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"managedLedgerMaxMarkDeleteRate"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h6 id="rest-7">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
+</code></pre></div></div>
+
+<h6 id="java-14">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="ネームスペースバンドルのアンロード">ネームスペースバンドルのアンロード</h4>
+
+<p>ネームスペースバンドルは同じネームスペースに属するトピックの仮想的なグループです。多数のバンドルによりBrokerの負荷が高まった場合、このコマンドを使って処理が重いバンドルをそのBrokerから取り外し、より負荷が小さい他のBrokerに扱わせることができます。ネームスペースバンドルは0x00000000と0xffffffffのように開始と終了のレンジによって定義されます。</p>
+
+<h6 id="cli-7">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-property/pstg-gq1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-8">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
+</code></pre></div></div>
+
+<h6 id="java-15">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="メッセージttlの設定">メッセージTTLの設定</h4>
+
+<p>メッセージの生存時間（秒）を設定します。</p>
+
+<h6 id="cli-8">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-9">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre></div></div>
+
+<h6 id="java-16">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="メッセージttlの取得">メッセージTTLの取得</h4>
+
+<p>ネームスペースに対して設定されたメッセージTTLを取得します。</p>
+
+<h6 id="cli-9">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>100
+</code></pre></div></div>
+
+<h6 id="rest-10">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre></div></div>
+
+<h6 id="java-17">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="バンドルの分割">バンドルの分割</h4>
+
+<p>各ネームスペースのバンドルは複数のトピックを含み、各バンドルはただ一つのBrokerによって扱われます。バンドルがそれに含まれる複数のトピックの処理で重くなった場合、Brokerに対し負荷を発生させます。これを解決するため、管理者はこのコマンドを用いてバンドルを分割できます。</p>
+
+<h6 id="cli-10">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-11">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+</code></pre></div></div>
+
+<h6 id="java-18">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="バックログの削除">バックログの削除</h4>
+
+<p>指定したネームスペースに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。</p>
+
+<h6 id="cli-11">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-12">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
+</code></pre></div></div>
+
+<h6 id="java-19">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="バンドルバックログの削除">バンドルバックログの削除</h4>
+
+<p>特定のネームスペースバンドルに属するすべてのトピックのすべてのメッセージバックログを削除します。特定のサブスクリプションのバックログのみを削除することも可能です。</p>
+
+<h6 id="cli-12">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-13">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
+</code></pre></div></div>
+
+<h6 id="java-20">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h4 id="保存情報の設定">保存情報の設定</h4>
+
+<p>各ネームスペースは複数のトピックを含み、各トピックの保存サイズ（ストレージサイズ）は特定の閾値を超えるべきではなく、特定の期間まで保持されるべきです。このコマンドを使って、指定したネームスペース内のトピックの保存サイズと時間を設定できます。</p>
+
+<h6 id="cli-13">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
+
+<h6 id="rest-14">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre></div></div>
+
+<h6 id="java-21">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
+</code></pre></div></div>
+
+<h4 id="保存情報の取得">保存情報の取得</h4>
+
+<p>指定したネームスペースの保存情報を表示します。</p>
+
+<h6 id="cli-14">CLI</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-property/cl1/ns1
+</code></pre></div></div>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="s2">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h6 id="rest-15">REST</h6>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre></div></div>
+
+<h6 id="java-22">Java</h6>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h3 id="ネームスペース隔離">ネームスペース隔離</h3>
+
+<p>作成中</p>
+
+<h3 id="brokerからのアンロード">Brokerからのアンロード</h3>
+
+<p>ネームスペース、もしくは<span class="popover-term" tabindex="0" title="ネームスペースバンドルとは？" data-placement="top" data-content="同じネームスペースに属するトピックの仮想グループです。ネームスペースバンドルは、0x00000000と0xffffffffのような2つの32ビットハッシュの間の範囲で定義されます。" data-toggle="popover" data-trigger="focus">ネームスペースバンドル</span>を現在担当しているPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>からアンロードできます。</p>
+
+<h4 id="pulsar-admin-14">pulsar-admin</h4>
+
+<p><a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a>コマンドの<a href="../../reference/CliTools#pulsar-admin-namespaces-unload"><code class="highlighter-rouge">unload</code></a>サブコマンドを使用します。</p>
+
+<h5 id="例">例</h5>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces unload my-prop/my-cluster/my-ns
+</code></pre></div></div>
+
+<h4 id="rest-api-8">REST API</h4>
+
+<h4 id="java-23">Java</h4>
+
+<h2 id="コンセプト">コンセプト</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarは<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>のシステムとして新規にデザインされました。Pulsarでは<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>は<a href="#プロパティ">プロパティ</a>によって識別されます。プロパティはPulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内の最も上位の管理単位です。</p>
+
+<h3 id="プロパティ">プロパティ</h3>
+
+<p>Pulsarインスタンス内の各プロパティごとに以下を割り当て可能です:</p>
+
+<ul>
+  <li><a href="../../admin/Authz#認可">認可</a>スキーム</li>
+  <li>プロパティが適用される<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>のセット</li>
+</ul>
+
+<h3 id="ネームスペース">ネームスペース</h3>
+
+<p><span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>と<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>は<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>をサポートするためのPulsarの2つのキーコンセプトです。</p>
+
+<ul>
+  <li><strong>プロパティ</strong>は<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>を識別します。Pulsarは適切なキャパシティを割り当てられた特定のプロパティに対してプロビジョニングされます。</li>
+  <li><strong>ネームスペース</strong>はプロパティ内の管理単位の名称です。ネームスペースにセットされた設定ポリシーはそのネームスペース内に作成された全トピックに適用されます。プロパティはREST APIとCLIツールを使ったセルフ管理によって複数ネームスペースを作成することがあります。例えば、別々のアプリケーションを持つプロパティはアプリケーションごとに別のネームスペースを作成できます。</li>
+</ul>
+
+<p>同じネームスペース内のトピック名は下記のようになります:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
+</section>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>プロパティとネームスペースの管理</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

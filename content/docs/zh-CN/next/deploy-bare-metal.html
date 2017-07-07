@@ -1,0 +1,493 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>裸机部署单集群 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **提示**"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="裸机部署单集群 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; **提示**"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website(Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/deploy-bare-metal">English</a></li><li><a href="/docs/ja/next/deploy-bare-metal">日本語</a></li><li><a href="/docs/fr/next/deploy-bare-metal">Français</a></li><li><a href="/docs/ko/next/deploy-bare-metal">한국어</a></li><li><a href="/docs/zh-TW/next/deploy-bare-metal">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>部署</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone">本地运行 Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone-docker">在 Docker 中运行 Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/kubernetes-helm">在 Kubernetes 中运行 Pulsar</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-messaging">消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-architecture-overview">架构</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-clients">客户端</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-replication">跨机房复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multi-tenancy">多租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-authentication">认证和授权</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-topic-compaction">消息压缩</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-proxy-sni-routing">Pulsar Proxy 支持 SNI 路由</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multiple-advertised-listeners">配置 Advertised 监听器</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-get-started">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-understand">理解 schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-evolution-compatibility">Schema 演化和兼容</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-manage">管理 Schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-runtime">设置：配置 Pulsar Functions 运行时</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-worker">设置：Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-develop">操作：开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-package">如何打包</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-debug">操作：调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-deploy">操作：部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-cli">参考：命令</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/window-functions-context">窗口函数：上下文</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-quickstart">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-use">使用</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-debug">调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-connectors">内置 connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-develop">开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-getting-started">查询数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-deployment-configurations">配置和部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-rest-api">REST API</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aws">亚马逊 AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aliyun">阿里云 OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-why">为什么需要事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-what">什么是事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-how">事务运行原理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-use">如何使用事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-monitor">如何监控事务？</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-prepare">准备</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-install">安装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-deploy">部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-tools">所需工具</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-aws">Amazon Web Services (Aws)</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal">裸机</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">裸机多集群部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-zk-bk">ZooKeeper 和 BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-geo">跨地域复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-stats">Pulsar 统计数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-load-balance">负载均衡</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-proxy">Pulsar 代理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-isolation">Pulsar 隔离</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-policy-and-supported-versions">安全政策和支持的版本</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-transport">使用TLS进行传输加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-authentication">使用TLS进行认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-keystore">使用 TLS 配置KeyStore</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-jwt">使用 JWT 认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-athenz">使用 Athenz 验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-kerberos">使用 Kerberos 进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-oauth2">使用 OAuth 2.0 访问令牌进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-authorization">授权和ACL</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-encryption">端到端加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/performance-pulsar-perf">Pulsar Perf 性能测试</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-node">Node.js
+</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-dotnet">C#</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-clusters">集群</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-tenants">租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-namespaces">命名空间</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-permissions">权限管理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-topics">Topic</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-packages">Package</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-kafka">Kafka 客户端封装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-deduplication">消息去重</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-non-persistent">非持久化消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-retention-expiry">消息保留和过期</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-encryption">加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-message-queue">消息队列</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-bookkeepermetadata">BookKeeper Ledger 元数据</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-tools">模拟工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-binary-protocol">二进制协议</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-load-manager">模块化负载管理器</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-terminology">术语</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-cli-tools">Pulsar 命令行工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">裸机部署单集群</h1></header><article><div><span><blockquote>
+<p><strong>提示</strong></p>
+<ol>
+<li><p>你可以在大多数情况下使用单集群 Pulsar 安装，例如实验 Pulsar 或在初创公司或单个团队中使用 Pulsar。 如果你需要运行多集群 Pulsar 实例，请参阅<a href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">指南</a>。</p></li>
+<li><p>如果你想使用所有内置的 <a href="/docs/zh-CN/next/io-overview">Pulsar IO</a> 连接器，你需要下载 <code>apache-pulsar-io-connectors</code> 包并安装 <code>apache-pulsar-io-connectors</code> 在每个 broker 节点或每个 function-worker 节点上的 pulsar 目录中的 <code>connectors</code> 目录下，如果你已经运行了一个独立的 function workers 集群 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a>。</p></li>
+<li><p>如果你想在 Pulsar 部署中使用 <a href="/docs/zh-CN/next/concepts-tiered-storage">分层存储</a> 功能，你需要下载 <code>apache-pulsar-offloaders</code> 包并安装 <code>apache-pulsar-offloaders</code> 在每个 broker 节点的 Pulsar 目录中的 <code>offloaders</code> 目录下。 有关如何配置此功能的更多详细信息，请参考<a href="/docs/zh-CN/next/cookbooks-tiered-storage">分层存储指南</a>。</p></li>
+</ol>
+</blockquote>
+<p>部署 Pulsar 集群包括以下步骤：</p>
+<ol>
+<li>部署一个 <a href="#deploy-a-zookeeper-cluster">ZooKeeper</a> 集群 (可选)</li>
+<li>初始化<a href="#initialize-cluster-metadata">集群元数据</a></li>
+<li>部署一个 <a href="#deploy-a-bookkeeper-cluster">Bookeeper</a> 集群</li>
+<li>部署一个或多个 Pulsar <a href="#deploy-pulsar-brokers"> brokers </a></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="准备工作"></a><a href="#准备工作" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>准备工作</h2>
+<h3><a class="anchor" aria-hidden="true" id="要求"></a><a href="#要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>要求</h3>
+<p>当前，Pulsar 可运行在 64 位 <strong>macOS</strong>、<strong>Linux</strong> 和 <strong>Windows</strong> 上。要想运行 Pulsar，你需要安装 64 位 JRE/JDK 8 或更新版本。</p>
+<blockquote>
+<p><strong>提示</strong>  <br>
+你可以重用现有的 Zookeeper 集群。</p>
+</blockquote>
+<p>裸机部署 Pulsar， 推荐如下配置：</p>
+<ul>
+<li>至少 6 台 Linux 机器或虚拟机
+<ul>
+<li>3 台部署<a href="https://zookeeper.apache.org">Zookeeper</a></li>
+<li>3台部署 Pulsar broker 和 <a href="https://bookkeeper.apache.org">Bookeeper</a> bookie</li>
+</ul></li>
+<li>包含 Pulsar 所有 broker 主机的 <a href="https://en.wikipedia.org/wiki/Domain_Name_System">DNS</a>（域名解析服务器）</li>
+</ul>
+<blockquote>
+<p><strong>注意</strong></p>
+<ul>
+<li>只在 64 位 JVM 上支持 Broker。 * 如果你没有足够的机器，或者你想在集群模式下测试 Pulsar ( 并在以后扩展集群)，你可以将 Pulsar 完全部署在一个运行 ZooKeeper、bookie 和 broker 的节点上。 * 如果你没有 DNS 服务器，你可以在服务 URL 中使用多主机格式。 Each machine in your cluster needs to have <a href="https://adoptium.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptium.net/?variant=openjdk11">Java 11</a> installed.</li>
+</ul>
+</blockquote>
+<p>下面是一个显示部署架构的图：</p>
+<p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
+<p>此图中，连接客户端需要使用单个 URL 与 Pulsar 集群通信。 在这种情况下，<code>pulsar-cluster.acme.com</code> 包含了所有的broker 的地址。 Pulsar消息brokers与BookKeeper bookies一起运行；反过来，brokers 和 bookies 都依赖 ZooKeeper。</p>
+<h3><a class="anchor" aria-hidden="true" id="硬件条件"></a><a href="#硬件条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件条件</h3>
+<p>如果你部署 Pulsar 集群，请在进行容量规划时记住以下更好的基本选择。</p>
+<h4><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h4>
+<p>运行 ZooKeeper 的机器，建议使用低配的机器或 VM。 Pulsar 仅将 ZooKeeper 用于定期协调和配置相关的任务，不用于基本操作。 如果 Pulsar 是运行在<a href="https://aws.amazon.com/">Amazon Web Service</a>(AWS)上，比如使用<a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html">t2.small</a>实例就足够了。</p>
+<h4><a class="anchor" aria-hidden="true" id="bookies-和-brokers"></a><a href="#bookies-和-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bookies 和 Brokers</h4>
+<p>运行 bookie 和 Pulsar broker 的机器，必须使用高规格的机器。 例如，对于AWS部署，<a href="https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/">i3.4xlarge</a>实例可能是合适的。 你可以参考如下方法选择机器：</p>
+<ul>
+<li>高性能的CPU和10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller"> NIC </a>（适用于Pulsar brokers）</li>
+<li>小型快速<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘</a>（SSD）或<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动器</a>（HDD），带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池供电的写缓存（适用于BookKeeper bookies）</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="推荐硬件配置"></a><a href="#推荐硬件配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>推荐硬件配置</h4>
+<p>要启动 Pulsar 实例，以下是最低和推荐的硬件配置。</p>
+<p>一个集群由3个 broker 节点，3个 bookie 节点和3个 ZooKeeper 节点组成。如下的推荐配置适合1个节点。</p>
+<ul>
+<li><p>最低硬件配置 (<strong>250个 Pulsar 主题</strong>)</p>
+<p>Component | CPU|Memory|Storage|Throughput |Rate |---|---|---|---|---|--- Broker|0.2|256 MB|/|Write throughput: 3 MB/s</p>
+<p>Read throughput: 6 MB/s</p>
+<p>|Write rate: 350 entries/s</p>
+<p>Read rate: 650 entries/s Bookie|0.2|256 MB|Journal: 8 GB</p>
+<p>PD-SSDLedger: 16 GB, PD-STANDARD|Write throughput: 2 MB/s</p>
+<p>Read throughput: 2 MB/s</p>
+<p>|Write rate: 200 entries/s</p>
+<p>Read rate: 200 entries/s ZooKeeper|0.05|256 MB|Log: 8 GB, PD-SSD</p>
+<p>Data: 2 GB, PD-STANDARD|/|/</p></li>
+<li><p>推荐的硬件设置 (<strong>1000个 Pulsar 主题</strong>)</p>
+<p>Component | CPU|Memory|Storage|Throughput |Rate |---|---|---|---|---|--- Broker|8|8 GB|/|Write throughput: 100 MB/s</p>
+<p>Read throughput: 200 MB/s</p>
+<p>|Write rate: 10,000 entries/s</p>
+<p>Read rate: 20,000 entries/s Bookie|4|8GB|Journal: 256 GB</p>
+<p>PD-SSDLedger: 2 TB, PD-STANDARD|Write throughput: 75 MB/s</p>
+<p>Read throughput: 75 MB/s</p>
+<p>|Write rate: 7,500 entries/s</p>
+<p>Read rate: 7,500 entries/s ZooKeeper|1|2 GB|Log: 64 GB, PD-SSD</p>
+<p>Data: 256 GB, PD-STANDARD|/|/</p></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-二进制包安装"></a><a href="#pulsar-二进制包安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 二进制包安装</h2>
+<blockquote>
+<p>你需要在集群中的每台机器上安装 Pulsar 二进制包，包括运行 ZooKeeper 和 BookKeeper 的机器。</p>
+</blockquote>
+<p>开始在裸机上部署 Pulsar 集群，你必须通过如下方式下载发行版的二进制的包：</p>
+<ul>
+<li>点击如下链接，会自动触发下载：
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz" download>Pulsar 2.9.1 binary release</a></li>
+</ul></li>
+<li>从Pulsar的 <a href="/download">下载页面</a>下载</li>
+<li>从 GitHub 上的 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a> 下载</li>
+<li>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载:</li>
+</ul>
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz
+</code></pre>
+<p>包下载完成后，解压并<code>进入</code>到解压后的目录:</p>
+<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.9.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
+</code></pre>
+<p>解压后的文件目录包含以下子目录:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">目录</th><th style="text-align:left">内容</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar 的<a href="/docs/zh-CN/next/reference-cli-tools">命令行工具</a>，例如 <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> 和 <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a></td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar的配置文件，包含<a href="/docs/zh-CN/next/reference-configuration#broker">broker配置</a>,<a href="/docs/zh-CN/next/reference-configuration#zookeeper">ZooKeeper 配置</a> 等等</td></tr>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">Zookeeper 和 Bookeeper 使用的数据保存目录</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar 使用的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a>文件</td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">日志目录</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="安装内置连接器可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"></a><a href="#安装内置连接器可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置连接器(可选)</a></h2>
+<blockquote>
+<p>从 Pulsar <code>2.1.0-incubating</code>发行版开始，Pulsar 提供了独立的二进制包，包含了所有<code>内置</code>的connector。 要启用<code>内置</code>连接器(可选)，你可以按照以下说明进行操作。</p>
+</blockquote>
+<p>要使用 <code>内置</code> 连接器，你需要在每个 broker 节点上通过以下方式之一下载连接器的发行版压缩包：</p>
+<ul>
+<li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors" download>Pulsar IO Connectors 2.9.1 release</a></li>
+</ul></li>
+<li><p>Pulsar <a href="/download">下载页面</a></p></li>
+<li><p>Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a></p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a>：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors/{connector}-2.9.1.nar</span>
+</code></pre></li>
+</ul>
+<p>下载完成 .nar 文件后，将其复制到 Pulsar 安装目录的<code>connectors</code>目录下。 例如，你下载了<code>pulsar-io-aerospike-2.9.1.nar</code>connector 文件：</p>
+<pre><code class="hljs css language-bash">$ mkdir connectors
+$ mv pulsar-io-aerospike-2.9.1.nar connectors
+
+$ ls connectors
+pulsar-io-aerospike-2.9.1.nar
+...
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="安装分层存储卸载器可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"></a><a href="#安装分层存储卸载器可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储卸载器(可选)</a></h2>
+<blockquote>
+<p>从Pulsar <code>2.2.0</code>发行版开始，Pulsar 提供了一个独立的包含分层存储的二进制包。 如果你想启用分层存储，你可以参考如下的说明；否则你可以 暂时跳过该部分。</p>
+</blockquote>
+<p>要使用分层存储卸载器，需要在所有 broker 节点上下载卸载器的压缩文件，下载方式有以下几种：</p>
+<ul>
+<li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
+<ul>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz" download>Pulsar 分层存储下载器 2.9.1 版本</a></li>
+</ul></li>
+<li><p>Pulsar <a href="/download">下载页面</a></p></li>
+<li><p>Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a></p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a>：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>一旦你下载完压缩包后，在 Pulsar 目录下解压压缩包，并且将该拆卸器复制为 <code>offloaders</code> 存放在 pulsar 安装目录下。</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.9.1-bin.tar.gz
+
+// 你可以在 pulsar 目录下找到一个名为 `apache-pulsar-offloaders-2.9.1` 的目录
+// 然后复制卸载程序
+
+$ mv apache-pulsar-offloaders-2.9.1/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-2.9.1.nar
+</code></pre>
+<p>了解更多分层存储的详细配置，请参考<a href="/docs/zh-CN/next/cookbooks-tiered-storage">分层存储指南</a></p>
+<h2><a class="anchor" aria-hidden="true" id="部署-zookeeper-集群"></a><a href="#部署-zookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Zookeeper 集群</h2>
+<blockquote>
+<p>如果你已经有 zookeeper 集群并想复用它，你可以跳过本节。</p>
+</blockquote>
+<p><a href="https://zookeeper.apache.org">ZooKeeper</a> 为 Pulsar 管理各种与协调和配置相关的重要任务。 要部署 Pulsar 集群，你要先部署 ZooKeeper。 建议部署3个节点的 Zookeeper 集群。 Pulsar 没有重度使用 ZooKeeper，因此低配机器或 VM 足以运行 ZooKeeper。</p>
+<p>首先，将所有的 Zookeeper 服务器信息添加到<a href="/docs/zh-CN/next/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>配置文件(文件在 Pulsar 的安装目录<a href="#install-the-pulsar-binary-package">里面</a>)。 如下所示：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+<blockquote>
+<p>如果你只有一台机器部署 Pulsar，你仅仅只需把加这台服务器添加到配置文件里面。</p>
+<p>如果你的机器在 NAT 之后，请使用 0.0.0.0 作为本地服务器地址条目。 如果节点在配置中为自己使用外部 IP，在 NAT 后，zookeper 服务将不会启动，因为它尝试将侦听器放在 linux box 不拥有的外部 ip 上。 使用 0.0.0.0 在所有 ip 上启动一个侦听器，以便 NAT 网络流量可以达到它。</p>
+</blockquote>
+<p><em>server.3</em> 上的配置示例</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">0.0.0.0:2888:3888</span>
+</code></pre>
+<p>在每台机器，你必须在每个节点的<code>myid</code>文件里面配置集群唯一的ID。默认情况下，这个文件在每台机器的<code>data/zookeeper</code>目录里面(你可以通过修改<a href="/docs/zh-CN/next/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a>配置项修改这个路径)。</p>
+<blockquote>
+<p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
+</blockquote>
+<p>例如，在地址为<code>zk1.us-west.example.com</code>的Zookeeper 服务器上，你能够使用如下命令设置<code>myid</code>：</p>
+<pre><code class="hljs css language-bash">$ mkdir -p data/zookeeper
+$ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
+</code></pre>
+<p>在<code>zk2.us-west.example.com</code>服务器上，这命令可以是：<code>echo 2&gt;data/zookeeper/myid</code>。</p>
+<p>一旦你在每台机器增加了<code>zookeeper.conf</code>配置文件，并且设置了<code>myid</code>，你能够在所有机器上使用<a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>命令去启动Zookeeper 服务(前台运行或者后台运行)。</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start zookeeper
+</code></pre>
+<blockquote>
+<p>如果你打算在同一个节点上部署 Zookeeper 和 Bookie，你需要在 zookeeper.conf 中配置 <code>metricsProvider.httpPort</code> 不同的状态端口来启动 zookeeper。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="初始化集群元数据"></a><a href="#初始化集群元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>初始化集群元数据</h2>
+<p>一旦你为你的集群部署了 ZooKeeper，你需要为实例中的每个集群往 ZooKeeper 中写入一些元数据。 您只需要写入这个数据 <strong>一次</strong>。</p>
+<p>You can initialize this metadata using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. This command can be run on any machine in your ZooKeeper cluster. 如下所示：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
+  --cluster pulsar-cluster-1 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --web-service-url http://pulsar.us-west.example.com:8080 \
+  --web-service-url-tls https://pulsar.us-west.example.com:8443 \
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre>
+<p>从上面的示例中可以看出，您需要指定以下内容：</p>
+<table>
+<thead>
+<tr><th style="text-align:left">标记</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>--cluster</code></td><td style="text-align:left">集群名字</td></tr>
+<tr><td style="text-align:left"><code>--metadata-store</code></td><td style="text-align:left">A &quot;local&quot; metadata store connection string for the cluster. This connection string only needs to include <em>one</em> machine in the ZooKeeper cluster.</td></tr>
+<tr><td style="text-align:left"><code>--configuration-metadata-store</code></td><td style="text-align:left">The configuration metadata store connection string for the entire instance. As with the <code>--metadata-store</code> flag, this connection string only needs to include <em>one</em> machine in the ZooKeeper cluster.</td></tr>
+<tr><td style="text-align:left"><code>--web-service-url</code></td><td style="text-align:left">集群 web 服务的URL以及端口，这个URL应该是标准的DNS名称，默认的端口是8080(我们不建议使用其他端口)</td></tr>
+<tr><td style="text-align:left"><code>--web-service-url-tls</code></td><td style="text-align:left">如果使用<a href="/docs/zh-CN/next/security-tls-transport">TLS</a>，你必须为集群指定一个 TLS web 服务URL。默认端口是8443(我们不建议使用其他端口)</td></tr>
+<tr><td style="text-align:left"><code>--broker-service-url</code></td><td style="text-align:left">Broker服务的URL，用于与集群中的brokers进行交互。 这个 URL 不应该使用和 web 服务 URL 同样的 DNS名称，而应该是用<code>pulsar</code>方案。 默认端口是6650(我们不建议使用其他端口)。</td></tr>
+<tr><td style="text-align:left"><code>--broker-service-url-tls</code></td><td style="text-align:left">如果使用<a href="/docs/zh-CN/next/security-tls-transport">TLS</a>，你必须为集群指定一个 TLS web 服务URL，以及用于集群中 broker TLS 服务的URL。 默认端口是6651(不建议使用其他端口)。</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>如果你没有 DNS 服务器，你能够使用多个域名组成的格式的服务的 URL，格式如下:</p>
+<pre><code class="hljs css language-shell">--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+</code></pre>
+<p>如果想使用已经存在的 Bookeeper 集群，你可以增加<code>--existing-bk-metadata-service-uri</code>如下标记：</p>
+<pre><code class="hljs css language-shell">--existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+</code></pre>
+<p>您可以使用 <code>bin/bookkeeper shell whatisinstanceid</code> 命令获取现有BookKeeper 集群的元数据服务 的URI。 由于多个元数据服务 URI 用分号隔开，您必须用双引号显示该值。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="部署-bookeeper-集群"></a><a href="#部署-bookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookeeper 集群</h2>
+<p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 你可以选择运行 <strong>3 个 bookie 的 BookKeeper 集群</strong>。</p>
+<p>你能够通过配置文件<a href="/docs/zh-CN/next/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="/docs/zh-CN/next/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Zookeeper 集群的连接信息。 如下所示：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
+<p>一旦你适当地修改了<code>zkServers</code> 参数，你可以修改任何你需要的其他配置。 你可以在 <a href="/docs/zh-CN/next/reference-configuration#bookkeeper">here</a>了解到完整的可用的 BookKeeper 配置项列表。 然而，建议通过<a href="http://bookkeeper.apache.org/docs/latest/reference/config/"> Bookeeper 官方文档</a>了解更多深层的信息。</p>
+<p>一旦修改完<code>conf/bookkeeper.conf</code>文件的相关配置，你就可以在每台 Bookeeper 机器上启动 bookie。 You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
+<p>To start the bookie in the background, use the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
+</code></pre>
+<p>To start the bookie in the foreground:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar bookie
+</code></pre>
+<p>你可以通过运行<a href="/docs/zh-CN/next/reference-cli-tools#shell">BookKeeper shell</a>上的<code>bookiesanity</code>命令验证 bookie 是否正常工作：</p>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
+</code></pre>
+<p>这个命令会在本地的 bookie 创建一个临时的 BookKeeper ledger，往里面写一些条目，然后读取它，最后删除这个 ledger。</p>
+<p>启动了所有的 bookie 后，你能够在任意一台bookie上，使用<a href="/docs/zh-CN/next/reference-cli-tools#shell">BookKeeper shell</a>的<code>simpletest</code>命令，去校验集群内所有的 bookie 是否都已经启动。</p>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper shell simpletest --ensemble &lt;num-bookies&gt; --writeQuorum &lt;num-bookies&gt; --ackQuorum &lt;num-bookies&gt; --numEntries &lt;num-entries&gt;
+</code></pre>
+<p>这个命令会在集群上创建和bookie<code>同等数量</code>的ledger，并往里面写一些条目，然后读取它，最后删除这个ledger。</p>
+<h2><a class="anchor" aria-hidden="true" id="部署-pulsar-broker"></a><a href="#部署-pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Pulsar broker</h2>
+<p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Broker 用来处理 Pulsar 消息，并且提供管理Pulsar的接口。 一个好的选择是运行 <strong>3 个 broker</strong>，每个 broker 已经运行了 Bookkeeper bookie。</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-broker"></a><a href="#配置-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Broker</h3>
+<p>Broker 配置中有一些非常重要的参数，这些参数可以确保每个Broker 连接到已部署的 ZooKeeper 集群。 Ensure that the <a href="/docs/zh-CN/next/reference-configuration#broker"><code>metadataStoreUrl</code></a> and <a href="/docs/zh-CN/next/reference-configuration#broker"><code>configurationMetadataStoreUrl</code></a> parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the <code>configurationMetadataStoreUrl</code> point to the same <code>metadataStoreUrl</code>.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">metadataStoreUrl</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+<span class="hljs-attr">configurationMetadataStoreUrl</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre>
+<p>你必须配置集群的名字( <a href="#initialize-cluster-metadata">初始化集群元数据</a> 提供的集群名字必须和这个配置项匹配)：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clusterName</span>=<span class="hljs-string">pulsar-cluster-1</span>
+</code></pre>
+<p>此外，初始化集群的时候提供的 broker 和 web 服务的端口也必须和下面的配置匹配(特别是当你定义了和默认值不同的端口的时候)</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">brokerServicePort</span>=<span class="hljs-string">6650</span>
+<span class="hljs-attr">brokerServicePortTls</span>=<span class="hljs-string">6651</span>
+<span class="hljs-attr">webServicePort</span>=<span class="hljs-string">8080</span>
+<span class="hljs-attr">webServicePortTls</span>=<span class="hljs-string">8443</span>
+</code></pre>
+<blockquote>
+<p>如果你部署的是单节点的 Pulsar 集群，你需要把配置文件<code>conf/broker.conf</code>的副本数量配置为<code>1</code>.</p>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Number of bookies to use when creating a ledger</span>
+<span class="hljs-attr">managedLedgerDefaultEnsembleSize</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of copies to store for each message</span>
+<span class="hljs-attr">managedLedgerDefaultWriteQuorum</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of guaranteed copies (acks to wait before write is complete)</span>
+<span class="hljs-attr">managedLedgerDefaultAckQuorum</span>=<span class="hljs-string">1</span>
+</code></pre>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="启用-pulsar-function可选"></a><a href="#启用-pulsar-function可选" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 Pulsar Function(可选)</h3>
+<p>If you want to enable <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a>, you can follow the instructions as below:</p>
+<ol>
+<li><p>将<code>conf/broker.conf</code>文件的配置项<code>functionsWorkerEnabled</code>设置为<code>true</code>，启用函数 worker，</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre></li>
+</ol>
+<ol start="2">
+<li><p>修改<code>conf/functions_worker.yml</code>的配置项<code>pulsarFunctionsCluster</code> 为集群的名称，该名称和<a href="#initialize-cluster-metadata">初始化集群元数据</a>使用的集群名字是同一个。</p>
+<pre><code class="hljs css language-conf">pulsarFunctionsCluster: pulsar-cluster<span class="hljs-number">-1</span>
+</code></pre></li>
+</ol>
+<p>如果想了解更多函数 worker 部署相关的信息，请参考<a href="/docs/zh-CN/next/functions-worker">函数 worker 部署和管理</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="启动-broker"></a><a href="#启动-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 Broker</h3>
+<p>你可以将配置文件<a href="/docs/zh-CN/next/reference-configuration#broker"><code>conf/broker.conf</code></a>提供的任何配置项，修改为你需要的值。 一旦确定了配置，就可以启动 Pulsar 集群里的 broker。 和 Zookeeper 和 BookKeeper 一样，你可以选择前台启动或后台启动。</p>
+<p>You can start a broker in the foreground using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-broker"><code>pulsar broker</code></a> command:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar broker
+</code></pre>
+<p>You can start a broker in the background using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
+</code></pre>
+<p>Once you successfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!</p>
+<h2><a class="anchor" aria-hidden="true" id="连接集群"></a><a href="#连接集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接集群</h2>
+<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. <code>pulsar-client</code>工具能够从 Pulsar 主题生产消息和消费消息，并提供了一个简单的方式来确保你的集群运行正常。</p>
+<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="/docs/zh-CN/next/reference-configuration#client"><code>conf/client.conf</code></a> in your binary package. 你需要修改<code>webServiceUrl</code>和<code>brokerServiceUrl</code>的值，将默认<code>localhost</code>值替换为你给 broker/bookie 指定的 DNS 名称。 如下所示：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://us-west.example.com:8080</span>
+<span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://us-west.example.com:6650</span>
+</code></pre>
+<blockquote>
+<p>如果你没有 DNS 服务器，你能够使用多个域名组成的格式的服务的 URL：</p>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://host1:8080,host2:8080,host3:8080</span>
+<span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://host1:6650,host2:6650,host3:6650</span>
+</code></pre>
+</blockquote>
+<p>完成后，你能够发送消息到 Pulsar 主题：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce \
+  persistent://public/default/<span class="hljs-built_in">test</span> \
+  -n 1 \
+  -m <span class="hljs-string">"Hello Pulsar"</span>
+</code></pre>
+<blockquote>
+<p>如果你指定了 <code>pulsar-cluster 1</code> 以外的集群名称，你需要在主题中使用不同的集群名称。</p>
+</blockquote>
+<p>此命令向 Pulsar 主题发布一条消息。 此外，你可以在发布消息之前在不同的终端订阅 Pulsar 主题，如下所示：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client consume \
+  persistent://public/default/<span class="hljs-built_in">test</span> \
+  -n 100 \
+  -s <span class="hljs-string">"consumer-test"</span> \
+  -t <span class="hljs-string">"Exclusive"</span>
+</code></pre>
+<p>一旦您成功地向主题发送了上面的消息，您应该在标准输出中看到它：</p>
+<pre><code class="hljs css language-bash">----- 收到消息 -----
+Hello Pulsar
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="运行函数"></a><a href="#运行函数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>运行函数</h2>
+<blockquote>
+<p>如果你<a href="#enable-pulsar-functions-optional">启用</a> Pulsar 函数，你就可以试用 Pulsar 函数了。</p>
+</blockquote>
+<p>创建一个名为<code>exclamation</code>的函数 ExclamationFunction。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+  --jar examples/api-examples.jar \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+</code></pre>
+<p>检查是否按照预期<a href="/docs/zh-CN/next/functions-deploying#triggering-pulsar-functions">触发</a>函数运行。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
+</code></pre>
+<p>你能够看到如下的输出：</p>
+<pre><code class="hljs css language-shell">hello world!
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster"><span>裸机多集群部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#准备工作">准备工作</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#硬件条件">硬件条件</a></li></ul></li><li><a href="#pulsar-二进制包安装">Pulsar 二进制包安装</a></li><li><a href="#安装内置连接器可选httpspulsarapacheorgdocsennextstandaloneinstall-builtin-connectors-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional">安装内置连接器(可选)</a></a></li><li><a href="#安装分层存储卸载器可选httpspulsarapacheorgdocsennextstandaloneinstall-tiered-storage-offloaders-optional"><a href="https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional">安装分层存储卸载器(可选)</a></a></li><li><a href="#部署-zookeeper-集群">部署 Zookeeper 集群</a></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-bookeeper-集群">部署 Bookeeper 集群</a></li><li><a href="#部署-pulsar-broker">部署 Pulsar broker</a><ul class="toc-headings"><li><a href="#配置-broker">配置 Broker</a></li><li><a href="#启用-pulsar-function可选">启用 Pulsar Function(可选)</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#连接集群">连接集群</a></li><li><a href="#运行函数">运行函数</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:next"]}
+              });
+            </script></body></html>

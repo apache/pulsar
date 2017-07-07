@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Pulsar Javaクライアント</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar Javaクライアント</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">client</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-client">client</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-client">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>client</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/clients/Cpp/">Pulsar C++クライアント</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/clients/Java/">Pulsar Javaクライアント</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>java</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
+          
+          
+          
+          <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/clients/Java/">Pulsar Javaクライアント</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/ja/adaptors/PulsarStorm/">Apache StormのためのPulsarアダプタ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>PulsarのJavaクライアントでは<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>と<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>の両方が利用可能であるだけでなく、<a href="../../admin/AdminInterface">管理タスク</a>も実行可能です。</p>
+
+<p>Javaクライアントの現在のバージョンは <strong>2.0.1-incubating</strong> です。</p>
+
+<p>PulsarクライアントのJavadocはパッケージ名によって2つに分割されています:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">パッケージ</th>
+      <th style="text-align: left">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="/api/client"><code class="highlighter-rouge">org.apache.pulsar.client.api</code></a></td>
+      <td style="text-align: left"><span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>と<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>のAPI</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="/api/admin"><code class="highlighter-rouge">org.apache.pulsar.client.admin</code></a></td>
+      <td style="text-align: left">Java <a href="../../admin/AdminInterface">admin API</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>このドキュメントはPulsarの<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対して、メッセージのproduceとconsumeを行うクライアントAPIのみに焦点を当てています。Java admin APIについては、<a href="../../admin/AdminInterface">Pulsar admin API</a>をご確認ください。</p>
+
+<h2 id="インストール">インストール</h2>
+
+<p>最新バージョンのPulsar Javaクライアントライブラリは<a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.1-incubating%7Cjar">Maven Central</a>から利用可能です。 最新のバージョンを使うために、ビルド設定に<code class="highlighter-rouge">pulsar-client</code>ライブラリを追加してください。</p>
+
+<h3 id="maven">Maven</h3>
+
+<p>Mavenを利用している場合は、以下を<code class="highlighter-rouge">pom.xml</code>に記述してください:</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- &lt;properties&gt;ブロック内 --&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>2.0.1-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+
+<span class="c">&lt;!-- &lt;dependencies&gt;ブロック内 --&gt;</span>
+<span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-client<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre></div></div>
+
+<h3 id="gradle">Gradle</h3>
+
+<p>Gradleを利用している場合は、<code class="highlighter-rouge">build.gradle</code>ファイルに以下を記述してください:</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'2.0.1-incubating'</span>
+
+<span class="n">dependencies</span> <span class="o">{</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="接続url">接続URL</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>クライアントライブラリを使ってPulsarに接続するには、<a href="../../project/BinaryProtocol">Pulsarプロトコル</a>URLを指定する必要があります。</p>
+
+<p>PulsarプロトコルURLは特定の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>に割り当てられており、<code class="highlighter-rouge">pulsar</code>スキームを使ってアクセスされます。ここでデフォルトのポート番号は6650になっています。以下は<code class="highlighter-rouge">localhost</code>の例です：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre></div></div>
+
+<p>プロダクションのPulsarクラスタのURLは以下のようになります：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre></div></div>
+
+<p><a href="../../admin/Authz#tlsクライアント認証">TLS</a>認証を利用している場合、URLは以下のようになります：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
+
+<h3 id="グローバルトピックとクラスタ固有のトピック">グローバルトピックとクラスタ固有のトピック</h3>
+
+<p>Pulsarの<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>にはクラスタ固有のものとグローバルなものがあります。クラスタ固有のトピックのURLは以下のような構造をしています：</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>クラスタ固有のトピックに対してproduceまたはconsumeを行いたい場合、クライアントは<a href="../../deployment/InstanceSetup#クラスタメタデータの初期化">クラスタのメタデータを初期化</a>した際に割り当てたBrokerサービスURLを使う必要があります。</p>
+
+<p>一方グローバルトピックの場合、URLは以下のようになります：</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>この場合、<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内の<em>任意の</em>クラスタに対して上記のBrokerサービスURLを利用することができ、Pulsarの内部サービスディスカバリシステムが残りの部分を処理します。</p>
+
+<h2 id="クライアントの設定">クライアントの設定</h2>
+
+<p>以下のように、<a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを接続先のPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>のURLのみを用いて生成できます:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>この<code class="highlighter-rouge">PulsarClient</code>オブジェクトはデフォルトの設定を使用します。デフォルト以外の設定を適用する方法はJavadocの<a target="_blank" href="/api/client/org/apache/pulsar/client/api/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>をご確認ください。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>クライアントレベルの設定に加えて、以下のセクションで説明する<a href="#producerの設定">Producer</a>あるいは<a href="#consumerの設定">Consumer</a>固有の設定も可能です。</p>
+
+  </div>
+</div>
+
+<h2 id="producer">Producer</h2>
+
+<p>Pulsarでは<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>は<span class="popover-term" tabindex="0" title="Pulsarでのメッセージとは？" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">メッセージ</span>を<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に書き込みます。Producerのオブジェクトを生成するため、まずは<a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトをPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLを用いて生成します。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>スタンドアローンクラスタのデフォルトのBroker URL</p>
+</span>
+    
+<p>Pulsarを<a href="../../getting-started/LocalCluster">スタンドアローンモード</a>で起動している場合、デフォルトでは<code class="highlighter-rouge">pulsar://localhost:6650</code>というURLでBrokerが利用できます。</p>
+
+  </div>
+</div>
+
+<p><a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを生成したら、<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対して<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a>オブジェクトを生成できます。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span>
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>指定したBroker, トピックに対してメッセージを送信できます。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// トピックに対して10個のメッセージを発行</span>
+<span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+    <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"my-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    
+<p>Producer, Consumer, クライアントはそれらが必要ではなくなった時にクローズしてください:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+<span class="n">consumer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+<span class="n">client</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>クローズ処理は非同期でも可能です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
+<span class="n">consumer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
+<span class="n">clioent</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
+</code></pre></div></div>
+
+  </div>
+</div>
+
+<h3 id="producerの設定">Producerの設定</h3>
+
+<p>上記の例のように、<code class="highlighter-rouge">Producer</code>オブジェクトをトピック名のみで生成すると、Producerはデフォルトの設定を利用します。デフォルト以外の設定を利用したい場合は、<code class="highlighter-rouge">Producer</code>を<a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html"><code class="highlighter-rouge">ProducerConfiguration</code></a>を用いて生成してください。</p>
+
+<p>以下は設定の例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+<span class="n">ProducerConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setBatchingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setSendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">);</span>
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="メッセージルーティング">メッセージ・ルーティング</h3>
+
+<p><span class="popover-term" tabindex="0" title="パーティションドトピックとは？" data-placement="top" data-content="複数のBrokerに跨がるトピックで、より高いスループットを実現可能です。" data-toggle="popover" data-trigger="focus">パーティションドトピック</span>を使用している場合は、<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>を用いたメッセージの発行時のルーティングモードを指定できます。Javaクライアントを使用したルーティングモードの指定方法の詳細は、<a href="../../advanced/PartitionedTopics">パーティションドトピック</a>のドキュメントを御覧ください。</p>
+
+<h3 id="非同期送信">非同期送信</h3>
+
+<p>Javaクライアントを使ってメッセージを<a href="../../getting-started/ConceptsAndArchitecture#送信モード">非同期</a>で発行できます。非同期送信では、Producerはメッセージをブロッキングキューに入れ、制御を戻します。クライアントライブラリはバックグラウンドで<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に送信します。キューが最大量 (設定可能) に達した場合、Producerは送信APIを呼び出した時、Producerに渡される引数に応じてブロックされる、あるいは失敗する可能性があります。</p>
+
+<p>非同期送信処理の実装例は以下のようになります:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+</code></pre></div></div>
+
+<p>非同期送信処理では、<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>によってラップされた<a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>がリターンされます。</p>
+
+<h2 id="consumer">Consumer</h2>
+
+<p>Pulsarでは<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>は<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>を購読し、<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>がトピックに発行した<span class="popover-term" tabindex="0" title="Pulsarでのメッセージとは？" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">メッセージ</span>を処理します。Consumerのオブジェクトを生成するため、まずは<a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>のオブジェクトをPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLを用いて生成します (上記のProducerの例のように<code class="highlighter-rouge">client</code>オブジェクトを使用) 。</p>
+
+<p><a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを生成したら、<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対して<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a>オブジェクトを生成できます。<span class="popover-term" tabindex="0" title="サブスクリプションとは？" data-placement="top" data-content="Consumerによって確立されたトピック上のリースです。Pulsarには3つのサブスクリプションモード (exclusive, shared, failover) があります。" data-toggle="popover" data-trigger="focus">サブスクリプション</span>名の指定も必要です。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span> <span class="c1">// from above</span>
+<span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subscription</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>トピック上のメッセージを取得するために<code class="highlighter-rouge">receive</code>メソッドを使用できます。この<code class="highlighter-rouge">while</code>ループは<code class="highlighter-rouge">persistent://sample/standalone/ns1/my-topic</code>トピックに対する長期のリスナーです。メッセージを受信するとその内容を出力し、メッセージが処理された後<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) を送信します:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+  <span class="c1">// メッセージを待ち受ける</span>
+  <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+
+  <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Received message: "</span> <span class="o">+</span> <span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">());</span>
+
+  <span class="c1">// Brokerがメッセージを削除できるようにAckを送信する</span>
+  <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledge</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="consumerの設定">Consumerの設定</h3>
+
+<p>上記の例のように、<code class="highlighter-rouge">Consumer</code>オブジェクトをトピック名とサブスクリプション名のみで生成すると、Consumerはデフォルトの設定を利用します。デフォルト以外の設定を利用したい場合は、<code class="highlighter-rouge">Consumer</code>を<a target="_blank" href="/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html"><code class="highlighter-rouge">ConsumerConfiguration</code></a>を用いて生成してください。</p>
+
+<p>以下は設定の例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+<span class="n">ConsumerConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setSubscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Shared</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setReceiverQueueSize</span><span class="o">(</span><span class="mi">10</span><span class="o">);</span>
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createConsumer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="非同期受信">非同期受信</h3>
+
+<p><code class="highlighter-rouge">receive</code>メソッドはメッセージを同期的 (メッセージが利用できるようになるまでConsumerプロセスがブロックされる) に受信します。<a href="../../getting-started/ConceptsAndArchitecture#受信モード">非同期受信</a>も利用可能です。このメソッドは<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>オブジェクトとしてすぐにリターンします。CompletableFutureオブジェクトは新しいメッセージが利用可能になった時、受信して完了します。</p>
+
+<p>以下は実装例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span> <span class="n">asyncMessage</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receiveAsync</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>非同期受信では<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>でラップした<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a>がリターンされます。</p>
+
+<h2 id="認証">認証</h2>
+
+<p>Pulsarは現在、<a href="../../admin/Authz#tls認証">TLS</a>と<a href="../../admin/Authz#athenz">Athenz</a>の2つの認証スキームをサポートしています。Pulsar Javaクライアントでは両方が利用可能です。</p>
+
+<h3 id="tls認証">TLS認証</h3>
+
+<p><a href="../../admin/Authz#tls認証">TLS</a>を利用するために、<code class="highlighter-rouge">setUseTls</code>メソッドで<code class="highlighter-rouge">true</code>をセットし、TLS通信を有効にする必要があります。また、CAの証明書、クライアントの証明書、秘密鍵のパスを指定する必要があります。</p>
+
+<p>以下は設定の例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">);</span>
+
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsCertFile"</span><span class="o">,</span> <span class="s">"/path/to/client-cert.pem"</span><span class="o">);</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsKeyFile"</span><span class="o">,</span> <span class="s">"/path/to/client-key.pem"</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">AuthenticationTls</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
+                        <span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="athenz">Athenz</h3>
+
+<p><a href="../../admin/Authz#athenz">Athenz</a>を利用するために、<a href="#tls認証">TLS通信を有効</a>にし、<code class="highlighter-rouge">Map</code>として以下の4つのパラメータを与える必要があります:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">tenantDomain</code></li>
+  <li><code class="highlighter-rouge">tenantService</code></li>
+  <li><code class="highlighter-rouge">providerDomain</code></li>
+  <li><code class="highlighter-rouge">privateKeyPath</code></li>
+</ul>
+
+<p><code class="highlighter-rouge">keyId</code>というパラメータも任意で設定可能です。</p>
+
+<p>以下は設定の例です:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+
+<span class="c1">// TLSを有効に</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">);</span>
+
+<span class="c1">// Athenz認証プラグインのパラメータをセット</span>
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantDomain"</span><span class="o">,</span> <span class="s">"shopping"</span><span class="o">);</span> <span class="c1">// テナントドメイン名</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantService"</span><span class="o">,</span> <span class="s">"some_app"</span><span class="o">);</span> <span class="c1">// テナントサービス名</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"providerDomain"</span><span class="o">,</span> <span class="s">"pulsar"</span><span class="o">);</span> <span class="c1">// プロバイダドメイン名</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"privateKeyPath"</span><span class="o">,</span> <span class="s">"/path/to/private.pem"</span><span class="o">);</span> <span class="c1">// テナントの秘密鍵のパス</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"keyId"</span><span class="o">,</span> <span class="s">"v1"</span><span class="o">);</span> <span class="c1">// テナントの秘密鍵のID (任意, デフォルト: "0")</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">AuthenticationAthenz</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
+        <span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
+</code></pre></div></div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar Javaクライアント</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>

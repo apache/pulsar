@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Pulsarのコンセプトとアーキテクチャ</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-入門">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-入門" aria-controls="collapse-入門">
+            入門
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-入門" role="tabpanel" aria-labelledby="heading-入門">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/getting-started/LocalCluster">
+              ローカルでPulsarを起動
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/Clients">
+              クライアントライブラリ
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/getting-started/ConceptsAndArchitecture">
+              コンセプトとアーキテクチャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-デプロイ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-デプロイ" aria-controls="collapse-デプロイ">
+            デプロイ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-デプロイ" role="tabpanel" aria-labelledby="heading-デプロイ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/deployment/InstanceSetup">
+              ベアメタル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes">
+              Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Kubernetes/#amazon-web-services">
+              AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/deployment/Monitoring">
+              監視
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-管理">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-管理" aria-controls="collapse-管理">
+            管理
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-管理" role="tabpanel" aria-labelledby="heading-管理">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/admin/AdminInterface">
+              Pulsar adminインターフェース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ClustersBrokers">
+              クラスタとBroker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/PropertiesNamespaces">
+              プロパティとネームスペース
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ZooKeeperBookKeeper">
+              ZooKeeperとBookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Dashboard">
+              ダッシュボード
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Authz">
+              認証と認可
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/GeoReplication">
+              ジオレプリケーション
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/Stats">
+              統計情報
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/admin/ModularLoadManager">
+              モジュラロードマネージャ
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-クライアントライブラリ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-クライアントライブラリ" aria-controls="collapse-クライアントライブラリ">
+            クライアントライブラリ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-クライアントライブラリ" role="tabpanel" aria-labelledby="heading-クライアントライブラリ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/clients/Java">
+              Java
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Cpp">
+              C++
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/Python">
+              Python
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-アダプタ">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-アダプタ" aria-controls="collapse-アダプタ">
+            アダプタ
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-アダプタ" role="tabpanel" aria-labelledby="heading-アダプタ">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-高度な機能">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-高度な機能" aria-controls="collapse-高度な機能">
+            高度な機能
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-高度な機能" role="tabpanel" aria-labelledby="heading-高度な機能">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/advanced/PartitionedTopics">
+              パーティションドトピック
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/advanced/RetentionExpiry">
+              保存と有効期限
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-開発">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-開発" aria-controls="collapse-開発">
+            開発
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-開発" role="tabpanel" aria-labelledby="heading-開発">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/project/SimulationTools">
+              シミュレーションツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/BinaryProtocol">
+              バイナリプロトコル
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/project/Codebase">
+              コードベース
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-リファレンス">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-リファレンス" aria-controls="collapse-リファレンス">
+            リファレンス
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-リファレンス" role="tabpanel" aria-labelledby="heading-リファレンス">
+        <ul>
+          
+          
+          <li>
+            <a href="/ja/reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/CliTools">
+              コマンドラインツール
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/ja/reference/Configuration">
+              設定
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsarのコンセプトとアーキテクチャ</h1>
+        <span class="docs-lead">Pulsarの動作に関する概要</span><br />
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">architecture</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-architecture">architecture</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-architecture">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><strong>architecture</strong>タグのページ一覧</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/ja/getting-started/ConceptsAndArchitecture/">Pulsarのコンセプトとアーキテクチャ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><span class="popover-term" tabindex="0" title="Pulsarとは？" data-placement="top" data-content="Yahooによって独自に開発された分散メッセージングシステムです。現在はApache Software Foundationの管理下にあります。" data-toggle="popover" data-trigger="focus">Pulsar</span>は<a href="http://yahoo.github.io/">Yahoo</a>で開発され、現在は<a href="https://www.apache.org/">Apache Software Foundation</a>の管理下にある、サーバからサーバへメッセージングを行うためのマルチテナント、ハイパフォーマンスなソリューションです。</p>
+
+<p>Pulsarの主要な特徴:</p>
+
+<ul>
+  <li>複数<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>のネイティブサポートとクラスタを横断するメッセージのシームレスな<a href="../../admin/GeoReplication">ジオレプリケーション</a></li>
+  <li>メッセージの発行及びエンドツーエンドの通信が低レイテンシ</li>
+  <li>100万以上のトピックに対するシームレスなスケーラビリティ</li>
+  <li><a href="../../clients/Java">Java</a>, <a href="../../clients/Python">Python</a>, <a href="../../clients/Cpp">C++</a>によるシンプルな<a href="#クライアントapi">クライアントAPI</a></li>
+  <li><span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対する複数の<a href="#サブスクリプションモード">サブスクリプションモード</a> (<a href="#exclusive">Exclusive</a>, <a href="#shared">Shared</a>, <a href="#failover">Failover</a>)</li>
+  <li><a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>を用いた<a href="#永続ストレージ">永続ストレージ</a>による配信保証</li>
+</ul>
+
+<h2 id="producer-consumer-トピックサブスクリプション">Producer, Consumer, トピック、サブスクリプション</h2>
+
+<p>Pulasrは<a href="https://ja.wikipedia.org/wiki/%E5%87%BA%E7%89%88-%E8%B3%BC%E8%AA%AD%E5%9E%8B%E3%83%A2%E3%83%87%E3%83%AB">publish-subscribe</a>パターン (別名<span class="popover-term" tabindex="0" title="publish-subscribe (pub-sub) パターンとは？" data-placement="top" data-content="Publisherプロセスがトピックに対してメッセージを発行し、そのメッセージをConsumerプロセスが受信するメッセージングパターンです。" data-toggle="popover" data-trigger="focus">pub-sub</span>) で構築されています。このパターンでは、<a href="#producer">Producer</a>が<a href="#トピック">トピック</a>に対してメッセージを発行します。そして、<a href="#consumer">Consumer</a>はトピックを<a href="#サブスクリプションモード">購読</a> し、受け取ったメッセージに対して処理をし、処理の完了時に<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) を送信します。</p>
+
+<p>一度<span class="popover-term" tabindex="0" title="サブスクリプションとは？" data-placement="top" data-content="Consumerによって確立されたトピック上のリースです。Pulsarには3つのサブスクリプションモード (exclusive, shared, failover) があります。" data-toggle="popover" data-trigger="focus">サブスクリプション</span>が作られると、例えConsumerが切断しても、全てのメッセージはPulsarによって<a href="#永続ストレージ">保持</a>されます。保持されたメッセージはConsumerが処理に成功し<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を返した時にのみ破棄されます。</p>
+
+<h3 id="producer">Producer</h3>
+
+<p>Producerはトピックに接続し、Pulsarの<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>にメッセージを送信します。</p>
+
+<h4 id="送信モード">送信モード</h4>
+
+<p>Producerはメッセージを同期的あるいは非同期的にBrokerに送信できます。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">モード</th>
+      <th style="text-align: left">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">同期送信</td>
+      <td style="text-align: left">Producerはメッセージを送信した後BrokerからのAckを待ちます。もしAckが受信されない場合はProducerは送信処理が失敗したと判断します。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">非同期送信</td>
+      <td style="text-align: left">Producerはメッセージをブロッキングキューに入れ、制御を戻します。クライアントライブラリはバックグラウンドでBrokerに送信します。キューが最大量 (<a href="../../reference/Configuration#broker">設定可能</a>) に達した場合、Producerは送信APIを呼び出した時、Producerに渡される引数に応じてブロックされる、あるいは失敗する可能性があります。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="圧縮">圧縮</h4>
+
+<p>帯域を節約するため、メッセージを圧縮することが可能です。圧縮と解凍はどちらもクライアントで動作します。以下の圧縮形式をサポートしています:</p>
+
+<ul>
+  <li><a href="https://github.com/lz4/lz4">LZ4</a></li>
+  <li><a href="https://zlib.net/">ZLIB</a></li>
+</ul>
+
+<h4 id="バッチ">バッチ</h4>
+
+<p>バッチ処理が可能な場合、Producerはメッセージを蓄積し、1つのリクエストでメッセージのバッチを送信しようとします。バッチサイズはメッセージの最大数と最大発行レイテンシで定義されます。</p>
+
+<h3 id="consumer">Consumer</h3>
+
+<p>Consumerはサブスクリプションを通じてトピックに接続し、メッセージを受け取ります。</p>
+
+<h4 id="受信モード">受信モード</h4>
+
+<p>メッセージは同期的あるいは非同期的に受信されます。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Mode</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">同期受信</td>
+      <td style="text-align: left">メッセージが利用可能になるまでブロックされます。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">非同期受信</td>
+      <td style="text-align: left">CompletableFutureインスタンスとしてすぐに返却されます。<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>インスタンスは新しいメッセージが利用可能になった時、受信して完了します。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="ack">Ack</h4>
+
+<p>Consumerはメッセージの処理に成功した際、Brokerがメッセージを破棄することができるように<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を送る必要があります (そうしなければ、メッセージは<a href="#永続ストレージ">保存</a>されます) 。</p>
+
+<p>メッセージは1つ1つ個別に、あるいは累積的にAckが返されます。累積的なAckをするConsumerは、最後に受け取ったメッセージのAckを返します。その場合、Ackを返したメッセージまでのストリーム内の全てのメッセージはそのConsumerに再送されません。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    <p>累積的なAckは<a href="#サブスクリプションモード">サブスクリプションモード</a>がSharedの場合は複数のConsumerが同じサブスクリプションにアクセスするため使用できません。</p>
+
+  </div>
+</div>
+
+<h4 id="メッセージリスナー">メッセージリスナー</h4>
+
+<p>カスタマイズされたメッセージリスナーの実装をConsumerに渡すことができます。例えば<a href="../../clients/Java">Javaクライアント</a>では<a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageListener.html"><code class="highlighter-rouge">MesssageListener</code></a>インターフェイスを提供しています。新しいメッセージを受け取った時、<code class="highlighter-rouge">received</code>メソッドが実行されます。</p>
+
+<h3 id="トピック">トピック</h3>
+
+<p>他のpub-subシステムと同様に、PulsarのトピックはProducerからConsumerにメッセージを送信するための名前のついたチャンネルです。トピックの名前は明確に定義された構造を持つURLとして表現されます:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">クラスタ</span>/<span class="namespace">ネームスペース</span>/<span class="t">トピック</span>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">トピック名の要素</th>
+      <th style="text-align: left">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">persistent</code></td>
+      <td style="text-align: left">トピックのタイプを示します。Pulsarは2種類のトピック (パーシステント, ノンパーシステント) をサポートしています。 パーシステントトピックでは全てのメッセージはディスク (<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>が<span class="popover-term" tabindex="0" title="スタンドアローンのPulsar Brokerとは？" data-placement="top" data-content="単一のJVMプロセス上で全てのコンポーネントが起動される軽量なPulsar Brokerのことです。スタンドアローンのクラスタは単一のマシン上で実行され、開発時に役立ちます。" data-toggle="popover" data-trigger="focus">スタンドアローン</span>でない場合は複数のディスクを指します。) に<a href="#永続ストレージ">永続化</a>されます。一方、<a href="#ノンパーシステントトピック">ノンパーシステント</a>トピックはメッセージをディスクに永続化しません。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">プロパティ</code></td>
+      <td style="text-align: left">そのインスタンス内のトピックの<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>を示します。テナントはPulsarでの<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>のにおいて不可欠であり、クラスタを横断して利用されます。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">クラスタ</code>          </td>
+      <td style="text-align: left">トピックがどこに位置するかを示します。 一般的に、各地域やデータセンターに1つの<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>があります。                                                                                                                  </td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">ネームスペース</code></td>
+      <td style="text-align: left">トピックの管理単位を示します。関連トピックのグループ化メカニズムとして機能します。ほとんどのトピックの設定はネームスペース単位で実行されます。各プロパティ (テナント) は複数のネームスペースを持ちます。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">トピック</code></td>
+      <td style="text-align: left">トピック名の最後の部分です。トピック名は自由であり、Pulsarインスタンスにおいて特別な意味を持ちません。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="サブスクリプションモード">サブスクリプションモード</h3>
+
+<p>サブスクリプションモードは<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>にどのようにメッセージが配送されるかを決定するルールです。Pulsarでは<a href="#exclusive">Exclusive</a>, <a href="#shared">Shared</a>, <a href="#failover">Failover</a>の3つのサブスクリプションモードが利用可能です。以下の図は、それぞれのモードに関する説明を図示したものです。</p>
+
+<p><img src="/img/pulsar_subscriptions.jpg" alt="サブスクリプションモード" /></p>
+
+<h4 id="exclusive">Exclusive</h4>
+
+<p><em>Exclusive</em> モードでは、1つのサブスクリプションに対して1つのConsumerのみが接続を許可されます。2つ以上のConsumerが同じサブスクリプション名を用いてトピックに対して購読を試みた場合、エラーが発生します。</p>
+
+<p>上図では、<strong>Consumer-A</strong> のみがメッセージをconsumeできます。</p>
+
+<p>Exclusiveはデフォルトのサブスクリプションモードです。</p>
+
+<h4 id="shared">Shared</h4>
+
+<p><em>Shared</em> モードでは、複数のConsumerが同じサブスクリプションに接続できます。メッセージはラウンドロビンで複数のConsumerに配送され、各メッセージは1つのConsumerのみに配送されます。Consumerが切断するとき、送信されたがAck (確認応答) が返ってきていない全てのメッセージは、再送のためにリスケジュールされます。</p>
+
+<p>上図では、<strong>Consumer-B-1</strong> と <strong>Consumer-B-2</strong> がトピックを購読できます。しかし、<strong>Consumer-C-1</strong> やその他のConsumerも同様に購読できます。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Sharedモードの制限</p>
+</span>
+    <p>Sharedモードを使用する際には、次の2つの点に注意してください:</p>
+
+<ol>
+  <li>メッセージの順序は保証されません。</li>
+  <li><a href="#ack">累積的なAck</a>は使用できません。</li>
+</ol>
+
+  </div>
+</div>
+
+<h4 id="failover">Failover</h4>
+
+<p><em>Failover</em> モードでは、複数のConsumerが同じサブスクリプションに接続できます。ConsumerはConsumer名により辞書順にソートされ、辞書順で最初のConsumerがMaster Consumerとしてメッセージを受信します。</p>
+
+<p>このConsumerが切断された場合、Ackが返ってきていないものとその後に続く全てのメッセージは辞書順で次のConsumerに配送されます。</p>
+
+<p>上図では、<strong>Consumer-C-1</strong> はMaster Consumerであり、<strong>Consumer-C-2</strong> は <strong>Consumer-C-1</strong> が切断した時にメッセージを受け取ります。</p>
+
+<h3 id="パーティションドトピック">パーティションドトピック</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>通常のトピックは単一の<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>によってのみ提供されるため、トピックの最大スループットが制限されます。<em>パーティションドトピック</em>は複数のBrokerによって処理される特殊なトピックであり、より高いスループットの実現を可能にします。</p>
+
+<p>裏側では、パーティションドトピックはN個の内部トピックとして実装されます。ここでのNはパーティションの数です。パーティションドトピックにメッセージを発行すると、それぞれのメッセージは複数のBrokerの内のいずれかにルーティングされます。Broker間のパーティションの分散はPulsarによって自動的に処理されます。</p>
+
+<p>次の図は以上の事を示したものです:</p>
+
+<p><img src="/img/pulsar_partitioned_topic.jpg" alt="パーティションドトピック" /></p>
+
+<p>ここでは、トピック<strong>T1</strong>は3つのBrokerにまたがる5つのパーティション (<strong>P0</strong>から<strong>P4</strong>) を持ちます。Brokerよりも多くのパーティションが存在するため、2つのBrokerが2つのパーティションを処理し、3つ目のBrokerは1つのパーティションしか処理しません (Pulsarはこのパーティションの分散を自動的に処理します) 。</p>
+
+<p>このトピックに対するメッセージは2つの<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>に配信されます。<a href="#ルーティングモード">ルーティングモード</a>によってそれぞれのパーティションをどのBrokerが処理するかが決定され、<a href="../../getting-started/ConceptsAndArchitecture#サブスクリプションモード">サブスクリプションモード</a>によってどのメッセージがどのCondumerに行くかが決定されます。</p>
+
+<p>ルーティングとサブスクリプションモードをどうするかという問題は、ほとんどの場合分けて考える事ができます。パーティショニング/ルーティングはスループットに対する懸念によって決まり、サブスクリプションはアプリケーションのセマンティクスによって決まるべきです。</p>
+
+<p>サブスクリプションモードがどのように動作するかという点において、パーティションドトピックと通常のトピックに違いはありません。パーティショニングは、メッセージが<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>によって発行される時と、<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>によって処理され<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) が返される時の間に、何が起こるかだけを決定します。</p>
+
+<p>パーティションドトピックは<a href="../../admin/AdminInterface">admin API</a>から明示的に作成する必要があります。パーティション数はトピックを作成する際に指定できます。</p>
+
+<h4 id="ルーティングモード">ルーティングモード</h4>
+
+<p>パーティションドトピックにメッセージの発行を行う時、<em>ルーティングモード</em>を指定しなければなりません。ルーティングモードはどのパーティション—つまりどの内部トピック—に各メッセージを発行するかを決定します。</p>
+
+<p>デフォルトでは利用可能なルーティングモードが3つ存在します:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">モード</th>
+      <th style="text-align: left">説明</th>
+      <th style="text-align: left">順序保証</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">キーハッシュ</td>
+      <td style="text-align: left">メッセージにキープロパティが指定されていた場合、パーティションドProducerはキーのハッシュを計算し、それを特定のパーティションに割り当てます。</td>
+      <td style="text-align: left">キーバケットごとの保証</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">シングルデフォルトパーティション</td>
+      <td style="text-align: left">キーが指定されていなかった場合、各Producerのメッセージは専用のパーティション (最初はランダムに選択) にルーティングされます。</td>
+      <td style="text-align: left">Producerごとの保証</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ラウンドロビンディストリビューション</td>
+      <td style="text-align: left">キーが指定されていなかった場合、最大スループットを達成するために全てのメッセージが異なるパーティションにラウンドロビン方式でルーティングされます。</td>
+      <td style="text-align: left">なし</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>これらデフォルトのモードに加えて、もし<a href="../../clients/Java">Javaクライアント</a>を使用しているなら<a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a>インターフェースを実装する事で独自のルーティングモードを作成可能です。</p>
+
+<h3 id="ノンパーシステントトピック">ノンパーシステントトピック</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>注意</p>
+</span>
+    
+<p>この機能はまだ実験モードであり、実装の詳細は将来のリリースで変更される可能性があります。</p>
+
+  </div>
+</div>
+
+<p>その名前が示すように、メッセージを複数のディスクに永続化するパーシステント (永続) トピックとは異なり、ノンパーシステント (非永続) トピックはメッセージをストレージディスクに永続化しません。</p>
+
+<p>したがって、永続的な配信を使用している場合、メッセージはディスクやデータベースに永続化されるため、Brokerの再起動やSubscriberのフェイルオーバーに耐えられるようになります。非永続的な配信を使用している間にBrokerがダウンしたりSubscriberが切断されたりすると、Subscriberは全ての転送中のメッセージを失います。そのため、ノンパーシステントトピックではクライアントはメッセージを失う事があります。</p>
+
+<ul>
+  <li>ノンパーシステントトピックでは、Brokerが発行されたメッセージを受け取ると、いかなるストレージにも永続化する事なく即座にそのメッセージを接続された全てのSubscriberに配信します。したがってSubscriberとBrokerの接続が切断されると、Brokerは転送中のメッセージを配信できず、Subscriberはそれらのメッセージをもう一度受け取る事はできません。また、Consumerがメッセージをconsumeするのに十分なパーミッションを持っていないか、ConsumerのTCPチャネルが書き込み可能でない場合も、BrokerはConsumer用のメッセージをドロップします。したがって、Consumerのメッセージドロップを避けるために、Consumerの受信キュー (十分なパーミッションを得るため) とTCPの受信ウィンドウサイズ (チャネルを書き込み可能にするため) は適切に設定されるべきです。</li>
+  <li>Brokerは、クライアントの接続ごとに設定された数の転送中メッセージしか許可しません。したがって、Producerがこれよりも高い割合でメッセージを発行しようとすると、Brokerは新しく受信したメッセージをSubscriberに配信する事なくサイレントにドロップします。ただし、BrokerはProducerにメッセージドロップを通知するために、ドロップされたメッセージに対して特殊なメッセージID (<code class="highlighter-rouge">msg-id: -1:-1</code>) でAck (確認応答) を返します。</li>
+</ul>
+
+<h3 id="パフォーマンス">パフォーマンス</h3>
+
+<p>通常、非永続メッセージングは永続メッセージングよりも高速です。これは、Brokerがメッセージを永続化せず、接続された全てのSubscriberにメッセージを配信すると即座にProducerにAckを返すためです。したがって、ノンパーシステントトピックではProducerの発行レイテンシは比較的低くなります。</p>
+
+<h2 id="クライアントapi">クライアントAPI</h2>
+
+<p>トピック名は次のようになります:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>non-persistent://my-property/us-west/my-namespace/my-topic
+</code></pre></div></div>
+
+<p>ProducerとConsumerは、トピック名を<code class="highlighter-rouge">non-persistent</code>で始めなければならない点を除き、パーシステントトピックと同様の方法でノンパーシステントトピックに接続できます。</p>
+
+<p>ノンパーシステントトピックは3つの異なるサブスクリプションモード (<strong>Exclusive</strong>, <strong>Shared</strong>, <strong>Failover</strong>) を全てサポートしています。サブスクリプションモードの詳細は<a href="../../getting-started/ConceptsAndArchitecture">入門</a>で既に解説しています。</p>
+
+<h3 id="consumer-api">Consumer API</h3>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">,</span>
+            <span class="s">"my-subscribtion-name"</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="producer-api">Producer API</h3>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="brokerの設定">Brokerの設定</h3>
+
+<p>多くの場合、ノンパーシステントトピック提供するためだけにクラスタ内に専用のBrokerを設定する必要はほとんどないでしょう。</p>
+
+<p>Brokerが特定のタイプのトピックのみを所有できるようにするための設定は次の通りです:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Brokerによるパーシステントトピックのロードを無効化
+enablePersistentTopics=false
+# Brokerによるノンパーシステントトピックのロードを有効化
+enableNonPersistentTopics=true
+</code></pre></div></div>
+
+<h2 id="アーキテクチャの概要">アーキテクチャの概要</h2>
+
+<p>上位レベルでは、Pulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>は単一または複数の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>で構成されます。インスタンス内のクラスタはそれぞれの間でデータを<a href="#レプリケーション">レプリケーション</a>できます。</p>
+
+<p>Pulsarクラスタ内で:</p>
+
+<ul>
+  <li>1つ以上の<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>は<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>から送信されるメッセージを処理し、ロードバランシングし、<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>にメッセージを送信します。また、様々な調整タスクを処理するため<span class="popover-term" tabindex="0" title="Global ZooKeeperとは？" data-placement="top" data-content="Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。" data-toggle="popover" data-trigger="focus">Global ZooKeeper</span>と通信し、<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>インスタンス (<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>) にメッセージを永続化します。クラスタ特有の情報は<span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>クラスタから取得します。</li>
+  <li><span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>クラスタは1つ以上の<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>で構成され、メッセージの<a href="#永続ストレージ">永続ストレージ</a>を制御します。</li>
+  <li><span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>クラスタはそのクラスタの固有の情報を制御します。</li>
+</ul>
+
+<p>以下の図はPulsarクラスタの説明です:</p>
+
+<p><img src="/img/pulsar_system_architecture.png" alt="アーキテクチャ略図" /></p>
+
+<p>より広範な<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>レベルでは、<span class="popover-term" tabindex="0" title="Global ZooKeeperとは？" data-placement="top" data-content="Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。" data-toggle="popover" data-trigger="focus">Global ZooKeeper</span>と呼ばれるインスタンス全体のZooKeeperクラスタは、<a href="#レプリケーション">ジオレプリケーション</a>などの複数のクラスタを横断した調整タスクを処理します。</p>
+
+<h2 id="broker">Broker</h2>
+
+<p>Pulsarの<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>はステートレスなコンポーネントで、主に2つの異なるコンポーネントを実行します:</p>
+
+<ul>
+  <li>ProducerやConsumerのための<a href="#クライアントセットアップフェイズ">トピックのルックアップ</a>と<a href="../../reference/RestApi">管理操作</a>のためのRESTインターフェースを提供するHTTPサーバ</li>
+  <li>全てのデータ転送を独自<a href="../../project/BinaryProtocol">バイナリプロトコル</a>上で行う非同期TCPサーバである<span class="popover-term" tabindex="0" title="ディスパッチャとは？" data-placement="top" data-content="Pulsarクラスタ内の全てのデータ転送に利用される非同期TCPサーバです。ディスパッチャは全てのやり取りを独自バイナリプロトコルで行います。" data-toggle="popover" data-trigger="focus">ディスパッチャ</span></li>
+</ul>
+
+<p>パフォーマンスのために、バックログがキャッシュサイズを超えない限り、メッセージは通常<a href="#managed-ledger">Managed Ledger</a>のキャッシュから送信され、超えた場合にはBrokerが<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>からエントリの読み出しを始めます。</p>
+
+<p>最後に、<span class="popover-term" tabindex="0" title="ジオレプリケーションとは？" data-placement="top" data-content="潜在的に異なるデータセンターや地理的地域に存在するPulsarクラスタ間でメッセージを複製する機能です。" data-toggle="popover" data-trigger="focus">ジオレプリケーション</span>をサポートするために、Brokerはレプリケータを管理します。このレプリケータはPulsarクライアントライブラリを利用し、ローカルクラスタ内で発行されるエントリをtailし<a href="../../clients/Java">Javaクライアントライブラリ</a>を使ってリモートクラスタに再発行します。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Pulsar Brokerの管理ガイドとして、<a href="../../admin/ClustersBrokers#brokerの管理">クラスタとBroker</a>をご確認ください。</p>
+
+  </div>
+</div>
+
+<h2 id="クラスタ">クラスタ</h2>
+
+<p>Pulsarの<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>は1つ以上のクラスタで構成されています。クラスタは以下で構成されています:</p>
+
+<ul>
+  <li>1つ以上のPulsar <a href="#broker">Broker</a></li>
+  <li>クラスタレベルの設定のために使用される<span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span></li>
+  <li>メッセージの<a href="#永続ストレージ">永続ストレージ</a>のために使用されるBookieのアンサンブル</li>
+</ul>
+
+<p>クラスタは<a href="#レプリケーション">ジオレプリケーション</a>を用いて相互にメッセージを複製できます。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Pulsarクラスタの管理ガイドとして、<a href="../../admin/ClustersBrokers#クラスタの管理">クラスタとBroker</a>をご確認ください。</p>
+
+  </div>
+</div>
+
+<h3 id="globalクラスタ">Globalクラスタ</h3>
+
+<p>どのPulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>にも、特定のクラスタに限らないネームスペース、トピックを管理するための<code class="highlighter-rouge">global</code>と呼ばれるインスタンス全体のクラスタが存在します。<code class="highlighter-rouge">global</code>クラスタはインスタンスの最初のクラスタの<a href="../../admin/ClustersBrokers#クラスタメタデータの初期化">メタデータを初期化する</a>時に自動的に作成されます。</p>
+
+<p>グローバルなトピックの名前は次の基本的な構造を持っています (<code class="highlighter-rouge">global</code>クラスタに注意してください) :</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+</section>
+
+<h2 id="メタデータストア">メタデータストア</h2>
+
+<p>Pulsarはメタデータストレージ、クラスタの設定と協調のために<a href="https://zookeeper.apache.org/">Apache Zookeeper</a>を利用しています。Pulsarのインスタンスで:</p>
+
+<ul>
+  <li><span class="popover-term" tabindex="0" title="Global ZooKeeperとは？" data-placement="top" data-content="Pulsarがクラスタ固有ではなくインスタンス全体でのタスクのために利用するZooKeeperクラスタです。" data-toggle="popover" data-trigger="focus">Global ZooKeeper</span>は<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>、<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>、グローバルに一貫性が求められるその他のエンティティの情報を保存します。</li>
+  <li>各クラスタはそのクラスタ自身のLocal ZooKeeperアンサンブルにオーナーシップのメタデータ、Brokerのロードレポート、BookKeeperの<span class="popover-term" tabindex="0" title="Ledgerとは？" data-placement="top" data-content="BookKeeperの追加専用のデータ構造です。Pulsarのトピックのメッセージを永続的に保存するために使用されます。" data-toggle="popover" data-trigger="focus">Ledger</span>のメタデータなどの<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>特有の情報を保存します。</li>
+</ul>
+
+<p><a href="../../admin/ClustersBrokers#クラスタメタデータの初期化">新しいクラスタ</a>を作る時</p>
+
+<h2 id="永続ストレージ">永続ストレージ</h2>
+
+<p><img src="/img/broker-bookie.png" alt="BrokerとBookie" /></p>
+
+<p>Pulsarはアプリケーションのためにメッセージの配信保証を提供しています。メッセージがPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に正しく到達した時、そのメッセージは意図された対象に配信されます。</p>
+
+<p>この保証のためには<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>から<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を受け取っていないメッセージを、Ackを受け取るまで永続的に保存しておく必要があります。このメッセージングの方式は<em>永続メッセージング</em>と呼ばれます。Pulsarでは、全てのメッセージのN個のコピーが保存されディスクに同期されます。例えば、2つのサーバを横断した4つのコピーがミラーリングされた<a href="https://ja.wikipedia.org/wiki/RAID">RAID</a>ボリュームに保存されます。</p>
+
+<p>Pulsarは<a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>と呼ばれるシステムを永続ストレージとして利用しています。BookKeeperは分散型<a href="https://ja.wikipedia.org/wiki/%E3%83%AD%E3%82%B0%E5%85%88%E8%A1%8C%E6%9B%B8%E3%81%8D%E8%BE%BC%E3%81%BF">ログ先行書き込み</a> (WAL) システムです。このシステムはPulsarにとって以下の利点があります:</p>
+
+<ul>
+  <li>Pulsarは<a href="#ledger">Ledger</a>と呼ばれる多くの独立したログを使用可能になります。使用されるに連れて<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>のために複数のLedgerが作成されます。</li>
+  <li>エントリの複製を処理するシーケンシャルデータにとって非常に効率的なストレージを提供します。</li>
+  <li>様々なシステムの障害が発生した場合でも、Ledgerの読み取りの一貫性を保証します。</li>
+  <li>Bookie間での均等なI/Oの分散を提供します。</li>
+  <li>キャパシティとスループットの両方で水平スケーラブルです。キャパシティはクラスタに<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>を追加することで直ちに増加可能です。</li>
+  <li><span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>は数千のLedgerを読み取りと書き取り同時に操作するようデザインされています。複数のディスク装置を使うことによって (1つはJournal、もう1つは一般的なストレージ)、Bookieは読み取り操作の影響を現在進行中の書き込み操作のレイテンシから分離させることができます。</li>
+</ul>
+
+<p>メッセージデータに加えて、<em>カーソル</em> もまたBookKeeperに永続的に保存されます。カーソルは<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>の<span class="popover-term" tabindex="0" title="サブスクリプションとは？" data-placement="top" data-content="Consumerによって確立されたトピック上のリースです。Pulsarには3つのサブスクリプションモード (exclusive, shared, failover) があります。" data-toggle="popover" data-trigger="focus">サブスクリプション</span>の購読位置です。BookKeeperによって、PulsarはConsumerの購読位置をスケーラブルな方法で保存可能です。</p>
+
+<p>現時点ではPulsarは永続的なメッセージストレージのみをサポートしています。これは全ての<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>名の先頭の<code class="highlighter-rouge">persistent</code>を表しています:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+</section>
+
+<p>近い将来、Pulsarは一時的なメッセージストレージをサポートします。</p>
+
+<h3 id="ledger">Ledger</h3>
+
+<p><span class="popover-term" tabindex="0" title="Ledgerとは？" data-placement="top" data-content="BookKeeperの追加専用のデータ構造です。Pulsarのトピックのメッセージを永続的に保存するために使用されます。" data-toggle="popover" data-trigger="focus">Ledger</span>は複数のBookKeeperのストレージノード (<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>) に割り当てられた1つのwriterを持つ追加専用のデータ構造です。Ledgerのエントリは複数のBookieに複製されます。Ledger自体は非常にシンプルなセマンティクスを持ちます:</p>
+
+<ul>
+  <li>PulsarのBrokerはLedgerの作成、Ledgerへのエントリの追加、Ledgerのクローズが可能です。</li>
+  <li>Ledgerがクローズ (明示的に、あるいはwriterのクラッシュのよる場合の両方) された後、それは読み取り専用モードでのみオープン可能です。</li>
+  <li>Ledger内のエントリが不要になったら、システムからそのLedger自体を削除できます (全てのBookie上から)。</li>
+</ul>
+
+<h4 id="ledgerの読み取り一貫性">Ledgerの読み取り一貫性</h4>
+
+<p>BookKeeperの主な強みは、障害発生時のLedgerの読み取りの一貫性を保証することです。<br />
+Ledgerは単一のプロセスによってのみ書き込み可能なので、プロセスは非常に効率よく自由にエントリを追加することができ (追加のコンセンサスが不要) 、障害後には、Ledgerは状態を確定しログに最後にコミットされたエントリを確定するリカバリープロセスを実行します。<br />
+その後、Ledgerの全てのreaderは全く同じ内容を参照することが保証されます。</p>
+
+<h4 id="managed-ledger">Managed Ledger</h4>
+
+<p>BookKeeperのLedgerが単一のログ抽象化を提供するため、単一トピックのストレージ層を表す <em>Managed Ledger</em> と呼ばれるLedgerの上位概念を表すライブラリが開発されました。Managed Ledgerは、ストリームの最後に追加し続ける単一のwriterとストリームをconsumeしている複数<span class="popover-term" tabindex="0" title="カーソルとは？" data-placement="top" data-content="Consumerの購読位置です。" data-toggle="popover" data-trigger="focus">カーソル</span> (それぞれが独自の関連位置を保持します) を持つメッセージストリームの抽象化を表します。</p>
+
+<p>内部的には、1つのManaged Ledgerはデータを保持するために複数のBookKeeperのLedgerを使います。<br />
+複数のLedgerを持つのには2つの理由があります:</p>
+
+<ol>
+  <li>障害後にLedgerはもはや書き込めないため新しいLedgerを作成する必要があるため</li>
+  <li>すべてのカーソルがLedgerに含まれるすべてのメッセージをconsumeした時にLedgerを削除する可能性があるため定期的にLedgerをロールオーバーしたいため</li>
+</ol>
+
+<h3 id="journalストレージ">Journalストレージ</h3>
+
+<p>BookKeeperでは、<em>Journal</em> ファイルはBookKeeperのトランザクションログを含みます。<a href="#ledger">Ledger</a>をアップデートする前に、Bookieは更新を記述するトランザクションが永続 (揮発性ではない) ストレージに書き込まれることを保証する必要があります。Bookieが起動する、あるいは古いJournalファイルがJournalファイルサイズの上限 (<a href="../../reference/Configuration#bookkeeper-journalMaxSizeMB"><code class="highlighter-rouge">journalMaxSizeMB</code></a>パラメータで設定可能) に達すると、新しいJournalファイルが作成されます。</p>
+
+<h3 id="非永続ストレージ">非永続ストレージ</h3>
+
+<p>BookKeeperの将来的なバージョンでは <em>非永続ストレージ</em> をサポートし、複数の耐久モードをトピックレベルでサポートします。これにより、トピックレベルでの耐久モードが設定可能になり、トピック名の<code class="highlighter-rouge">persistent</code>に代わり<code class="highlighter-rouge">non-persistent</code>識別子が利用可能になります。</p>
+
+<h2 id="レプリケーション">レプリケーション</h2>
+
+<p>Pulsarでは、異なった地理的場所でメッセージをproduceしてconsumeできます。 たとえば、アプリケーションがある地域やマーケットにデータをproduceし、他の地域やマーケットでconsumeするために処理したい場合があります。 Pulsarの<a href="../../admin/GeoReplication">ジオレプリケーション</a>を使用することで、それが可能になります。</p>
+
+<h2 id="マルチテナンシー">マルチテナンシー</h2>
+
+<p>Pulsarは<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>のシステムとして一から作られました。マルチテナンシーをサポートするために、Pulsarは<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>という概念を持ちます。プロパティはクラスタを横断して利用可能であり、それぞれに適用された<a href="../../admin/Authz">認証と認可</a>のスキームを持ちます。それらは<a href="TODO">ストレージ割当</a>、<a href="TODO">メッセージTTL</a>、<a href="TODO">隔離ポリシー</a>を管理できる管理単位です。</p>
+
+<p>Pulsarのマルチテナントの性質はトピックURLに目に見えて反映されています。それらは以下のような構造です:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>このように、プロパティはトピックの分類の最も基本的な単位です (<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>よりもさらに基本的です)。</p>
+
+<h3 id="プロパティとネームスペース">プロパティとネームスペース</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsarは<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>のシステムとして新規にデザインされました。Pulsarでは<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>は<a href="#プロパティ">プロパティ</a>によって識別されます。プロパティはPulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内の最も上位の管理単位です。</p>
+
+<h3 id="プロパティ">プロパティ</h3>
+
+<p>Pulsarインスタンス内の各プロパティごとに以下を割り当て可能です:</p>
+
+<ul>
+  <li><a href="../../admin/Authz#認可">認可</a>スキーム</li>
+  <li>プロパティが適用される<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>のセット</li>
+</ul>
+
+<h3 id="ネームスペース">ネームスペース</h3>
+
+<p><span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>と<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>は<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>をサポートするためのPulsarの2つのキーコンセプトです。</p>
+
+<ul>
+  <li><strong>プロパティ</strong>は<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>を識別します。Pulsarは適切なキャパシティを割り当てられた特定のプロパティに対してプロビジョニングされます。</li>
+  <li><strong>ネームスペース</strong>はプロパティ内の管理単位の名称です。ネームスペースにセットされた設定ポリシーはそのネームスペース内に作成された全トピックに適用されます。プロパティはREST APIとCLIツールを使ったセルフ管理によって複数ネームスペースを作成することがあります。例えば、別々のアプリケーションを持つプロパティはアプリケーションごとに別のネームスペースを作成できます。</li>
+</ul>
+
+<p>同じネームスペース内のトピック名は下記のようになります:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
+</section>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
+</section>
+
+<h2 id="認証と認可">認証と認可</h2>
+
+<p>PulsarはBrokerで設定可能であるプラガブルな<a href="../../admin/Authz">認証</a>機構を備えており、クライアントを特定してトピックとプロパティに対するアクセス権限を確認するための<a href="../../admin/Authz#認可">認可</a>もサポートしています。</p>
+
+<h2 id="クライアントインターフェース">クライアントインターフェース</h2>
+
+<p>Pulsarは<a href="../../clients/Java">Java</a>と<a href="../../clients/Cpp">C++</a>でクライアントAPIを公開しています。クライアントAPIはクライアントとBroker間の通信プロトコルを最適化、カプセル化し、アプリケーションで使用するためのシンプルかつ直感的なAPIを提供しています。</p>
+
+<p>現在の公式Pulsarのクライアントライブラリは<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に対する透過的な再接続と接続フェイルオーバー、Brokerによる<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>を受け取るまでのメッセージのキューイング、バックオフによるリトライなどのヒューリスティックを備えています。</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>カスタムクライアントライブラリ</p>
+</span>
+    
+<p>もしクライアントライブラリを作成したい場合は、Pulasrのカスタム<a href="../../project/BinaryProtocol">バイナリプロトコル</a>のドキュメントをご確認ください。</p>
+
+  </div>
+</div>
+
+<h3 id="クライアントセットアップフェイズ">クライアントセットアップフェイズ</h3>
+
+<p>アプリケーションがProducer/Consumerを作成したい時、Pulsarクライアントライブラリは2つのステップで構成されるセットアップフェイズを開始します:</p>
+
+<ol>
+  <li>クライアントは<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>にHTTPルックアップリクエストを送って、トピックのオーナーを特定しようとします。リクエストは1つのアクティブなBrokerに到達し、(キャッシュされた) ZooKeeperのメタデータを参照することによって、どのBrokerがトピックを提供しているのかを知ることができ、誰もそのトピックを提供していない場合は最も負荷の少ないBrokerにトピックを割り当てます。</li>
+  <li>一度クライアントライブラリがBrokerのアドレスを取得すると、TCPコネクションが作成され (もしくは既存のコネクションプールから再利用され) 認証されます。この接続内で、クライアントとBrokerはカスタムプロトコルのバイナリコマンドを交換します。この時点で、クライアントはProducer/Consumerを作成するためのコマンドをBrokerに送信します。Brokerは認可ポリシーが検証された後にこのコマンドに応じます。</li>
+</ol>
+
+<p>TCP接続が切断された時は、クライアントは直ちにセットアップフェイズを再実行し、操作が成功するまでExponential Backoffを続けProducerやConsumerを再確立します。</p>
+
+<h2 id="サービスディスカバリ">サービスディスカバリ</h2>
+
+<p>Pulsarの<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に接続する<a href="../../getting-started/Clients">クライアント</a>は単一のURLを使ってPulsarの<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>全体と通信できる必要があります。Pulsarはビルトインのサービスディスカバリ機構を提供しています。これは、<a href="../../deployment/InstanceSetup#サービスディスカバリのセットアップ">Pulsarインスタンスのデプロイ</a>ガイドを見ることでセットアップできます。</p>
+
+<p>ユーザ自身によるサービスディスカバリシステムを使うことができます。独自のシステムを利用する場合は、クライアントが<code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>のようなエンドポイントにHTTPリクエストを送信した際、クライアントは目的の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>内の <em>いずれかの</em> アクティブなBrokerにDNS, HTTP, IP, その他の方法を用いてリダイレクトされる必要があります。</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsarのコンセプトとアーキテクチャ</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2019 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>
