@@ -607,6 +607,7 @@ void ClientConnection::handleIncomingCommand() {
                     ProducersMap::iterator it = producers_.find(producerId);
                     if (it != producers_.end()) {
                         ProducerImplPtr producer = it->second.lock();
+                        producers_.erase(it);
                         lock.unlock();
 
                         if (producer) {
