@@ -1,7 +1,6 @@
-BUNDLER_VERSION = $(shell cat package.json | jq .versions.bundler | tr -d '"')
+BUNDLER_VERSION = 1.15.1
 BUNDLE = bundle _${BUNDLER_VERSION}_
 JEKYLL = ${BUNDLE} exec jekyll
-GULP = node_modules/.bin/gulp
 RAKE = ${BUNDLE} exec rake
 
 deep_clean:
@@ -36,7 +35,7 @@ ruby_setup:
 python_setup:
 	pip install pdoc pygments
 
-setup: clean_local ruby_setup protobuf_setup doxygen_install python_setup
+setup: ruby_setup protobuf_setup doxygen_install python_setup
 
 build: api_docs
 	scripts/build-all-versions.sh

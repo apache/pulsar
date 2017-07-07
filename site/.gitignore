@@ -6,7 +6,6 @@ vendor/
 api/
 generated/
 .sass-cache
-_data/protobuf.json
 _data/config/*.bak
 _data/admin-rest-api-swagger.json
 scripts/protoc-gen-doc
