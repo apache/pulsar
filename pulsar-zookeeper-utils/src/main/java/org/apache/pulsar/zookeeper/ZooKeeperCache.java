@@ -20,6 +20,7 @@ package org.apache.pulsar.zookeeper;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -42,6 +43,7 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -118,6 +120,12 @@ public abstract class ZooKeeperCache implements Watcher {
         if (path != null) {
             dataCache.synchronous().invalidate(path);
             childrenCache.invalidate(path);
+            // sometimes zk triggers one watch per zk-session and if zkDataCache and ZkChildrenCache points to this
+            // ZookeeperCache instance then ZkChildrenCache may not invalidate for it's parent. Therefore, invalidate
+            // cache for parent if child is created/deleted
+            if (event.getType().equals(EventType.NodeCreated) || event.getType().equals(EventType.NodeDeleted)) {
+                childrenCache.invalidate(Paths.get(path).getParent().toString());
+            }
             existsCache.invalidate(path);
             if (executor != null && updater != null) {
                 if (LOG.isDebugEnabled()) {
