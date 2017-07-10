@@ -23,7 +23,7 @@ encoding: utf-8
 permalink: pretty
 pulsar_repo: https://github.com/apache/incubator-pulsar/tree/master
 baseurl: /incubator-pulsar/
-destination: ../generated-site
+destination: ../generated-site/content
 
 versions:
 - 1.18
