@@ -78,7 +78,7 @@ public class ClientCnx extends PulsarHandler {
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
 
-    private String targetBrokerAddress = null;
+    private String proxyToTargetBrokerAddress = null;
 
     enum State {
         None, SentConnectFrame, Ready
@@ -99,10 +99,10 @@ public class ClientCnx extends PulsarHandler {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
 
-        if (targetBrokerAddress == null) {
+        if (proxyToTargetBrokerAddress == null) {
             log.info("{} Connected to broker", ctx.channel());
         } else {
-            log.info("{} Connected through proxy to target broker at {}", ctx.channel(), targetBrokerAddress);
+            log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
         String authData = "";
         if (authentication.getAuthData().hasDataFromCommand()) {
@@ -110,7 +110,7 @@ public class ClientCnx extends PulsarHandler {
         }
         // Send CONNECT command
         ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion(),
-                targetBrokerAddress))
+                proxyToTargetBrokerAddress))
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         if (log.isDebugEnabled()) {
@@ -484,7 +484,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {
-        this.targetBrokerAddress = String.format("%s:%d", targetBrokerAddress.getHostString(),
+        this.proxyToTargetBrokerAddress = String.format("%s:%d", targetBrokerAddress.getHostString(),
                 targetBrokerAddress.getPort());
     }
 

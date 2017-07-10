@@ -68,7 +68,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         // If we are proxying a connection to a specific broker, we
         // are just forwarding data between the 2 connections, without
         // looking into it
-        ProxyConnectionToBroker
+        ProxyConnectionToBroker,
+
+        Closed,
     }
 
     private static final Gauge activeConnections = Gauge
@@ -129,6 +131,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (future.isSuccess()) {
             ctx.read();
         } else {
+            LOG.warn("[{}] Error in writing to inbound channel. Closing", remoteAddress, future.cause());
             directProxyHandler.outboundChannel.close();
         }
     }
@@ -189,6 +192,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     private void close() {
+        state = State.Closed;
         ctx.close();
     }
 

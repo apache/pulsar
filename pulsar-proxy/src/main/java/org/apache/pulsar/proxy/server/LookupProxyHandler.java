@@ -91,7 +91,7 @@ public class LookupProxyHandler {
             brokerURI = new URI(brokerServiceUrl);
         } catch (URISyntaxException e) {
             proxyConnection.ctx().writeAndFlush(
-                    Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
+                    Commands.newLookupErrorResponse(ServerError.MetadataError, e.getMessage(), clientRequestId));
             return;
         }
 

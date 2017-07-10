@@ -136,6 +136,8 @@ public class DirectProxyHandler {
             if (future.isSuccess()) {
                 outboundChannel.read();
             } else {
+                log.warn("[{}] [{}] Failed to write on proxy connection. Closing both connections.", inboundChannel,
+                        outboundChannel, future.cause());
                 inboundChannel.close();
             }
         }
