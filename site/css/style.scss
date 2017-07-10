@@ -8,16 +8,33 @@
 
 @include sticky-footer;
 
+span.latest-badge {
+  margin-left: 2rem;
+}
+
 .main-page-features {
-  margin-top: 5rem;
+  margin: 10rem 0;
+
+  .card {
+    border: none;
+  }
 
   .container {
     width: 80%;
 
-    h1 {
-      margin-bottom: 2rem;
+    h2 {
+      margin-bottom: 2.25rem;
+    }
+
+    .row {
+      border: 1px solid #ddd;
+      padding: 1rem;
     }
   }
+}
+
+.asf-incubator-container {
+  margin: 5rem 0;
 }
 
 .modal-body {
@@ -111,33 +128,14 @@ a {
 }
 
 .index-container {
-  margin: 10px 0 30px 0;
+  margin: 8rem 0;
 
-  .jumbotron-fluid {
-    margin: 50px 0;
-    background-color: white;
-
-    width: 100%;
-
-
-    p.lead {
-      margin-top: 20px;
-
-      a.btn + a.btn {
-        margin-left: 10px;
-      }
-    }
+  img {
+    margin-bottom: 3rem;
   }
 
-  .list-group-container {
-    margin: 100px 0;
-
-    ul.list-group {
-      padding: 20px 0;
-
-      width: 50%;
-      margin: 0 auto;
-    }
+  p.lead {
+    margin-bottom: 2rem;
   }
 }
 

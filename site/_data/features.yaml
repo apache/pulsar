@@ -22,7 +22,7 @@
   endpoint: getting-started/ConceptsAndArchitecture/#Architectureoverview
 
 - title: Low latency with durability
-  content: Designed for low publish latency (<5ms) at scale with strong durabilty guarantees
+  content: Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees
   endpoint: getting-started/ConceptsAndArchitecture/#Architectureoverview
 
 - title: High throughput
@@ -35,8 +35,7 @@
 
 - title: Multi-tenancy
   content: |
-        Built from the ground up as a multi-tenant system. Supports Isolation, Authentication,
-        Authorization and Quotas
+        Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas
   endpoint: getting-started/ConceptsAndArchitecture#multi-tenancy
 
 - title: Persistent storage
@@ -52,5 +51,5 @@
 - title: Operability
   content: |
         REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal
-        or <a href="http://kubernetes.io">Kubernetes</a>
+        or [Kubernetes](https://kubernetes.io).
   endpoint: admin/AdminInterface
