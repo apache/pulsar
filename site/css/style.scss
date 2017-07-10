@@ -460,6 +460,21 @@ footer.footer {
   }
 }
 
+article.content {
+  max-width: 85%;
+  flex: initial;
+  margin-left: auto;
+  margin-right: auto;
+
+  h2 + ul {
+    margin-top: 1rem;
+  }
+
+  li + li {
+    margin-top: .25rem;
+  }
+}
+
 @import "bootstrap-sass/bootstrap";
 @import "font-awesome/font-awesome";
 @import "navbar";

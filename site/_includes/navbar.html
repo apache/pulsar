@@ -31,64 +31,61 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-        <li class="nav-item">
-          <a class="nav-link" href="{{ site.baseurl }}docs/latest">Documentation</a>
-        </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ site.baseurl }}docs/latest">Documentation</a>
+      </li>
 
-        <li class="nav-item">
-            <a class="nav-link" href="{{ site.baseurl }}download">Download</a>
-        </li>
+      <li class="nav-item">
+          <a class="nav-link" href="{{ site.baseurl }}download">Download</a>
+      </li>
 
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            Client libraries
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/JavaClient">
+            Java
           </a>
-          <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
-            <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/JavaClient">
-              Java
-            </a>
-            <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/PythonClient">
-              Python
-            </a>
-            <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/CppClient">
-              C++
-            </a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="/api/client">
-              Java client Javadoc
-            </a>
-            <a class="dropdown-item" href="/api/admin">
-              Java admin Javadoc
-            </a>
-            <a class="dropdown-item" href="/api/python">
-              Python API docs
-            </a>
-            <a class="dropdown-item" href="/api/cpp">
-              C++ API docs
-            </a>
-          </div>
-        </li>
-
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            Community
+          <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/PythonClient">
+            Python
           </a>
-          <div class="dropdown-menu" aria-labelledby="versionsDropdown">
-            <a class="dropdown-item" href="{{ site.baseurl }}mailing-lists">Mailing Lists</a>
-            <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
-            <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
-            <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="{{ site.baseurl }}presentations">Presentations</a>
-            <a class="dropdown-item" href="{{ site.baseurl }}team">Team</a>
-          </div>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="http://www.apache.org/">
-            <img class="asf-logo" title="Apache Software Foundation" src="{{site.baseurl}}img/feather.png" />
+          <a class="dropdown-item" href="{{ site.baseurl }}docs/latest/applications/CppClient">
+            C++
           </a>
-        </li>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          <a class="dropdown-item" href="{{ site.baseurl }}mailing-lists">Mailing Lists</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="{{ site.baseurl }}presentations">Presentations</a>
+          <a class="dropdown-item" href="{{ site.baseurl }}team">Team</a>
+        </div>
+      </li>
     </ul>
   </div>
+  <a href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="{{site.baseurl}}img/feather.png" />
+  </a>
 </nav>
