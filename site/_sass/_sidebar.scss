@@ -1,0 +1,58 @@
+aside.sidebar-nav {
+  position: fixed;
+  overflow-y: scroll;
+  
+  #sidebar-accordion {
+    width: 100%;
+
+    .card {
+      border: none;
+
+      .card-header {
+        background-color: white;
+        border: none;
+        
+        h5 {
+          color: black;
+          margin-bottom: 0;
+
+          a:hover, a:visited, a:active, a:focus {
+            text-decoration: none;
+          }
+        }
+      }
+
+      .sidebar-group {
+        ul {
+          margin: 1rem 0;
+          padding: 0;
+
+          li {
+            margin-left: 1.25rem;
+            list-style-type: none;
+
+            & + li {
+              margin-top: .2rem;
+            }
+
+            a {
+              color: black;
+            
+              &:hover {
+                color: purple;
+              }
+
+              &.active {
+                color: $pulsar-magenta;
+              }
+
+              &:hover, &:visited, &:active, &:focus {
+                text-decoration: none;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

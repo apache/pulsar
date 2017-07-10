@@ -185,63 +185,6 @@ section.docs-cards {
   @include btn($javadoc-magenta, darken($javadoc-magenta, 20%));
 }
 
-aside.sidebar {
-  overflow-y: scroll;
-
-  section.sidebar-group {
-    //max-width: 90%;
-    h4 {
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-
-    ul {
-      overflow: auto;
-      margin-left: 5px;
-      list-style: outside;
-
-      li {
-        max-width: 100%;
-        //text-indent: 20;
-        //word-wrap: break-word;
-        font-size: 12px;
-        //list-style-type: none;
-        margin-left: 0;
-
-        a {
-          color: darken(#999, 30%);
-
-          &.active {
-            color: $brand-secondary;
-          }
-
-          &:hover {
-            color: $brand-dark;
-            text-decoration: none;
-          }
-        }
-
-        i {
-          color: #999;
-          margin-right: 15px;
-
-          &:hover {
-            color: darken(#999, 30%);
-          }
-        }
-
-        & + li {
-          margin-top: 4px;
-        }
-      }
-    }
-
-    & + section.sidebar-group {
-      margin-top: 15px;
-    }
-  }
-}
-
 .docs-container {
   width: 90%;
 }
@@ -524,6 +467,7 @@ footer.footer {
 @import "protobuf";
 @import "tocify";
 @import "syntax";
+@import "sidebar";
 @import "cli";
 @import "admonition";
 @import "swagger";

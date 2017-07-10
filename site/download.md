@@ -7,7 +7,7 @@ toc_disable: true
 Download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
 
 {% for version in site.versions %}
-## Version {{ version }}{% if version == site.current_version %} (latest){% endif %}
+### Version {{ version }}{% if version == site.current_version %} (latest){% endif %}
 
 Type   | Link
 :------|:----
@@ -15,13 +15,13 @@ Source | [pulsar-{{ version }}-src.tar.gz](https://github.com/apache/incubator-p
 Binary | [pulsar-{{ version }}-bin.tar.gz](https://github.com/apache/incubator-pulsar/releases/download/v{{ version }}/pulsar-{{ version }}-bin.tar.gz) |
 {% endfor %}
 
-## Release notes
+### Release notes
 
 {% for version in site.versions %}
-* [Pulsar {{version}}{% if version == site.current_version %} (latest){% endif %}](https://github.com/apache/incubator-pulsar/releases/tag/v{{ version }})
+* [Pulsar version {{version}}{% if version == site.current_version %} (latest){% endif %}](https://github.com/apache/incubator-pulsar/releases/tag/v{{ version }})
 {% endfor %}
 
-## Getting started
+### Getting started
 
 Once you've downloaded a Pulsar release, instructions on getting up and running with a {% popover standalone %} cluster that you can run your laptop can be found in [Run Pulsar locally](../docs/{{ site.current_version }}/getting-started/LocalCluster).
 

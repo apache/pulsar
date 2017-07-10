@@ -18,7 +18,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 ## Starting the cluster
 
-Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](../../reference/CliTools#pulsar) command, which is stored in the `bin` directory, and specifying that you want to fire up Pulsar in {% popover standalone %} mode:
+Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](../../reference/CliTools#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start up Pulsar in {% popover standalone %} mode:
 
 ```bash
 $ bin/pulsar standalone
@@ -33,7 +33,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 {% include admonition.html type="success" title='Automatically created namespace' content='
-When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1` namespace that you can use for development purposes.' %}
+When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1` namespace that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](../ConceptsAndArchitecture#Topics).' %}
 
 ## Testing your cluster setup
 
