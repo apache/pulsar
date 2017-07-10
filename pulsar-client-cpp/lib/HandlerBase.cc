@@ -48,11 +48,13 @@ void HandlerBase::start() {
 }
 
 void HandlerBase::grabCnx() {
+    Lock lock(mutex_);
     if (connection_.lock()) {
+        lock.unlock();
         LOG_INFO(getName() << "Ignoring reconnection request since we're already connected");
         return;
     }
-
+    lock.unlock();
     LOG_INFO(getName() << "Getting connection from pool");
     ClientImplPtr client = client_.lock();
     Future<Result, ClientConnectionWeakPtr> future = client->getConnection(topic_);
