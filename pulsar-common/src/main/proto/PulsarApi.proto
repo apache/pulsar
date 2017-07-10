@@ -86,7 +86,7 @@ enum ServerError {
     TopicNotFound = 11; // Topic not found
     SubscriptionNotFound = 12; // Subscription not found
     ConsumerNotFound = 13; // Consumer not found
-    TooManyRequests = 14; // Error with too many simultaneously request 
+    TooManyRequests = 14; // Error with too many simultaneously request
     TopicTerminatedError = 15; // The topic has been terminated
 }
 
@@ -106,7 +106,7 @@ enum ProtocolVersion {
 	v4 = 4;  // Added batch message support
 	v5 = 5;  // Added disconnect client w/o closing connection
 	v6 = 6;  // Added checksum computation for metadata + payload
-	v7 = 7;  // Added CommandLookupTopic - Binary Lookup 
+	v7 = 7;  // Added CommandLookupTopic - Binary Lookup
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
@@ -174,7 +174,7 @@ message CommandPartitionedTopicMetadataResponse {
 	optional LookupType response          = 3;
 	optional ServerError error            = 4;
 	optional string message               = 5;
-	
+
 }
 
 message CommandLookupTopic {
@@ -197,9 +197,9 @@ message CommandLookupTopicResponse {
 	optional bool authoritative           = 5 [default = false];
 	optional ServerError error            = 6;
 	optional string message               = 7;
-	
-    // If it's true, indicates to the client that it must
-	// always connect through the service url after the 
+
+	// If it's true, indicates to the client that it must
+	// always connect through the service url after the
 	// lookup has been completed.
 	optional bool proxy_through_service_url = 8 [default = false];
 }
@@ -324,50 +324,50 @@ message CommandPong {
 
 message CommandConsumerStats {
         required uint64 request_id         = 1;
-        // required string topic_name         = 2; 
+        // required string topic_name         = 2;
         // required string subscription_name  = 3;
         required uint64 consumer_id        = 4;
 }
 
 message CommandConsumerStatsResponse {
-        required uint64 request_id              = 1;        
+        required uint64 request_id              = 1;
         optional ServerError error_code         = 2;
         optional string error_message           = 3;
 
-        /// Total rate of messages delivered to the consumer. msg/s 
+        /// Total rate of messages delivered to the consumer. msg/s
         optional double msgRateOut                  = 4;
-        
-        /// Total throughput delivered to the consumer. bytes/s 
+
+        /// Total throughput delivered to the consumer. bytes/s
         optional double msgThroughputOut            = 5;
-        
-        /// Total rate of messages redelivered by this consumer. msg/s 
+
+        /// Total rate of messages redelivered by this consumer. msg/s
         optional double msgRateRedeliver            = 6;
-        	
-        /// Name of the consumer 
+
+        /// Name of the consumer
         optional string consumerName                = 7;
-        	
-        /// Number of available message permits for the consumer 
+
+        /// Number of available message permits for the consumer
         optional uint64 availablePermits            = 8;
-        
-        /// Number of unacknowledged messages for the consumer 
+
+        /// Number of unacknowledged messages for the consumer
         optional uint64 unackedMessages             = 9;
-        
-        /// Flag to verify if consumer is blocked due to reaching threshold of unacked messages 
+
+        /// Flag to verify if consumer is blocked due to reaching threshold of unacked messages
         optional bool blockedConsumerOnUnackedMsgs  = 10;
-        	
-        /// Address of this consumer 
+
+        /// Address of this consumer
         optional string address                     = 11;
-        	
-        /// Timestamp of connection 
+
+        /// Timestamp of connection
         optional string connectedSince              = 12;
-        
-        /// Whether this subscription is Exclusive or Shared or Failover 
+
+        /// Whether this subscription is Exclusive or Shared or Failover
         optional string type                        = 13;
-        
-        /// Total rate of messages expired on this subscription. msg/s 
+
+        /// Total rate of messages expired on this subscription. msg/s
         optional double msgRateExpired              = 14;
-        
-        /// Number of messages in the subscription backlog 
+
+        /// Number of messages in the subscription backlog
         optional uint64 msgBacklog                  = 15;
 }
 
@@ -401,10 +401,10 @@ message BaseCommand {
 		PONG = 19;
 
 		REDELIVER_UNACKNOWLEDGED_MESSAGES = 20;
-		
+
 		PARTITIONED_METADATA           = 21;
 		PARTITIONED_METADATA_RESPONSE  = 22;
-		
+
 		LOOKUP           = 23;
 		LOOKUP_RESPONSE  = 24;
 
@@ -440,10 +440,10 @@ message BaseCommand {
 	optional CommandPing ping = 18;
 	optional CommandPong pong = 19;
 	optional CommandRedeliverUnacknowledgedMessages redeliverUnacknowledgedMessages = 20;
-	
+
 	optional CommandPartitionedTopicMetadata  partitionMetadata                 = 21;
 	optional CommandPartitionedTopicMetadataResponse partitionMetadataResponse  = 22;
-	
+
 	optional CommandLookupTopic lookupTopic                    = 23;
 	optional CommandLookupTopicResponse lookupTopicResponse    = 24;
 
