@@ -1,4 +1,5 @@
-{% capture release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
+{% capture binary_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
+{% capture source_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
 
 ## System requirements
 
@@ -8,21 +9,32 @@ Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsa
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:
 
-* by clicking here:
+* by clicking one of these two buttons:
 
-  <a href="{{ release_url }}" class="download-btn btn btn-lg active" role="button" aria-pressed="true">Download Pulsar {{ site.current_version }}</a>
+  <a href="{{ source_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} source release</a>
+  <a href="{{ binary_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} binary release</a>
 
-* from the Pulsar [releases page](https://github.com/yahoo/pulsar/releases/latest) (make sure to download the `pulsar-{{ site.latest }}-bin.tar.gz` release)
+* from the Pulsar [downloads page](/download)
+* from the Pulsar [releases page](https://github.com/yahoo/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget {{ release_url }}
+  # Source release
+  $ wget {{ source_release_url }}
+
+  # Binary release
+  $ wget {{ binary_release_url }}
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
+# Source release
 $ tar xvf pulsar-{{ site.latest }}-bin.tar.gz
+$ cd pulsar-{{ site.latest }}
+
+# Binary release
+$ tar xvf pulsar-{{ site.latest }}-src.tar.gz
 $ cd pulsar-{{ site.latest }}
 ```
 

@@ -1,5 +1,5 @@
 ---
-title: Apache Pulsar Downloads
+title: Apache Pulsar downloads
 layout: docs
 toc_disable: true
 ---
@@ -7,7 +7,7 @@ toc_disable: true
 Download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
 
 {% for version in site.versions %}
-## {{ version }}{% if version == site.current_version %} (latest){% endif %}
+## Version {{ version }}{% if version == site.current_version %} (latest){% endif %}
 
 Type   | Link
 :------|:----
@@ -18,7 +18,7 @@ Binary | [pulsar-{{ version }}-bin.tar.gz](https://github.com/apache/incubator-p
 ## Release notes
 
 {% for version in site.versions %}
-* [Pulsar {{version}}](https://github.com/apache/incubator-pulsar/releases/tag/v{{ version }})
+* [Pulsar {{version}}{% if version == site.current_version %} (latest){% endif %}](https://github.com/apache/incubator-pulsar/releases/tag/v{{ version }})
 {% endfor %}
 
 ## Getting started
