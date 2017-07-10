@@ -155,9 +155,9 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             firstTime = false;
         }
         LOG_INFO(getName() << "Created consumer on broker " << cnx->cnxString());
-        connection_ = cnx;
         {
             Lock lock(mutex_);
+            connection_ = cnx;
             incomingMessages_.clear();
             cnx->registerConsumer(consumerId_, shared_from_this());
             state_ = Ready;
@@ -581,7 +581,9 @@ void ConsumerImpl::doAcknowledge(const BatchMessageId& messageId, proto::Command
 
 void ConsumerImpl::disconnectConsumer() {
     LOG_DEBUG("Broker notification of Closed consumer: " << consumerId_);
+    Lock lock(mutex_);
     connection_.reset();
+    lock.unlock();
     scheduleReconnection(shared_from_this());
 }
 
