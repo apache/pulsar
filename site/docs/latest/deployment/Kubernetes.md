@@ -1,17 +1,19 @@
 ---
 title: Deploying Pulsar on Kubernetes
-tags: [kubernetes, google container engine]
+tags: [Kubernetes, Google Container Engine]
 ---
 
-Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or in [self-deployed clusters](#pulsar-on-a-custom-kubernetes-cluster).
+Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar repo]({{ site.pulsar_repo }}) holds resource definitions for:
+The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package]({{ site.baseurl }}downloads) holds resource definitions for:
 
-* {% popover BookKeeper %}
-* {% popover ZooKeeper %}
+* {% popover BookKeeper %} (three {% popover bookies %})
+* {% popover ZooKeeper %} (three nodes)
 * A three-{% popover broker %} Pulsar {% popover cluster %}
-* [Prometheus]()
+* A [Prometheus](https://prometheus.io/) monitoring stack
 * A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run commands from the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool
+
+To get started, install a source package from the [downloads page]({{ site.baseurl }}downloads) page. Please note that the binary package will *not* contain the necessary Kubernetes resources.
 
 ## Pulsar on Google Container Engine
 
