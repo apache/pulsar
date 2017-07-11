@@ -40,20 +40,31 @@
       <directory>${basedir}/../bin</directory>
       <fileMode>755</fileMode>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/licenses</directory>
+    </fileSet>
   </fileSets>
   <files>
     <file>
-      <source>${basedir}/../README.md</source>
+      <source>${basedir}/../DISCLAIMER</source>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../LICENSE</source>
+      <source>${basedir}/src/assemble/README.bin.txt</source>
+      <destName>README</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../NOTICE</source>
+      <source>${basedir}/src/assemble/LICENSE.bin.txt</source>
+      <destName>LICENSE</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
+      <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
@@ -62,8 +73,11 @@
     <dependencySet>
       <outputDirectory>lib</outputDirectory>
       <unpack>false</unpack>
-      <scope>runtime</scope>
+      <scope>compile</scope>
       <useProjectArtifact>false</useProjectArtifact>
+      <!-- Include 'groupId' in the dependencies Jar names to better identify
+           the provenance of the jar -->
+      <outputFileNameMapping>${artifact.groupId}-${artifact.artifactId}-${artifact.version}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
 
       <excludes>
         <!-- All these dependencies are already included in netty-all -->
@@ -75,9 +89,13 @@
         <exclude>io.netty:netty-handler</exclude>
         <exclude>io.netty:netty-transport-native-epoll</exclude>
         <exclude>io.netty:netty-codec-http</exclude>
-        
+
         <!-- Already included in pulsar-zookeeper instrumented jar -->
         <exclude>org.apache.zookeeper:zookeeper</exclude>
+
+        <!-- Explicitely remove JUnit which is getting pulled in even
+             though it's set to the scope 'test' -->
+        <exclude>junit:junit</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

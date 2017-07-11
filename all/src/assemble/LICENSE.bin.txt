@@ -303,3 +303,67 @@ pulsar-client-cpp/lib/checksum/crc32c_sw.cc
  Mark Adler
  madler@alumni.caltech.edu
  */
+
+----------------------------------------------------------------------------------------------------
+
+This projects includes binary packages with the following licenses:
+
+The Apache Software License, Version 2.0
+ * JCommander -- com.beust-*.jar
+ * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-*.jar
+ * Jackson -- com.fasterxml.jackson*.jar
+ * Caffeine -- com.github.ben-manes.caffeine*.jar
+ * Gson -- com.google.code.gson-*.jar
+ * Guava -- com.google.guava-*.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-*.jar
+ * Swagger Annotations -- com.wordnik-swagger-annotations-*.jar
+ * Swagger -- io.swagger-swagger-*.jar
+ * DataSketches -- com.yahoo.datasketches-*.jar
+ * Apache Commons -- commons-*.jar org.apache.commons-*.jar
+ * Netty -- io.netty-netty-*.jar
+ * Prometheus client -- io.prometheus-simpleclient*.jar
+ * Bean Validation API -- javax.validation-*.jar
+ * Joda Time -- joda-time-*.jar
+ * Log4J -- log4j-*.jar
+ * Java Native Access JNA -- net.java.dev.jna-*.jar
+ * BookKeeper -- org.apache.bookkeeper.*.jar
+ * LZ4 -- net.jpountz.lz4-*.jar
+ * AsyncHttpClient -- org.asynchttpclient-*.jar
+ * Jetty - org.eclipse.jetty-*.jar
+ * SnakeYaml -- org.yaml-snakeyaml-*.jar
+
+BSD 3-clause "New" or "Revised" License
+ * EA Agent Loader -- com.ea.agentloader-*.jar -- licenses/LICENSE-EA-Agent-Loader.txt
+
+BSD 2-Clause License
+ * HdrHistogram -- HdrHistogram-*.jar -- licenses/LICENSE-HdrHistogram.txt
+
+BSD License
+ * JLine -- jline-*.jar -- licenses/LICENSE.JLine.txt
+
+MIT License
+ * Java SemVer -- com.github.zafarkhaja-java-semver-*.jar -- licenses/LICENSE-SemVer.txt
+ * SLF4J -- org.slf4j.*.jar -- licenses/LICENSE-SLF4J.txt
+
+Protocol Buffers License
+ * Protocol Buffers -- com.google.protobuf-*.jar -- licenses/LICENSE-protobuf.txt
+
+CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
+ * Java Annotations API -- javax.annotation-*.jar
+ * Java Servlet API -- javax.servlet-*.jar
+ * WebSocket Server API -- javax.websocket-*.jar
+ * Java Web Service REST API -- javax.ws.rs.*.jar
+ * HK2 - Dependency Injection Kernel -- org.glassfish.hk2*.jar
+ * Jersey -- org.glassfish.jersey.*.jar
+ * Javassist -- org.javassist-*.jar
+
+Eclipse Public License 1.0 -- licenses/LICENSE-EPL-1.0.txt
+ * AspectJ -- org.aspectj-*.jar
+
+Public Domain (CC0) -- licenses/LICENSE-CC0.txt
+ * Reactive Streams -- org.reactivestreams-*.jar
+
+RocksDB License
+ * RocksDB - org.rocksdb.*.jar -- https://github.com/facebook/rocksdb/blob/master/LICENSE
+ TODO: Remove RocksDB dependency as it falls under Category-X (Forbidden) by the ASF
+ https://www.apache.org/legal/resolved.html#category-x

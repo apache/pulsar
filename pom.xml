@@ -626,25 +626,32 @@ flexible messaging model and an intuitive client API.</description>
         <version>0.12</version>
         <configuration>
           <excludes>
-            <exclude>target/**</exclude>
+            <exclude>**/target/**</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
             <exclude>**/test-output/**</exclude>
-            <exclude>protobuf/LICENSE.protobuf.txt</exclude>
+            <exclude>**/*.hgrm</exclude>
+            <exclude>**/*.test</exclude>
+
             <exclude>**/*.patch</exclude>
             <exclude>**/*.md</exclude>
+
+            <exclude>src/assemble/LICENSE.bin.txt</exclude>
+            <exclude>src/assemble/NOTICE.bin.txt</exclude>
+
+            <!-- Protobuf generated files -->
             <exclude>**/proto/*.java</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
-            <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
+            <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
+
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/.classpath</exclude>
             <exclude>**/.project</exclude>
             <exclude>**/.settings/*</exclude>
             <exclude>**/dependency-reduced-pom.xml</exclude>
 
-            <exclude>pulsar-client-cpp/pulsar-cpp.cbp</exclude>
             <exclude>pulsar-client-cpp/python/MANIFEST</exclude>
-            <exclude>pulsar-client-cpp/python/pulsar_client.egg-info/*</exclude>
+            <exclude>**/*.egg-info/*</exclude>
 
             <!-- Dashboard are exported from grafana -->
             <exclude>docker/grafana/dashboards/*.json</exclude>
@@ -652,13 +659,24 @@ flexible messaging model and an intuitive client API.</description>
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
 
+            <!-- This file is using ZLib license -->
+            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
+
+            <!-- Apache v2.0 Licensed code without ASF Copyright -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
 
-            <exclude>pulsar-client-cpp/.idea/*</exclude>
+            <!-- Idea project files -->
+            <exclude>**/*.cbp</exclude>
+            <exclude>**/.idea/*</exclude>
+            <exclude>**/Project.cbp</exclude>
 
+            <!-- CMake temp files -->
+            <exclude>**/cmake_install.cmake</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/CMakeCache.txt</exclude>
             <exclude>*/**/Makefile</exclude>
+
+            <!-- Django generated code -->
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
             <exclude>dashboard/conf/uwsgi_params</exclude>
             <exclude>docs/img/pulsar.svg</exclude>
