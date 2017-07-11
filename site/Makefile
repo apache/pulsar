@@ -59,7 +59,8 @@ python_doc_gen:
 	scripts/python-doc-gen.sh
 
 swagger_definition_copy:
-	(cd $(shell git rev-parse --show-toplevel) && cp pulsar-broker/target/docs/swagger.json site/_data/admin-rest-api-swagger.json)
+	(cd $(shell git rev-parse --show-toplevel) && \
+		cp pulsar-broker/target/docs/swagger.json site/_data/admin-rest-api-swagger.json)
 
 protobuf_doc_gen:
 	scripts/protobuf-doc-gen.sh
