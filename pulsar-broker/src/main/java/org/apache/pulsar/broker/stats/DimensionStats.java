@@ -18,52 +18,79 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.Recorder;
+import static io.prometheus.client.CollectorRegistry.defaultRegistry;
 
 import java.util.concurrent.TimeUnit;
+
+import io.prometheus.client.Collector;
+import io.prometheus.client.Summary;
+import io.prometheus.client.Summary.Builder;
 
 /**
  */
 public class DimensionStats {
 
-    /** Statistics for dimension times **/
-    public double meanDimensionMs;
+    private final String name;
+    private final Summary summary;
+    private static final double[] quantiles = { 0.50, 0.75, 0.95, 0.99, 0.999, 0.9999 };
 
-    public double medianDimensionMs;
-
-    public double dimension95Ms;
-
-    public double dimension99Ms;
-
-    public double dimension999Ms;
-
-    public double dimension9999Ms;
-
-    public double dimensionCounts;
-
-    public double elapsedIntervalMs;
-
-    private Recorder dimensionTimeRecorder = new Recorder(TimeUnit.MINUTES.toMillis(10), 2);
-    private Histogram dimensionHistogram = null;
-    private double dimensionRecordStartTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
-    public void updateStats() {
-
-        dimensionHistogram = dimensionTimeRecorder.getIntervalHistogram(dimensionHistogram);
-        this.elapsedIntervalMs = (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - dimensionRecordStartTime);
-        dimensionRecordStartTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
-        this.meanDimensionMs = dimensionHistogram.getMean();
-        this.medianDimensionMs = dimensionHistogram.getValueAtPercentile(50);
-        this.dimension95Ms = dimensionHistogram.getValueAtPercentile(95);
-        this.dimension99Ms = dimensionHistogram.getValueAtPercentile(99);
-        this.dimension999Ms = dimensionHistogram.getValueAtPercentile(99.9);
-        this.dimension9999Ms = dimensionHistogram.getValueAtPercentile(99.99);
-        this.dimensionCounts = dimensionHistogram.getTotalCount();
+    public DimensionStats(String name, long updateDurationInSec) {
+        this.name = name;
+        Builder summaryBuilder = Summary.build().name(name).help("-");
+        for (int i = 0; i < quantiles.length; i++) {
+            summaryBuilder.quantile(quantiles[i], 0.01);
+        }
+        this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create().register(defaultRegistry);
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
-        dimensionTimeRecorder.recordValue(unit.toMillis(latency));
+        summary.observe(unit.toMillis(latency));
+    }
+
+    public double getMeanDimension() {
+        double sum = getDimensionSum();
+        double count = getDimensionCount();
+        if (!Double.isNaN(sum) && !Double.isNaN(count)) {
+            return sum / count;
+        }
+        return 0;
+    }
+
+    public double getMedianDimension() {
+        return getQuantile(quantiles[0]);
+    }
+
+    public double getDimension75() {
+        return getQuantile(quantiles[1]);
+    }
+
+    public double getDimension95() {
+        return getQuantile(quantiles[2]);
+    }
+
+    public double getDimension99() {
+        return getQuantile(quantiles[3]);
+    }
+
+    public double getDimension999() {
+        return getQuantile(quantiles[4]);
+    }
+
+    public double getDimension9999() {
+        return getQuantile(quantiles[5]);
+    }
+
+    public double getDimensionSum() {
+        return defaultRegistry.getSampleValue(name + "_sum").doubleValue();
+    }
+
+    public double getDimensionCount() {
+        return defaultRegistry.getSampleValue(name + "_count").doubleValue();
+    }
+
+    private double getQuantile(double q) {
+        return defaultRegistry
+                .getSampleValue(name, new String[] { "quantile" }, new String[] { Collector.doubleToGoString(q) })
+                .doubleValue();
     }
 }

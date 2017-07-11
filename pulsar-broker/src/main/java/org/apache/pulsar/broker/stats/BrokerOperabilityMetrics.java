@@ -40,9 +40,9 @@ public class BrokerOperabilityMetrics {
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
         this.localCluster = localCluster;
-        this.topicLoadStats = new DimensionStats();
-        this.zkWriteLatencyStats = new DimensionStats();
-        this.zkReadLatencyStats = new DimensionStats();
+        this.topicLoadStats = new DimensionStats("topic_load_times", 60);
+        this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
+        this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
     }
 
@@ -76,15 +76,14 @@ public class BrokerOperabilityMetrics {
         dimensionMap.put("metric", metricsName);
         Metrics dMetrics = Metrics.create(dimensionMap);
 
-        stats.updateStats();
-
-        dMetrics.put("brk_" + dimensionName + "_time_mean_ms", stats.meanDimensionMs);
-        dMetrics.put("brk_" + dimensionName + "_time_median_ms", stats.medianDimensionMs);
-        dMetrics.put("brk_" + dimensionName + "_time_95percentile_ms", stats.dimension95Ms);
-        dMetrics.put("brk_" + dimensionName + "_time_99_percentile_ms", stats.dimension99Ms);
-        dMetrics.put("brk_" + dimensionName + "_time_99_9_percentile_ms", stats.dimension999Ms);
-        dMetrics.put("brk_" + dimensionName + "_time_99_99_percentile_ms", stats.dimension9999Ms);
-        dMetrics.put("brk_" + dimensionName + "_rate_s", (1000 * stats.dimensionCounts) / stats.elapsedIntervalMs);
+        dMetrics.put("brk_" + dimensionName + "_time_mean_ms", stats.getMeanDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_median_ms", stats.getMedianDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_75percentile_ms", stats.getDimension75());
+        dMetrics.put("brk_" + dimensionName + "_time_95percentile_ms", stats.getDimension95());
+        dMetrics.put("brk_" + dimensionName + "_time_99_percentile_ms", stats.getDimension99());
+        dMetrics.put("brk_" + dimensionName + "_time_99_9_percentile_ms", stats.getDimension999());
+        dMetrics.put("brk_" + dimensionName + "_time_99_99_percentile_ms", stats.getDimension9999());
+        dMetrics.put("brk_" + dimensionName + "_rate_s", stats.getDimensionCount());
 
         return dMetrics;
     }
