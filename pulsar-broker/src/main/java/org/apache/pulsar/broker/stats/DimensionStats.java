@@ -31,14 +31,19 @@ import io.prometheus.client.Summary.Builder;
 public class DimensionStats {
 
     private final String name;
+    private final String dimensionSumLabel;
+    private final String dimensionCountLabel;
     private final Summary summary;
-    private static final double[] quantiles = { 0.50, 0.75, 0.95, 0.99, 0.999, 0.9999 };
+    private static final double[] QUANTILES = { 0.50, 0.75, 0.95, 0.99, 0.999, 0.9999 };
+    private static final String[] QUANTILE_LABEL = { "quantile" };
 
     public DimensionStats(String name, long updateDurationInSec) {
         this.name = name;
+        this.dimensionSumLabel = name + "_sum";
+        this.dimensionCountLabel = name + "_count";
         Builder summaryBuilder = Summary.build().name(name).help("-");
-        for (int i = 0; i < quantiles.length; i++) {
-            summaryBuilder.quantile(quantiles[i], 0.01);
+        for (int i = 0; i < QUANTILES.length; i++) {
+            summaryBuilder.quantile(QUANTILES[i], 0.01);
         }
         this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create().register(defaultRegistry);
     }
@@ -57,40 +62,39 @@ public class DimensionStats {
     }
 
     public double getMedianDimension() {
-        return getQuantile(quantiles[0]);
+        return getQuantile(QUANTILES[0]);
     }
 
     public double getDimension75() {
-        return getQuantile(quantiles[1]);
+        return getQuantile(QUANTILES[1]);
     }
 
     public double getDimension95() {
-        return getQuantile(quantiles[2]);
+        return getQuantile(QUANTILES[2]);
     }
 
     public double getDimension99() {
-        return getQuantile(quantiles[3]);
+        return getQuantile(QUANTILES[3]);
     }
 
     public double getDimension999() {
-        return getQuantile(quantiles[4]);
+        return getQuantile(QUANTILES[4]);
     }
 
     public double getDimension9999() {
-        return getQuantile(quantiles[5]);
+        return getQuantile(QUANTILES[5]);
     }
 
     public double getDimensionSum() {
-        return defaultRegistry.getSampleValue(name + "_sum").doubleValue();
+        return defaultRegistry.getSampleValue(dimensionSumLabel).doubleValue();
     }
 
     public double getDimensionCount() {
-        return defaultRegistry.getSampleValue(name + "_count").doubleValue();
+        return defaultRegistry.getSampleValue(dimensionCountLabel).doubleValue();
     }
 
     private double getQuantile(double q) {
-        return defaultRegistry
-                .getSampleValue(name, new String[] { "quantile" }, new String[] { Collector.doubleToGoString(q) })
+        return defaultRegistry.getSampleValue(name, QUANTILE_LABEL, new String[] { Collector.doubleToGoString(q) })
                 .doubleValue();
     }
 }
