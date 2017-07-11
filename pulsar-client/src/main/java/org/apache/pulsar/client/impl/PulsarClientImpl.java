@@ -418,7 +418,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
         DestinationName destinationName = DestinationName.get(topic);
-        return lookup.getBroker(destinationName).thenCompose(cnxPool::getConnection);
+        return lookup.getBroker(destinationName)
+                .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
     protected Timer timer() {
@@ -437,11 +438,11 @@ public class PulsarClientImpl implements PulsarClient {
         return consumerIdGenerator.getAndIncrement();
     }
 
-    long newRequestId() {
+    public long newRequestId() {
         return requestIdGenerator.getAndIncrement();
     }
 
-    ConnectionPool getCnxPool() {
+    public ConnectionPool getCnxPool() {
         return cnxPool;
     }
 

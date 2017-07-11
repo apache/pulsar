@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.util.FutureUtil;
@@ -53,7 +55,7 @@ class HttpLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     @SuppressWarnings("deprecation")
-    public CompletableFuture<InetSocketAddress> getBroker(DestinationName destination) {
+    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(DestinationName destination) {
         return httpClient.get(BasePath + destination.getLookupName(), LookupData.class).thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
         	URI uri = null;
@@ -67,7 +69,9 @@ class HttpLookupService implements LookupService {
                     }
                     uri = new URI(serviceUrl);
                 }
-                return CompletableFuture.completedFuture(new InetSocketAddress(uri.getHost(), uri.getPort()));
+
+                InetSocketAddress brokerAddress = new InetSocketAddress(uri.getHost(), uri.getPort());
+                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             } catch (Exception e) {
                 // Failed to parse url
             	log.warn("[{}] Lookup Failed due to invalid url {}, {}", destination, uri, e.getMessage());

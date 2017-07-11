@@ -63,7 +63,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     public final static int MaxFrameSize = 5 * 1024 * 1024;
 
     @Override
-    final public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         // Get a buffer that contains the full frame
         ByteBuf buffer = (ByteBuf) msg;
         BaseCommand cmd = null;
