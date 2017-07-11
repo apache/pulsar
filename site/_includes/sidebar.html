@@ -53,8 +53,8 @@
         <ul>
           {% for doc in group.docs %}
           {% capture doc_url %}{{ site.baseurl }}docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
-          <li>
-            <a {% if page_url == doc_url %} class="active"{% endif %} href="{{ doc_url }}">
+          <li{% if page_url == doc_url %} class="active"{% endif %}>
+            <a href="{{ doc_url }}">
               {{ doc.title }}
             </a>
           </li>

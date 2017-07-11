@@ -13,8 +13,11 @@ aside.sidebar-nav {
         border: none;
         
         h5 {
-          color: black;
           margin-bottom: 0;
+
+          a {
+            color: darken(#999, 30%);
+          }
 
           a:hover, a:visited, a:active, a:focus {
             text-decoration: none;
@@ -24,15 +27,20 @@ aside.sidebar-nav {
 
       .sidebar-group {
         ul {
-          margin: 1rem 0;
-          padding: 0;
+          margin: 0 0 0 .7rem;
 
           li {
-            margin-left: 1.25rem;
+            margin-left: .75rem;
             list-style-type: none;
+            padding: .3rem 0 .3rem 1rem;
+            border-left: 2px solid $pulsar-blue;
 
-            & + li {
-              margin-top: .2rem;
+            &.active {
+              border-left: 4px solid $brand-secondary;
+
+              a {
+                color: $pulsar-magenta;
+              }
             }
 
             a {
@@ -40,10 +48,6 @@ aside.sidebar-nav {
             
               &:hover {
                 color: purple;
-              }
-
-              &.active {
-                color: $pulsar-magenta;
               }
 
               &:hover, &:visited, &:active, &:focus {

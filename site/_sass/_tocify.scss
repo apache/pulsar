@@ -32,6 +32,10 @@
       color: $brand-secondary;;
       border-left: 4px solid $brand-secondary;
     }
+
+    &:hover {
+      color: purple;
+    }
   }
 
   .tocify-subheader {
