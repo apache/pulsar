@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -31,13 +32,17 @@ import org.apache.pulsar.common.stats.Metrics;
 public class BrokerOperabilityMetrics {
     private final List<Metrics> metricsList;
     private final String localCluster;
-    private final TopicLoadStats topicLoadStats;
+    private final DimensionStats topicLoadStats;
+    private final DimensionStats zkWriteLatencyStats;
+    private final DimensionStats zkReadLatencyStats;
     private final String brokerName;
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
         this.localCluster = localCluster;
-        this.topicLoadStats = new TopicLoadStats();
+        this.topicLoadStats = new DimensionStats("topic_load_times", 60);
+        this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
+        this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
     }
 
@@ -48,25 +53,37 @@ public class BrokerOperabilityMetrics {
 
     private void generate() {
         metricsList.add(getTopicLoadMetrics());
+        metricsList.add(getZkWriteLatencyMetrics());
+        metricsList.add(getZkReadLatencyMetrics());
     }
 
     Metrics getTopicLoadMetrics() {
+        return getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+    }
+
+    Metrics getZkWriteLatencyMetrics() {
+        return getDimensionMetrics("zk_write_latency", "zk_write_latency", zkWriteLatencyStats);
+    }
+
+    Metrics getZkReadLatencyMetrics() {
+        return getDimensionMetrics("zk_read_latency", "zk_read_latency", zkReadLatencyStats);
+    }
+
+    Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
         Map<String, String> dimensionMap = Maps.newHashMap();
         dimensionMap.put("broker", brokerName);
         dimensionMap.put("cluster", localCluster);
-        dimensionMap.put("metric", "topic_load_times");
+        dimensionMap.put("metric", metricsName);
         Metrics dMetrics = Metrics.create(dimensionMap);
 
-        topicLoadStats.updateStats();
-
-        dMetrics.put("brk_topic_load_time_mean_ms", topicLoadStats.meanTopicLoadMs);
-        dMetrics.put("brk_topic_load_time_median_ms", topicLoadStats.medianTopicLoadMs);
-        dMetrics.put("brk_topic_load_time_95percentile_ms", topicLoadStats.topicLoad95Ms);
-        dMetrics.put("brk_topic_load_time_99_percentile_ms", topicLoadStats.topicLoad99Ms);
-        dMetrics.put("brk_topic_load_time_99_9_percentile_ms", topicLoadStats.topicLoad999Ms);
-        dMetrics.put("brk_topic_load_time_99_99_percentile_ms", topicLoadStats.topicsLoad9999Ms);
-        dMetrics.put("brk_topic_load_rate_s",
-                (1000 * topicLoadStats.topicLoadCounts) / topicLoadStats.elapsedIntervalMs);
+        dMetrics.put("brk_" + dimensionName + "_time_mean_ms", stats.getMeanDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_median_ms", stats.getMedianDimension());
+        dMetrics.put("brk_" + dimensionName + "_time_75percentile_ms", stats.getDimension75());
+        dMetrics.put("brk_" + dimensionName + "_time_95percentile_ms", stats.getDimension95());
+        dMetrics.put("brk_" + dimensionName + "_time_99_percentile_ms", stats.getDimension99());
+        dMetrics.put("brk_" + dimensionName + "_time_99_9_percentile_ms", stats.getDimension999());
+        dMetrics.put("brk_" + dimensionName + "_time_99_99_percentile_ms", stats.getDimension9999());
+        dMetrics.put("brk_" + dimensionName + "_rate_s", stats.getDimensionCount());
 
         return dMetrics;
     }
@@ -76,6 +93,14 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
-        topicLoadStats.recordTopicLoadTimeValue(topicLoadLatencyMs);
+        topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public void recordZkWriteLatencyTimeValue(long topicLoadLatencyMs) {
+        zkWriteLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public void recordZkReadLatencyTimeValue(long topicLoadLatencyMs) {
+        zkReadLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 }
