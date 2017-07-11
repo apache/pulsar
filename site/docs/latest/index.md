@@ -9,6 +9,8 @@ Welcome to the documentation for [Pulsar]({{ site.baseurl }}), an open-source di
 
 ---
 
-#### Translations
+## Translations
 
- * <img border="1px black" class="inline" src="{{ site.baseurl }}img/japan-flag.png" />[Japanese]({{ site.baseurl }}ja)
+The Pulsar documentation is available in the following languages:
+
+<img src="{{ site.baseurl }}img/japan-flag.svg" class="mt-0 mb-0" style="border: 1px solid #ddd; width: 4rem; margin-right: 1.25rem;"> [Japanese]({{ site.baseurl }}ja)

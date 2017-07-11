@@ -1,5 +1,3 @@
-## Admin setup
-
 If you have [authentication](../../admin/Authz#authentication-providers) enabled in your Pulsar {% popover instance %}, then you will need to perform a few authentication-related setup steps to use the Pulsar [admin interface](../../admin/AdminInterface). Those steps will vary depending on if you're using the [`pulsar-admin` command-line interface](#the-pulsar-admin-command-line-tool), the [REST API](#rest-api), or the [Java admin client](#java-admin-client).
 
 Before you get started using Pulsar's admin interface, you will need to complete a few setup steps that vary depending on whether you're using the [`pulsar-admin` CLI tool](#pulsar-admin-cli-tool), [Java API](#java-api), or [REST API](#rest-api) directly.
