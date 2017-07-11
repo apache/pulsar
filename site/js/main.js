@@ -59,26 +59,37 @@ function popovers() {
 }
 
 function sidebarExpand() {
+  function openAccordionElement(el) {
+    var selectedElement = `#${el}`;
+    $(selectedElement).collapse('show');
+    $('aside.sidebar-nav').scrollTo(selectedElement);
+  }
+
+  function addElement(el) {
+    LS['pulsar-sidebar-selected'] = el;
+  }
+
+  function clearElements() {
+    LS['pulsar-sidebar-selected'] = null;
+  }
+
   var LS = window.localStorage;
   var selected = LS['pulsar-sidebar-selected'] || null;
 
   console.log("Initial selected: " + selected);
 
   if (selected != null) {
-    var selectedElement = `#${selected}`;
-    $(selectedElement).collapse('show');
-    $('aside.sidebar-nav').scrollTo(selectedElement);
+    openAccordionElement(selected);
   }
 
   var tabs = $("[id^='collapse']");
-  console.log("Tabs: " + tabs);
 
   tabs.on('shown.bs.collapse', function() {
-    LS['pulsar-sidebar-selected'] = this.id;
+    addElement(this.id);
   });
 
   tabs.on('hidden.bs.collapse', function() {
-    LS['pulsar-sidebar-selected'] = null;
+    clearElements();
   });
 }
 
