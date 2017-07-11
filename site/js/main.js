@@ -58,7 +58,32 @@ function popovers() {
   });
 }
 
+function sidebarExpand() {
+  var LS = window.localStorage;
+  var selected = LS['pulsar-sidebar-selected'] || null;
+
+  console.log("Initial selected: " + selected);
+
+  if (selected != null) {
+    var selectedElement = `#${selected}`;
+    $(selectedElement).collapse('show');
+    $('aside.sidebar-nav').scrollTo(selectedElement);
+  }
+
+  var tabs = $("[id^='collapse']");
+  console.log("Tabs: " + tabs);
+
+  tabs.on('shown.bs.collapse', function() {
+    LS['pulsar-sidebar-selected'] = this.id;
+  });
+
+  tabs.on('hidden.bs.collapse', function() {
+    LS['pulsar-sidebar-selected'] = null;
+  });
+}
+
 $(function() {
+  sidebarExpand();
   popovers();
   tableOfContents();
   restApiTabs();
