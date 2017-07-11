@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -52,7 +53,7 @@ public class ZookeeperCacheLoader implements Closeable {
     private final ZooKeeperChildrenCache availableBrokersCache;
 
     private volatile Set<String> availableBrokersSet;
-    private volatile List<LoadReport> availableBrokers;
+    private volatile List<ServiceLookupData> availableBrokers;
 
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery-ordered-cache");
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8,
@@ -105,7 +106,7 @@ public class ZookeeperCacheLoader implements Closeable {
         updateBrokerList(availableBrokersSet);
     }
 
-    public List<LoadReport> getAvailableBrokers() {
+    public List<ServiceLookupData> getAvailableBrokers() {
         return availableBrokers;
     }
 
@@ -124,7 +125,7 @@ public class ZookeeperCacheLoader implements Closeable {
     }
 
     private void updateBrokerList(Set<String> brokerNodes) throws Exception {
-        List<LoadReport> availableBrokers = new ArrayList<>(brokerNodes.size());
+        List<ServiceLookupData> availableBrokers = new ArrayList<>(brokerNodes.size());
         for (String broker : brokerNodes) {
             availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker).get());
         }

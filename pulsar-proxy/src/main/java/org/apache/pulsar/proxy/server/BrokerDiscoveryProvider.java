@@ -35,6 +35,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -82,8 +83,8 @@ public class BrokerDiscoveryProvider implements Closeable {
      * @return
      * @throws PulsarServerException
      */
-    LoadReport nextBroker() throws PulsarServerException {
-        List<LoadReport> availableBrokers = localZkCache.getAvailableBrokers();
+    ServiceLookupData nextBroker() throws PulsarServerException {
+        List<ServiceLookupData> availableBrokers = localZkCache.getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new PulsarServerException("No active broker is available");

@@ -29,7 +29,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.L
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +65,7 @@ public class LookupProxyHandler {
         long clientRequestId = lookup.getRequestId();
         String topic = lookup.getTopic();
 
-        LoadReport availableBroker = null;
+        ServiceLookupData availableBroker = null;
         try {
             availableBroker = service.getDiscoveryProvider().nextBroker();
         } catch (Exception e) {

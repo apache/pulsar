@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationManager;
@@ -46,6 +45,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollMode;
@@ -96,21 +96,13 @@ public class ProxyService implements Closeable {
         this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
         this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
 
-        EventLoopGroup acceptorEventLoop, workersEventLoop;
-        if (SystemUtils.IS_OS_LINUX) {
-            try {
-                acceptorEventLoop = new EpollEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new EpollEventLoopGroup(numThreads, workersThreadFactory);
-            } catch (UnsatisfiedLinkError e) {
-                acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-            }
+        if (Epoll.isAvailable()) {
+            this.acceptorGroup  = new EpollEventLoopGroup(1, acceptorThreadFactory);
+            this.workerGroup = new EpollEventLoopGroup(numThreads, workersThreadFactory);
         } else {
-            acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-            workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
+            this.acceptorGroup = new NioEventLoopGroup(1, acceptorThreadFactory);
+            this.workerGroup = new NioEventLoopGroup(numThreads, workersThreadFactory);
         }
-        this.acceptorGroup = acceptorEventLoop;
-        this.workerGroup = workersEventLoop;
 
         ClientConfiguration clientConfiguration = new ClientConfiguration();
         if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
@@ -118,7 +110,7 @@ public class ProxyService implements Closeable {
                     proxyConfig.getBrokerClientAuthenticationParameters());
         }
 
-        this.client = new PulsarClientImpl(serviceUrl, clientConfiguration, workersEventLoop);
+        this.client = new PulsarClientImpl(serviceUrl, clientConfiguration, workerGroup);
         this.clientAuthentication = clientConfiguration.getAuthentication();
     }
 

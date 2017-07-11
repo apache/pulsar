@@ -114,8 +114,6 @@ public class ProxyServiceStarter {
         DefaultExports.initialize();
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
 
-        // server.addServlet("/*", DiscoveryServiceServlet.class, initParameters);
-
         // start web-service
         server.start();
     }
