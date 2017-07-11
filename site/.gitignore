@@ -7,6 +7,5 @@ api/
 generated/
 .sass-cache
 _data/config/*.bak
-_data/admin-rest-api-swagger.json
 scripts/protoc-gen-doc
 scripts/doxygen
