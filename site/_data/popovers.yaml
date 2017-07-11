@@ -87,7 +87,7 @@ pub-sub:
   def: A messaging pattern in which publisher proccesses publish messages on topics that are then consumed (processed) by consumer processes.
 pulsar:
   q: What is Pulsar?
-  def: Pulsar is a distributed messaging system from Yahoo.
+  def: Pulsar is a distributed messaging system originally created by Yahoo but now under the stewardship of the Apache Software Foundation.
 retention-policy:
   q: What is a retention policy?
   def: Size and/or time limits that you can set on a namespace to configure retention of messages that have already been acknowledged.
