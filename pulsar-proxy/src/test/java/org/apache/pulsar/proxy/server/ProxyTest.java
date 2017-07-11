@@ -65,7 +65,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
-        Producer producer = client.createProducer("persistent://sample/test/local/topic-1");
+        Producer producer = client.createProducer("persistent://sample/test/local/producer-topic");
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -77,10 +77,10 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducerConsumer() throws Exception {
         PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
-        Producer producer = client.createProducer("persistent://sample/test/local/topic");
+        Producer producer = client.createProducer("persistent://sample/test/local/producer-consumer-topic");
 
         // Create a consumer directly attached to broker
-        Consumer consumer = pulsarClient.subscribe("persistent://sample/test/local/topic", "my-sub");
+        Consumer consumer = pulsarClient.subscribe("persistent://sample/test/local/producer-consumer-topic", "my-sub");
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -89,11 +89,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             Message msg = consumer.receive(1, TimeUnit.SECONDS);
             checkNotNull(msg);
+            consumer.acknowledge(msg);
         }
 
         Message msg = consumer.receive(0, TimeUnit.SECONDS);
         checkArgument(msg == null);
 
+        consumer.close();
         client.close();
     }
 
