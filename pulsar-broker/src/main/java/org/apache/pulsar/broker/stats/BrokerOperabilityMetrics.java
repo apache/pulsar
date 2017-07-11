@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -93,14 +94,14 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
-        topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs);
+        topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
     public void recordZkWriteLatencyTimeValue(long topicLoadLatencyMs) {
-        zkWriteLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs);
+        zkWriteLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
     public void recordZkReadLatencyTimeValue(long topicLoadLatencyMs) {
-        zkReadLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs);
+        zkReadLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 }

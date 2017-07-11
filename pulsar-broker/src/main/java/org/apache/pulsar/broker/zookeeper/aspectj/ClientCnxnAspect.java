@@ -172,7 +172,7 @@ public class ClientCnxnAspect {
         return null;
     }
 
-    public static void addListner(EventListner listener) {
+    public static void addListener(EventListner listener) {
         listeners.add(listener);
     }
 

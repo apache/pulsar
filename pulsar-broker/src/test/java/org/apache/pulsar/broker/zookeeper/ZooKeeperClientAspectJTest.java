@@ -120,7 +120,7 @@ public class ZooKeeperClientAspectJTest {
 
             final AtomicInteger writeCount = new AtomicInteger(0);
             final AtomicInteger readCount = new AtomicInteger(0);
-            ClientCnxnAspect.addListner((EventType eventType, long latencyMiliSecond) -> {
+            ClientCnxnAspect.addListener((EventType eventType, long latencyMiliSecond) -> {
                 if (eventType.equals(EventType.write)) {
                     writeCount.incrementAndGet();
                 } else if (eventType.equals(EventType.read)) {

@@ -191,7 +191,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         // register listener to capture zk-latency
-        ClientCnxnAspect.addListner((eventType, latencyMs) -> {
+        ClientCnxnAspect.addListener((eventType, latencyMs) -> {
             this.pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
         });
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();

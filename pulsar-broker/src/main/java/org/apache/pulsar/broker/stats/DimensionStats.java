@@ -63,7 +63,7 @@ public class DimensionStats {
         this.dimensionCounts = dimensionHistogram.getTotalCount();
     }
 
-    public void recordDimensionTimeValue(long latency) {
-        dimensionTimeRecorder.recordValue(latency);
+    public void recordDimensionTimeValue(long latency, TimeUnit unit) {
+        dimensionTimeRecorder.recordValue(unit.toMillis(latency));
     }
 }
