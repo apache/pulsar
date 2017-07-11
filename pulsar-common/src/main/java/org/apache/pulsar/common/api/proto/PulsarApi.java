@@ -191,6 +191,7 @@ public final class PulsarApi {
     v7(7, 7),
     v8(8, 8),
     v9(9, 9),
+    v10(10, 10),
     ;
     
     public static final int v0_VALUE = 0;
@@ -203,6 +204,7 @@ public final class PulsarApi {
     public static final int v7_VALUE = 7;
     public static final int v8_VALUE = 8;
     public static final int v9_VALUE = 9;
+    public static final int v10_VALUE = 10;
     
     
     public final int getNumber() { return value; }
@@ -219,6 +221,7 @@ public final class PulsarApi {
         case 7: return v7;
         case 8: return v8;
         case 9: return v9;
+        case 10: return v10;
         default: return null;
       }
     }
@@ -2952,6 +2955,14 @@ public final class PulsarApi {
     // optional int32 protocol_version = 4 [default = 0];
     boolean hasProtocolVersion();
     int getProtocolVersion();
+    
+    // optional string proxy_to_broker_url = 6;
+    boolean hasProxyToBrokerUrl();
+    String getProxyToBrokerUrl();
+    
+    // optional string original_principal = 7;
+    boolean hasOriginalPrincipal();
+    String getOriginalPrincipal();
   }
   public static final class CommandConnect extends
       com.google.protobuf.GeneratedMessageLite
@@ -3082,12 +3093,78 @@ public final class PulsarApi {
       return protocolVersion_;
     }
     
+    // optional string proxy_to_broker_url = 6;
+    public static final int PROXY_TO_BROKER_URL_FIELD_NUMBER = 6;
+    private java.lang.Object proxyToBrokerUrl_;
+    public boolean hasProxyToBrokerUrl() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public String getProxyToBrokerUrl() {
+      java.lang.Object ref = proxyToBrokerUrl_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          proxyToBrokerUrl_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getProxyToBrokerUrlBytes() {
+      java.lang.Object ref = proxyToBrokerUrl_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        proxyToBrokerUrl_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional string original_principal = 7;
+    public static final int ORIGINAL_PRINCIPAL_FIELD_NUMBER = 7;
+    private java.lang.Object originalPrincipal_;
+    public boolean hasOriginalPrincipal() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public String getOriginalPrincipal() {
+      java.lang.Object ref = originalPrincipal_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          originalPrincipal_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getOriginalPrincipalBytes() {
+      java.lang.Object ref = originalPrincipal_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        originalPrincipal_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
     private void initFields() {
       clientVersion_ = "";
       authMethod_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod.AuthMethodNone;
       authMethodName_ = "";
       authData_ = com.google.protobuf.ByteString.EMPTY;
       protocolVersion_ = 0;
+      proxyToBrokerUrl_ = "";
+      originalPrincipal_ = "";
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3125,6 +3202,12 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeBytes(5, getAuthMethodNameBytes());
       }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBytes(6, getProxyToBrokerUrlBytes());
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeBytes(7, getOriginalPrincipalBytes());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -3152,6 +3235,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(5, getAuthMethodNameBytes());
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(6, getProxyToBrokerUrlBytes());
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(7, getOriginalPrincipalBytes());
       }
       memoizedSerializedSize = size;
       return size;
@@ -3276,6 +3367,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000010);
+        proxyToBrokerUrl_ = "";
+        bitField0_ = (bitField0_ & ~0x00000020);
+        originalPrincipal_ = "";
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -3329,6 +3424,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000010;
         }
         result.protocolVersion_ = protocolVersion_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.proxyToBrokerUrl_ = proxyToBrokerUrl_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.originalPrincipal_ = originalPrincipal_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -3349,6 +3452,12 @@ public final class PulsarApi {
         }
         if (other.hasProtocolVersion()) {
           setProtocolVersion(other.getProtocolVersion());
+        }
+        if (other.hasProxyToBrokerUrl()) {
+          setProxyToBrokerUrl(other.getProxyToBrokerUrl());
+        }
+        if (other.hasOriginalPrincipal()) {
+          setOriginalPrincipal(other.getOriginalPrincipal());
         }
         return this;
       }
@@ -3410,6 +3519,16 @@ public final class PulsarApi {
             case 42: {
               bitField0_ |= 0x00000004;
               authMethodName_ = input.readBytes();
+              break;
+            }
+            case 50: {
+              bitField0_ |= 0x00000020;
+              proxyToBrokerUrl_ = input.readBytes();
+              break;
+            }
+            case 58: {
+              bitField0_ |= 0x00000040;
+              originalPrincipal_ = input.readBytes();
               break;
             }
           }
@@ -3557,6 +3676,78 @@ public final class PulsarApi {
         protocolVersion_ = 0;
         
         return this;
+      }
+      
+      // optional string proxy_to_broker_url = 6;
+      private java.lang.Object proxyToBrokerUrl_ = "";
+      public boolean hasProxyToBrokerUrl() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public String getProxyToBrokerUrl() {
+        java.lang.Object ref = proxyToBrokerUrl_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          proxyToBrokerUrl_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setProxyToBrokerUrl(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000020;
+        proxyToBrokerUrl_ = value;
+        
+        return this;
+      }
+      public Builder clearProxyToBrokerUrl() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        proxyToBrokerUrl_ = getDefaultInstance().getProxyToBrokerUrl();
+        
+        return this;
+      }
+      void setProxyToBrokerUrl(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000020;
+        proxyToBrokerUrl_ = value;
+        
+      }
+      
+      // optional string original_principal = 7;
+      private java.lang.Object originalPrincipal_ = "";
+      public boolean hasOriginalPrincipal() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public String getOriginalPrincipal() {
+        java.lang.Object ref = originalPrincipal_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          originalPrincipal_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setOriginalPrincipal(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000040;
+        originalPrincipal_ = value;
+        
+        return this;
+      }
+      public Builder clearOriginalPrincipal() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        originalPrincipal_ = getDefaultInstance().getOriginalPrincipal();
+        
+        return this;
+      }
+      void setOriginalPrincipal(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000040;
+        originalPrincipal_ = value;
+        
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandConnect)
@@ -6604,6 +6795,10 @@ public final class PulsarApi {
     // optional string message = 7;
     boolean hasMessage();
     String getMessage();
+    
+    // optional bool proxy_through_service_url = 8 [default = false];
+    boolean hasProxyThroughServiceUrl();
+    boolean getProxyThroughServiceUrl();
   }
   public static final class CommandLookupTopicResponse extends
       com.google.protobuf.GeneratedMessageLite
@@ -6820,6 +7015,16 @@ public final class PulsarApi {
       }
     }
     
+    // optional bool proxy_through_service_url = 8 [default = false];
+    public static final int PROXY_THROUGH_SERVICE_URL_FIELD_NUMBER = 8;
+    private boolean proxyThroughServiceUrl_;
+    public boolean hasProxyThroughServiceUrl() {
+      return ((bitField0_ & 0x00000080) == 0x00000080);
+    }
+    public boolean getProxyThroughServiceUrl() {
+      return proxyThroughServiceUrl_;
+    }
+    
     private void initFields() {
       brokerServiceUrl_ = "";
       brokerServiceUrlTls_ = "";
@@ -6828,6 +7033,7 @@ public final class PulsarApi {
       authoritative_ = false;
       error_ = org.apache.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
+      proxyThroughServiceUrl_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6871,6 +7077,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         output.writeBytes(7, getMessageBytes());
       }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        output.writeBool(8, proxyThroughServiceUrl_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6906,6 +7115,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(7, getMessageBytes());
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(8, proxyThroughServiceUrl_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -7034,6 +7247,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000020);
         message_ = "";
         bitField0_ = (bitField0_ & ~0x00000040);
+        proxyThroughServiceUrl_ = false;
+        bitField0_ = (bitField0_ & ~0x00000080);
         return this;
       }
       
@@ -7095,6 +7310,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000040;
         }
         result.message_ = message_;
+        if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
+          to_bitField0_ |= 0x00000080;
+        }
+        result.proxyThroughServiceUrl_ = proxyThroughServiceUrl_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7121,6 +7340,9 @@ public final class PulsarApi {
         }
         if (other.hasMessage()) {
           setMessage(other.getMessage());
+        }
+        if (other.hasProxyThroughServiceUrl()) {
+          setProxyThroughServiceUrl(other.getProxyThroughServiceUrl());
         }
         return this;
       }
@@ -7196,6 +7418,11 @@ public final class PulsarApi {
             case 58: {
               bitField0_ |= 0x00000040;
               message_ = input.readBytes();
+              break;
+            }
+            case 64: {
+              bitField0_ |= 0x00000080;
+              proxyThroughServiceUrl_ = input.readBool();
               break;
             }
           }
@@ -7400,6 +7627,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00000040;
         message_ = value;
         
+      }
+      
+      // optional bool proxy_through_service_url = 8 [default = false];
+      private boolean proxyThroughServiceUrl_ ;
+      public boolean hasProxyThroughServiceUrl() {
+        return ((bitField0_ & 0x00000080) == 0x00000080);
+      }
+      public boolean getProxyThroughServiceUrl() {
+        return proxyThroughServiceUrl_;
+      }
+      public Builder setProxyThroughServiceUrl(boolean value) {
+        bitField0_ |= 0x00000080;
+        proxyThroughServiceUrl_ = value;
+        
+        return this;
+      }
+      public Builder clearProxyThroughServiceUrl() {
+        bitField0_ = (bitField0_ & ~0x00000080);
+        proxyThroughServiceUrl_ = false;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandLookupTopicResponse)

@@ -79,6 +79,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-tools</module>
     <module>pulsar-client</module>
     <module>pulsar-websocket</module>
+    <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
     <module>pulsar-storm</module>
     <module>pulsar-spark</module>
@@ -106,7 +107,7 @@ flexible messaging model and an intuitive client API.</description>
     <storm.version>0.9.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
-    <prometheus.version>0.0.21</prometheus.version>
+    <prometheus.version>0.0.23</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
   </properties>
 

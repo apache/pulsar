@@ -321,8 +321,8 @@ public class ClientErrorsTest {
                 ctx.close();
                 return;
             }
-            ctx.writeAndFlush(
-                    Commands.newLookupResponse(brokerUrl, null, true, LookupType.Connect, lookup.getRequestId()));
+            ctx.writeAndFlush(Commands.newLookupResponse(brokerUrl, null, true, LookupType.Connect,
+                    lookup.getRequestId(), false));
         });
 
         try {
@@ -597,7 +597,7 @@ public class ClientErrorsTest {
         AtomicBoolean msgSent = new AtomicBoolean();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to conenct the 2nd time
                 ctx.channel().close();
@@ -637,7 +637,7 @@ public class ClientErrorsTest {
         CountDownLatch latch = new CountDownLatch(1);
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to conenct the 2nd time
                 ctx.channel().close();

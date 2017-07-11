@@ -253,7 +253,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
-        ByteBuf clientCommand = Commands.newConnect("none", "", ProtocolVersion.v0.getNumber(), null);
+        ByteBuf clientCommand = Commands.newConnect("none", "", ProtocolVersion.v0.getNumber(), null, null);
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);
@@ -359,7 +359,7 @@ public class ServerCnxTest {
         channel.finish();
         assertEquals(topicRef.getProducers().size(), 0);
     }
-    
+
     @Test(timeOut = 5000)
     public void testDuplicateConcurrentProducerCommand() throws Exception {
         resetChannel();
@@ -642,7 +642,7 @@ public class ServerCnxTest {
 
         channel.finish();
     }
-    
+
     @Test(timeOut = 5000)
     public void testDuplicateConcurrentSubscribeCommand() throws Exception {
         resetChannel();
@@ -1070,7 +1070,7 @@ public class ServerCnxTest {
 
         channel.finish();
     }
-    
+
     @Test(timeOut = 30000)
     public void testUnsupportedBatchMsgSubscribeCommand() throws Exception {
         final String failSubName = "failSub";
@@ -1208,7 +1208,7 @@ public class ServerCnxTest {
         versionField.setAccessible(true);
         versionField.set(cnx, version);
     }
-    
+
     private Object getResponse() throws Exception {
         // Wait at most for 10s to get a response
         final long sleepTimeMs = 10;

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.lookup;
 
+import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
 import java.net.URI;
@@ -67,7 +68,7 @@ public class DestinationLookup extends PulsarWebResource {
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
         DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
-        
+
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topic);
             asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
@@ -136,17 +137,17 @@ public class DestinationLookup extends PulsarWebResource {
 
 
     /**
-     * 
+     *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
-     * 
+     *
      * a. Returns broker-address if namespace-bundle is already owned by any broker
      * b. If current-broker receives lookup-request and if it's not a leader
-     * then current broker redirects request to leader by returning leader-service address. 
-     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and 
+     * then current broker redirects request to leader by returning leader-service address.
+     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and
      * redirects request by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns 
+     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns
      * success(connect) response to client.
-     * 
+     *
      * @param pulsarService
      * @param fqdn
      * @param authoritative
@@ -170,7 +171,7 @@ public class DestinationLookup extends PulsarWebResource {
                             differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(), cluster);
                 }
                 validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
-                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId));
+                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
             } else {
                 // (2) authorize client
                 try {
@@ -178,7 +179,7 @@ public class DestinationLookup extends PulsarWebResource {
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
                     validationFuture.complete(
-                            newLookupResponse(ServerError.AuthorizationError, authException.getMessage(), requestId));
+                            newLookupErrorResponse(ServerError.AuthorizationError, authException.getMessage(), requestId));
                     return;
                 } catch (Exception e) {
                     log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, fqdn.toString());
@@ -192,7 +193,7 @@ public class DestinationLookup extends PulsarWebResource {
                             validationFuture.complete(null);
                         }).exceptionally(ex -> {
                             validationFuture
-                                    .complete(newLookupResponse(ServerError.MetadataError, ex.getMessage(), requestId));
+                                    .complete(newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
                             return null;
                         });
             }
@@ -218,17 +219,17 @@ public class DestinationLookup extends PulsarWebResource {
                                 boolean newAuthoritative = isLeaderBroker(pulsarService);
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                newAuthoritative, LookupType.Redirect, requestId));
+                                                newAuthoritative, LookupType.Redirect, requestId, false));
                             } else {
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                true /* authoritative */, LookupType.Connect, requestId));
+                                                true /* authoritative */, LookupType.Connect, requestId, false));
                             }
                         }).exceptionally(e -> {
                             log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
                                     e.getMessage(), e);
                             lookupfuture.complete(
-                                    newLookupResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
+                                    newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
                             return null;
                         });
             }
@@ -236,7 +237,7 @@ public class DestinationLookup extends PulsarWebResource {
         }).exceptionally(ex -> {
             log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(), ex.getMessage(),
                     ex);
-            lookupfuture.complete(newLookupResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+            lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;
         });
 
@@ -252,6 +253,6 @@ public class DestinationLookup extends PulsarWebResource {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
         asyncResponse.resume(lookupData);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);
 }
