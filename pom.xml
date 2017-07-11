@@ -480,7 +480,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${aspectj.version}</version>
       </dependency>
       
-	  <!-- TODO: should we callout BSD license: https://github.com/electronicarts/ea-agent-loader -->
       <dependency>
         <groupId>com.ea.agentloader</groupId>
         <artifactId>ea-agent-loader</artifactId>
