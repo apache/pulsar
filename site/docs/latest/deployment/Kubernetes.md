@@ -7,17 +7,23 @@ Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, 
 
 The installation method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package]({{ site.baseurl }}downloads) holds resource definitions for:
 
-* {% popover BookKeeper %} (three {% popover bookies %})
-* {% popover ZooKeeper %} (three nodes)
+* A two-{% popover bookie %} {% popover BookKeeper %} cluster
+* A three-node {% popover ZooKeeper %} cluster
 * A three-{% popover broker %} Pulsar {% popover cluster %}
 * A [Prometheus](https://prometheus.io/) monitoring stack
-* A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run commands from the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool
+* A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run administrative commands using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool
 
-To get started, install a source package from the [downloads page]({{ site.baseurl }}downloads) page. Please note that the binary package will *not* contain the necessary Kubernetes resources.
+## Setup
+
+To get started, install a **source package** from the [downloads page]({{ site.baseurl }}downloads).
+
+{% include admonition.html type='warning' content='Please note that the binary package will *not* contain the necessary Kubernetes resources.' %}
+
+If you'd like to change the number of bookies, brokers, or ZooKeeper nodes in your Pulsar cluster, modify the `replicas` parameter in the `spec` section of the appropriate [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) or [`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) resource.
 
 ## Pulsar on Google Container Engine
 
-[Google Container Engine](https://cloud.google.com/container-engine) (GKE) automates the creation of Kubernetes clusters in the [Google Compute Engine](https://cloud.google.com/compute/) (GCE) environment.
+[Google Container Engine](https://cloud.google.com/container-engine) (GKE) automates the creation and management of Kubernetes clusters in [Google Compute Engine](https://cloud.google.com/compute/) (GCE).
 
 ### Prerequisites
 
@@ -31,10 +37,10 @@ To get started, you'll need:
 
 You can create a new GKE cluster using the [`container clusters create`](https://cloud.google.com/sdk/gcloud/reference/container/clusters/create) command, which enables you to specify the number of nodes in the cluster, the machine types of those nodes, and more.
 
-As an example, we'll create a new GKE cluster with three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by {% popover bookie %} instances, one for the [journal](../../getting-started/ConceptsAndArchitecture#journal-storage) and the other for storing the data.
+As an example, we'll create a new GKE cluster for Kubernetes version [1.6.4](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164) in the [us-central1-a](https://cloud.google.com/compute/docs/regions-zones/regions-zones#available) zone. The cluster will be named `pulsar-gke-cluster` and will consist of three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by {% popover bookie %} instances, one for the [journal](../../getting-started/ConceptsAndArchitecture#journal-storage) and the other for storing the data.
 
 ```bash
-$ gcloud container clusters create pulsar-us-cent \
+$ gcloud container clusters create pulsar-gke-cluster \
   --zone=us-central1-a \
   --machine-type=n1-standard-8 \
   --num-nodes=3 \
@@ -42,13 +48,22 @@ $ gcloud container clusters create pulsar-us-cent \
   --cluster-version=1.6.4
 ```
 
-By default, the bookies will be running on all the machines that have locally attached SSD disks. In this example, all the machines will have 2 SSDs, but different types of machines can be added to the cluster later. You can control which machines host bookie servers using labels.
+By default, bookies will be running on all the machines that have locally attached SSD disks. In this example, all the machines will have 2 SSDs, but different types of machines can be added to the cluster later. You can control which machines host bookie servers using labels.
 
-Follow the "Connect to the cluster" instructions to open the Kubernetes dashboard in the browser.
+You can observe your cluster in the [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) by downloading the credentials for your Kubernetes cluster and opening up a proxy to the cluster:
+
+```bash
+$ gcloud container clusters get-credentials pulsar-gke-cluster \
+  --zone=us-central1-a \
+  --project=your-project-name
+$ kubectl proxy
+```
+
+Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will have no processes running in it, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
 
 ## Pulsar on a custom Kubernetes cluster
 
-Pulsar can be deployed on a local Kubernetes cluster as well. You can find detailed documentation on how to choose a method to install Kubernetes at https://kubernetes.io/docs/setup/pick-right-solution/.
+Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can find detailed documentation on how to choose a Kubernetes installation method that suits your needs in the [Picking the Right Solution](https://kubernetes.io/docs/setup/pick-right-solution) guide in the Kubernetes docs.
 
 To install a mini local cluster for testing purposes, running in VMs in the local machines you can either:
 
