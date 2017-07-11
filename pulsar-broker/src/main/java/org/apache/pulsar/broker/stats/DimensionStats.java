@@ -22,6 +22,9 @@ import static io.prometheus.client.CollectorRegistry.defaultRegistry;
 
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.prometheus.client.Collector;
 import io.prometheus.client.Summary;
 import io.prometheus.client.Summary.Builder;
@@ -45,7 +48,13 @@ public class DimensionStats {
         for (int i = 0; i < QUANTILES.length; i++) {
             summaryBuilder.quantile(QUANTILES[i], 0.01);
         }
-        this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create().register(defaultRegistry);
+        this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create();
+        try {
+            defaultRegistry.register(summary);
+        } catch (IllegalArgumentException ie) {
+            // it only happens in test-cases when try to register summary multiple times in registry
+            log.warn("{} is already registred {}", name, ie.getMessage());
+        }
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
@@ -97,4 +106,6 @@ public class DimensionStats {
         return defaultRegistry.getSampleValue(name, QUANTILE_LABEL, new String[] { Collector.doubleToGoString(q) })
                 .doubleValue();
     }
+    
+    private static final Logger log = LoggerFactory.getLogger(DimensionStats.class);
 }
