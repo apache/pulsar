@@ -26,9 +26,12 @@ import java.io.FileInputStream;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+
+import com.ea.agentloader.AgentLoader;
 
 public class PulsarBrokerStarter {
 
@@ -53,6 +56,9 @@ public class PulsarBrokerStarter {
         String configFile = args[0];
         ServiceConfiguration config = loadConfig(configFile);
 
+        // load aspectj-weaver agent for instrumentation
+        AgentLoader.loadAgentClass(Agent.class.getName(), null);
+        
         @SuppressWarnings("resource")
         final PulsarService service = new PulsarService(config);
         Runtime.getRuntime().addShutdownHook(service.getShutdownService());

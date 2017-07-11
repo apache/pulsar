@@ -480,6 +480,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjweaver</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
+      
+      <dependency>
+        <groupId>com.ea.agentloader</groupId>
+        <artifactId>ea-agent-loader</artifactId>
+        <version>1.0.2</version>
+      </dependency>
 
     </dependencies>
   </dependencyManagement>
