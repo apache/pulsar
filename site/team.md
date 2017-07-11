@@ -16,21 +16,21 @@ Get involved today. All contributions to the project are greatly appreciated.
 The following is a list of developers with commit privileges that have directly contributed to the
 project in one way or another.
 
-| Name              | Apache Id | Organization |      Roles      |
-|:------------------|:----------|:------------:|:---------------:|
-| Brad McMillen     | bradtm    |    Yahoo     | Committer, PPMC |
-| Hiroyuki Sakai    | hrsakai   | Yahoo! Japan | Committer, PPMC |
-| Jai Asher         | jai1      |    Yahoo     | Committer, PPMC |
-| Joe Francis       | joef      |    Yahoo     | Committer, PPMC |
-| Ludwig Pummer     | ludwigp   |    Yahoo     | Committer, PPMC |
-| Masahiro Sakamoto | massakam  | Yahoo! Japan | Committer, PPMC |
-| Masakazu Kitajo   | maskit    |    Apple     | Committer, PPMC |
-| Matteo Merli      | mmerli    |  Streamlio   | Committer, PPMC |
-| Nozomi Kurihara   | nkurihar  | Yahoo! Japan | Committer, PPMC |
-| Rajan Dhabalia    | rdhabalia |    Yahoo     | Committer, PPMC |
-| Sahaya Andrews    | andrews   |    Yahoo     | Committer, PPMC |
-| Siddharth Boobna  | sboobna   |  Salesforce  | Committer, PPMC |
-| Yuki Shiga        | yushiga   | Yahoo! Japan | Committer, PPMC |
+| Name              | Apache Id |      Organization       |      Roles      |
+|:------------------|:----------|:-----------------------:|:---------------:|
+| Brad McMillen     | bradtm    |          Yahoo          | Committer, PPMC |
+| Hiroyuki Sakai    | hrsakai   | Yahoo Japan Corporation | Committer, PPMC |
+| Jai Asher         | jai1      |          Yahoo          | Committer, PPMC |
+| Joe Francis       | joef      |          Yahoo          | Committer, PPMC |
+| Ludwig Pummer     | ludwigp   |          Yahoo          | Committer, PPMC |
+| Masahiro Sakamoto | massakam  | Yahoo Japan Corporation | Committer, PPMC |
+| Masakazu Kitajo   | maskit    |          Apple          | Committer, PPMC |
+| Matteo Merli      | mmerli    |        Streamlio        | Committer, PPMC |
+| Nozomi Kurihara   | nkurihar  | Yahoo Japan Corporation | Committer, PPMC |
+| Rajan Dhabalia    | rdhabalia |          Yahoo          | Committer, PPMC |
+| Sahaya Andrews    | andrews   |          Yahoo          | Committer, PPMC |
+| Siddharth Boobna  | sboobna   |       Salesforce        | Committer, PPMC |
+| Yuki Shiga        | yushiga   | Yahoo Japan Corporation | Committer, PPMC |
 
 ## Mentors
 
