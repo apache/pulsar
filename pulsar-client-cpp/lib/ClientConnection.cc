@@ -941,14 +941,14 @@ ClientConnection::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
 void ClientConnection::newTopicLookup(const std::string& destinationName, bool authoritative,
                                       const uint64_t requestId,
                                       LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(outgoingCmd_, destinationName, authoritative, requestId),
+    newLookup(Commands::newLookup(destinationName, authoritative, requestId),
               requestId, promise);
 }
 
 void ClientConnection::newPartitionedMetadataLookup(const std::string& destinationName,
                                                     const uint64_t requestId,
                                                     LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newPartitionMetadataRequest(outgoingCmd_, destinationName, requestId), requestId,
+    newLookup(Commands::newPartitionMetadataRequest(destinationName, requestId), requestId,
               promise);
 }
 

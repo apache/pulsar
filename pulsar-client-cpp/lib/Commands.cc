@@ -43,7 +43,8 @@ SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
     return buffer;
 }
 
-SharedBuffer Commands::newPartitionMetadataRequest(BaseCommand& cmd, const std::string& topic, uint64_t requestId) {
+SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uint64_t requestId) {
+    BaseCommand cmd;
     cmd.set_type(BaseCommand::PARTITIONED_METADATA);
     CommandPartitionedTopicMetadata* partitionMetadata = cmd.mutable_partitionmetadata();
     partitionMetadata->set_topic(topic);
@@ -51,8 +52,9 @@ SharedBuffer Commands::newPartitionMetadataRequest(BaseCommand& cmd, const std::
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newLookup(BaseCommand& cmd, const std::string& topic, const bool authoritative,
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative,
                                  uint64_t requestId) {
+    BaseCommand cmd;
     cmd.set_type(BaseCommand::LOOKUP);
     CommandLookupTopic* lookup = cmd.mutable_lookuptopic();
     lookup->set_topic(topic);
@@ -66,7 +68,9 @@ SharedBuffer Commands::newConsumerStats(BaseCommand& cmd, uint64_t consumerId, u
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
     consumerStats->set_consumer_id(consumerId);
     consumerStats->set_request_id(requestId);
-    return writeMessageWithSize(cmd);
+    const SharedBuffer& buffer = writeMessageWithSize(cmd);
+    cmd.release_consumerstats();
+    return buffer;
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
@@ -137,6 +141,7 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
         headers.setWriterIndex(writeIndex);
     }
 
+    cmd.release_send();
     return composite;
 }
 
