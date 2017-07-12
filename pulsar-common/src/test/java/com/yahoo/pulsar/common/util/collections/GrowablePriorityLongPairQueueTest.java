@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package com.yahoo.pulsar.common.util.collections;
 
@@ -55,11 +58,11 @@ public class GrowablePriorityLongPairQueueTest {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(16);
 
         assertTrue(queue.isEmpty());
-        assertTrue(queue.add(1, 1));
+        queue.add(1, 1);
         assertFalse(queue.isEmpty());
 
-        assertTrue(queue.add(2, 2));
-        assertTrue(queue.add(3, 3));
+        queue.add(2, 2);
+        queue.add(3, 3);
 
         assertEquals(queue.size(), 3);
 
@@ -70,9 +73,9 @@ public class GrowablePriorityLongPairQueueTest {
 
         assertEquals(queue.size(), 2);
 
-        assertTrue(queue.add(1, 1));
+        queue.add(1, 1);
         assertEquals(queue.size(), 3);
-        assertTrue(queue.add(1, 1));
+        queue.add(1, 1);
         assertEquals(queue.size(), 4);
     }
 
@@ -81,7 +84,7 @@ public class GrowablePriorityLongPairQueueTest {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
         assertTrue(queue.isEmpty());
-        assertTrue(queue.add(1, 1));
+        queue.add(1, 1);
         assertFalse(queue.isEmpty());
 
         assertFalse(queue.remove(1, 0));
@@ -369,14 +372,14 @@ public class GrowablePriorityLongPairQueueTest {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(1);
 
         assertTrue(queue.isEmpty());
-        assertTrue(queue.add(20, 20));
-        assertTrue(queue.add(12, 12));
-        assertTrue(queue.add(14, 14));
-        assertTrue(queue.add(6, 6));
-        assertTrue(queue.add(1, 1));
-        assertTrue(queue.add(7, 7));
-        assertTrue(queue.add(2, 2));
-        assertTrue(queue.add(3, 3));
+        queue.add(20, 20);
+        queue.add(12, 12);
+        queue.add(14, 14);
+        queue.add(6, 6);
+        queue.add(1, 1);
+        queue.add(7, 7);
+        queue.add(2, 2);
+        queue.add(3, 3);
         assertTrue(queue.exists(7, 7));
         assertFalse(queue.exists(7, 1));
 

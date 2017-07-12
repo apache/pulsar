@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package com.yahoo.pulsar.common.util.collections;
 
@@ -38,12 +41,8 @@ import io.netty.util.internal.MathUtil;
  */
 public class GrowablePriorityLongPairQueue {
 
-    private final ReentrantLock lock = new ReentrantLock();
-
     private long[] data;
     private int capacity;
-    private static final AtomicIntegerFieldUpdater<GrowablePriorityLongPairQueue> SIZE_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(GrowablePriorityLongPairQueue.class, "size");
     private volatile int size = 0;
     private static final long EmptyItem = -1L;
 
@@ -66,48 +65,33 @@ public class GrowablePriorityLongPairQueue {
         void accept(long v1, long v2);
     }
 
-    public boolean add(long item1, long item2) {
-        lock.lock();
+    public synchronized void add(long item1, long item2) {
 
-        try {
-
-            if (SIZE_UPDATER.get(this) >= this.capacity) {
-                expandArray();
-            }
-
-            int lastIndex = SIZE_UPDATER.get(this) << 1;
-            data[lastIndex] = item1;
-            data[lastIndex + 1] = item2;
-
-            int loc = lastIndex;
-
-            // Swap with parent until parent not larger
-            while (loc > 0 && compare(loc, parent(loc)) < 0) {
-                swap(loc, parent(loc));
-                loc = parent(loc);
-            }
-
-            SIZE_UPDATER.incrementAndGet(this);
-        } finally {
-            lock.unlock();
+        if (this.size >= this.capacity) {
+            expandArray();
         }
 
-        return true;
+        int lastIndex = this.size << 1;
+        data[lastIndex] = item1;
+        data[lastIndex + 1] = item2;
+
+        int loc = lastIndex;
+
+        // Swap with parent until parent not larger
+        while (loc > 0 && compare(loc, parent(loc)) < 0) {
+            swap(loc, parent(loc));
+            loc = parent(loc);
+        }
+
+        this.size++;
+
     }
 
-    public void forEach(LongPairConsumer processor) {
-        lock.lock();
-        try {
-            int size = SIZE_UPDATER.get(this);
-
-            int index = 0;
-            for (int i = 0; i < size; i++) {
-                processor.accept(data[index], data[index + 1]);
-                index = index + 2;
-            }
-
-        } finally {
-            lock.unlock();
+    public synchronized void forEach(LongPairConsumer processor) {
+        int index = 0;
+        for (int i = 0; i < this.size; i++) {
+            processor.accept(data[index], data[index + 1]);
+            index = index + 2;
         }
     }
 
@@ -162,22 +146,18 @@ public class GrowablePriorityLongPairQueue {
      * @param item2
      * @return
      */
-    public boolean remove(long item1, long item2) {
-        lock.lock();
+    public synchronized boolean remove(long item1, long item2) {
         boolean removed = false;
-        try {
-            int size = SIZE_UPDATER.get(this);
-            int index = 0;
-            for (int i = 0; i < size; i++) {
-                if (data[index] == item1 && data[index + 1] == item2) {
-                    removeAtWithoutLock(index);
-                    removed = true;
-                }
-                index = index + 2;
+
+        int index = 0;
+        for (int i = 0; i < this.size; i++) {
+            if (data[index] == item1 && data[index + 1] == item2) {
+                removeAtWithoutLock(index);
+                removed = true;
             }
-        } finally {
-            lock.unlock();
+            index = index + 2;
         }
+
         return removed;
     }
 
@@ -190,13 +170,8 @@ public class GrowablePriorityLongPairQueue {
         return removeAt(0);
     }
 
-    private LongPair removeAt(int index) {
-        lock.lock();
-        try {
-            return removeAtWithoutLock(index);
-        } finally {
-            lock.unlock();
-        }
+    private synchronized LongPair removeAt(int index) {
+        return removeAtWithoutLock(index);
     }
 
     /**
@@ -206,12 +181,12 @@ public class GrowablePriorityLongPairQueue {
      * @return
      */
     private LongPair removeAtWithoutLock(int index) {
-        if (SIZE_UPDATER.get(this) > 0) {
+        if (this.size > 0) {
             LongPair item = new LongPair(data[index], data[index + 1]);
             data[index] = EmptyItem;
             data[index + 1] = EmptyItem;
-            SIZE_UPDATER.decrementAndGet(this);
-            int lastIndex = SIZE_UPDATER.get(this) << 1;
+            --this.size;
+            int lastIndex = this.size << 1;
             swap(index, lastIndex);
             minHeapify(index, lastIndex - 2);
             return item;
@@ -220,53 +195,42 @@ public class GrowablePriorityLongPairQueue {
         }
     }
 
-    public LongPair peek() {
-        lock.lock();
-        try {
-            if (SIZE_UPDATER.get(this) > 0) {
-                return new LongPair(data[0], data[1]);
-            } else {
-                return null;
-            }
-        } finally {
-            lock.unlock();
+    public synchronized LongPair peek() {
+        if (this.size > 0) {
+            return new LongPair(data[0], data[1]);
+        } else {
+            return null;
         }
     }
 
     public boolean isEmpty() {
-        return SIZE_UPDATER.get(this) == 0;
+        return this.size == 0;
     }
 
     public int capacity() {
         return this.capacity;
     }
 
-    public void clear() {
-        lock.lock();
-        try {
-            int size = SIZE_UPDATER.get(this);
-
-            int index = 0;
-            for (int i = 0; i < size; i++) {
-                data[index] = -1;
-                data[index + 1] = -1;
-                index = index + 2;
-            }
-
-            SIZE_UPDATER.set(this, 0);
-        } finally {
-            lock.unlock();
+    public synchronized void clear() {
+        int index = 0;
+        for (int i = 0; i < this.size; i++) {
+            data[index] = -1;
+            data[index + 1] = -1;
+            index = index + 2;
         }
+
+        this.size = 0;
+
     }
 
     public int size() {
-        return SIZE_UPDATER.get(this);
+        return this.size;
     }
 
-    public boolean exists(long item1, long item2) {
-        int size = SIZE_UPDATER.get(this);
+    public synchronized boolean exists(long item1, long item2) {
+
         int index = 0;
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < this.size; i++) {
             if (data[index] == item1 && data[index + 1] == item2) {
                 return true;
             }
@@ -284,23 +248,17 @@ public class GrowablePriorityLongPairQueue {
     }
 
     private void expandArray() {
-        lock.lock();
-        try {
-            int size = SIZE_UPDATER.get(this);
-            this.capacity = capacity * 2;
-            long[] newData = new long[2 * this.capacity];
+        this.capacity = capacity * 2;
+        long[] newData = new long[2 * this.capacity];
 
-            int index = 0;
-            for (int i = 0; i < size; i++) {
-                newData[index] = data[index];
-                newData[index + 1] = data[index + 1];
-                index = index + 2;
-            }
-            fillEmptyValue(newData, index, newData.length);
-            data = newData;
-        } finally {
-            lock.unlock();
+        int index = 0;
+        for (int i = 0; i < this.size; i++) {
+            newData[index] = data[index];
+            newData[index + 1] = data[index + 1];
+            index = index + 2;
         }
+        fillEmptyValue(newData, index, newData.length);
+        data = newData;
     }
 
     private void fillEmptyValue(long[] data, int start, int end) {
