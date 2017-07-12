@@ -2,16 +2,20 @@
 
 .tocify {
   max-width: 80%;
-  margin: 0 1rem;
+  margin: 0 1.5rem;
   position: fixed;
 
   h4 {
     overflow-wrap: break-word;
   }
 
-  ul.tocify-header {
+  .tocify-header {
     list-style-position: inside;
     text-size-adjust: none;
+
+    & + .tocify-header {
+      margin-top: .5rem;
+    }
   }
 
   ul, li {
@@ -38,14 +42,9 @@
     }
   }
 
-  .tocify-header + .tocify-header {
-    margin-top: .2rem;
-  }
-
   .tocify-subheader {
     text-indent: 10px;
     display: none;
-    margin: .5rem 0;
 
     li {
       font-size: $root-font-size * 0.9;
@@ -53,7 +52,6 @@
 
     .tocify-subheader {
       text-indent: $root-indent * 2;
-      margin: .2rem 0;
 
       li {
         font-size: $root-font-size * 0.8;

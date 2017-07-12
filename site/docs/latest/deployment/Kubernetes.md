@@ -3,7 +3,7 @@ title: Deploying Pulsar on Kubernetes
 tags: [Kubernetes, Google Container Engine]
 ---
 
-Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
+Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
 The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package]({{ site.baseurl }}downloads) holds resource definitions for:
 
@@ -63,22 +63,41 @@ $ kubectl proxy
 
 By default, the proxy will be opened on port 8001. Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will be empty, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
 
+## Pulsar on Amazon Web Services
+
+You can run Kubernetes on [Amazon Web Services](https://aws.amazon.com/) (AWS) in a variety of ways. A very simple way that was [recently introduced](https://aws.amazon.com/blogs/compute/kubernetes-clusters-aws-kops/) involves using the [Kubernetes Operations](https://github.com/kubernetes/kops) (kops) tool.
+
+You can find detailed instructions for setting up a Kubernetes cluster on AWS [here](https://github.com/kubernetes/kops/blob/master/docs/aws.md).
+
+When you create a cluster using those instructions, your `kubectl` config in `~/.kube/config` (on MacOS and Linux) will be updated for you, so you probably won't need to change your configuration. Nonetheless, you can ensure that `kubectl` can interact with your cluster by listing the nodes in the cluster:
+
+```bash
+$ kubectl get nodes
+```
+
+If `kubectl` is working with your cluster, you can proceed to [deploy Pulsar components](#deploying-pulsar-components).
+
 ## Pulsar on a custom Kubernetes cluster
 
 Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can find detailed documentation on how to choose a Kubernetes installation method that suits your needs in the [Picking the Right Solution](https://kubernetes.io/docs/setup/pick-right-solution) guide in the Kubernetes docs.
 
-To install a mini local cluster for testing purposes, running in local VMs, you can either:
+### Local cluster
+
+The easiest way to run a Kubernetes cluster is to do so locally. To install a mini local cluster for testing purposes, running in local VMs, you can either:
 
 1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
 
-For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). In short, make sure you have [Vagrant](https://www.vagrantup.com/downloads.html) and [VirtualBox](https://www.virtualbox.org/wiki/Downloads) installed, and then:
+For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). We'll provided an abridged version of those instructions here.
+
+
+First, make sure you have [Vagrant](https://www.vagrantup.com/downloads.html) and [VirtualBox](https://www.virtualbox.org/wiki/Downloads) installed. Then clone the repo and start up the cluster:
 
 ```bash
 $ git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
 $ cd kubernetes-vagrant-coreos-cluster
 
-# Start a 3-VM cluster
+# Start a three-VM cluster
 $ NODES=3 USE_KUBE_UI=true vagrant up
 ```
 
@@ -91,7 +110,7 @@ $ for vm in node-01 node-02 node-03; do
   done
 ```
 
-{% popover Bookies %} expect 2 logical devices to mount for journal and storage to be available. In this VM exercise, we created 2 directories on each VM.
+{% popover Bookies %} expect two logical devices to mount for [journal](../../getting-started/ConceptsAndArchitecture#journal-storage) and persistent message storage to be available. In this VM exercise, we created two directories on each VM.
 
 Once the cluster is up, you can verify that `kubectl` can access it:
 
