@@ -4,18 +4,24 @@ p code {
   white-space: nowrap;
 }
 
+.language-properties .highlight {
+  .p {
+    color: $sx-orange;
+  }
+}
+
+.language-shell .highlight {
+  .nb {
+    color: $sx-light-gray;
+  }
+}
+
 .highlight, li .highlight {
   color: $sx-light-gray;
   background-color: $sx-bg-color;
   border-radius: $sx-border-radius;
   border: $sx-border;
   overflow: $sx-overflow;
-
-  .language-shell .highlight {
-    .nb {
-      color: $sx-light-gray;
-    }
-  }
 
   .w {
     color: $sx-light-gray;

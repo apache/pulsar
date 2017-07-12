@@ -2,12 +2,16 @@
 title: ZooKeeper and BookKeeper administration
 ---
 
-Pulsar relies on two external systems for a variety of essential tasks:
+Pulsar relies on two external systems for essential tasks:
 
 * [ZooKeeper](https://zookeeper.apache.org/) is responsible for a wide variety of configuration- and coordination-related tasks.
 * [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](../../getting-started/ConceptsAndArchitecture#persistent-storage) of message data.
 
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
+
+{% include admonition.html type='info' content='
+Skip to the [How Pulsar uses ZooKeeper and BookKeeper](#how-pulsar-uses-zookeeper-and-bookkeeper) section below for a more schematic explanation of the role of these two systems in Pulsar.
+' %}
 
 ## ZooKeeper
 
@@ -61,11 +65,11 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 ledgerManagerType=hierarchical
 ```
 
-Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
+{% include admonition.html type='info' content='Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.' %}
 
 ## BookKeeper persistence policies
 
-In Pulsar, you can set *persistence policies* at the {% popover namespace %} level. Persistence policies determine how persistent storage of messages is handled by {% popover BookKeeper %}. Policies determine four things:
+In Pulsar, you can set *persistence policies*, at the {% popover namespace %} level, that determine how {% popover BookKeeper %} handles persistent storage of messages. Policies determine four things:
 
 * The number of {% popover acks %} (guaranteed copies) to wait for for each ledger entry
 * The number of {% popover bookies %} to use for a topic
@@ -144,3 +148,11 @@ $ pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 ```java
 PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 ```
+
+## How Pulsar uses ZooKeeper and BookKeeper
+
+This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
+
+![ZooKeeper and BookKeeper]({{ site.baseurl }}img/pulsar_system_architecture.png)
+
+Each Pulsar {% popover cluster %} consists of one or more message {% popover brokers %}. Each broker relies on an ensemble of {% popover bookies %} 

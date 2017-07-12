@@ -37,13 +37,13 @@ $brand-warning: lighten(#FDB220, 10%);
 $sx-border-radius: 0;
 $sx-border: none;
 $sx-bg-color: rgb(35, 41, 55);
-$sx-light-gray: lighten(#93a1a1, 15%); // light gray
-$sx-dark-gray: lighten(#657b83, 30%); // dark gray
-$sx-olive: #859900; // olive
-$sx-orange: lighten(#b58900, 5%); // orange
-$sx-purple: lighten(#6c71c4, 8%); // purple
-$sx-magenta: $pulsar-magenta; //lighten(#d33682, 5%); // magenta
-$sx-red: lighten(#cb4b16, 10%); // red
+$sx-light-gray: lighten(#93a1a1, 15%);
+$sx-dark-gray: lighten(#657b83, 30%);
+$sx-olive: lighten(#859900, 10%);
+$sx-orange: lighten(#b58900, 5%);
+$sx-purple: lighten(#6c71c4, 8%);
+$sx-magenta: $pulsar-magenta;
+$sx-red: lighten(#cb4b16, 5%);
 $sx-7: lighten(#268bd2, 5%);
 $sx-comment: darken($sx-dark-gray, 20%);
 $sx-overflow: scroll;

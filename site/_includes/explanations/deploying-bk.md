@@ -1,6 +1,6 @@
-{% popover BookKeeper %} provides persistent message storage for Pulsar.
+{% popover BookKeeper %} provides [persistent message storage](../../getting-started/ConceptsAndArchitecture#persistent-storage) for Pulsar.
 
-Each Pulsar {% popover cluster %} needs to have its own cluster of {% popover bookies %}. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
+Each Pulsar {% popover broker %} needs to have its own cluster of {% popover bookies %}. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
 ### Configuring bookies
 
