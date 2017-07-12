@@ -24,7 +24,7 @@ project in one way or another.
 | Joe Francis        | joef      |          Yahoo          | Committer, PPMC |
 | Ludwig Pummer      | ludwigp   |          Yahoo          | Committer, PPMC |
 | Masahiro Sakamoto  | massakam  | Yahoo Japan Corporation | Committer, PPMC |
-| Masakazu Kitajo    | maskit    |          Apple          | Committer, PPMC |
+| Masakazu Kitajo    | maskit    |                         | Committer, PPMC |
 | Matteo Merli       | mmerli    |        Streamlio        | Committer, PPMC |
 | Nozomi Kurihara    | nkurihar  | Yahoo Japan Corporation | Committer, PPMC |
 | Rajan Dhabalia     | rdhabalia |          Yahoo          | Committer, PPMC |
