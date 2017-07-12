@@ -19,7 +19,7 @@
     margin: 0;
     padding: 0;
     border: none;
-    line-height: 30px;
+    //line-height: 30px;
   }
 
   li {
@@ -36,6 +36,10 @@
     &:hover {
       color: purple;
     }
+  }
+
+  .tocify-header + .tocify-header {
+    margin-top: .2rem;
   }
 
   .tocify-subheader {

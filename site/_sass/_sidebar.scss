@@ -54,6 +54,10 @@ aside.sidebar-nav {
                 text-decoration: none;
               }
             }
+
+            & + li {
+              margin-top: .2rem;
+            }
           }
         }
       }

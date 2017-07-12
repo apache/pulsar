@@ -59,30 +59,28 @@ $ gcloud container clusters get-credentials pulsar-gke-cluster \
 $ kubectl proxy
 ```
 
-Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will have no processes running in it, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
+By default, the proxy will be opened on port 8001. Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will be empty, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
 
 ## Pulsar on a custom Kubernetes cluster
 
 Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can find detailed documentation on how to choose a Kubernetes installation method that suits your needs in the [Picking the Right Solution](https://kubernetes.io/docs/setup/pick-right-solution) guide in the Kubernetes docs.
 
-To install a mini local cluster for testing purposes, running in VMs in the local machines you can either:
+To install a mini local cluster for testing purposes, running in local VMs, you can either:
 
-1. Use minikube to have a single-node Kubernetes cluster
+1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
 
-For the 2nd option, follow the instructions at https://github.com/pires/kubernetes-vagrant-coreos-cluster.
-
-In short, make sure you have Vagrant and VirtualBox installed, and then:
+For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). In short, make sure you have [Vagrant](https://www.vagrantup.com/downloads.html) and [VirtualBox](https://www.virtualbox.org/wiki/Downloads) installed, and then:
 
 ```bash
 $ git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
 $ cd kubernetes-vagrant-coreos-cluster
 
-# Start a 3 VMs cluster
+# Start a 3-VM cluster
 $ NODES=3 USE_KUBE_UI=true vagrant up
 ```
 
-Create the SSD disks mount points on the VMs. Bookies expect to have 2 logical devices to mount for journal and storage. In this VM exercise, we will just create 2 directories on each VM:
+Create SSD disk mount points on the VMs using this script:
 
 ```bash
 $ for vm in node-01 node-02 node-03; do
@@ -90,6 +88,8 @@ $ for vm in node-01 node-02 node-03; do
     NODES=3 vagrant ssh $vm -c "sudo mkdir -p /mnt/disks/ssd1"
   done
 ```
+
+{% popover Bookies %} expect 2 logical devices to mount for journal and storage to be available. In this VM exercise, we created 2 directories on each VM.
 
 Once the cluster is up, you can verify that `kubectl` can access it:
 
@@ -99,16 +99,22 @@ NAME           STATUS                     AGE       VERSION
 172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
 172.17.8.102   Ready                      8m        v1.6.4
 172.17.8.103   Ready                      6m        v1.6.4
-172.17.8.104   Ready                      5m        v1.6.4
+172.17.8.104   Ready                      4m        v1.6.4
 ```
 
-Then use the proxy to access the web interface:
+```bash
+$ kubectl config set-cluster vagrant-local \
+  --server=172.17.8.101
+$ kubectl config set-context vagrant-local
+```
+
+Then use `kubectl` to create a proxy:
 
 ```bash
 $ kubectl proxy
 ```
 
-and open [http://localhost:8001/ui](http://localhost:8001/ui).
+Now you can access the web interface at [localhost:8001/ui](http://localhost:8001/ui). At first your local cluster will be empty, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
 
 ## Deploying Pulsar components
 
@@ -122,7 +128,17 @@ There are 2 versions, one for Google Container Engine (GKE) and the other for th
 $ kubectl apply -f zookeeper.yaml
 ```
 
-Wait until all 3 ZooKeeper server pods are up and running. The first take will take a bit longer since it will be downloading the Docker image on the VMs.
+Wait until all three ZooKeeper server pods are up and have the status `Running`. You can check on the status of the ZooKeeper pods at any time:
+
+```bash
+$ kubectl get pods -l component=zookeeper
+NAME      READY     STATUS             RESTARTS   AGE
+zk-0      1/1       Running            0          18m
+zk-1      1/1       Running            0          17m
+zk-2      0/1       Running            6          15m
+```
+
+This step will take several minutes, as Kubernetes needs to download the Docker image on the VMs.
 
 #### Initialize cluster metadata
 
