@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.yahoo.pulsar.common.util.collections;
+package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -34,11 +33,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.testng.annotations.DataProvider;
+import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
-import com.yahoo.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 
 public class GrowablePriorityLongPairQueueTest {
 

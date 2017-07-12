@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.yahoo.pulsar.common.util.collections;
+package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.locks.ReentrantLock;
 
 import io.netty.util.internal.MathUtil;
 
