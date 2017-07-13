@@ -73,10 +73,10 @@ public class ZooKeeperClientAspectJTest {
     
     static {
         // load agent with aspectjweaver-Agent for testing
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
+        //AgentLoader.loadAgentClass(Agent.class.getName(), null);
     }
 
-    @Test
+    @Test(enabled=false)
     public void testZkConnected() throws Exception {
         try {
             ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
@@ -108,7 +108,7 @@ public class ZooKeeperClientAspectJTest {
      * 
      * @throws Exception
      */
-    @Test(timeOut = 7000)
+    @Test(enabled=false, timeOut = 7000)
     void testZkClientAspectJTrigger() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
@@ -162,7 +162,7 @@ public class ZooKeeperClientAspectJTest {
      * 
      * @throws Exception
      */
-    @Test(timeOut = 7000)
+    @Test(enabled=false, timeOut = 7000)
     public void testZkOpStatsMetrics() throws Exception {
 
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
