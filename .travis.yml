@@ -78,4 +78,4 @@ deploy:
     skip_cleanup: true
     script: (cd site && make travis_publish)
     on:
-        branch: docs
+        branch: master
