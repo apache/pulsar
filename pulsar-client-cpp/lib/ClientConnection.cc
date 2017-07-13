@@ -934,22 +934,22 @@ ClientConnection::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
     }
     pendingConsumerStatsMap_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newConsumerStats(outgoingCmd_, consumerId, requestId));
+    sendCommand(Commands::newConsumerStats(consumerId, requestId));
     return promise.getFuture();
 }
 
 void ClientConnection::newTopicLookup(const std::string& destinationName, bool authoritative,
                                       const uint64_t requestId,
                                       LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(outgoingCmd_, destinationName, authoritative, requestId),
+    newLookup(Commands::newLookup(destinationName, authoritative, requestId),
               requestId, promise);
 }
 
 void ClientConnection::newPartitionedMetadataLookup(const std::string& destinationName,
                                                     const uint64_t requestId,
                                                     LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newPartitionMetadataRequest(outgoingCmd_, destinationName, requestId), requestId,
-              promise);
+    newLookup(Commands::newPartitionMetadataRequest(destinationName, requestId),
+              requestId, promise);
 }
 
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,
