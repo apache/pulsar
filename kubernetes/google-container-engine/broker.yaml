@@ -27,7 +27,7 @@ data:
     PULSAR_GC: "\" -XX:+UseG1GC \""
     zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
     globalZookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    clusterName: us-central
+    clusterName: pulsar-gke
 ---
 ##
 ## Broker deployment definition

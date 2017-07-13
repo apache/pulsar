@@ -1,0 +1,238 @@
+---
+---
+
+@charset "utf-8";
+
+@import "variables";
+@import "mixins";
+
+@include sticky-footer;
+
+span.latest-badge {
+  margin-left: 2rem;
+}
+
+.main-page-features {
+  margin: 10rem 0;
+
+  .card {
+    border: none;
+  }
+
+  .container {
+    width: 80%;
+
+    h2 {
+      margin-bottom: 2.25rem;
+    }
+
+    .row {
+      border: 1px solid #ddd;
+      padding: 1rem;
+    }
+  }
+}
+
+.asf-incubator-container {
+  margin: 5rem 0;
+}
+
+.modal-body {
+  ul {
+    padding-left: 2.25rem;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+.codebase {
+  h2 {
+    padding: 0;
+    margin: 0;
+  }
+}
+
+button.version-btn {
+  color: white !important;
+  font-weight: bold;
+  background-color: $brand-dark;
+}
+
+hr.hr {
+  margin: 20px 0;
+  height: 2px;
+  background: linear-gradient(to right, $brand-dark, lighten($brand-secondary, 20%));
+}
+
+
+body {
+  font-family: $font-family-sans-serif;
+}
+
+pre, code {
+  font-family: $font-family-monospace;
+}
+
+li:not(.nav-item) {
+  list-style-type: square;
+  margin-left: -18px;
+}
+
+
+li.page-item {
+  list-style-type: none;
+  margin-left: -18px;
+}
+
+a {
+  code.highlighter-rouge {
+    background-color: #f7f7f9;
+  }
+}
+
+.highlighter-rouge.endpoint {
+  .highlight {
+    .get {
+      color: $sx-olive;
+    }
+
+    .post {
+      color: $sx-orange;
+    }
+    .put {
+      color: $sx-magenta;
+    }
+    .delete {
+      color: $sx-purple;
+    }
+
+    .url {
+      color: $sx-dark-gray;
+
+      .endpoint {
+        color: $brand-primary;
+      }
+
+      .arg {
+        color: $brand-secondary;
+      }
+    }
+
+    code + code {
+      margin-left: 5px;
+    }
+  }
+}
+
+.index-container {
+  margin: 8rem 0;
+
+  img {
+    margin-bottom: 3rem;
+  }
+
+  p.lead {
+    margin-bottom: 2rem;
+  }
+}
+
+section.docs-cards {
+  margin-top: 40px;
+
+  p.lead {
+    a.btn {
+      background-color: $brand-primary;
+      border: none;
+      color: white;
+
+      & + a.btn {
+        margin-left: 100px;
+      }
+    }
+  }
+}
+
+@mixin btn($color1, $color2) {
+  color: white;
+  background-color: $color1;
+
+  &:hover {
+    color: white;
+    background: $color2;
+  }
+
+  i {
+    margin-left: 15px;
+  }
+}
+
+.btn-pulsar {
+  @include btn($brand-primary, $brand-dark);
+}
+
+.btn-github {
+  @include btn(black, lighten(black, 20%));
+}
+
+.btn-stack-overflow {
+  @include btn($stack-overflow-orange, lighten($stack-overflow-orange, 10%));
+}
+
+.btn-javadoc {
+  @include btn($javadoc-magenta, darken($javadoc-magenta, 20%));
+}
+
+.docs-container {
+  width: 90%;
+}
+
+a.download-btn {
+  background-color: $brand-primary;
+  color: white;
+
+  &:hover {
+    background-color: $brand-dark;
+    color: white;
+  }
+}
+
+footer.footer {
+  padding: 1%;
+  background-color: black;
+  z-index: 999;
+
+  p {
+    color: $brand-primary;
+  }
+}
+
+article.content {
+  max-width: 85%;
+  flex: initial;
+  margin-left: auto;
+  margin-right: auto;
+
+  h2 + ul {
+    margin-top: 1rem;
+  }
+
+  li + li {
+    margin-top: .25rem;
+  }
+}
+
+@import "bootstrap-sass/bootstrap";
+@import "font-awesome/font-awesome";
+@import "navbar";
+@import "popover";
+@import "protobuf";
+@import "docs";
+@import "tocify";
+@import "syntax";
+@import "sidebar";
+@import "cli";
+@import "admonition";
+@import "swagger";

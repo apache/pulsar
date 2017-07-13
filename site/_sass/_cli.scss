@@ -1,0 +1,100 @@
+@import "variables";
+
+$padding-base: 18px;
+
+.cli, .cli-command, .cli-subcommand {
+  padding: $padding-base;
+}
+
+span.options {
+  color: $sx-orange;
+}
+
+span.command {
+  color: $pulsar-blue;
+}
+
+.cli {
+  & + .cli {
+    margin-top: $padding-base;
+  }
+
+  .card + .card {
+    margin-top: $padding-base;
+  }
+
+  h2, h3, h4 {
+    code {
+      padding: 0;
+    }
+  }
+
+  code.flag {
+    color: $pulsar-dark-blue;
+  }
+
+  h2, h3, h4 {
+    & + .card-content {
+      margin-top: $padding-base;
+    }
+  }
+
+  h5 {
+    margin-top: $padding-base;
+
+    & + .highlighter-rouge {
+      margin-top: $padding-base * 0.75;
+    }
+
+    & + table {
+      margin-top: $padding-base * 0.75;
+    }
+
+    & + p {
+      margin-top: $padding-base;
+    }
+  }
+
+  h2 code, h3 code, h4 code {
+    background-color: white;
+  }
+
+  table {
+    width: 100%;
+    text-align: left;
+    padding: 20px;
+
+    thead {
+      tr {
+        th {
+          font-size: 18px;
+        }
+      }
+    }
+
+    tbody {
+      tr {
+        vertical-align: middle;
+
+        td {
+          font-size: 14px;
+          margin: 5px 0;
+          padding: 5px 20px 5px 0;
+
+          p {
+            padding: 0;
+            margin: 0;
+          }
+        }
+
+        & + tr {
+          border-top: 1px solid #ddd;
+        }
+      }
+
+      tr + tr {
+        border-top: 1px solid #ddd;
+      }
+    }
+  }
+}
