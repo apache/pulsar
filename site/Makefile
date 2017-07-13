@@ -33,7 +33,7 @@ ruby_setup:
 python_setup:
 	pip install pdoc pygments
 
-setup: ruby_setup doxygen_install python_setup
+setup: ruby_setup
 
 travis_setup: ruby_setup
 
