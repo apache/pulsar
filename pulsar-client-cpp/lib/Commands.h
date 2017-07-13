@@ -53,9 +53,9 @@ class Commands {
 
     static SharedBuffer newConnect(const AuthenticationPtr& authentication);
 
-    static SharedBuffer newPartitionMetadataRequest(proto::BaseCommand& cmd, const std::string& topic, uint64_t requestId);
+    static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
-    static SharedBuffer newLookup(proto::BaseCommand& cmd, const std::string& topic, const bool authoritative,
+    static SharedBuffer newLookup(const std::string& topic, const bool authoritative,
                                   uint64_t requestId);
 
     static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd,
@@ -93,7 +93,7 @@ class Commands {
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage);
 
-    static SharedBuffer newConsumerStats(proto::BaseCommand& cmd, uint64_t consumerId, uint64_t requestId);
+    static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
  private:
     Commands();

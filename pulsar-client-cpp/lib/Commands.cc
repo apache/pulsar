@@ -23,6 +23,8 @@
 #include "LogUtils.h"
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
+#include <boost/thread/mutex.hpp>
+
 namespace pulsar {
 
 using namespace pulsar::proto;
@@ -43,30 +45,48 @@ SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
     return buffer;
 }
 
-SharedBuffer Commands::newPartitionMetadataRequest(BaseCommand& cmd, const std::string& topic, uint64_t requestId) {
+SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
+    mutex.lock();
     cmd.set_type(BaseCommand::PARTITIONED_METADATA);
     CommandPartitionedTopicMetadata* partitionMetadata = cmd.mutable_partitionmetadata();
     partitionMetadata->set_topic(topic);
     partitionMetadata->set_request_id(requestId);
-    return writeMessageWithSize(cmd);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_partitionmetadata();
+    mutex.unlock();
+    return buffer;
 }
 
-SharedBuffer Commands::newLookup(BaseCommand& cmd, const std::string& topic, const bool authoritative,
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative,
                                  uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
+    mutex.lock();
     cmd.set_type(BaseCommand::LOOKUP);
     CommandLookupTopic* lookup = cmd.mutable_lookuptopic();
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
-    return writeMessageWithSize(cmd);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_lookuptopic();
+    mutex.unlock();
+    return buffer;
 }
 
-SharedBuffer Commands::newConsumerStats(BaseCommand& cmd, uint64_t consumerId, uint64_t requestId) { 
+SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
+    mutex.lock();
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
     consumerStats->set_consumer_id(consumerId);
     consumerStats->set_request_id(requestId);
-    return writeMessageWithSize(cmd);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_consumerstats();
+    mutex.unlock();
+    return buffer;
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
@@ -137,6 +157,7 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
         headers.setWriterIndex(writeIndex);
     }
 
+    cmd.clear_send();
     return composite;
 }
 
