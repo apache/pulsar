@@ -20,4 +20,8 @@ $ make setup
 
 ## Building the site
 
+```bash
+$ make 
+```
+
 ## Running the site locally
