@@ -73,7 +73,9 @@ public class ZooKeeperClientAspectJTest {
     
     static {
         // load agent with aspectjweaver-Agent for testing
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
+        // maven-test waves advice on build-goal so, maven doesn't need explicit loading
+        // uncomment it while testing on eclipse: 
+        //AgentLoader.loadAgentClass(Agent.class.getName(), null);
     }
 
     @Test
