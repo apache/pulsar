@@ -1,0 +1,48 @@
+@import "variables";
+
+@mixin swagger-method($color) {}
+
+$padding-base: 20px;
+
+.swagger {
+  width: 90%;
+
+  .routes {
+    padding: 10px;
+    margin-bottom: 25px;
+
+    ul li code {
+      background-color: white;
+    }
+  }
+
+  .card {
+    padding: $padding-base;
+
+    & + .card {
+      padding-top: 100px;
+    }
+  }
+
+  span.endpoint {
+    color: $brand-primary;
+  }
+
+  code {
+    &.get {
+      color: $brand-success;
+    }
+
+    &.post {
+      color: $pulsar-dark-blue;
+    }
+
+    &.put {
+      color: $brand-warning;
+    }
+
+    &.delete {
+      color: $brand-danger;
+    }
+  }
+}

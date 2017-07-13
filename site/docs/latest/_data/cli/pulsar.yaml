@@ -1,0 +1,89 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+description: The `pulsar` tool... TODO
+example: |
+  pulsar broker \
+    --conf /path/to/bookkeeper.conf
+commands:
+- name: bookie
+  description: Starts up a bookie server in the foreground.
+  example: |
+    pulsar bookie \
+      -readonly \
+      -withAutoRecovery \
+      --conf /path/to/bookkeeper.conf
+  options:
+  - flags:
+    - -c
+    - --conf
+    description: Configuration for the bookie server
+  - flags:
+    - -readOnly
+    description: Force start a read-only bookie server
+    default: 'false'
+  - flags:
+    - -withAutoRecovery
+    description: Start auto-recovery service bookie server
+    default: 'false'
+- name: broker
+  description: Starts up a Pulsar broker in the foreground.
+- name: discovery
+  description: Starts up Pulsar's service discovery process in the foreground.
+- name: global-zookeeper
+  description: Starts up a global ZooKeeper quorum node in the foreground.
+- name: initialize-cluster-metadata
+  description: Initializes the metadata for a Pulsar cluster.
+- name: standalone
+- name: websocket
+- name: zookeeper
+- name: zookeeper-shell
+env_vars:
+- name: PULSAR_LOG_CONF
+  description: Log4j configuration file
+  default: conf/log4j.properties
+- name: PULSAR_BROKER_CONF
+  description: Configuration file for broker
+  default: conf/broker.conf
+- name: PULSAR_BOOKKEEPER_CONF
+  description: Configuration file for bookie
+  default: conf/bookkeeper.conf
+- name: PULSAR_ZK_CONF
+  description: Configuration file for zookeeper
+  default: conf/zookeeper.conf
+- name: PULSAR_GLOBAL_ZK_CONF
+  description:  Configuration file for global zookeeper
+  default: conf/global_zookeeper.conf
+- name: PULSAR_DISCOVERY_CONF
+  description: Configuration file for discovery service
+  default: conf/discovery.conf
+- name: PULSAR_WEBSOCKET_CONF
+  description: Configuration file for websocket proxy
+  default: conf/websocket.conf
+- name: PULSAR_STANDALONE_CONF
+  description: Configuration file for standalone
+  default: conf/standalone.conf
+- name: PULSAR_EXTRA_OPTS
+  description: Extra options to be passed to the jvm
+- name: PULSAR_EXTRA_CLASSPATH
+  description: Extra paths for Pulsar's classpath
+- name: PULSAR_PID_DIR
+  description: Folder where the pulsar server PID file should be stored
+- name: PULSAR_STOP_TIMEOUT
+  description: Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful

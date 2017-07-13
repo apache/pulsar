@@ -1,0 +1,17 @@
+@mixin shadow($length) {
+  -webkit-box-shadow: 2px 2px $length 0px rgba(221,221,221,1);
+  -moz-box-shadow: 2px 2px $length 0px rgba(221,221,221,1);
+  box-shadow: 2px 2px $length 0px rgba(221,221,221,1);
+}
+
+@mixin sticky-footer {
+  body.body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+
+  main.main {
+    flex: 1;
+  }
+}

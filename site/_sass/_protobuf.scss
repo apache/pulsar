@@ -1,0 +1,79 @@
+@import "variables";
+
+.protobuf {
+  .container .row {
+    margin-top: 25px;
+  }
+
+  .enums, .messages {
+    margin-top: 25px;
+  }
+
+  .col {
+    padding: 0;
+  }
+
+  .enum-name, .message-name {
+    color: $pulsar-dark-blue;
+  }
+
+  h2.protobuf-title {
+    margin-bottom: 20px;
+  }
+
+  .card .card, .card .card .card {
+    padding: 10px;
+  }
+
+  .card-title {
+    margin-bottom: 20px;
+
+    h4 {
+      font-size: 28px;
+    }
+  }
+
+  table {
+    h5 + & {
+      margin-top: 0;
+    }
+
+    margin-top: 15px;
+    padding: 0;
+
+    width: 100%;
+    overflow-x: scroll;
+
+    thead {
+      border-bottom: 1px solid black;
+    }
+
+    tbody {
+      tr {
+        td {
+          padding-right: 10px;
+          overflow-x: scroll;
+
+          &.wrap {
+            //max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          code {
+            color: $pulsar-dark-blue;
+          }
+
+          a code {
+            padding: 2px;
+          }
+
+          p {
+            padding: 0;
+          }
+        }
+      }
+    }
+  }
+}

@@ -38,3 +38,6 @@ target/
 
 # tmp files
 *.pid
+
+# Generated website
+generated-site/
