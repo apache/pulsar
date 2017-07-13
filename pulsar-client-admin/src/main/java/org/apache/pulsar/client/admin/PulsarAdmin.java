@@ -112,6 +112,10 @@ public class PulsarAdmin implements Closeable {
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
+        httpConfig.property(ClientProperties.CONNECT_TIMEOUT, 5000);
+        if (pulsarConfig != null) {
+            httpConfig.property(ClientProperties.READ_TIMEOUT, Math.toIntExact(pulsarConfig.getOperationTimeoutMs()));
+        }
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
