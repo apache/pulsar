@@ -29,9 +29,6 @@ namespace pulsar {
 
 using namespace pulsar::proto;
 
-static BaseCommand cmd;
-static boost::mutex mutex;
-
 DECLARE_LOG_OBJECT();
 
 SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
@@ -49,6 +46,8 @@ SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
 }
 
 SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
     mutex.lock();
     cmd.set_type(BaseCommand::PARTITIONED_METADATA);
     CommandPartitionedTopicMetadata* partitionMetadata = cmd.mutable_partitionmetadata();
@@ -62,6 +61,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
 
 SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative,
                                  uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
     mutex.lock();
     cmd.set_type(BaseCommand::LOOKUP);
     CommandLookupTopic* lookup = cmd.mutable_lookuptopic();
@@ -75,6 +76,8 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
 }
 
 SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
+    static BaseCommand cmd;
+    static boost::mutex mutex;
     mutex.lock();
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
