@@ -93,7 +93,7 @@ class Commands {
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage);
 
-    static SharedBuffer newConsumerStats(proto::BaseCommand& cmd, uint64_t consumerId, uint64_t requestId);
+    static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
  private:
     Commands();
