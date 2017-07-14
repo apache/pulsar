@@ -1,0 +1,57 @@
+@mixin admon($main-color) {
+  background-color: lighten($main-color, 25%);
+  color: darken($main-color, 30%);
+  padding: 1rem;
+
+  span.admonition-title {
+    p {
+      font-size: 24px;
+    }
+
+    color: darken($main-color, 30%);
+
+    & + p {
+      margin-top: 15px;
+    }
+  }
+
+  a {
+    color: darken($main-color, 20%);
+  }
+}
+
+.admonition {
+  margin: 1rem 0;
+
+  p {
+    margin: 0;
+
+    & + p {
+      margin-top: 15px;
+    }
+  }
+
+  ul {
+    margin-left: 20px;
+
+    li {
+      font-size: 20px;
+    }
+  }
+
+  .info {
+    @include admon($brand-info);
+  }
+
+  .warning {
+    @include admon($brand-warning);
+  }
+
+  .danger {
+    @include admon($brand-danger);
+  }
+
+  .success {
+    @include admon($brand-success);
+  }
+}

@@ -1,4 +1,4 @@
-![logo](docs/img/pulsar.png)
+![logo](site/img/pulsar.png)
 
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.

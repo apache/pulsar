@@ -1,0 +1,25 @@
+@import "variables";
+
+span.popover-term {
+  outline: none;
+
+  &:hover {
+    cursor: help;
+  }
+
+  color: $pulsar-purple;
+}
+
+.popover {
+  //border: none;
+  padding: 10px;
+
+  .popover-title {
+    font-size: 20px;
+    border-bottom: none;
+    background-color: white;
+  }
+
+  .popover-content {
+  }
+}

@@ -21,12 +21,20 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-## Install
+Currently, the only supported Python version is 2.7.
+
+## Install from PyPI
+
+Download Python wheel binary files for MacOS and Linux
+directly from the PyPI archive.
+
+    #!shell
+    $ sudo pip install pulsar-client
+
+## Install from sources
 
 Follow the instructions to compile the Pulsar C++ client library. This method
 will also build the Python binding for the library.
-
-Currently, the only supported Python version is 2.7.
 
 To install the Python bindings:
 

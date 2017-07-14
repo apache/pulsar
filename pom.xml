@@ -586,7 +586,14 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
-
+            <exclude>site/vendor/**</exclude>
+            <exclude>site/scripts/doxygen/**</exclude>
+            <exclude>site/api/**</exclude>
+            <exclude>site/api/**</exclude>
+            <exclude>site/.sass-cache/**</exclude>
+            <exclude>site/generated/**</exclude>
+            <exclude>site/js/jquery.tocify.min.js</exclude>
+            <exclude>site/js/jquery.scrollTo.min.js</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>

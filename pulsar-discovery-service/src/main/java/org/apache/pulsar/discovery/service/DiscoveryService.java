@@ -51,6 +51,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 /**
  * Main discovery-service which starts component to serve incoming discovery-request over binary-proto channel and
  * redirects to one of the active broker
+ *
  */
 public class DiscoveryService implements Closeable {
 
@@ -92,7 +93,6 @@ public class DiscoveryService implements Closeable {
 
     /**
      * Starts discovery service by initializing zookkeeper and server
-     *
      * @throws Exception
      */
     public void start() throws Exception {
