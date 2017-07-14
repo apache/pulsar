@@ -126,7 +126,7 @@ public class GrowablePriorityLongPairQueue {
      * 
      * @return number of removed values
      */
-    public int removeIf(LongPairPredicate filter) {
+    public synchronized int removeIf(LongPairPredicate filter) {
         int removedValues = 0;
         int index = 0;
         long[] deletedItems = new long[size * 2];
@@ -142,10 +142,18 @@ public class GrowablePriorityLongPairQueue {
         }
 
         // delete collected items
-        index = 0;
-        for (int i = 0; i < removedValues; i++) {
-            remove(deletedItems[index], deletedItems[index + 1]);
-            index = index + 2;
+        deleteItemsIndex = 0;
+        for (int deleteItem = 0; deleteItem < removedValues; deleteItem++) {
+            // delete item from the heap
+            index = 0;
+            for (int i = 0; i < this.size; i++) {
+                if (data[index] == deletedItems[deleteItemsIndex]
+                        && data[index + 1] == deletedItems[deleteItemsIndex + 1]) {
+                    removeAtWithoutLock(index);
+                }
+                index = index + 2;
+            }
+            deleteItemsIndex = deleteItemsIndex + 2;
         }
         return removedValues;
     }
