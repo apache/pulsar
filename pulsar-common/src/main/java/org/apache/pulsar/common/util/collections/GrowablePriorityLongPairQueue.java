@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -52,7 +53,7 @@ public class GrowablePriorityLongPairQueue {
         checkArgument(initialCapacity > 0);
         this.capacity = MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = new long[2 * capacity];
-        fillEmptyValue(data, 0, data.length);
+        Arrays.fill(data, 0, data.length, EmptyItem);
     }
 
     public interface LongPairPredicate {
@@ -97,7 +98,7 @@ public class GrowablePriorityLongPairQueue {
      * @return a new list of all keys (makes a copy)
      */
     public Set<LongPair> items() {
-        Set<LongPair> items = new HashSet<>();
+        Set<LongPair> items = new HashSet<>(this.size);
         forEach((item1, item2) -> items.add(new LongPair(item1, item2)));
         return items;
     }
@@ -106,7 +107,7 @@ public class GrowablePriorityLongPairQueue {
      * @return a new list of keys with max provided numberOfItems (makes a copy)
      */
     public Set<LongPair> items(int numberOfItems) {
-        Set<LongPair> items = new HashSet<>();
+        Set<LongPair> items = new HashSet<>(this.size);
         forEach((item1, item2) -> {
             if (items.size() < numberOfItems) {
                 items.add(new LongPair(item1, item2));
@@ -127,12 +128,24 @@ public class GrowablePriorityLongPairQueue {
      */
     public int removeIf(LongPairPredicate filter) {
         int removedValues = 0;
-        for (LongPair item : items()) {
-            if (filter.test(item.first, item.second)) {
-                remove(item.first, item.second);
+        int index = 0;
+        long[] deletedItems = new long[size * 2];
+        int deleteItemsIndex = 0;
+        // collect eligible items for deletion
+        for (int i = 0; i < this.size; i++) {
+            if (filter.test(data[index], data[index + 1])) {
+                deletedItems[deleteItemsIndex++] = data[index];
+                deletedItems[deleteItemsIndex++] = data[index + 1];
                 removedValues++;
             }
+            index = index + 2;
+        }
 
+        // delete collected items
+        index = 0;
+        for (int i = 0; i < removedValues; i++) {
+            remove(deletedItems[index], deletedItems[index + 1]);
+            index = index + 2;
         }
         return removedValues;
     }
@@ -255,14 +268,8 @@ public class GrowablePriorityLongPairQueue {
             newData[index + 1] = data[index + 1];
             index = index + 2;
         }
-        fillEmptyValue(newData, index, newData.length);
+        Arrays.fill(newData, index, newData.length, EmptyItem);
         data = newData;
-    }
-
-    private void fillEmptyValue(long[] data, int start, int end) {
-        for (int i = start; i < end; i++) {
-            data[i] = EmptyItem;
-        }
     }
 
     private void swap(int i, int j) {
