@@ -22,6 +22,7 @@
 #include "ClientImpl.h"
 #include "BlockingQueue.h"
 #include <vector>
+#include <queue>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include "boost/enable_shared_from_this.hpp"
@@ -58,6 +59,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     virtual const std::string& getName() const;
     virtual Result receive(Message& msg);
     virtual Result receive(Message& msg, int timeout);
+    virtual void receiveAsync(ReceiveCallback& callback);
     virtual void unsubscribeAsync(ResultCallback callback);
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
@@ -91,6 +93,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     ConsumerMap consumers_;
     std::map<std::string, int> topicsPartitions_;
     boost::mutex mutex_;
+    boost::mutex pendingReceiveMutex_;
     MultiTopicsConsumerState state_;
     boost::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     LookupServicePtr lookupServicePtr_;
@@ -100,6 +103,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     Promise<Result, ConsumerImplBaseWeakPtr> multiTopicsConsumerCreatedPromise_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     const std::vector<std::string>& topics_;
+    std::queue<ReceiveCallback> pendingReceives_;
 
     /* methods */
     void setState(MultiTopicsConsumerState state);
@@ -112,6 +116,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void messageReceived(Consumer consumer, const Message& msg);
     void internalListener(Consumer consumer);
     void receiveMessages();
+    void failPendingReceiveCallback();
 
     void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
                                   boost::shared_ptr<std::atomic<int>> topicsNeedCreate);
