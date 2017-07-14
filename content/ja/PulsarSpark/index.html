@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>Apache Pulsar</title>
+<title>Spark Streaming Pulsar Receiver</title>
 
 <link rel="stylesheet" href="/css/style.css">
 <link rel="shortcut icon" href="/img/favicon.ico">
@@ -93,6 +93,10 @@
   </button>
 
  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
@@ -177,128 +181,132 @@
 
 -->
 
-<div class="index-container">
-  <div class="container">
-    <div class="jumbotron-fluid text-center">
-      <!-- <h2 class="display-4">Apache Pulsar</h2> -->
-      <img src="img/pulsar.png" />
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav col-sm-3 col-lg-3">
+      <!--
 
-      <p class="lead"><a href="">Apache Pulsar</a> is an open-source distributed pub-sub messaging system originally<br />
-          created at <a href="https://developer.yahoo.com/open-source/">Yahoo</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-      <p class="button-group lead">
-        <a class="btn btn-pulsar btn-lg" href="/docs/latest" role="button">Read the docs</a>
-        <a class="btn btn-github btn-lg" href="https://github.com/apache/incubator-pulsar" role="button">GitHub <i class="fa fa-github fa-lg"></i></a>
-      </p>
-    </div>
-  </div>
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<ul class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/GettingStarted/"><i class="fa fa-file-text-o"></i>Pulsar入門</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/Architecture/"><i class="fa fa-file-text-o"></i>システム概要</a></li>
+      
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>運用管理</h4>
+    <ul>
+      
+      
+      
+      
+      <li><a href="/ja/ClusterSetup/"><i class="fa fa-file-text-o"></i>クラスタのセットアップ</a></li>
+      
+      
+      
+      
+      
+      <li><a href="/ja/AdminTools/"><i class="fa fa-file-text-o"></i>adminツールとAPI</a></li>
+      
+      
+    </ul>
+  </section>
+  
+</ul>
+
+    </nav>
+
+    <article class="col-sm-7 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Spark Streaming Pulsar Receiver</h1>
+        
+        <hr />
+      </section>
+
+      <section class="content">
+        <!-- TOC depthFrom:2 depthTo:3 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+<ul>
+  <li><a href="#概要">概要</a></li>
+  <li><a href="#spark-streaming-pulsar-receiverの利用">Spark Streaming Pulsar Receiverの利用</a></li>
+  <li><a href="#実装例">実装例</a></li>
+</ul>
+
+<!-- /TOC -->
+
+<h2 id="概要">概要</h2>
+<p>Spark Streaming Pulsar ReceiverはApache Spark StreamingがPulsarからデータを受け取るためのCustom Receiverです。</p>
+
+<p>アプリケーションはSpark Streaming Pulsar Receiverを通してRDD形式のデータを受け取り、様々な処理を行うことができます。</p>
+
+<h2 id="spark-streaming-pulsar-receiverの利用">Spark Streaming Pulsar Receiverの利用</h2>
+<p>Spark Streaming Pulsar Receiverの依存をincludeします:</p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre>
 </div>
 
-<div class="main-page-features">
-  <div class="container">
-    <h2 class="text-center">Key features</h2>
-    <div class="row">
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture/#Architectureoverview" >
-                  <h3 class="card-title">Horizontally scalable</h3>
-            </a>
-          <p><p>Millions of independent topics and seamless capacity expansion by simply adding machines</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture/#Architectureoverview" >
-                  <h3 class="card-title">Low latency with durability</h3>
-            </a>
-          <p><p>Designed for low publish latency (&lt; 5ms) at scale with strong durabilty guarantees</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture/#Architectureoverview" >
-                  <h3 class="card-title">High throughput</h3>
-            </a>
-          <p><p>Proven in production at Yahoo scale with millions of messages per second</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/admin/GeoReplication" >
-                  <h3 class="card-title">Geo-replication</h3>
-            </a>
-          <p><p>Designed for configurable replication between data centers across multiple geographic regions</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture#multi-tenancy" >
-                  <h3 class="card-title">Multi-tenancy</h3>
-            </a>
-          <p><p>Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture#persistent-storage" >
-                  <h3 class="card-title">Persistent storage</h3>
-            </a>
-          <p><p>Persistent message storage based on <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>.
-Provides IO level isolation between write and read operations</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/getting-started/Clients" >
-                  <h3 class="card-title">Client libraries</h3>
-            </a>
-          <p><p>Flexible messaging models with high-level APIs for Java, C++ and Python</p>
-</p>
-        </div>
-      </div>
-      
-      <div class="col-sm-3 card">
-          <div class="card-block">
-            <a href="/docs/latest/admin/AdminInterface" >
-                  <h3 class="card-title">Operability</h3>
-            </a>
-          <p><p>REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal
-or <a href="https://kubernetes.io">Kubernetes</a>.</p>
-</p>
-        </div>
-      </div>
-      
-    </div>
-  </div>
+<p>JavaStreamingContextのreceiverStreamメソッドにSparkStreamingPulsarReceiverのインスタンスを渡します:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
+<span class="n">JavaStreamingContext</span> <span class="n">jssc</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaStreamingContext</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="n">Durations</span><span class="o">.</span><span class="na">seconds</span><span class="o">(</span><span class="mi">5</span><span class="o">));</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+<span class="n">String</span> <span class="n">url</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650/"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/topic1"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subs</span> <span class="o">=</span> <span class="s">"sub1"</span><span class="o">;</span>
+
+<span class="n">JavaReceiverInputDStream</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgs</span> <span class="o">=</span> <span class="n">jssc</span>
+        <span class="o">.</span><span class="na">receiverStream</span><span class="o">(</span><span class="k">new</span> <span class="n">SparkStreamingPulsarReceiver</span><span class="o">(</span><span class="n">clientConf</span><span class="o">,</span> <span class="n">consConf</span><span class="o">,</span> <span class="n">url</span><span class="o">,</span> <span class="n">topic</span><span class="o">,</span> <span class="n">subs</span><span class="o">));</span>
+</code></pre>
 </div>
 
+<h2 id="実装例">実装例</h2>
+<p>完全な実装の例は<a href="../../../pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">SparkStreamingPulsarReceiver.java</a>を参照してください。
+この例では、受け取ったメッセージのうち”Pulsar”という文字列が含まれるものがいくつあるかを数えます。</p>
 
-<div class="asf-incubator-container">
-  <div class="container">
-    <div class="text-center">
-      <p>
-        <a href="https://incubator.apache.org/"><img src="img/apache_incubator.png" title="Apache Incubator" /></a>
-      </p>
-      <p>
-        Apache Pulsar is an effort undergoing incubation at <a href="http://www.apache.org">The Apache Software Foundation (ASF)</a> sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
-      </p>
-      <p>
-        Apache Pulsar (incubating) is available under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, version 2.0</a>.
-      </p>
-    </div>
+      </section>
+    </article>
+
+    <nav class="toc-bar col-sm-2 col-lg-2">
+      <div id="toc"></div>
+    </nav>
   </div>
 </div>
 

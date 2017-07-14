@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Spark Streaming Pulsar receiver</title>
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+ 
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/docs/latest">Documentation</a>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/applications/JavaClient">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/applications/PythonClient">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/applications/CppClient">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          <a class="dropdown-item" href="/mailing-lists">Mailing Lists</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!-- <aside class="sidebar">
+  
+  <section class="sidebar-group">
+    <h4>Getting started</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/getting-started/LocalCluster/">Run Pulsar locally</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/getting-started/Clients/">Client libraries</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/getting-started/ConceptsAndArchitecture/">Concepts and architecture</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Deployment</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/deployment/Kubernetes/">Pulsar on Kubernetes</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Concerns</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/concerns/PartitionedTopics/">Partitioned topics</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/concerns/RetentionExpiry/">Retention and expiry</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar administration</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/AdminInterface/">Pulsar admin interface</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/ClustersBrokers/">Clusters and brokers</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/PropertiesNamespaces/">Properties and namespaces</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/ZooKeeperBookKeeper/">ZooKeeper and BookKeeper</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/Dashboard/">Dashboard</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/Authz/">Authentication and authorization</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/GeoReplication/">Geo-replication</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/Stats/">Pulsar statistics</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/admin/ModularLoadManager/">Modular load manager</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Pulsar applications</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/JavaClient/">The Pulsar Java client</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/CppClient/">The Pulsar C++ client</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/PythonClient/">The Pulsar Python client</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/WebSocket/">WebSocket API</a></li>
+      
+      
+      
+      <li><a  class="active"
+              href="/docs/latest/applications/PulsarSpark/">Spark Streaming receiver</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/PulsarStorm/">Apache Storm adaptor</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/applications/SimulationTools/">Simulation tools</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Developing Pulsar</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/project/Codebase/">Codebase</a></li>
+      
+    </ul>
+  </section>
+  
+  <section class="sidebar-group">
+    <h4>Reference</h4>
+    <ul>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/reference/RestApi/">Pulsar REST API</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/reference/CliTools/">Command-line tools</a></li>
+      
+      
+      
+      <li><a 
+              href="/docs/latest/reference/Configuration/">Pulsar configuration</a></li>
+      
+    </ul>
+  </section>
+  
+</aside>
+-->
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/getting-started/LocalCluster/">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/getting-started/Clients/">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/getting-started/ConceptsAndArchitecture/">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/deployment/InstanceSetup/">
+              Deploying a Pulsar instance
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/deployment/Kubernetes/">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-concerns">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-concerns" aria-controls="collapse-concerns">
+            Concerns
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-concerns" role="tabpanel" aria-labelledby="heading-concerns">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/concerns/PartitionedTopics/">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/concerns/RetentionExpiry/">
+              Retention and expiry
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/AdminInterface/">
+              Pulsar admin interface
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/ClustersBrokers/">
+              Clusters and brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/PropertiesNamespaces/">
+              Properties and namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/ZooKeeperBookKeeper/">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/Dashboard/">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/Authz/">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/GeoReplication/">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/Stats/">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/admin/ModularLoadManager/">
+              Modular load manager
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-applications">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-applications" aria-controls="collapse-pulsar-applications">
+            Pulsar applications
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-applications" role="tabpanel" aria-labelledby="heading-pulsar-applications">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/JavaClient/">
+              The Pulsar Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/CppClient/">
+              The Pulsar C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/PythonClient/">
+              The Pulsar Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/WebSocket/">
+              WebSocket API
+            </a>
+          </li>
+          
+          
+          <li class="active">
+            <a href="/docs/latest/applications/PulsarSpark/">
+              Spark Streaming receiver
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/PulsarStorm/">
+              Apache Storm adaptor
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/applications/SimulationTools/">
+              Simulation tools
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/project/BinaryProtocol/">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/project/Codebase/">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/reference/RestApi/">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/reference/CliTools/">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/reference/Configuration/">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Spark Streaming Pulsar receiver</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">spark</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-spark">spark</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-spark">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>spark</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">streaming</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-streaming">streaming</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-streaming">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>streaming</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          <li><a href="/docs/latest/admin/AdminInterface/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/applications/JavaClient/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/applications/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/applications/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>The Spark Streaming Pulsar Receiver is a custom receiver that enables Apache <a href="https://spark.apache.org/streaming/">Spark Streaming</a> to receive data from Pulsar.</p>
+
+<p>An application can receive data in <a href="https://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds">Resilient Distributed Dataset</a> (RDD) format via the Spark Streaming Pulsar Receiver and can process it in a variety of ways.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>To use the receiver, include a dependency for the <code class="highlighter-rouge">pulsar-spark</code> library in your Java configuration.</p>
+
+<h3 id="maven">Maven</h3>
+
+<p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>latest<span class="nt">&lt;/pulsar.version&gt;</span>
+
+<span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
+<span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>com.yahoo.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre>
+</div>
+
+<h3 id="gradle">Gradle</h3>
+
+<p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
+
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"latest"</span>
+
+<span class="n">dependencies</span> <span class="o">{</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'com.yahoo.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h2 id="usage">Usage</h2>
+
+<p>Pass an instance of SparkStreamingPulsarReceiver to receiverStream method in JavaStreamingContext:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
+<span class="n">JavaStreamingContext</span> <span class="n">jssc</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaStreamingContext</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="n">Durations</span><span class="o">.</span><span class="na">seconds</span><span class="o">(</span><span class="mi">5</span><span class="o">));</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+<span class="n">String</span> <span class="n">url</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650/"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/topic1"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subs</span> <span class="o">=</span> <span class="s">"sub1"</span><span class="o">;</span>
+
+<span class="n">JavaReceiverInputDStream</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgs</span> <span class="o">=</span> <span class="n">jssc</span>
+        <span class="o">.</span><span class="na">receiverStream</span><span class="o">(</span><span class="k">new</span> <span class="n">SparkStreamingPulsarReceiver</span><span class="o">(</span><span class="n">clientConf</span><span class="o">,</span> <span class="n">consConf</span><span class="o">,</span> <span class="n">url</span><span class="o">,</span> <span class="n">topic</span><span class="o">,</span> <span class="n">subs</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<h2 id="example">Example</h2>
+
+<p>You can find a complete example <a href="https://github.com/apache/incubator-pulsar/tree/master/tree/master/pulsar-spark/src/test/java/com/yahoo/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">here</a>.
+In this example, the number of messages which contain “Pulsar” string in received messages is counted.</p>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Spark Streaming Pulsar receiver</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>
