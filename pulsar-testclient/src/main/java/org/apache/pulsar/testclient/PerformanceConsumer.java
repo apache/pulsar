@@ -24,12 +24,10 @@ import java.io.FileInputStream;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -48,11 +46,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -176,22 +169,14 @@ public class PerformanceConsumer {
             }
         };
 
-        EventLoopGroup eventLoopGroup;
-        if (SystemUtils.IS_OS_LINUX) {
-            eventLoopGroup = new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2,
-                    new DefaultThreadFactory("pulsar-perf-consumer"));
-        } else {
-            eventLoopGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                    new DefaultThreadFactory("pulsar-perf-consumer"));
-        }
-
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setConnectionsPerBroker(arguments.maxConnections);
         clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
+        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
+        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
         List<Future<Consumer>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();

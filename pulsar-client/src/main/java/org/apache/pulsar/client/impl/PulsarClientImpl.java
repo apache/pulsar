@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -43,6 +42,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,8 +50,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -466,20 +464,7 @@ public class PulsarClientImpl implements PulsarClient {
     private static EventLoopGroup getEventLoopGroup(ClientConfiguration conf) {
         int numThreads = conf.getIoThreads();
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io");
-
-        if (SystemUtils.IS_OS_LINUX) {
-            try {
-                return new EpollEventLoopGroup(numThreads, threadFactory);
-            } catch (ExceptionInInitializerError | NoClassDefFoundError | UnsatisfiedLinkError e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Unable to load EpollEventLoop", e);
-                }
-
-                return new NioEventLoopGroup(numThreads, threadFactory);
-            }
-        } else {
-            return new NioEventLoopGroup(numThreads, threadFactory);
-        }
+        return EventLoopUtil.newEventLoopGroup(numThreads, threadFactory);
     }
 
     void cleanupProducer(ProducerBase producer) {
