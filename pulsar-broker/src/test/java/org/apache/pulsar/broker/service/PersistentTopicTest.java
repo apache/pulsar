@@ -354,6 +354,25 @@ public class PersistentTopicTest {
     }
 
     @Test
+    public void testSubscribeFail() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        // Empty subscription name
+        CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
+                .setSubscription("").setRequestId(1).setSubType(SubType.Exclusive).build();
+
+        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
+                0, cmd.getConsumerName(), cmd.getDurable(), null);
+        try {
+            f1.get();
+            fail("should fail with exception");
+        } catch (ExecutionException ee) {
+            // Expected
+            assertTrue(ee.getCause() instanceof BrokerServiceException.NamingException);
+        }
+    }
+
+    @Test
     public void testSubscribeUnsubscribe() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 

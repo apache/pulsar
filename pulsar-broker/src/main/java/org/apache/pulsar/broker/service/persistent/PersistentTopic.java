@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -348,6 +349,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
+
+        if (isBlank(subscriptionName)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Empty subscription name", topic);
+            }
+            future.completeExceptionally(new NamingException("Empty subscription name"));
+            return future;
+        }
 
         if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
             if (log.isDebugEnabled()) {

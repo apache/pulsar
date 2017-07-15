@@ -48,6 +48,7 @@ import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
 import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.glassfish.jersey.client.ClientConfig;
@@ -157,6 +158,44 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                         consumeClient1.stop();
                         consumeClient2.stop();
                         produceClient.stop();
+                        log.info("proxy clients are stopped successfully");
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
+                }).get(2, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("failed to close clients ", e);
+            }
+            executor.shutdownNow();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void badConsumerTest() throws Exception {
+
+        // Empty subcription name
+        String consumerUri = "ws://localhost:" + port
+                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic1/?subscriptionType=Exclusive";
+        URI consumeUri = URI.create(consumerUri);
+
+        WebSocketClient consumeClient1 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+
+        try {
+            consumeClient1.start();
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
+            consumerFuture1.get();
+            Assert.fail("should fail: empty subscription");
+        } catch (Exception e) {
+            // Expected
+            Assert.assertTrue(e.getCause() instanceof UpgradeException);
+        } finally {
+            ExecutorService executor = newFixedThreadPool(1);
+            try {
+                executor.submit(() -> {
+                    try {
+                        consumeClient1.stop();
                         log.info("proxy clients are stopped successfully");
                     } catch (Exception e) {
                         log.error(e.getMessage());
