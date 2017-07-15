@@ -56,6 +56,8 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
@@ -233,9 +235,9 @@ public class PulsarClientImpl implements PulsarClient {
         if (!DestinationName.isValid(topic)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
-        if (subscription == null) {
+        if (isBlank(subscription)) {
             return FutureUtil
-                    .failedFuture(new PulsarClientException.InvalidConfigurationException("Invalid subscription name"));
+                    .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
         }
         if (conf == null) {
             return FutureUtil.failedFuture(
