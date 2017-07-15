@@ -1810,5 +1810,50 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             return admin;
         }
     }
+    /**
+     * verifies admin api command for non-persistent topic.
+     * It verifies: partitioned-topic, stats
+     * @throws Exception
+     */
+    @Test
+    public void nonPersistentTopics() throws Exception {
+        final String topicName = "nonPersistentTopic";
+
+        final String persistentTopicName = "non-persistent://prop-xyz/use/ns1/" + topicName;
+        // Force to create a destination
+        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0);
+
+        // create consumer and subscription
+        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        PulsarClient client = PulsarClient.create(pulsarUrl.toString(), clientConf);
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        Consumer consumer = client.subscribe(persistentTopicName, "my-sub", conf);
+
+        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10);
+
+        PersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
+        assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.subscriptions.get("my-sub").consumers.size(), 1);
+        assertEquals(topicStats.publishers.size(), 0);
+
+        PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
+        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+
+        consumer.close();
+        client.close();
+
+        topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
+        assertTrue(topicStats.subscriptions.keySet().contains("my-sub"));
+        assertEquals(topicStats.publishers.size(), 0);
+
+        // test partitioned-topic
+        final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";
+        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
+        admin.nonPersistentTopics().createPartitionedTopic(partitionedTopicName, 5);
+        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
+    }
     
 }

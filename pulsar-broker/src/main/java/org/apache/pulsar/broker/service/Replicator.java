@@ -16,32 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
+package org.apache.pulsar.broker.service;
 
-public enum DestinationDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+import java.util.concurrent.CompletableFuture;
 
-    private String value;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
-    private DestinationDomain(String value) {
-        this.value = value;
-    }
+public interface Replicator {
 
-    public String value() {
-        return this.value;
-    }
+    void startProducer();
     
-    public static DestinationDomain getEnum(String value) {
-        for (DestinationDomain e : values()) {
-            if (e.value.equalsIgnoreCase(value)) {
-                return e;
-            }
-        }
-        throw new IllegalArgumentException("Invalid enum value " + value);
-    }
+    ReplicatorStats getStats();
 
-    @Override
-    public String toString() {
-        return this.value;
-    }
+    CompletableFuture<Void> disconnect();
+
+    CompletableFuture<Void> disconnect(boolean b);
+
+    void updateRates();
+
+    String getRemoteCluster();
+
 }

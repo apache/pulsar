@@ -400,7 +400,7 @@ public class PersistentTopicTest {
         Future<Void> f3 = topic.unsubscribe(successSubName);
         f3.get();
 
-        assertNull(topic.getPersistentSubscription(successSubName));
+        assertNull(topic.getSubscription(successSubName));
     }
 
     @Test
@@ -781,14 +781,14 @@ public class PersistentTopicTest {
         f3.get();
 
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 1);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 1);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
                 "C1");
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerId(), 2);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerId(), 2);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerName(),
                 "C2");
 
         // 4. Subscribe and create third duplicate consumer
@@ -801,19 +801,19 @@ public class PersistentTopicTest {
         f4.get();
 
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 1);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 1);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
                 "C1");
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerId(), 3);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerId(), 3);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(1).consumerName(),
                 "C1");
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(2).consumerId(), 2);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(2).consumerId(), 2);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(2).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(2).consumerName(),
                 "C2");
 
         // 5. Subscribe on partition topic with existing consumer id and different sub type
@@ -845,18 +845,18 @@ public class PersistentTopicTest {
         Future<Void> f7 = topic2.unsubscribe(successSubName2);
         f7.get();
 
-        assertNull(topic2.getPersistentSubscription(successSubName2));
+        assertNull(topic2.getSubscription(successSubName2));
 
         // 8. unsubscribe active consumer from shared sub.
-        PersistentSubscription sub = topic2.getPersistentSubscription(successSubName);
+        PersistentSubscription sub = topic2.getSubscription(successSubName);
         Consumer cons = sub.getDispatcher().getConsumers().get(0);
         sub.removeConsumer(cons);
 
         // Verify second consumer become active
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 3);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 3);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
                 "C1");
 
         // 9. unsubscribe active consumer from shared sub.
@@ -865,20 +865,20 @@ public class PersistentTopicTest {
 
         // Verify second consumer become active
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 2);
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerId(), 2);
         assertEquals(
-                topic2.getPersistentSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
+                topic2.getSubscription(successSubName).getDispatcher().getConsumers().get(0).consumerName(),
                 "C2");
 
         // 10. unsubscribe shared sub
         Future<Void> f8 = topic2.unsubscribe(successSubName);
         f8.get();
 
-        assertNull(topic2.getPersistentSubscription(successSubName));
+        assertNull(topic2.getSubscription(successSubName));
     }
 
     /**
-     * {@link PersistentReplicator.removeReplicator} doesn't remove replicator in atomic way and does in multiple step:
+     * {@link NonPersistentReplicator.removeReplicator} doesn't remove replicator in atomic way and does in multiple step:
      * 1. disconnect replicator producer
      * <p>
      * 2. close cursor
@@ -901,7 +901,7 @@ public class PersistentTopicTest {
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
         String remoteReplicatorName = topic.replicatorPrefix + "." + remoteCluster;
-        ConcurrentOpenHashMap<String, PersistentReplicator> replicatorMap = topic.getReplicators();
+        ConcurrentOpenHashMap<String, Replicator> replicatorMap = topic.getReplicators();
 
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
