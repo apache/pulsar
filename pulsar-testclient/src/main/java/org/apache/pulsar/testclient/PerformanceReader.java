@@ -28,8 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.bookkeeper.bookie.storage.ldb.ArrayGroupSort;
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -50,11 +48,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceReader {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -172,22 +165,14 @@ public class PerformanceReader {
             }
         };
 
-        EventLoopGroup eventLoopGroup;
-        if (SystemUtils.IS_OS_LINUX) {
-            eventLoopGroup = new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2,
-                    new DefaultThreadFactory("pulsar-perf-reader"));
-        } else {
-            eventLoopGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                    new DefaultThreadFactory("pulsar-perf-reader"));
-        }
-
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setConnectionsPerBroker(arguments.maxConnections);
         clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
+        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
+        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
         List<CompletableFuture<Reader>> futures = Lists.newArrayList();
         ReaderConfiguration readerConfig = new ReaderConfiguration();

@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
@@ -45,13 +46,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollMode;
-import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -96,13 +90,8 @@ public class ProxyService implements Closeable {
         this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
         this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
 
-        if (Epoll.isAvailable()) {
-            this.acceptorGroup  = new EpollEventLoopGroup(1, acceptorThreadFactory);
-            this.workerGroup = new EpollEventLoopGroup(numThreads, workersThreadFactory);
-        } else {
-            this.acceptorGroup = new NioEventLoopGroup(1, acceptorThreadFactory);
-            this.workerGroup = new NioEventLoopGroup(numThreads, workersThreadFactory);
-        }
+        this.acceptorGroup  = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
 
         ClientConfiguration clientConfiguration = new ClientConfiguration();
         if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
@@ -138,12 +127,8 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-        if (workerGroup instanceof EpollEventLoopGroup) {
-            bootstrap.channel(EpollServerSocketChannel.class);
-            bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        } else {
-            bootstrap.channel(NioServerSocketChannel.class);
-        }
+        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        EventLoopUtil.enableTriggeredMode(bootstrap);
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
