@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.zookeeper.aspectj;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.jute.Record;
@@ -54,6 +55,8 @@ public class ClientCnxnAspect {
     public static enum EventType {
         write, read, other;
     }
+    
+    private static ExecutorService eventProcessExecutor;
 
     public static interface EventListner {
         public void recordLatency(EventType eventType, long latencyMiliSecond);
@@ -68,7 +71,19 @@ public class ClientCnxnAspect {
     @Around("processEvent()")
     public void timedProcessEvent(ProceedingJoinPoint joinPoint) throws Throwable {
         joinPoint.proceed();
+        // zkResponse event shouldn't be blocked and it should be processed
+        // async
+        if (eventProcessExecutor != null && !eventProcessExecutor.isShutdown()) {
+            eventProcessExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    processEvent(joinPoint);
+                }
+            });
+        }
+    }
 
+    private void processEvent(ProceedingJoinPoint joinPoint) {
         long startTimeMs = getStartTime(joinPoint.getArgs()[0]);
         if (startTimeMs == -1) {
             // couldn't find start time
@@ -139,7 +154,8 @@ public class ClientCnxnAspect {
                 Field ctxField = Class.forName("org.apache.zookeeper.ClientCnxn$Packet").getDeclaredField("ctx");
                 ctxField.setAccessible(true);
                 Object zooworker = ctxField.get(packet);
-                if (zooworker.getClass().getName().equals("org.apache.bookkeeper.zookeeper.ZooWorker")) {
+                if (zooworker != null
+                        && zooworker.getClass().getName().equals("org.apache.bookkeeper.zookeeper.ZooWorker")) {
                     Field timeField = Class.forName("org.apache.bookkeeper.zookeeper.ZooWorker")
                             .getDeclaredField("startTimeMs");
                     timeField.setAccessible(true);
@@ -172,8 +188,16 @@ public class ClientCnxnAspect {
         return null;
     }
 
+    public static void registerExecutor(ExecutorService executor) {
+        eventProcessExecutor = executor;
+    }
+    
     public static void addListener(EventListner listener) {
         listeners.add(listener);
+    }
+    
+    public static void removeListener(EventListner listener) {
+        listeners.remove(listener);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCnxnAspect.class);

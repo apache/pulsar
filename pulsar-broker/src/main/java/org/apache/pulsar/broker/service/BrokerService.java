@@ -71,6 +71,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
+import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
+import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -159,6 +161,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
+    private final EventListner zkStatsListener;
     private final AuthenticationService authenticationService;
 
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
@@ -184,10 +187,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
-        // register listener to capture zk-latency
-        ClientCnxnAspect.addListener((eventType, latencyMs) -> {
-            this.pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
-        });
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
@@ -246,7 +245,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
 
-
+        // register listener to capture zk-latency
+        zkStatsListener = new EventListner() {
+            @Override
+            public void recordLatency(EventType eventType, long latencyMs) {
+                pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
+            }
+        };
         PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
 
@@ -283,6 +288,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startInactivityMonitor();
         this.startMessageExpiryMonitor();
         this.startBacklogQuotaChecker();
+        // register listener to capture zk-latency
+        ClientCnxnAspect.addListener(zkStatsListener);
+        ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
     }
 
     void startStatsUpdater() {
@@ -346,6 +354,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();
+        ClientCnxnAspect.removeListener(zkStatsListener);
+        ClientCnxnAspect.registerExecutor(null);
         log.info("Broker service completely shut down");
     }
 

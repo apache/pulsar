@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
+import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.stats.Metrics;
@@ -52,7 +53,6 @@ import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
-import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -60,7 +60,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.ea.agentloader.AgentLoader;
 import com.google.common.util.concurrent.AtomicDouble;
 
 public class ZooKeeperClientAspectJTest {
@@ -74,11 +73,11 @@ public class ZooKeeperClientAspectJTest {
     static {
         // load agent with aspectjweaver-Agent for testing
         // maven-test waves advice on build-goal so, maven doesn't need explicit loading
-        // uncomment it while testing on eclipse: 
-        //AgentLoader.loadAgentClass(Agent.class.getName(), null);
+        // uncomment it while testing on eclipse:
+        // AgentLoader.loadAgentClass(Agent.class.getName(), null);
     }
 
-    @Test(enabled=false)
+    @Test
     public void testZkConnected() throws Exception {
         try {
             ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
@@ -122,13 +121,17 @@ public class ZooKeeperClientAspectJTest {
 
             final AtomicInteger writeCount = new AtomicInteger(0);
             final AtomicInteger readCount = new AtomicInteger(0);
-            ClientCnxnAspect.addListener((EventType eventType, long latencyMiliSecond) -> {
-                if (eventType.equals(EventType.write)) {
-                    writeCount.incrementAndGet();
-                } else if (eventType.equals(EventType.read)) {
-                    readCount.incrementAndGet();
+            EventListner listener = new EventListner() {
+                @Override
+                public void recordLatency(EventType eventType, long latencyMiliSecond) {
+                    if (eventType.equals(EventType.write)) {
+                        writeCount.incrementAndGet();
+                    } else if (eventType.equals(EventType.read)) {
+                        readCount.incrementAndGet();
+                    }
                 }
-            });
+            };
+            ClientCnxnAspect.addListener(listener);
             CountDownLatch createLatch = new CountDownLatch(1);
             CountDownLatch deleteLatch = new CountDownLatch(1);
             CountDownLatch readLatch = new CountDownLatch(1);
@@ -152,6 +155,7 @@ public class ZooKeeperClientAspectJTest {
             Thread.sleep(500);
             Assert.assertEquals(writeCount.get(), 2);
             Assert.assertEquals(readCount.get(), 2);
+            ClientCnxnAspect.removeListener(listener);
         } finally {
             if (localZkc != null) {
                 localZkc.close();
@@ -219,7 +223,7 @@ public class ZooKeeperClientAspectJTest {
             deleteLatch.await();
             existLatch.await();
             readLatch.await();
-            Thread.sleep(500);
+            Thread.sleep(10);
 
             BrokerService brokerService = pulsar.getBrokerService();
             brokerService.updateRates();
