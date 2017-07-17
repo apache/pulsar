@@ -41,7 +41,7 @@ fi
 
 DOCKER_ORG="${DOCKER_ORG:-apachepulsar}"
 
-docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+docker login -u="$DOCKER_USER" -p="$DOCKER_PASSWORD"
 if [ $? -ne 0 ]; then
     echo "Failed to loging to Docker Hub"
     exit 1
