@@ -8,6 +8,13 @@
 
 @include sticky-footer;
 
+// border: 1px solid #ddd; width: 4rem; margin-right: 1.25rem;
+
+.flag {
+  margin: 0;
+  width: 4rem;
+}
+
 .codebase {
   .card {
     padding: .8rem;

@@ -39,6 +39,10 @@ As you can see from the example above, the following needs to be specified:
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
 
+{% include admonition.html type="info" title="Global cluster" content='
+In each Pulsar instance, there is a `global` cluster that you can administer just like other clusters. The `global` cluster enables you to do things like create global topics.
+' %}
+
 If you're using [TLS](../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
