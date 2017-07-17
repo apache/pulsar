@@ -18,14 +18,17 @@
     under the License.
 
 -->
-{% for dir in site.data.codebase.directories %}
-<div class="card">
-  <div class="card-block">
-    <h2 class="card-title">{{ dir.name }}</h2>  <a href="{{ site.pulsar_repo }}/{{ dir.name }}"><i class="fa fa-github fa-lg"></i></a>
-    <p>{{ dir.language }}</p>
-    <div class="card-text">
-      {{ dir.description | markdownify }}
-    </div>
-  </div>
-</div>
-{% endfor %}
+
+<section class="codebase">
+  <ul class="list-group">
+    {% for dir in site.data.codebase.directories %}
+    <li class="list-group-item">
+      <span class="list-group-item-title">
+        {{ dir.name }}
+        <a href="{{ site.pulsar_repo }}/{{ dir.name }}"><i class="fa fa-github"></i></a>
+        <p class="list-group-item-text">{{ dir.description | markdownify }}</p>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>

@@ -8,6 +8,33 @@
 
 @include sticky-footer;
 
+.codebase {
+  .list-group {
+    .list-group-item {
+      padding: 1rem;
+      margin: 0;
+
+      .list-group-item-title {
+        padding: 0;
+        font-size: 2rem;
+
+        i.fa {
+          margin-left: 2rem;
+        }
+      }
+
+      p.list-group-item-text {
+        padding: 0;
+        margin: 1rem 0 0 0;
+      }
+
+      & + .list-group-item {
+        margin-top: .5rem;
+      }
+    }
+  }
+}
+
 span.latest-badge {
   margin-left: 2rem;
 }
