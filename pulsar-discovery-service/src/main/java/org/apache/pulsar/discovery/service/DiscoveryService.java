@@ -24,11 +24,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationManager;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -40,12 +40,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollMode;
-import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -74,21 +68,8 @@ public class DiscoveryService implements Closeable {
         this.config = serviceConfig;
         this.serviceUrl = serviceUrl();
         this.serviceUrlTls = serviceUrlTls();
-        EventLoopGroup acceptorEventLoop, workersEventLoop;
-        if (SystemUtils.IS_OS_LINUX) {
-            try {
-                acceptorEventLoop = new EpollEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new EpollEventLoopGroup(numThreads, workersThreadFactory);
-            } catch (UnsatisfiedLinkError e) {
-                acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-            }
-        } else {
-            acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-            workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-        }
-        this.acceptorGroup = acceptorEventLoop;
-        this.workerGroup = workersEventLoop;
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
     }
 
     /**
@@ -117,13 +98,8 @@ public class DiscoveryService implements Closeable {
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
-
-        if (workerGroup instanceof EpollEventLoopGroup) {
-            bootstrap.channel(EpollServerSocketChannel.class);
-            bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        } else {
-            bootstrap.channel(NioServerSocketChannel.class);
-        }
+        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        EventLoopUtil.enableTriggeredMode(bootstrap);
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, config, false));
         // Bind and start to accept incoming connections.

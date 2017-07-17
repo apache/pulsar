@@ -54,7 +54,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.commons.lang.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -95,6 +94,7 @@ import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -115,12 +115,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollMode;
-import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
@@ -152,7 +146,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AuthorizationManager authorizationManager = null;
     private final ScheduledExecutorService statsUpdater;
     private final ScheduledExecutorService backlogQuotaChecker;
-    
+
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
@@ -169,10 +163,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final PulsarStats pulsarStats;
     private final EventListner zkStatsListener;
     private final AuthenticationService authenticationService;
-    
+
     public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
     private final ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache;
-    
+
     private static final LongAdder totalUnackedMessages = new LongAdder();
     private final int maxUnackedMessages;
     public final int maxUnackedMsgsPerDispatcher;
@@ -200,22 +194,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
         log.info("Using {} threads for broker service IO", numThreads);
 
-        EventLoopGroup acceptorEventLoop, workersEventLoop;
-        if (SystemUtils.IS_OS_LINUX) {
-            try {
-                acceptorEventLoop = new EpollEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new EpollEventLoopGroup(numThreads, workersThreadFactory);
-            } catch (UnsatisfiedLinkError e) {
-                acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-                workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-            }
-        } else {
-            acceptorEventLoop = new NioEventLoopGroup(1, acceptorThreadFactory);
-            workersEventLoop = new NioEventLoopGroup(numThreads, workersThreadFactory);
-        }
-
-        this.acceptorGroup = acceptorEventLoop;
-        this.workerGroup = workersEventLoop;
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         if (pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -286,12 +266,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-        if (workerGroup instanceof EpollEventLoopGroup) {
-            bootstrap.channel(EpollServerSocketChannel.class);
-            bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        } else {
-            bootstrap.channel(NioServerSocketChannel.class);
-        }
+        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        EventLoopUtil.enableTriggeredMode(bootstrap);
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
@@ -490,7 +466,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     /**
      * It creates a topic async and returns CompletableFuture. It also throttles down configured max-concurrent topic
      * loading and puts them into queue once in-process topics are created.
-     * 
+     *
      * @param topic persistent-topic name
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
@@ -727,7 +703,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return pulsarStats.getBundleStats();
     }
-    
+
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
     }
@@ -957,7 +933,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public List<PersistentTopic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
         return multiLayerTopicsMap.get(namespace).get(bundle).values();
     }
-    
+
     public ZooKeeperDataCache<Map<String, String>> getDynamicConfigurationCache() {
         return dynamicConfigurationCache;
     }
@@ -997,7 +973,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * action, listener should update config value with new value if it has been changed (so, next time listener can
      * compare values on configMap change).
      * @param <T>
-     * 
+     *
      * @param configKey
      *            : configuration field name
      * @param listener
@@ -1019,7 +995,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void updateDynamicServiceConfiguration() {
-        
+
         try {
             // create dynamic-config znode if not present
             if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
@@ -1079,9 +1055,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 }
             }
         });
-        
+
     }
-    
+
     public static ConcurrentOpenHashMap<String, Field> getDynamicConfigurationMap() {
         return dynamicConfigurationMap;
     }
@@ -1138,11 +1114,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
     }
-    
+
     /**
      * If per-broker unack message reached to limit then it blocks dispatcher if its unack message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}
-     * 
+     *
      * @param dispatcher
      * @param numberOfMessages
      */
@@ -1173,7 +1149,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * {@link #maxUnackedMessages} then it blocks all the dispatchers which has unack-messages higher than
      * {@link #maxUnackedMsgsPerDispatcher}. It unblocks all dispatchers once broker-unack message counts decreased to
      * ({@link #maxUnackedMessages}/2)
-     * 
+     *
      */
     public void checkUnAckMessageDispatching() {
 
@@ -1193,9 +1169,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 unblockDispatchersOnUnAckMessages(blockedDispatchers.values());
             }
         }
-     
+
     }
-    
+
     public boolean isBrokerDispatchingBlocked() {
         return blockedDispatcherOnHighUnackedMsgs.get();
     }
@@ -1232,7 +1208,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     /**
      * Unblocks the dispatchers and removes it from the {@link #blockedDispatchers} list
-     * 
+     *
      * @param dispatcherList
      */
     public void unblockDispatchersOnUnAckMessages(List<PersistentDispatcherMultipleConsumers> dispatcherList) {

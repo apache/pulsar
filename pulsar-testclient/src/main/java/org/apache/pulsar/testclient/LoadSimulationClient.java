@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -53,9 +52,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.google.common.util.concurrent.RateLimiter;
 
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -313,21 +309,18 @@ public class LoadSimulationClient {
 
     /**
      * Create a LoadSimulationClient with the given JCommander arguments.
-     * 
+     *
      * @param arguments
      *            Arguments to configure this from.
      */
     public LoadSimulationClient(final MainArguments arguments) throws Exception {
         payloadCache = new ConcurrentHashMap<>();
         topicsToTradeUnits = new ConcurrentHashMap<>();
-        final EventLoopGroup eventLoopGroup = SystemUtils.IS_OS_LINUX
-                ? new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"))
-                : new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                        new DefaultThreadFactory("pulsar-test-client"));
+
         clientConf = new ClientConfiguration();
 
         clientConf.setConnectionsPerBroker(4);
+        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
 
         // Disable stats on the clients to reduce CPU/memory usage.
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
@@ -345,14 +338,14 @@ public class LoadSimulationClient {
         consumerConf = new ConsumerConfiguration();
         consumerConf.setMessageListener(ackListener);
         admin = new PulsarAdmin(new URL(arguments.serviceURL), clientConf);
-        client = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
+        client = new PulsarClientImpl(arguments.serviceURL, clientConf);
         port = arguments.port;
         executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
     }
 
     /**
      * Start a client with command line arguments.
-     * 
+     *
      * @param args
      *            Command line arguments to pass in.
      */
