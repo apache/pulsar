@@ -18,14 +18,10 @@
 # under the License.
 #
 
-# Get the project version from Maven
-pushd .. > /dev/null
-MVN_VERSION=$(mvn -q \
-    -Dexec.executable="echo" \
-    -Dexec.args='${project.version}' \
-    --non-recursive \
-    org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
-popd > /dev/null
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR/docker
+
+MVN_VERSION=`./get-version.sh`
 
 echo "Pulsar version: ${MVN_VERSION}"
 
