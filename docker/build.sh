@@ -50,14 +50,14 @@ rm pulsar-${MVN_VERSION}-bin.tar.gz
 
 
 # Build pulsar-grafana image
-docker build -t pulsar-grafana grafana
+docker build -t pulsar-grafana:latest grafana
 if [ $? != 0 ]; then
     echo "Error: Failed to create Docker image for pulsar-grafana"
     exit 1
 fi
 
 # Build dashboard docker image
-docker build -t pulsar-dashboard ../dashboard
+docker build -t pulsar-dashboard:latest ../dashboard
 if [ $? != 0 ]; then
     echo "Error: Failed to create Docker image for pulsar-dashboard"
     exit 1

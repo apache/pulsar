@@ -19,7 +19,7 @@
 #
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-cd $ROOT_DIR
+cd $ROOT_DIR/docker
 
 # We should only publish images that are made from official and approved releases
 # and thus ignore all the release candidates that are just tagged during the release
