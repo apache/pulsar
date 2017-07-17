@@ -341,6 +341,9 @@ BSD 2-Clause License
 BSD License
  * JLine -- jline-*.jar -- licenses/LICENSE.JLine.txt
 
+RocksDB License
+  * RocksDB - org.rocksdb.*.jar -- licenses/LICENSE-RocksDB.txt
+
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-*.jar -- licenses/LICENSE-SemVer.txt
  * SLF4J -- org.slf4j.*.jar -- licenses/LICENSE-SLF4J.txt
@@ -362,8 +365,3 @@ Eclipse Public License 1.0 -- licenses/LICENSE-EPL-1.0.txt
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-*.jar
-
-RocksDB License
- * RocksDB - org.rocksdb.*.jar -- https://github.com/facebook/rocksdb/blob/master/LICENSE
- TODO: Remove RocksDB dependency as it falls under Category-X (Forbidden) by the ASF
- https://www.apache.org/legal/resolved.html#category-x

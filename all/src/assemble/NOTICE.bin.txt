@@ -74,6 +74,10 @@ Copyright (C) 1999- by Shigeru Chiba, All rights reserved.
 SLF4J
 Copyright (c) 2004-2017 QOS.ch
 
+RocksDB
+Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+Copyright (c) 2011 The LevelDB Authors. All rights reserved.
+
 ----------------------------------------------------------------------------------------------------
 Apache Log4j
 Copyright 1999-2017 Apache Software Foundation
