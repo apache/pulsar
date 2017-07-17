@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.io.FileSystems;
 import org.apache.pulsar.connect.api.sink.SinkConnector;
 import org.apache.pulsar.connect.config.ConnectorConfiguration;
 import org.apache.pulsar.connect.util.InstanceBuilder;
@@ -127,6 +128,8 @@ class SinkConnectorRunner extends ConnectorRunner {
     public static SinkConnectorRunner fromProperties(Properties properties) {
         PropertiesValidator.validateThrowIfMissingKeys(properties,
                 ConnectorConfiguration.KEY_SUBSCRIPTION);
+
+        FileSystems.register(properties);
 
         final SinkConnector connector;
         try {

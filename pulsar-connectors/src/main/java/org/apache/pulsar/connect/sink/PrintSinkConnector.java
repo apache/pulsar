@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.api.sink;
+package org.apache.pulsar.connect.sink;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.connect.api.sink.SinkConnector;
 
 import java.io.IOException;
 import java.io.PrintStream;
