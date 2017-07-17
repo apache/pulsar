@@ -9,27 +9,15 @@
 @include sticky-footer;
 
 .codebase {
-  .list-group {
-    .list-group-item {
-      padding: 1rem;
-      margin: 0;
+  .card {
+    padding: .8rem;
 
-      .list-group-item-title {
-        padding: 0;
-        font-size: 2rem;
+    h2.card-title {
+      margin-top: 0 !important;
+      font-size: 2rem;
 
-        i.fa {
-          margin-left: 2rem;
-        }
-      }
-
-      p.list-group-item-text {
-        padding: 0;
-        margin: 1rem 0 0 0;
-      }
-
-      & + .list-group-item {
-        margin-top: .5rem;
+      i {
+        margin-left: 2rem;
       }
     }
   }
@@ -73,13 +61,6 @@ span.latest-badge {
 * {
   margin: 0;
   padding: 0;
-}
-
-.codebase {
-  h2 {
-    padding: 0;
-    margin: 0;
-  }
 }
 
 button.version-btn {

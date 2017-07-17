@@ -97,7 +97,7 @@ standalone:
 subscription:
   q: What is a subscription?
   def: |
-    "A lease on a topic established by a consumer. Pulsar has three subscription modes: exclusive, shared, and failover."
+    "A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)."
 tenant:
   q: What is a tenant?
   def: An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level.

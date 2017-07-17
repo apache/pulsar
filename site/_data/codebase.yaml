@@ -20,13 +20,10 @@
 directories:
 - name: pulsar-broker
   language: Java
-  description: Code related to the Pulsar broker
-  key_files:
-  - path:
-    purpose:
+  description: Code related to the Pulsar [broker](../../getting-started/ConceptsAndArchitecture#brokers).
 - name: pulsar-common
   language: Java, Protocol Buffers
-  description: Common assets
+  description: Assets used for 
 - name: dashboard
   language: python
 - name: kubernetes
@@ -41,3 +38,8 @@ directories:
 - name: pulsar-testclient
 - name: src
   language: XML
+- name: protobuf
+  description: Some helpers for generating code from Protocol Buffer definitions.
+- name: all
+  description: Configuration for Maven's assembly plugin.
+  language: xml
