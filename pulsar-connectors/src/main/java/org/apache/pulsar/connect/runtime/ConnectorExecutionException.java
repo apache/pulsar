@@ -16,20 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.config;
+package org.apache.pulsar.connect.runtime;
 
-public class ConnectorConfiguration {
+public class ConnectorExecutionException extends RuntimeException {
+    public ConnectorExecutionException(String message) {
+        super(message);
+    }
 
-    public static final int DEFAULT_OPERATION_TIMEOUT_SECONDS = 60 * 5; // 5 minutes
-
-    public static final String KEY_SERVICE_URL = "pulsar.url";
-    public static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
-
-    public static final String KEY_CONNECTOR = "connector";
-
-    public static final String KEY_TOPIC = "topic";
-
-    public static final String KEY_SUBSCRIPTION = "subscription";
-
-    private ConnectorConfiguration() {}
+    public ConnectorExecutionException(Throwable cause) {
+        super(cause);
+    }
 }

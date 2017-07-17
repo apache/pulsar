@@ -16,20 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.config;
+package org.apache.pulsar.connect.api.sink;
 
-public class ConnectorConfiguration {
+import org.apache.pulsar.client.api.Message;
 
-    public static final int DEFAULT_OPERATION_TIMEOUT_SECONDS = 60 * 5; // 5 minutes
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Properties;
 
-    public static final String KEY_SERVICE_URL = "pulsar.url";
-    public static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
+public class PrintSinkConnector extends SinkConnector {
 
-    public static final String KEY_CONNECTOR = "connector";
+    private static final String OUTPUT_FORMAT = "[%s] %s";
 
-    public static final String KEY_TOPIC = "topic";
+    private PrintStream stream = System.out;
 
-    public static final String KEY_SUBSCRIPTION = "subscription";
+    @Override
+    public void initialize(Properties properties) {
+        stream = System.out;
+    }
 
-    private ConnectorConfiguration() {}
+    @Override
+    public void close() {
+        stream = null;
+    }
+
+    @Override
+    public boolean processMessage(Message message) throws IOException {
+        final String output = String.format(OUTPUT_FORMAT,
+                message.getMessageId().toString(),
+                new String(message.getData()));
+        stream.println(output);
+        return true;
+    }
 }
