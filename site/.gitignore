@@ -5,7 +5,6 @@ node_modules/
 vendor/
 api/admin/
 api/client/
-api/cpp/
 generated/
 .sass-cache
 _data/config/*.bak
