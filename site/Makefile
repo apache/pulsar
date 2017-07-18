@@ -35,7 +35,7 @@ python_setup:
 
 setup: ruby_setup
 
-travis_setup: ruby_setup
+travis_setup: ruby_setup python_setup
 
 travis_build: api_docs
 	scripts/build-all-versions.sh
