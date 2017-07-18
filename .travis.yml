@@ -17,11 +17,9 @@
 # under the License.
 #
 
-language: java C++ ruby python
+language: java C++ ruby
 jdk:
   - oraclejdk8
-python:
-  - "3.2"
 
 cache:
   directories:

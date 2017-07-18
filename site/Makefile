@@ -31,7 +31,7 @@ ruby_setup:
 		--path vendor/bundle
 
 python_setup:
-	pip install pdoc pygments
+	sudo pip install pdoc pygments
 
 setup: ruby_setup
 
