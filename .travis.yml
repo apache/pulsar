@@ -21,6 +21,11 @@ language: java C++ ruby
 jdk:
   - oraclejdk8
 
+sudo: required
+
+services:
+  - docker
+
 cache:
   directories:
   - $HOME/.m2
@@ -44,7 +49,10 @@ install:
 
 script:
     # Build Java and C++
-    - mvn license:check test && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
+    - mvn license:check test package && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
+    # Build docker images
+    - docker/build.sh
+    # Generate website
     - (cd site && make travis_build)
 
 deploy:
@@ -81,3 +89,9 @@ deploy:
     on:
         repo: apache/incubator-pulsar
         branch: master
+  -
+    provider: script
+    skip_cleanup: true
+    script: docker/publish.sh
+    on:
+       tags: true
