@@ -8,13 +8,13 @@ tags:
 - clients
 ---
 
-By default, Pulsar {% popover topics %} are served by a single {% popover broker %}. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput.
+By default, Pulsar {% popover topics %} are served by a single {% popover broker %}. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Concepts](#concepts) section below.
 
 You can [publish](#publishing-to-partitioned-topics) to partitioned topics using Pulsar's client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar's [admin API](../../admin/AdminInterface).
 
 ## Publishing to partitioned topics
 
-From the standpoint of message-producing clients, the only difference is that you need to specify a message router when you create a new producer. Examples for [Java](#java) are below.
+When publising to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](../../getting-started/ConceptsAndArchitecture#routing-modes) when you create a new {% popover producer %}. Examples for [Java](#java) are below.
 
 ### Java
 
