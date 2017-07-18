@@ -37,7 +37,7 @@ setup: ruby_setup
 
 travis_setup: ruby_setup
 
-travis_build:
+travis_build: api_docs
 	scripts/build-all-versions.sh
 
 travis_publish:
