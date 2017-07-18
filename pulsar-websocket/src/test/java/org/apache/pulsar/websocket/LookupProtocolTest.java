@@ -26,7 +26,15 @@ import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import io.netty.channel.epoll.Epoll;
+
 public class LookupProtocolTest {
+
+    static {
+        // Trigger the loading of Epoll immediately, to avoid race condition in test
+        Epoll.isAvailable();
+    }
+
     @Test(timeOut = 10000)
     public void httpLookupTest() throws Exception{
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
