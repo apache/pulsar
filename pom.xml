@@ -486,7 +486,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjweaver</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.ea.agentloader</groupId>
         <artifactId>ea-agent-loader</artifactId>
@@ -544,10 +544,11 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.19.1</version>
+        <version>2.20</version>
         <configuration>
           <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
             -Dio.netty.leakDetectionLevel=advanced</argLine>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
       </plugin>
 
