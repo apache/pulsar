@@ -37,7 +37,7 @@ setup: ruby_setup
 
 travis_setup: ruby_setup python_setup
 
-travis_build: api_docs
+travis_build: javadoc cpp_doc_gen
 	scripts/build-all-versions.sh
 
 travis_publish:
