@@ -105,7 +105,7 @@
             </goals>
             <configuration>
               <tarLongFileMode>posix</tarLongFileMode>
-              <finalName>pulsar-${project.version}</finalName>
+              <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>
                 <descriptor>src/assemble/bin.xml</descriptor>
                 <descriptor>src/assemble/src.xml</descriptor>
