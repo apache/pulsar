@@ -17,19 +17,19 @@ There are also two independent sets of Javadoc API docs available:
 
 Library | Purpose
 :-------|:-------
-[`org.apache.pulsar.client.api`]({{ site.baseurl }}api/client) | The [Pulsar Java client](../../applications/JavaClient) for producing and consuming messages on Pulsar {% popover topics %}
-[`org.apache.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java client for the [Pulsar admin interface](../../admin/AdminInterface)
+[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](../../applications/JavaClient) for producing and consuming messages on Pulsar {% popover topics %}
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](../../admin/AdminInterface)
 
-<!-- * [`com.yahoo.pulsar.broker`]({{ site.baseurl }}api/broker) -->
+<!-- * [`com.yahoo.pulsar.broker`](/api/broker) -->
 
 ## Python client
 
 For a tutorial on using the Pulsar Python client, see [The Pulsar Python client](../../applications/PythonClient).
 
-There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here]({{ site.baseurl }}api/python).
+There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python).
 
 ## C++ client
 
 For a tutorial on using the Pulsar C++ clent, see [The Pulsar C++ client](../../applications/CppClient).
 
-There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here]({{ site.baseurl }}api/cpp).
+There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here](/api/cpp).

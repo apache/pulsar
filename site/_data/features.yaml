@@ -17,6 +17,10 @@
 # under the License.
 #
 
+- title: Proven in production
+  content: Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics.
+  endpoint:
+
 - title: Horizontally scalable
   content: Millions of independent topics and seamless capacity expansion by simply adding machines
   endpoint: getting-started/ConceptsAndArchitecture/#Architectureoverview

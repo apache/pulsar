@@ -40,6 +40,8 @@ $ cd pulsar-{{ site.latest }}
 
 ## What your package contains
 
+Both the source and binary packages contain the following directories:
+
 Directory | Contains
 :---------|:--------
 `bin` | Pulsar's [command-line tools](../../reference/CliTools), such as [`pulsar`](../../reference/CliTools#pulsar) and [`pulsar-admin`](../../reference/CliTools#pulsar-admin)
@@ -47,3 +49,5 @@ Directory | Contains
 `data` | The data storage directory used by {% popover ZooKeeper %} and {% popover BookKeeper %}.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `logs` | Logs created by the installation.
+
+The source package contains all of the assets, specific to version {{ site.current_version}}, from the [Pulsar repository]({{ site.pulsar_repo }}).

@@ -4,7 +4,7 @@ Behind the scenes, a partitioned topic is actually implemented as N internal top
 
 The diagram below illustrates this:
 
-![Partitioned Topic]({{ site.baseurl }}img/pulsar_partitioned_topic.jpg)
+![Partitioned Topic](/img/pulsar_partitioned_topic.jpg)
 
 Here, the topic **T1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 

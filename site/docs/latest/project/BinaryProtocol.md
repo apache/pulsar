@@ -111,7 +111,7 @@ When compression is enabled, the whole batch will be compressed at once.
 After opening a TCP connection to a broker, typically on port 6650, the client
 is responsible to initiate the session.
 
-![Connect interaction]({{ site.baseurl }}img/Binary%20Protocol%20-%20Connect.png)
+![Connect interaction](/img/Binary%20Protocol%20-%20Connect.png)
 
 After receiving a `Connected` response from the broker, the client can
 consider the connection ready to use. Alternatively, if the broker doesn't
@@ -176,7 +176,7 @@ authorized to publish on the topic.
 Once the client gets confirmation of the producer creation, it can publish
 messages to the broker, referring to the producer id negotiated before.
 
-![Producer interaction]({{ site.baseurl }}img/Binary%20Protocol%20-%20Producer.png)
+![Producer interaction](/img/Binary%20Protocol%20-%20Producer.png)
 
 ##### Command Producer
 
@@ -289,7 +289,7 @@ A consumer is used to attach to a subscription and consume messages from it.
 After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.
 
-![Consumer]({{ site.baseurl }}img/Binary%20Protocol%20-%20Consumer.png)
+![Consumer](/img/Binary%20Protocol%20-%20Consumer.png)
 
 #### Flow control
 
@@ -447,7 +447,7 @@ connect to, or a broker hostname to which retry the lookup.
 The `LookupTopic` command has to be used in a connection that has already
 gone through the `Connect` / `Connected` initial handshake.
 
-![Topic lookup]({{ site.baseurl }}img/Binary%20Protocol%20-%20Topic%20lookup.png)
+![Topic lookup](/img/Binary%20Protocol%20-%20Topic%20lookup.png)
 
 ```protobuf
 message CommandLookupTopic {

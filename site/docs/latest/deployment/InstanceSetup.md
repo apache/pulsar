@@ -116,9 +116,9 @@ The most important thing is that you point the [`serviceUrl`](../../reference/Co
 serviceUrl=http://pulsar.us-west.example.com:8080/
 ```
 
-## Provisioning a new tenant
+## Provisioning new tenants
 
-Once you've set up an administrative client, 
+Pulsar was built as a fundamentally {% popover multi-tenant %} system. New tenants can be provisioned as Pulsar {% popover properties %}. Properties can be
 
 To allow a new tenant to use the system, we need to create a new {% popover property %}. You can create a new property using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-properties-create) CLI tool:
 

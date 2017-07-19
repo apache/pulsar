@@ -24,8 +24,8 @@
     <h4>{{ group.title }}</h4>
     <ul>
       {% for doc in group.docs %}
-      {% capture doc_url %}{{ site.baseurl }}ja/{{ doc.endpoint }}/{% endcapture %}
-      {% capture page_url %}{{ site.baseurl }}{{ page.url | remove_first: "/" }}{% endcapture %}
+      {% capture doc_url %}/ja/{{ doc.endpoint }}/{% endcapture %}
+      {% capture page_url %}/{{ page.url | remove_first: "/" }}{% endcapture %}
       {% if page_url == doc_url %}
       <li><a class="active" href="{{ doc_url }}"><i class="fa fa-file-text-o"></i>{{ doc.title }}</a></li>
       {% else %}

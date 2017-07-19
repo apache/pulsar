@@ -89,7 +89,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 
 A subscription is a named configuration rule that determines how messages are delivered to {% popover consumers %}. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
 
-![Subscription Modes]({{ site.baseurl }}img/pulsar_subscriptions.jpg)
+![Subscription Modes](/img/pulsar_subscriptions.jpg)
 
 #### Exclusive
 
@@ -131,7 +131,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Architecture Diagram]({{ site.baseurl }}img/pulsar_system_architecture.png)
+![Architecture Diagram](/img/pulsar_system_architecture.png)
 
 At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster called {% popover global ZooKeeper %} handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
@@ -179,7 +179,7 @@ When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-met
 
 ## Persistent storage
 
-![Brokers and bookies]({{ site.baseurl }}img/broker-bookie.png)
+![Brokers and bookies](/img/broker-bookie.png)
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
 

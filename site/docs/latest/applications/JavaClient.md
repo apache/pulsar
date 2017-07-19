@@ -11,8 +11,8 @@ Javadoc for the Pulsar client is divided up into two domains, by package:
 
 Package | Description
 :-------|:-----------
-[`org.apache.pulsar.client.api`]({{ site.baseurl }}api/client) | The {% popover producer %} and {% popover consumer %} API
-[`org.apache.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java [admin API](../../admin/AdminInterface)
+[`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin/AdminInterface)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin/AdminInterface).
 
@@ -128,7 +128,7 @@ Producer producer = client.createProducer(topic, config);
 
 ### Message routing
 
-When using {% popover partitioned topics %}, you can specify the routing mode whenever you publish messages using a {% popover producer %}. For more on specifying a routing mode using the Java client, see the [Partitioned Topics](../../concerns/PartitionedTopics) guide.
+When using {% popover partitioned topics %}, you can specify the routing mode whenever you publish messages using a {% popover producer %}. For more on specifying a routing mode using the Java client, see the [Partitioned Topics](../../advanced/PartitionedTopics) guide.
 
 ### Async send
 
