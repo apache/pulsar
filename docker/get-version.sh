@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,22 +18,13 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk
+ROOT_DIR=$(git rev-parse --show-toplevel)
 
-# Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils
+pushd $ROOT_DIR > /dev/null
 
-ARG VERSION
+# Get the project version from the Maven pom.xml
+cat pom.xml | xmllint --format - \
+    | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - \
+    | grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"
 
-ADD apache-pulsar-${VERSION}-bin.tar.gz /
-RUN mv /apache-pulsar-${VERSION} /pulsar
-
-COPY scripts/apply-config-from-env.py /pulsar/bin
-COPY scripts/generate-zookeeper-config.sh /pulsar/bin
-COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
-
-WORKDIR /pulsar
-
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
-
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
+popd > /dev/null
