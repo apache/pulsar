@@ -52,7 +52,7 @@
       <div class="sidebar-group collapse" id="collapse-{{ slug }}" role="tabpanel" aria-labelledby="heading-{{ slug }}">
         <ul>
           {% for doc in group.docs %}
-          {% capture doc_url %}{{ site.baseurl }}docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
+          {% capture doc_url %}{{ site.baseurl }}docs/latest/{{ group.dir }}/{{ doc.endpoint }}{% endcapture %}
           <li{% if page_url == doc_url %} class="active"{% endif %}>
             <a href="{{ doc_url }}">
               {{ doc.title }}
