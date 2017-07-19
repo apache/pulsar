@@ -40,6 +40,10 @@ ClusterData clusterData = new ClusterData(
 admin.clusters().createCluster(clusterName, clusterData);
 ```
 
+### Initialize cluster metadata
+
+Coming soon.
+
 ### Get configuration
 
 You can fetch the [configuration](../../reference/Configuration) for an existing cluster at any time.

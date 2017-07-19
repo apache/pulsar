@@ -160,12 +160,20 @@ Clusters can replicate amongst themselves using [geo-replication](#geo-replicati
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar clusters, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-clusters) guide." %}
 
+### Global cluster
+
+In any Pulsar {% popover instance %}, there is an instance-wide cluster called `global` that you can use to mange non-cluster-specific topics. Global topics
+
+{% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
+
 ## Metadata store
 
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
 
 * A {% popover global ZooKeeper %} quorum stores configuration for {% popover properties %}, {% popover namespaces %}, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores {% popover cluster %}-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper {% popover ledger %} metadata, and more.
+
+When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-metadata)
 
 ## Persistent storage
 
