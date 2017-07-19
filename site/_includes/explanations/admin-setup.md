@@ -1,10 +1,8 @@
-If you have [authentication](../../admin/Authz#authentication-providers) enabled in your Pulsar {% popover instance %}, then you will need to perform a few authentication-related setup steps to use the Pulsar [admin interface](../../admin/AdminInterface). Those steps will vary depending on if you're using the [`pulsar-admin` command-line interface](#the-pulsar-admin-command-line-tool), the [REST API](#rest-api), or the [Java admin client](#java-admin-client).
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, the [Java admin API](/api/admin), and the [REST API](../../reference/RestApi)---requires some special setup if you have [authentication](../../admin/Authz#authentication-providers) enabled in your Pulsar {% popover instance %}.
 
-Before you get started using Pulsar's admin interface, you will need to complete a few setup steps that vary depending on whether you're using the [`pulsar-admin` CLI tool](#pulsar-admin-cli-tool), [Java API](#java-api), or [REST API](#rest-api) directly.
+### pulsar-admin
 
-### The `pulsar-admin` command-line tool
-
-If a Pulsar {% popover broker %} has [authentication](../../admin/Authz#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](../../reference/Configuration#client) file. Here are the available parameters:
+If you have [authentication](../../admin/Authz#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](../../reference/Configuration#client) file. Here are the available parameters:
 
 {% include config.html id="client" %}
 

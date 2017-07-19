@@ -162,7 +162,9 @@ Clusters can replicate amongst themselves using [geo-replication](#geo-replicati
 
 ### Global cluster
 
-In any Pulsar {% popover instance %}, there is an instance-wide cluster called `global` that you can use to mange non-cluster-specific topics. Global topics
+In any Pulsar {% popover instance %}, there is an instance-wide cluster called `global` that you can use to mange non-cluster-specific namespaces and topics. The `global` cluster is created for you automatically when you [initialize metadata](../../admin/ClustersBrokers#initialize-cluster-metadata) for the first cluster in your instance.
+
+Global topic names have this basic structure (note the `global` cluster):
 
 {% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
 

@@ -9,7 +9,7 @@ Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsa
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:
 
-* by clicking one of these two buttons:
+* by clicking one of these friendly buttons:
 
   <a href="{{ source_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} source release</a>
   <a href="{{ binary_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} binary release</a>
