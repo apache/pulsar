@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.api.sink;
+package org.apache.pulsar.common.io;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.connect.api.Connector;
+import java.util.Properties;
 
-import java.io.IOException;
+class LocalFileSystemFactory implements FileSystemFactory {
 
-public abstract class SinkConnector implements Connector {
-
-    // returns true if the we should perform an ack
-    public abstract boolean processMessage(Message message) throws IOException;
+    @Override
+    public FileSystem create(Properties properties) {
+        return new LocalFileSystem();
+    }
 }

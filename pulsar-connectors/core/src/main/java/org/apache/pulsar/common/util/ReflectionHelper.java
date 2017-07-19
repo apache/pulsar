@@ -16,13 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.io;
+package org.apache.pulsar.common.util;
 
-import java.util.Properties;
+public class ReflectionHelper {
 
-public class LocalFileSystemFactory implements FileSystemFactory {
-    @Override
-    public FileSystem create(Properties properties) {
-        return new LocalFileSystem();
+    public static ClassLoader findClassLoader() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = ReflectionHelper.class.getClassLoader();
+        }
+        if (classLoader == null) {
+            classLoader = ClassLoader.getSystemClassLoader();
+        }
+        return classLoader;
     }
+
+    private ReflectionHelper() {}
 }

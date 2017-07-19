@@ -66,7 +66,13 @@
 
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-connectors</artifactId>
+      <artifactId>pulsar-connectors-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-connectors-google-cloud</artifactId>
       <version>${project.version}</version>
     </dependency>
 

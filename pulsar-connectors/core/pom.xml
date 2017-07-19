@@ -21,20 +21,28 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
 
     <parent>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar</artifactId>
+        <artifactId>pulsar-connectors</artifactId>
         <version>1.19-incubating-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>pulsar-connectors</artifactId>
-    <name>Pulsar Connectors Java</name>
+    <artifactId>pulsar-connectors-core</artifactId>
+    <name>Pulsar Connectors Core</name>
 
-    <modules>
-        <module>core</module>
-        <module>google-cloud</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+
+    </build>
 </project>

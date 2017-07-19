@@ -99,9 +99,9 @@ public class FileSinkConnector extends SinkConnector {
     private String createFileUri() {
         final String base = basePath.endsWith("/") ? basePath : basePath + "/";
         final Date date = new Date();
-        return base +
-                dateFormat.format(date) + "/" +
-                "output-" + timeFormat.format(date);
+        return base + dateFormat.format(date) + "/" +
+                DEFAULT_OUTPUT_FILE_PREFIX + "-" +
+                timeFormat.format(date);
     }
 
     private Writer getWriterAndOpenIfNecessary() throws IOException {
@@ -121,7 +121,7 @@ public class FileSinkConnector extends SinkConnector {
             IoUtils.close(writer);
         }
         if (fileUri != null) {
-            LOG.info("file {} committed size {}", fileUri, toMb(bytesWritten));
+            LOG.info("file {} committed size {} MB", fileUri, toMb(bytesWritten));
         }
         writer = null;
         bytesWritten = 0;

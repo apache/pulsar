@@ -19,19 +19,22 @@
 package org.apache.pulsar.common.io;
 
 import org.apache.pulsar.common.io.fs.ResourceId;
+import org.apache.pulsar.common.util.ReflectionHelper;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 // code based on apache beam io
 public class FileSystems {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FileSystems.class);
 
     private static final Pattern FILE_SCHEME_PATTERN =
             Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
@@ -50,11 +53,22 @@ public class FileSystems {
     }
 
     public static void register(Properties properties) {
-        // TODO dynamic registry
         final Map<String, FileSystem> filesystems = new HashMap<>();
         // local
         FileSystem fs = new LocalFileSystemFactory().create(properties);
         filesystems.put(fs.getScheme(), fs);
+
+        // load other file systems
+        for (FileSystemFactory factory : getFactories()) {
+            fs = factory.create(properties);
+            if (filesystems.containsKey(fs.getScheme())) {
+                throw new IllegalStateException(String.format(
+                        "Scheme: [%s] has conflicting filesystems: [%s]",
+                        fs.getScheme(),
+                        fs.getClass().getName()));
+            }
+            filesystems.put(fs.getScheme(), fs);
+        }
 
         SCHEME_TO_FILESYSTEM.set(Collections.unmodifiableMap(filesystems));
     }
@@ -83,6 +97,19 @@ public class FileSystems {
         }
 
         throw new IllegalStateException("Unable to find registrar for " + scheme);
+    }
+
+
+    private static List<FileSystemFactory> getFactories() {
+        final List<FileSystemFactory> factories = new ArrayList<>();
+        Iterator<FileSystemFactory> iterator = ServiceLoader.load(FileSystemFactory.class,
+                ReflectionHelper.findClassLoader()).iterator();
+
+        while(iterator.hasNext()) {
+            factories.add(iterator.next());
+        }
+
+        return factories;
     }
 
     private FileSystems() {}
