@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y netcat dnsutils
 
 ARG VERSION
 
-ADD pulsar-${VERSION}-bin.tar.gz /
-RUN mv /pulsar-${VERSION} /pulsar
+ADD apache-pulsar-${VERSION}-bin.tar.gz /
+RUN mv /apache-pulsar-${VERSION} /pulsar
 
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/generate-zookeeper-config.sh /pulsar/bin
