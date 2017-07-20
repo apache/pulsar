@@ -52,7 +52,7 @@ serve: clean_local
 		--config _config.yml,_config.local.yml
 
 javadoc:
-	rm -rf api
+	rm -rf api/{admin,client}
 	scripts/javadoc-gen.sh
 
 python_doc_gen:
