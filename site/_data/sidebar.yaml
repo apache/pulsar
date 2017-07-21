@@ -31,7 +31,7 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
-  - title: Deploying a Pulsar instance
+  - title: Deploying on bare metal
     endpoint: InstanceSetup
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
