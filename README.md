@@ -3,8 +3,7 @@
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.apache.pulsar/pulsar)
-
+https://pulsar.incubator.apache.org
 
 ## Main features
 * Horizontally scalable (Millions of independent topics and millions
@@ -26,18 +25,40 @@ flexible messaging model and an intuitive client API.
 * Transparent handling of partitioned topics
 * Transparent batching of messages
 
-## Documentation
+## Build Pulsar
 
-* [Getting Started](docs/GettingStarted.md)
-* [Architecture](docs/Architecture.md)
-* [Documentation Index](docs/Documentation.md)
-* [Announcement post on Yahoo Eng Blog](https://yahooeng.tumblr.com/post/150078336821/open-sourcing-pulsar-pub-sub-messaging-at-scale)
+Requirements:
+ * Java JDK 1.8
+ * Maven
+
+Compile and install:
+
+```bash
+$ mvn install -DskipTests
+```
+
+Start standalone Pulsar service:
+
+```bash
+$ bin/pulsar standalone
+```
+
+Check https://pulsar.incubator.apache.org for documentation and examples.
 
 ## Contact
-* [Pulsar-Dev](https://groups.google.com/d/forum/pulsar-dev) for
-  development discussions
-* [Pulsar-Users](https://groups.google.com/d/forum/pulsar-users) for
-  users questions
+
+##### Mailing lists
+
+| Name                                                                          | Scope                           |                                                                 |                                                                     |                                                                              |
+|:------------------------------------------------------------------------------|:--------------------------------|:----------------------------------------------------------------|:--------------------------------------------------------------------|:-----------------------------------------------------------------------------|
+| [users@pulsar.incubator.apache.org](mailto:users@pulsar.incubator.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.incubator.apache.org) | [Unsubscribe](mailto:users-unsubscribe@pulsar.incubator.apache.org) | [Archives](http://mail-archives.apache.org/mod_mbox/incubator-pulsar-users/) |
+| [dev@pulsar.incubator.apache.org](mailto:dev@pulsar.incubator.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.incubator.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.incubator.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/incubator-pulsar-dev/)   |
+
+##### Slack
+
+Pulsar slack channel at https://apache-pulsar.slack.com/
+
+You can self-register at https://apache-pulsar.herokuapp.com/
 
 ## License
 
