@@ -58,10 +58,12 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -2126,6 +2128,40 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
 
+    }
+ 
+    @Test(timeOut = 5000)
+    public void testFailReceiveAsyncOnConsumerClose() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        // (1) simple consumers
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/failAsyncReceive",
+                "my-subscriber-name", new ConsumerConfiguration());
+        consumer.close();
+        // receive messages
+        try {
+            consumer.receiveAsync().get(1, TimeUnit.SECONDS);
+            fail("it should have failed because consumer is already closed");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
+        }
+
+        // (2) Partitioned-consumer
+        int numPartitions = 4;
+        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/failAsyncReceive");
+        admin.persistentTopics().createPartitionedTopic(dn.toString(), numPartitions);
+        Consumer partitionedConsumer = pulsarClient.subscribe(dn.toString(), "my-partitioned-subscriber",
+                new ConsumerConfiguration());
+        partitionedConsumer.close();
+        // receive messages
+        try {
+            partitionedConsumer.receiveAsync().get(1, TimeUnit.SECONDS);
+            fail("it should have failed because consumer is already closed");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
+        }
+
+        log.info("-- Exiting {} test --", methodName);
     }
     
 }
