@@ -331,6 +331,7 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient -- org.asynchttpclient-*.jar
  * Jetty - org.eclipse.jetty-*.jar
  * SnakeYaml -- org.yaml-snakeyaml-*.jar
+ * RocksDB - org.rocksdb.*.jar
 
 BSD 3-clause "New" or "Revised" License
  * EA Agent Loader -- com.ea.agentloader-*.jar -- licenses/LICENSE-EA-Agent-Loader.txt
@@ -340,9 +341,6 @@ BSD 2-Clause License
 
 BSD License
  * JLine -- jline-*.jar -- licenses/LICENSE.JLine.txt
-
-RocksDB License
-  * RocksDB - org.rocksdb.*.jar -- licenses/LICENSE-RocksDB.txt
 
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-*.jar -- licenses/LICENSE-SemVer.txt
