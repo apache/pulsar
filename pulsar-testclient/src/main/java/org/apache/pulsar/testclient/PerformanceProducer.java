@@ -40,13 +40,12 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -60,9 +59,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceProducer {
@@ -169,11 +165,11 @@ public class PerformanceProducer {
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("brokerServiceUrl");
             }
-            
+
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("webServiceUrl");
             }
-            
+
             // fallback to previous-version serviceUrl property to maintain backward-compatibility
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
@@ -207,23 +203,15 @@ public class PerformanceProducer {
         String prefixTopicName = arguments.destinations.get(0);
         List<Future<Producer>> futures = Lists.newArrayList();
 
-        EventLoopGroup eventLoopGroup;
-        if (SystemUtils.IS_OS_LINUX) {
-            eventLoopGroup = new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                    new DefaultThreadFactory("pulsar-perf-producer"));
-        } else {
-            eventLoopGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(),
-                    new DefaultThreadFactory("pulsar-perf-producer"));
-        }
-
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setConnectionsPerBroker(arguments.maxConnections);
+        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
         clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf, eventLoopGroup);
+        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setSendTimeout(0, TimeUnit.SECONDS);

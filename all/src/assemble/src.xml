@@ -32,11 +32,13 @@
       <directory>..</directory>
       <useDefaultExcludes>true</useDefaultExcludes>
       <includes>
-        <include>**/README</include>
+        <include>**/README.md</include>
+        <include>**/DISCLAIMER</include>
         <include>**/LICENSE</include>
         <include>**/NOTICE</include>
         <include>**/pom.xml</include>
         <include>**/src/**</include>
+        <include>**/pulsar-client-cpp/**</include>
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
@@ -49,15 +51,37 @@
         <exclude>**/*.iws</exclude>
         <exclude>**/*.ipr</exclude>
         <exclude>**/*.iml</exclude>
+        <exclude>**/*.cbp</exclude>
+        <exclude>**/*.pyc</exclude>
         <exclude>**/.classpath</exclude>
         <exclude>**/.project</exclude>
         <exclude>**/.settings</exclude>
         <exclude>**/target/**</exclude>
+        <exclude>**/CMakeFiles/**</exclude>
+        <exclude>**/CMakeCache.txt</exclude>
+        <exclude>**/cmake_install.cmake</exclude>
+        <exclude>pulsar-client-cpp/**/Makefile</exclude>
+        <exclude>pulsar-client-cpp/tests/main</exclude>
+        <exclude>pulsar-client-cpp/examples/SampleAsyncProducer</exclude>
+        <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
+        <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
+        <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
+
+        <exclude>**/python/dist/**</exclude>
+        <exclude>**/python/wheelhouse/**</exclude>
+        <exclude>**/python/MANIFEST</exclude>
+        <exclude>**/*.egg-info/**</exclude>
         <!-- until the code that does this is fixed -->
         <exclude>**/*.log</exclude>
         <exclude>**/build/**</exclude>
         <exclude>**/file:/**</exclude>
         <exclude>**/SecurityAuth.audit*</exclude>
+        <exclude>**/site/**</exclude>
+        <exclude>**/.idea/**</exclude>
+        <exclude>**/*.a</exclude>
+        <exclude>**/*.so</exclude>
+        <exclude>**/*.so.*</exclude>
+        <exclude>**/*.dylib</exclude>
       </excludes>
     </fileSet>
     <fileSet>

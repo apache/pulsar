@@ -27,7 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.commons.lang.SystemUtils;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -43,11 +42,12 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
@@ -62,11 +62,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 /**
@@ -306,28 +302,13 @@ public class MockBrokerService {
         final int numThreads = 2;
 
         final int MaxMessageSize = 5 * 1024 * 1024;
-        EventLoopGroup eventLoopGroup;
 
         try {
-            if (SystemUtils.IS_OS_LINUX) {
-                try {
-                    eventLoopGroup = new EpollEventLoopGroup(numThreads, threadFactory);
-                } catch (UnsatisfiedLinkError e) {
-                    eventLoopGroup = new NioEventLoopGroup(numThreads, threadFactory);
-                }
-            } else {
-                eventLoopGroup = new NioEventLoopGroup(numThreads, threadFactory);
-            }
-            workerGroup = eventLoopGroup;
+            workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, threadFactory);
 
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(workerGroup, workerGroup);
-            if (workerGroup instanceof EpollEventLoopGroup) {
-                bootstrap.channel(EpollServerSocketChannel.class);
-            } else {
-                bootstrap.channel(NioServerSocketChannel.class);
-            }
-
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
             bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
