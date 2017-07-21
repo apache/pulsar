@@ -21,10 +21,6 @@
   content: Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics.
   endpoint:
 
-- title: Horizontally scalable
-  content: Millions of independent topics and seamless capacity expansion by simply adding machines
-  endpoint: getting-started/ConceptsAndArchitecture/#Architectureoverview
-
 - title: Low latency with durability
   content: Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees
   endpoint: getting-started/ConceptsAndArchitecture/#Architectureoverview
