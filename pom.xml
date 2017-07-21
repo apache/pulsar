@@ -493,7 +493,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjweaver</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.ea.agentloader</groupId>
         <artifactId>ea-agent-loader</artifactId>
@@ -610,13 +610,6 @@ flexible messaging model and an intuitive client API.</description>
             <cc>JAVADOC_STYLE</cc>
           </mapping>
         </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
