@@ -26,7 +26,9 @@ import java.io.IOException;
 public abstract class SinkConnector implements Connector {
 
     // returns true if the we should perform an ack
-    public abstract boolean processMessage(Message message) throws IOException;
+    public abstract void processMessage(Message message) throws IOException;
 
-    // TODO add commit to notify sinks that we a acknowledging
+    // called before an ack is sent
+    // consumers should save their state
+    public abstract void commit() throws Exception;
 }

@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.util.IoUtils;
 import org.apache.pulsar.connect.api.sink.SinkConnector;
 import org.apache.pulsar.connect.config.ConnectorConfiguration;
+import org.apache.pulsar.connect.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +40,6 @@ public class FileSinkConnector extends SinkConnector {
     private static final Logger LOG = LoggerFactory.getLogger(FileSinkConnector.class);
 
     private static final String KEY_BASE_PATH = "basepath";
-    private static final String KEY_FILE_SIZE_MB = "filesize.mb";
-
-    private static final long MB = 1024L * 1024;
-    private static final long DEFAULT_FILE_SIZE_MB = 64;
 
     private static final String DEFAULT_OUTPUT_FILE_PREFIX = "output";
     private static final String DEFAULT_DATE_FORMAT = "yyyyMMdd";
@@ -56,7 +53,6 @@ public class FileSinkConnector extends SinkConnector {
     private String subscription;
 
     private Writer writer;
-    private long fileSizeInBytes;
     private long bytesWritten = 0;
     private String fileUri;
 
@@ -65,26 +61,20 @@ public class FileSinkConnector extends SinkConnector {
         topic = properties.getProperty(ConnectorConfiguration.KEY_TOPIC);
         subscription = properties.getProperty(ConnectorConfiguration.KEY_SUBSCRIPTION);
         basePath = properties.getProperty(KEY_BASE_PATH);
-        final String fileSize =
-                properties.getProperty(KEY_FILE_SIZE_MB,
-                        String.valueOf(DEFAULT_FILE_SIZE_MB));
-
-        fileSizeInBytes = Long.parseLong(fileSize) * MB;
     }
 
     @Override
-    public boolean processMessage(Message message) throws IOException {
+    public void processMessage(Message message) throws IOException {
         Writer writer = getWriterAndOpenIfNecessary();
 
         writer.write(message);
 
         bytesWritten += message.getData().length;
-        if (bytesWritten >= fileSizeInBytes) {
-            commitAndReset();
-            return true;
-        }
+    }
 
-        return false;
+    @Override
+    public void commit() throws Exception {
+        commitAndReset();
     }
 
     @Override
@@ -121,14 +111,10 @@ public class FileSinkConnector extends SinkConnector {
             IoUtils.close(writer);
         }
         if (fileUri != null) {
-            LOG.info("file {} committed size {} MB", fileUri, toMb(bytesWritten));
+            LOG.info("file {} committed size {} MB", fileUri, Bytes.toMb(bytesWritten));
         }
         writer = null;
         bytesWritten = 0;
         fileUri = null;
-    }
-
-    private static double toMb(long size) {
-        return (double) size / MB;
     }
 }

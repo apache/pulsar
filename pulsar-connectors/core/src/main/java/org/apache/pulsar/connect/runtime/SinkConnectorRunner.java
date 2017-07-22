@@ -28,6 +28,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.io.FileSystems;
 import org.apache.pulsar.connect.api.sink.SinkConnector;
 import org.apache.pulsar.connect.config.ConnectorConfiguration;
+import org.apache.pulsar.connect.util.Bytes;
+import org.apache.pulsar.connect.util.ConfigUtils;
 import org.apache.pulsar.connect.util.InstanceBuilder;
 import org.apache.pulsar.connect.util.PropertiesValidator;
 import org.apache.pulsar.connect.util.PulsarUtils;
@@ -35,7 +37,6 @@ import org.apache.pulsar.connect.util.PulsarUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -43,14 +44,21 @@ import java.util.Properties;
 class SinkConnectorRunner extends ConnectorRunner {
     private static final Logger LOG = LoggerFactory.getLogger(SinkConnectorRunner.class);
 
+    private static final long DEFAULT_ACK_INTERVAL_MB = 5;
+
     private final SinkConnector connector;
     private final Properties properties;
+
+    private final long commitIntervalBytesMb;
 
     private boolean keepGoing = true;
 
     private SinkConnectorRunner(SinkConnector connector, Properties properties) {
         this.connector = connector;
         this.properties = properties;
+        commitIntervalBytesMb =
+                ConfigUtils.getLong(properties,
+                        ConnectorConfiguration.KEY_COMMIT_INTERVAL_MB, DEFAULT_ACK_INTERVAL_MB) * Bytes.MB;
     }
 
     @Override
@@ -68,8 +76,9 @@ class SinkConnectorRunner extends ConnectorRunner {
             try (Consumer consumer = client.subscribe(topic, subscription, configuration)) {
                 LOG.info("Running sink connector {} for topic {} and subscription {}",
                         connector.getClass().getSimpleName(), topic, subscription);
+                LOG.info("acknowledgement interval {} Mb", Bytes.toMb(commitIntervalBytesMb));
 
-               runSinkConnector(consumer);
+                runSinkConnector(consumer);
 
             } catch (PulsarClientException pce) {
                 LOG.info("unable to create subscribe to topic {} "
@@ -84,27 +93,33 @@ class SinkConnectorRunner extends ConnectorRunner {
     }
 
     private void runSinkConnector(Consumer consumer) {
+        long bytesProcessed = 0;
         final List<MessageId> messageIds = new ArrayList<>();
         Message currentMessage;
         while (keepGoing) {
             try {
                 currentMessage = consumer.receive();
                 messageIds.add(currentMessage.getMessageId());
-                // TODO handle acknowledgment decision for sink connectors
-                // delegate the acknowledgment decision to the connector
-                if (connector.processMessage(currentMessage)) {
+
+                connector.processMessage(currentMessage);
+                bytesProcessed += currentMessage.getData().length;
+
+                // TODO add an option for a flush interval
+                // is it time to acknowledge?
+                if (bytesProcessed >= commitIntervalBytesMb) {
+                    connector.commit();
+
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("acknowledging {} messages", messageIds.size());
                     }
                     acknowledge(consumer, messageIds);
+                    bytesProcessed = 0;
 
                     // clear ids since we just acknowledged
                     messageIds.clear();
                 }
-            } catch (PulsarClientException pce) {
-                throw new ConnectorExecutionException(pce);
-            } catch (IOException ioe) {
-                throw new ConnectorExecutionException(ioe);
+            } catch (Exception ex) {
+                throw new ConnectorExecutionException(ex);
             }
         }
     }
@@ -121,7 +136,7 @@ class SinkConnectorRunner extends ConnectorRunner {
         return properties.getProperty(key);
     }
 
-    PulsarClient createClient(Properties properties) throws PulsarClientException {
+    private PulsarClient createClient(Properties properties) throws PulsarClientException {
         return PulsarUtils.createClient(properties);
     }
 

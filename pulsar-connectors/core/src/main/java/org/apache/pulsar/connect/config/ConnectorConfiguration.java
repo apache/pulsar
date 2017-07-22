@@ -31,5 +31,7 @@ public class ConnectorConfiguration {
 
     public static final String KEY_SUBSCRIPTION = "subscription";
 
+    public static final String KEY_COMMIT_INTERVAL_MB = "commit.interval.bytes.mb";
+
     private ConnectorConfiguration() {}
 }
