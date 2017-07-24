@@ -29,6 +29,6 @@ If you need to connect to an existing Pulsar {% popover cluster %} or {% popover
 
 Client guide | API docs
 :------------|:--------
-[The Pulsar Java client](../docs/latest/applications/JavaClient) | [Java client Javadoc](../api/client)<br />[Java admin interface Javadoc](../api/admin)
-[The Pulsar Python client](../docs/latest/applications/PythonClient) | [pdoc](../api/python)
-[The Pulsar C++ client](../docs/latest/applications/CppClient) | [Doxygen docs](../api/cpp)
+[The Pulsar Java client](../docs/latest/clients/Java) | [Java client Javadoc](../api/client)<br />[Java admin interface Javadoc](../api/admin)
+[The Pulsar Python client](../docs/latest/clients/Python) | [pdoc](../api/python)
+[The Pulsar C++ client](../docs/latest/clients/Cpp) | [Doxygen docs](../api/cpp)

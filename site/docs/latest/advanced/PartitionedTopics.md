@@ -18,7 +18,7 @@ When publising to partitioned topics, the only difference from non-partitioned t
 
 ### Java
 
-Publishing messages to partitioned topics in the Java client works much like [publishing to normal topics](../../applications/JavaClient#using-producers). The difference is that you need to specify either one of the currently available message routers or a custom router.
+Publishing messages to partitioned topics in the Java client works much like [publishing to normal topics](../../clients/Java#using-producers). The difference is that you need to specify either one of the currently available message routers or a custom router.
 
 #### Routing mode
 

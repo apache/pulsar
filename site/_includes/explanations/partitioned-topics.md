@@ -28,4 +28,4 @@ Key hash | If a key property has been specified on the message, the partitioned 
 Single default partition | If no key is provided, each producer's message will be routed to a dedicated partition, initially random selected | Per-producer ordering
 Round robin distribution | If no key is provided, all messages will be routed to different partitions in round-robin fashion to achieve maximum throughput. | None
 
-In addition to these default modes, you can also create a custom routing mode if you're using the [Java client](../../applications/JavaClient) by implementing the {% javadoc MessageRouter client com.yahoo.pulsar.client.api.MessageRouter %} interface.
+In addition to these default modes, you can also create a custom routing mode if you're using the [Java client](../../clients/Java) by implementing the {% javadoc MessageRouter client com.yahoo.pulsar.client.api.MessageRouter %} interface.

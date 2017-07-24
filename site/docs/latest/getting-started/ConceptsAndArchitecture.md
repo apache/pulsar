@@ -12,7 +12,7 @@ Pulsar's key features include:
 * Native support for multiple {% popover clusters %} in a Pulsar {% popover instance %}, with seamless [geo-replication](../../admin/GeoReplication) of messages across clusters
 * Very low publish and end-to-end latency
 * Seamless scalability out to over a million topics
-* A simple [client API](#client-api) with bindings for [Java](../../applications/JavaClient), [Python](../../applications/PythonClient), and [C++](../../applications/CppClient)
+* A simple [client API](#client-api) with bindings for [Java](../../clients/Java), [Python](../../clients/Python), and [C++](../../clients/Cpp)
 * Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
 * Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
@@ -69,7 +69,7 @@ Messages can be acknowledged either one by one or cumulatively. With cumulative 
 
 #### Listeners
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](../../applications/JavaClient), for example, provides a {% javadoc MesssageListener client com.yahoo.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries can provide their own listener implementations for consumers. The [Java client](../../clients/Java), for example, provides a {% javadoc MesssageListener client com.yahoo.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Topics
 
@@ -144,7 +144,7 @@ The Pulsar message {% popover broker %} is a stateless component that's primaril
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
-Finally, to support {% popover geo-replication %} on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](../../applications/JavaClient).
+Finally, to support {% popover geo-replication %} on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](../../clients/Java).
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar brokers, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-brokers) guide." %}
 
@@ -255,7 +255,7 @@ Pulsar supports a pluggable [authentication](https://github.com/apache/incubator
 
 ## Client interface
 
-Pulsar exposes a client API with language bindings for [Java](../../applications/JavaClient) and [C++](../../applications/CppClient). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
+Pulsar exposes a client API with language bindings for [Java](../../clients/Java) and [C++](../../clients/Cpp). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
 
 Under the hood, the current official Pulsar client libraries support transparent reconnection and/or connection failover to {% popover brokers %}, queuing of messages until {% popover acknowledged %} by the broker, and heuristics such as connection retries with backoff.
 

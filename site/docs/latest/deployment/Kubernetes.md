@@ -191,7 +191,7 @@ You can check on the status of the pods for these components either in the Kuber
 $ kubectl get pods
 ```
 
-#### Set up properties namespaces
+#### Set up properties and namespaces
 
 Once all of the components are up and running, you'll need to create at least one Pulsar {% popover property %} and at least one {% popover namespace %}.
 

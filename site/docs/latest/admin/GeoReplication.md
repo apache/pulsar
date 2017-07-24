@@ -84,7 +84,7 @@ Once you've created a global namespace, any topics that producers or consumers c
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.
 
-Below is an example for the [Java API](../../applications/JavaClient). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client com.yahoo.pulsar.client.api.Message %} object:
+Below is an example for the [Java API](../../clients/Java). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client com.yahoo.pulsar.client.api.Message %} object:
 
 ```java
 List<String> restrictReplicationTo = new ArrayList<>;
