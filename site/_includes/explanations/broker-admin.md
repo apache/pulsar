@@ -7,7 +7,7 @@ Pulsar brokers consist of two components:
 
 * The [`brokers`](../../reference/CliTools#pulsar-admin-brokers) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 * The `/admin/brokers` endpoint of the admin [REST API](../../reference/RestApi)
-* The `brokers` method of the {% javadoc PulsarAdmin admin com.yahoo.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
+* The `brokers` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 

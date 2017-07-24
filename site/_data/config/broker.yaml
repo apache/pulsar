@@ -279,5 +279,5 @@ configs:
   default: '60'
   description: How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
 - name: loadManagerClassName
-  default: com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
+  default: org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
   description: Name of load manager to use

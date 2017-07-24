@@ -4,7 +4,7 @@ Namespaces can be managed via:
 
 * The [`namespaces`](../../reference/CliTools#pulsar-admin-clusters) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 * The `/admin/namespaces` endpoint of the admin [REST API](../../reference/RestApi)
-* The `namespaces` method of the {% javadoc PulsarAdmin admin com.yahoo.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
+* The `namespaces` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
 
 ### Create
 
