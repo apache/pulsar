@@ -35,6 +35,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -subpackages org.apache.pulsar.client.api \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
+    -Xdoclint:none \
     `find pulsar-client/src/main/java/org/apache/pulsar/client/api -name *.java`
 
   # Java admin
@@ -46,6 +47,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -d site/api/admin \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
+    -Xdoclint:none \
     `find pulsar-client-admin -name *.java | grep -v /internal/` \
     `find pulsar-common/src/main/java/org/apache/pulsar/common/policies -name *.java`
 
@@ -58,6 +60,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
   #  -d site/api/broker \
   #  -noqualifier $JDK_COMMON_PKGS \
   #  -notimestamp \
+  #  -Xdoclint:none \
   #  `find pulsar-broker -name *.java`
 ) || true
 

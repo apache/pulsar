@@ -2,19 +2,19 @@
 title: Modular load manager
 ---
 
-The *modular load manager*, implemented in {% javadoc ModularLoadManagerImpl broker com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl %}, is a flexible alternative to the previously implemented load manager, {% javadoc SimpleLoadManagerImpl broker com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl %}, which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.
+The *modular load manager*, implemented in {% javadoc ModularLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl %}, is a flexible alternative to the previously implemented load manager, {% javadoc SimpleLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl %}, which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.
 
 ## Usage
 
 There are two ways that you can enable the modular load manager:
 
-1. Change the value of the `loadManagerClassName` parameter in `conf/broker.con` from `com.yahoo.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
+1. Change the value of the `loadManagerClassName` parameter in `conf/broker.con` from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
 2. Using the `pulsar-admin` tool. Here's an example:
 
    ```shell
    $ pulsar-admin update-dynamic-config \
      --config loadManagerClassName \
-     --value com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
+     --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
    ```
 
    You can use the same method to change back to the original value. In either case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
@@ -28,7 +28,7 @@ There are a few different ways to determine which load manager is being used:
     ```shell
    $ bin/pulsar-admin brokers get-all-dynamic-config
    {
-     "loadManagerClassName" : "com.yahoo.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
+     "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
    }
    ```
 
@@ -129,17 +129,17 @@ It is important to note that the module load manager is _centralized_, meaning t
 
 ### Data
 
-The data monitored by the modular load manager is contained in the {% javadoc LoadData broker com.yahoo.pulsar.broker.loadbalance.LoadData %} class.
+The data monitored by the modular load manager is contained in the {% javadoc LoadData broker org.apache.pulsar.broker.loadbalance.LoadData %} class.
 Here, the available data is subdivided into the bundle data and the broker data.
 
 #### Broker
 
-The broker data is contained in the {% javadoc BrokerData broker com.yahoo.pulsar.broker.BrokerData %} class. It is further subdivided into two parts,
+The broker data is contained in the {% javadoc BrokerData broker org.apache.pulsar.broker.BrokerData %} class. It is further subdivided into two parts,
 one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker
 data which is written to ZooKeeper by the leader broker.
 
 ##### Local Broker Data
-The local broker data is contained in the class {% javadoc LocalBrokerData broker com.yahoo.pulsar.broker.LocalBrokerData %} and provides information about the following resources:
+The local broker data is contained in the class {% javadoc LocalBrokerData broker org.apache.pulsar.broker.LocalBrokerData %} and provides information about the following resources:
 
 * CPU usage
 * JVM heap memory usage
@@ -157,7 +157,7 @@ receive the update immediately via a ZooKeeper watch, where the local data is re
 
 ##### Historical Broker Data
 
-The historical broker data is contained in the {% javadoc TimeAverageBrokerData broker com.yahoo.pulsar.broker.TimeAverageBrokerData %} class.
+The historical broker data is contained in the {% javadoc TimeAverageBrokerData broker org.apache.pulsar.broker.TimeAverageBrokerData %} class.
 
 In order to reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the long-term data for steady-state decisions. Both time frames maintain the following information:
 
@@ -170,7 +170,7 @@ The historical broker data is updated for each broker in memory by the leader br
 
 ##### Bundle Data
 
-The bundle data is contained in the {% javadoc BundleData broker com.yahoo.pulsar.broker.BundleData %}. Like the historical broker data, the bundle data is split into a short-term and a long-term time frame. The information maintained in each time frame:
+The bundle data is contained in the {% javadoc BundleData broker org.apache.pulsar.broker.BundleData %}. Like the historical broker data, the bundle data is split into a short-term and a long-term time frame. The information maintained in each time frame:
 
 * Message rate in/out for this bundle
 * Message Throughput In/Out for this bundle
@@ -193,7 +193,7 @@ broker data, according to the configuration `loadBalancerResourceQuotaUpdateInte
 
 ### Traffic Distribution
 
-The modular load manager uses the abstraction provided by {% javadoc ModularLoadManagerStrategy broker com.yahoo.pulsar.broker.loadbalance.ModularLoadManagerStrategy %} to make decisions about bundle assignment. The strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the bundle to be assigned. Currently, the only supported strategy is {% javadoc LeastLongTermMessageRate broker com.yahoo.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate %}, though soon users will have the ability to inject their own strategies if desired.
+The modular load manager uses the abstraction provided by {% javadoc ModularLoadManagerStrategy broker org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy %} to make decisions about bundle assignment. The strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the bundle to be assigned. Currently, the only supported strategy is {% javadoc LeastLongTermMessageRate broker org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate %}, though soon users will have the ability to inject their own strategies if desired.
 
 #### Least Long Term Message Rate Strategy
 
