@@ -15,12 +15,12 @@ For a tutorial on using the Pulsar Java client to produce and consume messages, 
 
 There are also two independent sets of Javadoc API docs available:
 
-Library | Purpose
-:-------|:-------
-[`org.apache.pulsar.client.api`]({{ site.baseurl }}api/client) | The [Pulsar Java client](../../applications/JavaClient) for producing and consuming messages on Pulsar {% popover topics %}
-[`org.apache.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java client for the [Pulsar admin interface](../../admin/AdminInterface)
+| Library                                                         | Purpose                                                                                                                     |
+|:----------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------|
+| [`org.apache.pulsar.client.api`]({{ site.baseurl }}api/client)  | The [Pulsar Java client](../../applications/JavaClient) for producing and consuming messages on Pulsar {% popover topics %} |
+| [`org.apache.pulsar.client.admin`]({{ site.baseurl }}api/admin) | The Java client for the [Pulsar admin interface](../../admin/AdminInterface)                                                |
 
-<!-- * [`com.yahoo.pulsar.broker`]({{ site.baseurl }}api/broker) -->
+<!-- * [`org.apache.pulsar.broker`]({{ site.baseurl }}api/broker) -->
 
 ## Python client
 

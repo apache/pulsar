@@ -22,7 +22,7 @@ Publishing messages to partitioned topics in the Java client works much like [pu
 
 #### Default routers
 
-You can specify the routing mode in the {% javadoc ProducerConfiguration client com.yahoo.pulsar.client.api.ProducerConfiguration %} object that you use to configure your producer. You have three options:
+You can specify the routing mode in the {% javadoc ProducerConfiguration client org.apache.pulsar.client.api.ProducerConfiguration %} object that you use to configure your producer. You have three options:
 
 
 
@@ -41,7 +41,7 @@ producer.send("Partitioned topic message".getBytes());
 
 #### Custom message router
 
-To use a custom message router, you need to provide an implementation of the {% javadoc MessageRouter client com.yahoo.pulsar.client.api.MessageRouter %} interface, which has just one `choosePartition` method:
+To use a custom message router, you need to provide an implementation of the {% javadoc MessageRouter client org.apache.pulsar.client.api.MessageRouter %} interface, which has just one `choosePartition` method:
 
 ```java
 public interface MessageRouter extends Serializable {

@@ -69,7 +69,7 @@ Messages can be acknowledged either one by one or cumulatively. With cumulative 
 
 #### Listeners
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](../../applications/JavaClient), for example, provides a {% javadoc MesssageListener client com.yahoo.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries can provide their own listener implementations for consumers. The [Java client](../../applications/JavaClient), for example, provides a {% javadoc MesssageListener client org.apache.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Topics
 
