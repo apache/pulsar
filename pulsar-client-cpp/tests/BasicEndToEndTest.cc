@@ -187,7 +187,7 @@ void resendMessage(Result r, const Message msg, Producer producer) {
 
 TEST(BasicEndToEndTest, testLookupThrottling)
 {
-    std::string topicName = "persistent://prop/unit/ns1/my-topic-1";
+    std::string topicName = "persistent://prop/unit/ns1/testLookupThrottling";
     ClientConfiguration config;
     config.setConcurrentLookupRequest(0);
     Client client(lookupUrl, config);
