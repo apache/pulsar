@@ -73,12 +73,16 @@ groups:
     endpoint: PythonClient
   - title: WebSocket API
     endpoint: WebSocket
-  - title: Spark Streaming receiver
-    endpoint: PulsarSpark
-  - title: Apache Storm adaptor
-    endpoint: PulsarStorm
   - title: Simulation tools
     endpoint: SimulationTools
+
+- title: Adaptors
+  dir: adaptors
+  docs:
+  - title: Spark Streaming
+    endpoint: PulsarSpark
+  - title: Apache Storm
+    endpoint: PulsarStorm
 
 - title: Developing Pulsar
   dir: project

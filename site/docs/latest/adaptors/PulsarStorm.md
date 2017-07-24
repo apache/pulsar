@@ -3,9 +3,9 @@ title: Pulsar adaptor for Apache Storm
 tags: [storm, java]
 ---
 
-Pulsar Storm is an adaptor for integrating with Apache Storm topologies. It provides core storm implementations for sending and receiving data.
+Pulsar Storm is an adaptor for integrating with [Apache Storm](http://storm.apache.org/) topologies. It provides core Storm implementations for sending and receiving data.
 
-An application can inject data into a Storm topology via a generic Pulsar Spout, as well as consume data from a Storm topology via a generic Pulsar Bolt.
+An application can inject data into a Storm topology via a generic Pulsar spout, as well as consume data from a Storm topology via a generic Pulsar bolt.
 
 ## Using the Pulsar Storm Adaptor
 
@@ -20,9 +20,10 @@ Include dependency for Pulsar Storm Adaptor:
 ```
 
 ## Pulsar Spout
-The Pulsar Spout allows for the data published on a [Pulsar Topic](Architecture.md#topic) to be consumed by a storm topology. It emits a storm tuple based on the message received and the MessageToValuesMapper provided by the client.
 
-The tuples that are failed to be processed by the downstream bolts, will be re-injected by the spout with an exponential backoff, within a configurable timeout (Default: 60 seconds) or configurable number of retries, whichever comes first, after which it is acknowledged by the consumer.
+The Pulsar Spout allows for the data published on a {% popover topic %} to be consumed by a Storm topology. It emits a Storm tuple based on the message received and the `MessageToValuesMapper` provided by the client.
+
+The tuples that fail to be processed by the downstream bolts will be re-injected by the spout with an exponential backoff, within a configurable timeout (the default is 60 seconds) or a configurable number of retries, whichever comes first, after which it is {% popover acknowledged %} by the consumer. Here's an example construction of a spout:
 
 ```java
 // Configure a Pulsar Client
@@ -58,9 +59,10 @@ PulsarSpout spout = new PulsarSpout(spoutConf, clientConf, consumerConf);
 ```
 
 ## Pulsar Bolt
-The Pulsar Bolt allows for the data in a storm topology to be published on a [Pulsar Topic](Architecture.md#topic). It publishes messages based on the storm tuple received and the TupleToMessageMapper provided by the client.
 
-A partitioned topic can also be used to publish messages on different topics. In the implementation of the TupleToMessageMapper, a "key" will need to be provided in the message which will send the messages with the same key to the same topic.
+The Pulsar bolt allows data in a Storm topology to be published on a {% popover topic %}. It publishes messages based on the Storm tuple received and the `TupleToMessageMapper` provided by the client.
+
+A partitioned topic can also be used to publish messages on different topics. In the implementation of the `TupleToMessageMapper`, a "key" will need to be provided in the message which will send the messages with the same key to the same topic. Here's an example bolt:
 
 ```java
 // Configure a Pulsar Client
@@ -97,4 +99,5 @@ PulsarBolt bolt = new PulsarBolt(boltConf, clientConf);
 ```
 
 ## Example
-You can find a complete example [here](../pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).
+
+You can find a complete example [here]({{ site.pulsar_repo }}/pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).
