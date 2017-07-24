@@ -67,6 +67,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -809,6 +810,66 @@ public class Namespaces extends AdminResource {
             log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/dispatchRate")
+    @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, DispatchRate dispatchRate) {
+        log.info("[{}] Set namespace dispatch-rate {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
+                dispatchRate);
+        validateSuperUserAccess();
+
+        if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
+            validateClusterOwnership(cluster);
+            validateClusterForProperty(property, cluster);
+        }
+
+        Entry<Policies, Stat> policiesNode = null;
+        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
+            policiesNode.getKey().clusterDispatchRate.put(cluster, dispatchRate);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path("policies", property, cluster, namespace),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path("policies", property, cluster, namespace));
+
+            log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}/{}/{}", clientAppId(),
+                    property, cluster, namespace);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the dispatchRate for cluster on namespace {}/{}/{}: does not exist",
+                    clientAppId(), property, cluster, namespace);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update the dispatchRate for cluster on namespace {}/{}/{} expected policy node version={} : concurrent modification",
+                    clientAppId(), property, cluster, namespace, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the dispatchRate for cluster on namespace {}/{}/{}", clientAppId(), property,
+                    cluster, namespace, e);
+            throw new RestException(e);
+        }
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/dispatchRate")
+    @ApiOperation(value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public DispatchRate getDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateAdminAccessOnProperty(property);
+        Policies policies = getNamespacePolicies(property, cluster, namespace);
+        return policies.clusterDispatchRate.get(cluster);
     }
 
     @GET

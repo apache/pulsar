@@ -35,6 +35,8 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -52,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -101,8 +104,12 @@ public class PersistentDispatcherFailoverConsumerTest {
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
+        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
+        doReturn(zkDataCache).when(zkCache).policiesCache();
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
+        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();

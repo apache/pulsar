@@ -59,7 +59,7 @@ import com.google.common.util.concurrent.MoreExecutors;
  */
 public abstract class MockedPulsarServiceBaseTest {
 
-    protected final ServiceConfiguration conf;
+    protected ServiceConfiguration conf;
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
@@ -78,6 +78,10 @@ public abstract class MockedPulsarServiceBaseTest {
     private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
 
     public MockedPulsarServiceBaseTest() {
+        resetConfig();
+    }
+
+    protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
         this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);

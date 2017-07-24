@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -141,6 +142,12 @@ public class PersistentTopicTest {
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(Optional.empty()).when(zkDataCache).get(anyString());
+        
+        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
+        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
+        doReturn(zkDataCache).when(zkCache).policiesCache();
+        doReturn(configCacheService).when(pulsar).getConfigurationCache();
+        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();

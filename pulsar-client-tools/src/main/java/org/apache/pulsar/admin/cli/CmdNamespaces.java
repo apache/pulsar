@@ -26,6 +26,7 @@ import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 
@@ -293,6 +294,43 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set message-dispatch-rate for all topics of the namespace")
+    private class SetDispatchRate extends CliCommand {
+        @Parameter(description = "property/cluster/namespace/\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--msg-dispatch-rate",
+                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int msgDispatchRate = -1;
+
+        @Parameter(names = { "--byte-dispatch-rate",
+                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private long byteDispatchRate = -1;
+
+        @Parameter(names = { "--dispatch-rate-period",
+                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
+        private int dispatchRatePeriodSec = 1;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setDispatchRate(namespace,
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+        }
+    }
+
+    @Parameters(commandDescription = "Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
+    private class GetDispatchRate extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getDispatchRate(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Get the backlog quota policies for a namespace")
     private class GetBacklogQuotaMap extends CliCommand {
         @Parameter(description = "property/cluster/namespace\n", required = true)
@@ -526,6 +564,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("unload", new Unload());
 
         jcommander.addCommand("split-bundle", new SplitBundle());
+        
+        jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
+        jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 

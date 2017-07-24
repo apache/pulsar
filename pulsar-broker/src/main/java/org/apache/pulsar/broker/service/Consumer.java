@@ -144,29 +144,31 @@ public class Consumer {
      *
      * @return a promise that can be use to track when all the data has been written into the socket
      */
-    public Pair<ChannelPromise, Integer> sendMessages(final List<Entry> entries) {
+    public SendMessageInfo sendMessages(final List<Entry> entries) {
         final ChannelHandlerContext ctx = cnx.ctx();
-        final MutablePair<ChannelPromise, Integer> sentMessages = new MutablePair<ChannelPromise, Integer>();
+        final SendMessageInfo sentMessages = new SendMessageInfo();
         final ChannelPromise writePromise = ctx.newPromise();
-        sentMessages.setLeft(writePromise);
+        sentMessages.channelPromse = writePromise;
         if (entries.isEmpty()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         subscription, consumerId);
             }
             writePromise.setSuccess();
-            sentMessages.setRight(0);
+            sentMessages.totalSentMessages = 0;
+            sentMessages.totalSentMessageBytes = 0;
             return sentMessages;
         }
 
         try {
-            sentMessages.setRight(updatePermitsAndPendingAcks(entries));
+            updatePermitsAndPendingAcks(entries, sentMessages);
         } catch (PulsarServerException pe) {
             log.warn("[{}] [{}] consumer doesn't support batch-message {}", subscription, consumerId,
                     cnx.getRemoteEndpointProtocolVersion());
 
             subscription.markTopicWithBatchMessagePublished();
-            sentMessages.setRight(0);
+            sentMessages.totalSentMessages = 0;
+            sentMessages.totalSentMessageBytes = 0;
             // disconnect consumer: it will update dispatcher's availablePermits and resend pendingAck-messages of this
             // consumer to other consumer
             disconnect();
@@ -235,7 +237,7 @@ public class Consumer {
         return -1;
     }
 
-    int updatePermitsAndPendingAcks(final List<Entry> entries) throws PulsarServerException {
+    void updatePermitsAndPendingAcks(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
         boolean unsupportedVersion = false;
@@ -276,7 +278,8 @@ public class Consumer {
         }
 
         msgOut.recordMultipleEvents(permitsToReduce, totalReadableBytes);
-        return permitsToReduce;
+        sentMessages.totalSentMessages = permitsToReduce;
+        sentMessages.totalSentMessageBytes = totalReadableBytes;
     }
 
     public boolean isWritable() {
@@ -575,5 +578,31 @@ public class Consumer {
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }
 
+    public static class SendMessageInfo {
+        ChannelPromise channelPromse;
+        int totalSentMessages;
+        long totalSentMessageBytes;
+        
+        public ChannelPromise getChannelPromse() {
+            return channelPromse;
+        }
+        public void setChannelPromse(ChannelPromise channelPromse) {
+            this.channelPromse = channelPromse;
+        }
+        public int getTotalSentMessages() {
+            return totalSentMessages;
+        }
+        public void setTotalSentMessages(int totalSentMessages) {
+            this.totalSentMessages = totalSentMessages;
+        }
+        public long getTotalSentMessageBytes() {
+            return totalSentMessageBytes;
+        }
+        public void setTotalSentMessageBytes(long totalSentMessageBytes) {
+            this.totalSentMessageBytes = totalSentMessageBytes;
+        }
+        
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 }

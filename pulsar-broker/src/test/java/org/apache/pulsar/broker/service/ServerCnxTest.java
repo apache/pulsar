@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationManager;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -149,6 +150,13 @@ public class ServerCnxTest {
         doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
+        
+        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
+        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
+        doReturn(zkDataCache).when(zkCache).policiesCache();
+        doReturn(configCacheService).when(pulsar).getConfigurationCache();
+        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
+
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
