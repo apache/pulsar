@@ -83,7 +83,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
      * @throws Exception
      */
     public Optional<T> get(final String path) throws Exception {
-        return getWithStat(path).map(Entry::getKey);
+        return getAsync(path).get();
     }
 
     public Optional<Entry<T, Stat>> getWithStat(final String path) throws Exception {
