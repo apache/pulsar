@@ -49,7 +49,7 @@ install:
 
 script:
     # Build Java and C++
-    - mvn license:check test package && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
+    - mvn license:check apache-rat:check test package && sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR compile
     # Build docker images
     - docker/build.sh
     # Generate website
