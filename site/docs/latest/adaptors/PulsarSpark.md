@@ -21,7 +21,7 @@ If you're using Maven, add this to your `pom.xml`:
 
 <!-- in your <dependencies> block -->
 <dependency>
-  <groupId>com.yahoo.pulsar</groupId>
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-spark</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
@@ -35,7 +35,7 @@ If you're using Gradle, add this to your `build.gradle` file:
 def pulsarVersion = "{{ site.current_version }}"
 
 dependencies {
-    compile group: 'com.yahoo.pulsar', name: 'pulsar-spark', version: pulsarVersion
+    compile group: 'org.apache.pulsar', name: 'pulsar-spark', version: pulsarVersion
 }
 ```
 

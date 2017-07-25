@@ -12,7 +12,7 @@ You can find documentation for the REST API exposed by Pulsar {% popover brokers
 
 ### Java admin client
 
-To use the Java admin API, instantiate a {% javadoc PulsarAdmin admin com.yahoo.pulsar.client.admin.PulsarAdmin %} object, specifying a URL for a Pulsar {% popover broker %} and a {% javadoc ClientConfiguration admin com.yahoo.pulsar.client.admin.ClientConfiguration %}. Here's a minimal example using `localhost`:
+To use the Java admin API, instantiate a {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object, specifying a URL for a Pulsar {% popover broker %} and a {% javadoc ClientConfiguration admin org.apache.pulsar.client.admin.ClientConfiguration %}. Here's a minimal example using `localhost`:
 
 ```java
 URL url = new URL("http://localhost:8080");

@@ -640,6 +640,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.hgrm</exclude>
             <exclude>**/*.test</exclude>
 
+            <!-- Other license files -->
+            <exclude>licenses/LICENSE-*.txt</exclude>
+            <exclude>src/assemble/README.bin.txt</exclude>
+
+            <!-- Exclude site since it's not released -->
+            <exclude>**/site/**</exclude>
+
             <exclude>**/*.patch</exclude>
             <exclude>**/*.md</exclude>
 

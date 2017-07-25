@@ -115,6 +115,7 @@ class HandlerBase {
  private:
     DeadlineTimerPtr timer_;
     friend class ClientConnection;
+    friend class PulsarFriend;
 };
 }
 #endif  //_PULSAR_HANDLER_BASE_HEADER_

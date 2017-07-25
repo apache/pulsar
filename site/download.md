@@ -4,15 +4,19 @@ layout: docs
 toc_disable: true
 ---
 
+{% include admonition.html type="success" title='Notice' content="
+The current release was done prior to entering the Apache Incubator, so
+it's still relative to 'Yahoo Pulsar' rather than 'Apache Pulsar'" %}
+
 Download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
 
 {% for version in site.versions %}
 ### Version {{ version }}{% if version == site.current_version %} (latest){% endif %}
 
-Type   | Link
-:------|:----
-Source | [pulsar-{{ version }}-src.tar.gz](https://github.com/apache/incubator-pulsar/releases/download/v{{ version }}/pulsar-{{ version }}-src.tar.gz) |
-Binary | [pulsar-{{ version }}-bin.tar.gz](https://github.com/apache/incubator-pulsar/releases/download/v{{ version }}/pulsar-{{ version }}-bin.tar.gz) |
+| Type   | Link                                                                                                                                           |
+|:-------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| Source | [pulsar-{{ version }}-src.tar.gz](https://github.com/apache/incubator-pulsar/releases/download/v{{ version }}/pulsar-{{ version }}-src.tar.gz) |
+| Binary | [pulsar-{{ version }}-bin.tar.gz](https://github.com/apache/incubator-pulsar/releases/download/v{{ version }}/pulsar-{{ version }}-bin.tar.gz) |
 {% endfor %}
 
 ### Release notes

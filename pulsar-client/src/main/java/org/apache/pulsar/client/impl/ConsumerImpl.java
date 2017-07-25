@@ -656,6 +656,8 @@ public class ConsumerImpl extends ConsumerBase {
                 unAckedMessageTracker.close();
                 closeFuture.complete(null);
                 client.cleanupConsumer(this);
+                // fail all pending-receive futures to notify application
+                failPendingReceive();
             } else {
                 closeFuture.completeExceptionally(exception);
             }
@@ -665,7 +667,26 @@ public class ConsumerImpl extends ConsumerBase {
         return closeFuture;
     }
 
-    void messageReceived(MessageIdData messageId, ByteBuf headersAndPayload, ClientCnx cnx) {
+    private void failPendingReceive() {
+        lock.readLock().lock();
+        try {
+            if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
+                while (!pendingReceives.isEmpty()) {
+                    CompletableFuture<Message> receiveFuture = pendingReceives.poll();
+                    if (receiveFuture != null) {
+                        receiveFuture.completeExceptionally(
+                                new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
+                    } else {
+                        break;
+                    }
+                }
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+	void messageReceived(MessageIdData messageId, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());

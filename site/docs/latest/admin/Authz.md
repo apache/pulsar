@@ -106,7 +106,7 @@ tlsTrustCertsFilePath=/path/to/cacert.pem
 # Enable the TLS auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderTls
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
 {% include message.html id="broker_conf_doc" %}
@@ -136,7 +136,7 @@ You'll need to add the following authentication parameters to that file to use T
 
 ```properties
 serviceUrl=https://broker.example.com:8443/
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationTls
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem
 useTls=true
 tlsAllowInsecureConnection=false
@@ -187,7 +187,7 @@ In the `conf/broker.conf` configuration file in your Pulsar installation, you ne
 # Add the Athenz auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderAthenz
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz
 athenzDomainNames=pulsar
 
 # Enable TLS
@@ -215,7 +215,7 @@ You’ll need to add the following authentication parameters to that file to use
 serviceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationAthenz
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 authParams=tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1
 
 # Enable TLS

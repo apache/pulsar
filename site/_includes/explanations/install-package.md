@@ -1,5 +1,5 @@
-{% capture binary_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-{% capture source_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
+{% capture binary_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
+{% capture source_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
 
 ## System requirements
 
@@ -15,7 +15,7 @@ To get started running Pulsar, download a binary tarball release in one of the f
   <a href="{{ binary_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} binary release</a>
 
 * from the Pulsar [downloads page](/download)
-* from the Pulsar [releases page](https://github.com/yahoo/pulsar/releases/latest)
+* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell

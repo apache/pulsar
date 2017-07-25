@@ -42,7 +42,6 @@ broker1.use.org.com:8080
 admin.brokers().getActiveBrokers(clusterName)
 ```
 
-
 #### list of namespaces owned by a given broker
 
 It finds all namespaces which are owned and served by a given broker.  
