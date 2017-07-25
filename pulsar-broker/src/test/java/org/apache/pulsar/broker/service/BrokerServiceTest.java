@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.mockito.Mockito.anyObject;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -48,7 +50,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.BrokerStats;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -60,6 +61,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.testng.annotations.AfterClass;
@@ -69,6 +72,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 
 /**
  */
@@ -823,5 +827,21 @@ public class BrokerServiceTest extends BrokerTestBase {
             executor.shutdownNow();
         }
     }
-    
+
+    /**
+     * It verifies that policiesCache() copies global-policy data into local-policy data and returns combined result
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCreateNamespacePolicy() throws Exception {
+        final String namespace = "prop/use/testPolicy";
+        final int totalBundle = 3;
+        admin.namespaces().createNamespace(namespace, new BundlesData(totalBundle));
+        String globalPath = joinPath(LOCAL_POLICIES_ROOT, namespace);
+        pulsar.getLocalZkCacheService().policiesCache().clear();
+        Optional<LocalPolicies> policy = pulsar.getLocalZkCacheService().policiesCache().get(globalPath);
+        assertTrue(policy.isPresent());
+        assertEquals(policy.get().bundles.numBundles, totalBundle);
+    }
 }
