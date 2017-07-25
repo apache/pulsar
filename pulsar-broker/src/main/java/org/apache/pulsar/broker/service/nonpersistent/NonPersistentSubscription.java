@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -54,7 +55,7 @@ public class NonPersistentSubscription implements Subscription {
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentSubscription.class, "isFenced");
     private volatile int isFenced = FALSE;
-
+    
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
         this.topic = topic;
         this.topicName = topic.getName();
@@ -302,13 +303,13 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
-
     public PersistentSubscriptionStats getStats() {
         PersistentSubscriptionStats subStats = new PersistentSubscriptionStats();
 
-        Dispatcher dispatcher = this.dispatcher;
+        NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
+                consumer.updateRates();
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
@@ -319,6 +320,7 @@ public class NonPersistentSubscription implements Subscription {
         }
 
         subStats.type = getType();
+        subStats.msgDropRate = dispatcher.getMesssageDropRate().getRate();
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         return subStats;
     }

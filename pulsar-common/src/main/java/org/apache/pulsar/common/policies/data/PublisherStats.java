@@ -46,6 +46,12 @@ public class PublisherStats {
     
     /** Client library version */
     public String clientVersion;
+    
+    /**
+     * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
+     * delivery
+     **/
+    public double msgDropRate;
 
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);

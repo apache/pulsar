@@ -56,6 +56,7 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private Rate msgIn;
+    private Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -77,6 +78,7 @@ public class Producer {
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
         this.msgIn = new Rate();
+        this.msgDrop = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
 
         this.stats = new PublisherStats();
@@ -174,6 +176,10 @@ public class Producer {
                 }
             }
         }
+    }
+
+    public void recordMessageDrop() {
+        msgDrop.recordEvent();
     }
 
     private static final class MessagePublishedCallback implements PublishCallback, Runnable {
@@ -338,9 +344,11 @@ public class Producer {
 
     public void updateRates() {
         msgIn.calculateRate();
+        msgDrop.calculateRate();
         stats.msgRateIn = msgIn.getRate();
         stats.msgThroughputIn = msgIn.getValueRate();
         stats.averageMsgSize = msgIn.getAverageValue();
+        stats.msgDropRate = msgDrop.getRate();
     }
 
     public boolean isRemote() {
@@ -381,4 +389,5 @@ public class Producer {
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
+    
 }

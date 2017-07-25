@@ -582,6 +582,7 @@ public class ServerCnx extends PulsarHandler {
             service.getTopicOrderedExecutor().submitOrdered(producer.getTopic(), SafeRun.safeRun(() -> {
                 ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, -1, -1), ctx.voidPromise());
             }));
+            producer.recordMessageDrop();
             return;
         }
 

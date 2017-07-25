@@ -55,6 +55,12 @@ public class PersistentSubscriptionStats {
 
     /** List of connected consumers on this subscription w/ their stats */
     public List<ConsumerStats> consumers;
+    
+    /**
+     * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
+     * delivery
+     **/
+    public double msgDropRate;
 
     public PersistentSubscriptionStats() {
         this.consumers = Lists.newArrayList();
@@ -67,6 +73,7 @@ public class PersistentSubscriptionStats {
         msgBacklog = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
+        msgDropRate = 0;
         consumers.clear();
     }
 
@@ -80,6 +87,7 @@ public class PersistentSubscriptionStats {
         this.msgBacklog += stats.msgBacklog;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
+        this.msgDropRate += stats.msgDropRate;
         if (this.consumers.size() != stats.consumers.size()) {
             for (int i = 0; i < stats.consumers.size(); i++) {
                 ConsumerStats consumerStats = new ConsumerStats();

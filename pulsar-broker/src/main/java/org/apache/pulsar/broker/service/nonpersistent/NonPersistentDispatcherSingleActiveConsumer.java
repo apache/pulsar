@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.util.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
     private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherSingleActiveConsumer> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherSingleActiveConsumer.class, "isClosed");
     private volatile int isClosed = FALSE;
+    private final Rate msgDropped;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic) {
@@ -63,6 +65,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
         ACTIVE_CONSUMER_UPDATER.set(this, null);
+        this.msgDropped = new Rate();
     }
 
     private void pickAndScheduleActiveConsumer() {
@@ -187,8 +190,14 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0) {
             currentConsumer.sendMessages(entries);
         } else {
+            msgDropped.recordEvent(entries.size());
             entries.forEach(Entry::release);
         }
+    }
+    
+    @Override
+    public Rate getMesssageDropRate() {
+        return msgDropped;
     }
 
     @Override

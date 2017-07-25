@@ -716,6 +716,63 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         }
 
     }
+
+    /**
+     * Verifies msg-drop stats
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testMsgDropStat() throws Exception {
+
+        int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
+        try {
+            final String topicName = "non-persistent://my-property/use/my-ns/stats-topic";
+            // restart broker with lower publish rate limit
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(2);
+            stopBroker();
+            startBroker();
+            ProducerConfiguration producerConf = new ProducerConfiguration();
+            ConsumerConfiguration consumerConfig1 = new ConsumerConfiguration();
+            consumerConfig1.setReceiverQueueSize(1);
+            Consumer consumer = pulsarClient.subscribe(topicName, "subscriber-1", consumerConfig1);
+            ConsumerConfiguration consumerConfig2 = new ConsumerConfiguration();
+            consumerConfig2.setReceiverQueueSize(1);
+            consumerConfig2.setSubscriptionType(SubscriptionType.Shared);
+            Consumer consumer2 = pulsarClient.subscribe(topicName, "subscriber-2", consumerConfig2);
+            Producer producer = pulsarClient.createProducer(topicName, producerConf);
+            ExecutorService executor = Executors.newFixedThreadPool(5);
+            AtomicBoolean failed = new AtomicBoolean(false);
+            byte[] msgData = "testData".getBytes();
+            final int totalProduceMessages = 100;
+            CountDownLatch latch = new CountDownLatch(totalProduceMessages);
+            for (int i = 0; i < totalProduceMessages; i++) {
+                executor.submit(() -> {
+                    try {
+                        producer.sendAsync(msgData).get(1, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        failed.set(true);
+                    }
+                    latch.countDown();
+                });
+            }
+            latch.await();
+
+            NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+            pulsar.getBrokerService().updateRates();
+            PersistentTopicStats stats = topic.getStats();
+            assertTrue(stats.publishers.get(0).msgDropRate > 0);
+            assertTrue(stats.subscriptions.get("subscriber-1").msgDropRate > 0);
+            assertTrue(stats.subscriptions.get("subscriber-2").msgDropRate > 0);
+
+            producer.close();
+            consumer.close();
+            consumer2.close();
+        } finally {
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
+        }
+
+    }
     
     class ReplicationClusterManager {
         URL url1;

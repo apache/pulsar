@@ -172,28 +172,20 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public void publishMessage(ByteBuf data, PublishCallback callback) {
-
         AtomicInteger msgDeliveryCount = new AtomicInteger(2);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
 
-        // create duplicate buffer for dispatcher because readerIndex of byteBuf can be modified
-        final ByteBuf subscriptionMsgData = RecyclableDuplicateByteBuf.create(data);
-        final ByteBuf replicatorMsgData = RecyclableDuplicateByteBuf.create(data);
+        // retain data for sub/replication because io-thread will release actual payload 
+        data.retain(2);
         this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
             subscriptions.forEach((name, subscription) -> {
-                if (subscription.getDispatcher().hasPermits()) {
-                    ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
-                    Entry entry = create(0L, 0L, duplicateBuffer);
-                    // entry internally retains data so, duplicateBuffer should be release here
-                    duplicateBuffer.release();
-                    subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}/{}] doesn't have permit to dispatch message", name, subscription.getName());
-                    }
-                }
+                ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                Entry entry = create(0L, 0L, duplicateBuffer);
+                // entry internally retains data so, duplicateBuffer should be release here
+                duplicateBuffer.release();
+                subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
             });
-            subscriptionMsgData.release();
+            data.release();
             if (msgDeliveryCount.decrementAndGet() == 0) {
                 callback.completed(null, 0L, 0L);
             }
@@ -208,7 +200,7 @@ public class NonPersistentTopic implements Topic {
                 ((NonPersistentReplicator) replicator).sendMessage(entry);
             });
 
-            replicatorMsgData.release();
+            data.release();
             if (msgDeliveryCount.decrementAndGet() == 0) {
                 callback.completed(null, 0L, 0L);
             }
@@ -652,6 +644,7 @@ public class NonPersistentTopic implements Topic {
 
                 destStatsStream.startList("consumers");
 
+                subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
                     consumer.updateRates();
@@ -692,6 +685,10 @@ public class NonPersistentTopic implements Topic {
                 destStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 destStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 destStatsStream.writePair("type", subscription.getTypeString());
+                if (subscription.getDispatcher() != null) {
+                    destStatsStream.writePair("msgDropRate",
+                            subscription.getDispatcher().getMesssageDropRate().getRate());
+                }
 
                 // Close consumers
                 destStatsStream.endObject();

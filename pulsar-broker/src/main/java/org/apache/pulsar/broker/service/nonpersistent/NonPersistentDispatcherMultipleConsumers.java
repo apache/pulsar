@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.util.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,10 +56,12 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
     private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     private volatile int totalAvailablePermits = 0;
+    private final Rate msgDropped;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, String dispatcherName) {
         this.name = topic.getName() + " / " + dispatcherName;
         this.topic = topic;
+        this.msgDropped = new Rate();
     }
 
     @Override
@@ -155,6 +159,7 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
         if (consumer != null) {
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getRight());
         } else {
+            msgDropped.recordEvent(entries.size());
             entries.forEach(Entry::release);
         }
     }
@@ -164,6 +169,11 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
         return TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0;
     }
 
+    @Override
+    public Rate getMesssageDropRate() {
+        return msgDropped;
+    }
+    
     private Consumer getNextConsumer() {
         if (consumerList.isEmpty() || closeFuture != null) {
             // abort read if no consumers are connected or if disconnect is initiated
@@ -177,7 +187,7 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
         // find next available consumer
         int availableConsumerIndex = currentConsumerRoundRobinIndex;
         do {
-            if (consumerList.get(availableConsumerIndex).getAvailablePermits() > 0) {
+            if (isConsumerAvailable(consumerList.get(availableConsumerIndex))) {
                 currentConsumerRoundRobinIndex = availableConsumerIndex;
                 return consumerList.get(currentConsumerRoundRobinIndex++);
             }
@@ -188,6 +198,10 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
 
         // not found any consumer
         return null;
+    }
+
+    private boolean isConsumerAvailable(Consumer consumer) {
+        return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);

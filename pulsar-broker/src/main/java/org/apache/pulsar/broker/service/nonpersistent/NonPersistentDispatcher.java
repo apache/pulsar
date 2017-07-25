@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-
+import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -52,6 +52,8 @@ public interface NonPersistentDispatcher extends Dispatcher{
     SubType getType();
     
     void sendMessages(List<Entry> entries);
+    
+    Rate getMesssageDropRate();
     
     boolean hasPermits();
     
