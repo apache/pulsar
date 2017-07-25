@@ -7,7 +7,7 @@ Pulsar configuration can be managed either via a series of configuration files c
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
 * [Client](#client)
-* [Discovery](#discovery)
+* [Service discovery](#service-discovery)
 * [Global ZooKeeper](#global-zookeeper)
 * [Log4j](#log4j)
 * [Log4j shell](#log4j-shell)

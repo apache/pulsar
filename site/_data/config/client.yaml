@@ -19,11 +19,17 @@
 
 configs:
 - name: webServiceUrl
+  description: The web URL for the cluster.
   default: http://localhost:8080/
 - name: brokerServiceUrl
+  description: The Pulsar protocol URL for the cluster.
   default: pulsar://localhost:6650/
 - name: authPlugin
+  description: The authentication plugin.
 - name: authParams
+  description: The authentication parameters for the cluster, as a comma-separated string.
 - name: useTls
+  description: Whether or not TLS authentication will be enforced in the cluster.
+  default: "false"
 - name: tlsAllowInsecureConnection
 - name: tlsTrustCertsFilePath

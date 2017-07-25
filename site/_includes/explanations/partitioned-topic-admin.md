@@ -1,8 +1,16 @@
+You can use Pulsar's [admin API](../../admin/AdminInterface) to create and manage partitioned topics.
+
 In all of the instructions and commands below, the topic name structure is:
 
 {% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
 
 ### Create
+
+Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.
+
+{% include admonition.html type="info" title="Global partitioned topics" content="
+If you'd like to create a [global]() partitioned topic, you need to create a partitioned topic using the instructions here and specify `global` as the cluster in the topic name.
+" %}
 
 #### pulsar-admin
 
@@ -23,14 +31,22 @@ $ bin/pulsar-admin persistent create-partitioned-topic \
 #### Java
 
 ```java
-admin.persistentTopics().createPartitionedTopic(persistentTopic, numPartitions);
+String topicName = "persistent://my-property/my-cluster-my-namespace/my-topic";
+int numPartitions = 4;
+admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
 
 ### Get metadata
 
+Partitioned topics have metadata associated with them that you can fetch as a JSON object. The following metadata fields are currently available:
+
+Field | Meaning
+:-----|:-------
+`partitions` | The number of partitions into which the topic is divided
+
 #### pulsar-admin
 
-You can see the see number of partitions (as a JSON object) in a partitioned topic using the [`get-partitioned-topic-metadata`](../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic) subcommand. Here's an example:
+You can see the see number of partitions in a partitioned topic using the [`get-partitioned-topic-metadata`](../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic) subcommand. Here's an example:
 
 ```shell
 $ pulsar-admin persistent get-partitioned-topic-metadata \
@@ -49,7 +65,8 @@ $ pulsar-admin persistent get-partitioned-topic-metadata \
 #### Java
 
 ```java
-admin.persistentTopics().getPartitionedTopicMetadata(persistentTopic);
+String topicName = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.persistentTopics().getPartitionedTopicMetadata(topicName);
 ```
 
 ### Update

@@ -12,13 +12,13 @@ Pulsar's key features include:
 * Native support for multiple {% popover clusters %} in a Pulsar {% popover instance %}, with seamless [geo-replication](../../admin/GeoReplication) of messages across clusters
 * Very low publish and end-to-end latency
 * Seamless scalability out to over a million topics
-* A simple [client API](#client-api) with bindings for [Java](../../applications/JavaClient), [Python](../../applications/PythonClient), and [C++](../../applications/CppClient)
+* A simple [client API](#client-api) with bindings for [Java](../../clients/Java), [Python](../../clients/Python), and [C++](../../clients/Cpp)
 * Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
 * Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
 ## Producers, consumers, topics, and subscriptions
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka {% popover pub-sub %}. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics and process incoming messages.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka {% popover pub-sub %}. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an {% popover acknowledgement %} when processing is complete.
 
 Once a {% popover subscription %} has been created, all messages will be [retained](#persistent-storage) by Pulsar, even if the consumer gets disconnected. Retained messages will be discarded only when a consumer {% popover acknowledges %} that they've been successfully processed.
 
@@ -69,7 +69,7 @@ Messages can be acknowledged either one by one or cumulatively. With cumulative 
 
 #### Listeners
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](../../applications/JavaClient), for example, provides a {% javadoc MesssageListener client org.apache.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries can provide their own listener implementations for consumers. The [Java client](../../clients/Java), for example, provides a {% javadoc MesssageListener client com.yahoo.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Topics
 
@@ -89,7 +89,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 
 A subscription is a named configuration rule that determines how messages are delivered to {% popover consumers %}. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
 
-![Subscription Modes]({{ site.baseurl }}img/pulsar_subscriptions.jpg)
+![Subscription Modes](/img/pulsar_subscriptions.jpg)
 
 #### Exclusive
 
@@ -131,7 +131,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Architecture Diagram]({{ site.baseurl }}img/pulsar_system_architecture.png)
+![Architecture Diagram](/img/pulsar_system_architecture.png)
 
 At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster called {% popover global ZooKeeper %} handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
@@ -144,7 +144,7 @@ The Pulsar message {% popover broker %} is a stateless component that's primaril
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
-Finally, to support {% popover geo-replication %} on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](../../applications/JavaClient).
+Finally, to support {% popover geo-replication %} on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](../../clients/Java).
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar brokers, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-brokers) guide." %}
 
@@ -160,6 +160,14 @@ Clusters can replicate amongst themselves using [geo-replication](#geo-replicati
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar clusters, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-clusters) guide." %}
 
+### Global cluster
+
+In any Pulsar {% popover instance %}, there is an instance-wide cluster called `global` that you can use to mange non-cluster-specific namespaces and topics. The `global` cluster is created for you automatically when you [initialize metadata](../../admin/ClustersBrokers#initialize-cluster-metadata) for the first cluster in your instance.
+
+Global topic names have this basic structure (note the `global` cluster):
+
+{% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
+
 ## Metadata store
 
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
@@ -167,9 +175,11 @@ Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata stora
 * A {% popover global ZooKeeper %} quorum stores configuration for {% popover properties %}, {% popover namespaces %}, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores {% popover cluster %}-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper {% popover ledger %} metadata, and more.
 
+When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-metadata)
+
 ## Persistent storage
 
-![Brokers and bookies]({{ site.baseurl }}img/broker-bookie.png)
+![Brokers and bookies](/img/broker-bookie.png)
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
 
@@ -245,7 +255,7 @@ Pulsar supports a pluggable [authentication](https://github.com/apache/incubator
 
 ## Client interface
 
-Pulsar exposes a client API with language bindings for [Java](../../applications/JavaClient) and [C++](../../applications/CppClient). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
+Pulsar exposes a client API with language bindings for [Java](../../clients/Java) and [C++](../../clients/Cpp). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
 
 Under the hood, the current official Pulsar client libraries support transparent reconnection and/or connection failover to {% popover brokers %}, queuing of messages until {% popover acknowledged %} by the broker, and heuristics such as connection retries with backoff.
 

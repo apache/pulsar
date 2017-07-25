@@ -3,9 +3,9 @@ title: Spark Streaming Pulsar receiver
 tags: [spark, streaming, java]
 ---
 
-The Spark Streaming Pulsar Receiver is a custom receiver that enables Apache [Spark Streaming](https://spark.apache.org/streaming/) to receive data from Pulsar.
+The Spark Streaming recevier for Pulsar is a custom receiver that enables Apache [Spark Streaming](https://spark.apache.org/streaming/) to receive data from Pulsar.
 
-An application can receive data in [Resilient Distributed Dataset](https://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds) (RDD) format via the Spark Streaming Pulsar Receiver and can process it in a variety of ways.
+An application can receive data in [Resilient Distributed Dataset](https://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds) (RDD) format via the Spark Streaming Pulsar receiver and can process it in a variety of ways.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ dependencies {
 
 ## Usage
 
-Pass an instance of SparkStreamingPulsarReceiver to receiverStream method in JavaStreamingContext:
+Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` method in `JavaStreamingContext`:
 
 ```java
 SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("pulsar-spark");
@@ -60,5 +60,5 @@ JavaReceiverInputDStream<byte[]> msgs = jssc
 
 ## Example
 
-You can find a complete example [here]({{ site.pulsar_repo }}/tree/master/pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
-In this example, the number of messages which contain "Pulsar" string in received messages is counted.
+You can find a complete example [here]({{ site.pulsar_repo }}/pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java).
+In this example, the number of messages which contain the string "Pulsar" in received messages is counted.

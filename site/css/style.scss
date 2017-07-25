@@ -8,6 +8,35 @@
 
 @include sticky-footer;
 
+// border: 1px solid #ddd; width: 4rem; margin-right: 1.25rem;
+
+.flag {
+  margin: 0;
+  width: 4rem;
+}
+
+.codebase {
+  .card {
+    padding: .25rem;
+    margin: 0;
+
+    h2.card-title {
+      margin-top: 0 !important;
+      margin-bottom: 1.25rem;
+      font-size: 1.7rem;
+
+      i {
+        margin-left: 2rem;
+      }
+    }
+
+    section.card-text {
+      margin: 0;
+      padding: 0;
+    }
+  }
+}
+
 span.latest-badge {
   margin-left: 2rem;
 }
@@ -46,13 +75,6 @@ span.latest-badge {
 * {
   margin: 0;
   padding: 0;
-}
-
-.codebase {
-  h2 {
-    padding: 0;
-    margin: 0;
-  }
 }
 
 button.version-btn {
@@ -230,7 +252,7 @@ article.content {
 @import "popover";
 @import "protobuf";
 @import "docs";
-@import "tocify";
+@import "toc";
 @import "syntax";
 @import "sidebar";
 @import "cli";

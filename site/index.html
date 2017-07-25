@@ -28,13 +28,13 @@ layout: default
   <div class="container">
     <div class="jumbotron-fluid text-center">
       <!-- <h2 class="display-4">{{ site.title }}</h2> -->
-      <img src="{{ site.baseUrl }}img/pulsar.png" />
+      <img src="/img/pulsar.png" />
 
       <p class="lead"><a href="">Apache Pulsar</a> is an open-source distributed pub-sub messaging system originally<br />
           created at <a href="https://developer.yahoo.com/open-source/">Yahoo</a> and now part of the <a href="https://apache.org">Apache Software Foundation</a>.</p>
 
       <p class="button-group lead">
-        <a class="btn btn-pulsar btn-lg" href="{{ site.baseurl }}docs/latest" role="button">Read the docs</a>
+        <a class="btn btn-pulsar btn-lg" href="/docs/latest" role="button">Read the docs</a>
         <a class="btn btn-github btn-lg" href="https://github.com/apache/incubator-pulsar" role="button">GitHub <i class="fa fa-github fa-lg"></i></a>
       </p>
     </div>
@@ -46,9 +46,9 @@ layout: default
     <h2 class="text-center">Key features</h2>
     <div class="row">
       {% for feature in site.data.features %}
-      <div class="col-sm-3 card">
+      <div class="col-sm-4 card">
           <div class="card-block">
-            <a href="{{ site.baseurl }}docs/latest/{{ feature.endpoint }}" >
+            <a href="/docs/latest/{{ feature.endpoint }}" >
                   <h3 class="card-title">{{ feature.title }}</h3>
             </a>
           <p>{{ feature.content | markdownify }}</p>

@@ -3,6 +3,8 @@ title: Pulsar cluster and broker administration
 tags: [admin, cluster, broker, pulsar-admin, REST API, Java]
 ---
 
+Pulsar {% popover clusters %} and {% popover brokers %} can be managed using Pulsar's [admin interface](../AdminInterface).
+
 ## Admin setup
 
 {% include explanations/admin-setup.md %}
