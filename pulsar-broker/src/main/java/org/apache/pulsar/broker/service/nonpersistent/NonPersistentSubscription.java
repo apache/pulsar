@@ -21,15 +21,9 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Objects;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -41,8 +35,12 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Objects;
 
 public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
@@ -303,8 +301,8 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
-    public NonPersistentSubscriptionStats getStats() {
-        NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
+    public PersistentSubscriptionStats getStats() {
+        PersistentSubscriptionStats subStats = new PersistentSubscriptionStats();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {

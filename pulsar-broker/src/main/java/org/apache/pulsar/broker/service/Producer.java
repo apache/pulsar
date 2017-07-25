@@ -56,6 +56,7 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private Rate msgIn;
+    // it records msg-drop rate only for non-persistent topic
     private Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;

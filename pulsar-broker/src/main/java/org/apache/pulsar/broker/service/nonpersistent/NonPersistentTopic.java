@@ -74,8 +74,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -139,10 +139,10 @@ public class NonPersistentTopic implements Topic {
         public double aggMsgThroughputIn;
         public double aggMsgRateOut;
         public double aggMsgThroughputOut;
-        public final ObjectObjectHashMap<String, NonPersistentPublisherStats> remotePublishersStats;
+        public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
 
         public TopicStats() {
-            remotePublishersStats = new ObjectObjectHashMap<String, NonPersistentPublisherStats>();
+            remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
             reset();
         }
 
@@ -604,13 +604,13 @@ public class NonPersistentTopic implements Topic {
 
         producers.forEach(producer -> {
             producer.updateRates();
-            NonPersistentPublisherStats NonPersistentPublisherStats = (NonPersistentPublisherStats) producer.getStats();
+            PublisherStats PublisherStats = producer.getStats();
 
-            topicStats.aggMsgRateIn += NonPersistentPublisherStats.msgRateIn;
-            topicStats.aggMsgThroughputIn += NonPersistentPublisherStats.msgThroughputIn;
+            topicStats.aggMsgRateIn += PublisherStats.msgRateIn;
+            topicStats.aggMsgThroughputIn += PublisherStats.msgThroughputIn;
 
             if (producer.isRemote()) {
-                topicStats.remotePublishersStats.put(producer.getRemoteCluster(), NonPersistentPublisherStats);
+                topicStats.remotePublishersStats.put(producer.getRemoteCluster(), PublisherStats);
             }
         });
 
@@ -732,17 +732,17 @@ public class NonPersistentTopic implements Topic {
 
         PersistentTopicStats stats = new PersistentTopicStats();
 
-        ObjectObjectHashMap<String, NonPersistentPublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, NonPersistentPublisherStats>();
+        ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
         producers.forEach(producer -> {
-            NonPersistentPublisherStats NonPersistentPublisherStats = (NonPersistentPublisherStats) producer.getStats();
-            stats.msgRateIn += NonPersistentPublisherStats.msgRateIn;
-            stats.msgThroughputIn += NonPersistentPublisherStats.msgThroughputIn;
+            PublisherStats PublisherStats = producer.getStats();
+            stats.msgRateIn += PublisherStats.msgRateIn;
+            stats.msgThroughputIn += PublisherStats.msgThroughputIn;
 
             if (producer.isRemote()) {
-                remotePublishersStats.put(producer.getRemoteCluster(), NonPersistentPublisherStats);
+                remotePublishersStats.put(producer.getRemoteCluster(), PublisherStats);
             } else {
-                stats.publishers.add(NonPersistentPublisherStats);
+                stats.publishers.add(PublisherStats);
             }
         });
 
@@ -757,21 +757,21 @@ public class NonPersistentTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats NonPersistentReplicatorStats = (NonPersistentReplicatorStats) replicator.getStats();
+            ReplicatorStats ReplicatorStats = replicator.getStats();
 
             // Add incoming msg rates
-            NonPersistentPublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                NonPersistentReplicatorStats.msgRateIn = pubStats.msgRateIn;
-                NonPersistentReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                NonPersistentReplicatorStats.inboundConnection = pubStats.address;
-                NonPersistentReplicatorStats.inboundConnectedSince = pubStats.connectedSince;
+                ReplicatorStats.msgRateIn = pubStats.msgRateIn;
+                ReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
+                ReplicatorStats.inboundConnection = pubStats.address;
+                ReplicatorStats.inboundConnectedSince = pubStats.connectedSince;
             }
 
-            stats.msgRateOut += NonPersistentReplicatorStats.msgRateOut;
-            stats.msgThroughputOut += NonPersistentReplicatorStats.msgThroughputOut;
+            stats.msgRateOut += ReplicatorStats.msgRateOut;
+            stats.msgThroughputOut += ReplicatorStats.msgThroughputOut;
 
-            stats.replication.put(replicator.getRemoteCluster(), NonPersistentReplicatorStats);
+            stats.replication.put(replicator.getRemoteCluster(), ReplicatorStats);
         });
 
         return stats;

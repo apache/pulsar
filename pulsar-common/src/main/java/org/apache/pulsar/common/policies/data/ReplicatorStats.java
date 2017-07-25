@@ -58,6 +58,13 @@ public class ReplicatorStats {
     /** Timestamp of outbound connection establishment time */
     public String outboundConnectedSince;
     
+    /**
+     * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
+     * delivery
+     **/
+    public double msgDropRate;
+
+    
     public ReplicatorStats add(ReplicatorStats stats) {
         checkNotNull(stats);
         this.msgRateIn += stats.msgRateIn;
@@ -68,6 +75,7 @@ public class ReplicatorStats {
         this.replicationBacklog += stats.replicationBacklog;
         this.connected &= stats.connected;
         this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
+        this.msgDropRate += stats.msgDropRate;
         return this;
     }
 }

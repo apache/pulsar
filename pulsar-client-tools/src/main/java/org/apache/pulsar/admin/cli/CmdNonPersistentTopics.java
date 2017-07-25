@@ -60,7 +60,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(params);
             print(nonPersistentTopics.getStats(persistentTopic));
         }
     }
@@ -72,7 +72,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(params);
             print(nonPersistentTopics.getInternalStats(persistentTopic));
         }
     }
@@ -90,7 +90,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(params);
             nonPersistentTopics.createPartitionedTopic(persistentTopic, numPartitions);
         }
     }
@@ -104,7 +104,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(params);
             print(nonPersistentTopics.getPartitionedTopicMetadata(persistentTopic));
         }
     }

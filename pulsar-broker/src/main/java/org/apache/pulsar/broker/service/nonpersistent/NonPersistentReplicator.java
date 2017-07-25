@@ -37,7 +37,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -63,7 +63,7 @@ public class NonPersistentReplicator implements Replicator {
 
     private final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES);
 
-    private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
+    private final ReplicatorStats stats = new ReplicatorStats();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) {
@@ -265,7 +265,7 @@ public class NonPersistentReplicator implements Replicator {
     }
 
     @Override
-    public NonPersistentReplicatorStats getStats() {
+    public ReplicatorStats getStats() {
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 

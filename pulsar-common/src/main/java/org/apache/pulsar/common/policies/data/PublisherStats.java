@@ -52,12 +52,13 @@ public class PublisherStats {
      * delivery
      **/
     public double msgDropRate;
-
+    
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
         this.averageMsgSize += stats.averageMsgSize;
+        this.msgDropRate += stats.msgDropRate;
         return this;
     }
 }
