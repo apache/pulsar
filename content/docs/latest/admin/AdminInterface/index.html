@@ -2338,6 +2338,37 @@ cluster-2
 </code></pre>
 </div>
 
+<p>Wildcard authorization can be performed when <code class="highlighter-rouge">authorizationAllowWildcardsMatching</code> is set to <code class="highlighter-rouge">true</code> in <code class="highlighter-rouge">broker.conf</code>.</p>
+
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.role.*'</span>
+</code></pre>
+</div>
+
+<p>Then, roles <code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>, etc. can produce and consume.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'*.role.my'</span>
+</code></pre>
+</div>
+
+<p>Then, roles <code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>, etc. can produce and consume.</p>
+
+<p><strong>Note</strong>: A wildcard matching works at <strong>the beginning or end of the role name only</strong>.</p>
+
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.*.role'</span>
+</code></pre>
+</div>
+
+<p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
+Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
+
 <h4 id="rest-api-16">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
