@@ -22,11 +22,13 @@
 <section class="codebase">
   {% for dir in site.data.codebase.directories %}
   <div class="card">
-  <div class="card-block">
-    <h2 class="card-title">{{ dir.name }} <a href="{{ site.pulsar_repo }}/{{ dir.name }}"><i class="fa fa-github"></i></a></h2>
-    <p class="card-text">{{ dir.description | markdownify }}</p>
-    {% if dir.language %}<p>Languages: {{ dir.language }}</p>{% endif %}
+    <div class="card-block">
+      <h2 class="card-title">{{ dir.name }} <a href="{{ site.pulsar_repo }}/{{ dir.name }}"><i class="fa fa-github"></i></a></h2>
+      <section class="card-text">
+      {{ dir.description | markdownify }}
+      {% if dir.language %}<span>Languages: {{ dir.language }}</span>{% endif %}
+      </section>
+    </div>
   </div>
-</div>
   {% endfor %}
 </section>

@@ -17,15 +17,22 @@
 
 .codebase {
   .card {
-    padding: .8rem;
+    padding: .25rem;
+    margin: 0;
 
     h2.card-title {
       margin-top: 0 !important;
-      font-size: 2rem;
+      margin-bottom: 1.25rem;
+      font-size: 1.7rem;
 
       i {
         margin-left: 2rem;
       }
+    }
+
+    section.card-text {
+      margin: 0;
+      padding: 0;
     }
   }
 }
