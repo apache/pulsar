@@ -4,17 +4,17 @@ lead: Manage how long messages remain stored in your Pulsar instance
 tags: [admin, expiry, retention, backlog]
 ---
 
-By default Pulsar {% popover brokers %} do two things:
+Pulsar {% popover brokers %} are responsible for handling messages that pass through Pulsar, including [persistent storage](../../getting-started/ConceptsAndArchitecture#persistent-storage) of messages. By default, brokers:
 
-* They immediately delete all messages that have been {% popover acknowledged %} by a {% popover consumer %}.
-* They persistently store all unacknowledged messages in a [backlog](#backlog-quotas).
+* immediately delete all messages that have been {% popover acknowledged %} by a {% popover consumer %}, and
+* persistently store all {% popover unacknowledged %} messages in a [backlog](#backlog-quotas).
 
-Pulsar also enables you to:
+In Pulsar, you can override both of these default behaviors, at the {% popover namespace %} level, in two ways:
 
-* persistently store acknowledged messages by setting [retention policies](#retention-policies)
-* delete messages that have not been acknowledged within a specified timeframe using [time to live](#time-to-live-ttl) (TTL)
+* You can persistently store messages that have already been {% popover acknowledged %} by a {% popover consumer %} by setting [retention policies](#retention-policies).
+* You can delete messages that have not been acknowledged within a specified timeframe using [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](../../admin/AdminInterface) enables you to manage both retention policies and TTL at the {% popover namespace %} level (and thus within a specific {% popover property %} and on a specific {% popover cluster %}).
+Pulsar's [admin interface](../../admin/AdminInterface) enables you to manage both retention policies and TTL at the {% popover namespace %} level (and thus within a specific {% popover property %} and either on a specific {% popover cluster %} or in the [`global`](../../getting-started/ConceptsAndArchitecture#global) cluster).
 
 {% include admonition.html type="warning" title="Don't use retention and TTL at the same time" content="
 Message retention policies and TTL fulfill similar purposes and should not be used in conjunction. For any given namespace, use one or the other.

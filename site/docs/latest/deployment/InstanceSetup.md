@@ -3,10 +3,19 @@ title: Deploying a Pulsar instance
 tags: [admin, instance]
 ---
 
-A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} that are potentially distributed across data centers or geographical regions.
+A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](../../admin/GeoReplication). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
-{% include admonition.html type="info" title='Running Pulsar locally?' content="
-This guide shows you how to deploy Pulsar in production. If you're looking to run a standalone Pulsar cluster for development purposes on a single machine, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide." %}
+* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks
+* Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
+* Deploying a [BookKeeper cluster](#deploying-bookkeeper) of {% popover bookies %} in each Pulsar cluster
+* Deploying [brokers](../../admin/ClustersBrokers#managing-brokers) in each Pulsar cluster
+
+
+If you're deploying a single Pulsar cluster, see the [Clusters and Brokers](../../admin/ClustersBrokers) guide.
+
+{% include admonition.html type="info" title='Running Pulsar locally or on Kubernetes?' content="
+This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you'd like to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide. If you're looking to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](../Kubernetes) guide, which includes sections on running Pulsar on Kubernetes on [Google Container Engine](../Kubernetes#pulsar-on-google-container-engine) and on [Amazon Web Services](../Kubernetes#pulsar-on-amazon-web-services).
+" %}
 
 {% include explanations/install-package.md %}
 
@@ -38,6 +47,10 @@ As you can see from the example above, the following needs to be specified:
 * The global ZooKeeper connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+
+{% include admonition.html type="info" title="Global cluster" content='
+In each Pulsar instance, there is a `global` cluster that you can administer just like other clusters. The `global` cluster enables you to do things like create global topics.
+' %}
 
 If you're using [TLS](../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
@@ -103,9 +116,9 @@ The most important thing is that you point the [`serviceUrl`](../../reference/Co
 serviceUrl=http://pulsar.us-west.example.com:8080/
 ```
 
-## Provisioning a new tenant
+## Provisioning new tenants
 
-Once you've set up an administrative client, 
+Pulsar was built as a fundamentally {% popover multi-tenant %} system. New tenants can be provisioned as Pulsar {% popover properties %}. Properties can be
 
 To allow a new tenant to use the system, we need to create a new {% popover property %}. You can create a new property using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-properties-create) CLI tool:
 

@@ -97,7 +97,7 @@ standalone:
 subscription:
   q: What is a subscription?
   def: |
-    "A lease on a topic established by a consumer. Pulsar has three subscription modes: exclusive, shared, and failover."
+    A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover).
 tenant:
   q: What is a tenant?
   def: An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level.
@@ -107,6 +107,9 @@ topic:
 topic-lookup:
   q: What is topic lookup?
   def: A service provided by Pulsar brokers that enables connecting clients to automatically determine which Pulsar cluster is responsible for a topic (and thus where message traffic for the topic needs to be routed).
+unacknowledged:
+  q: What is an unacknowledged message?
+  def: A message that has been delivered to a consumer for processing but not yet confirmed as processed by the consumer.
 zookeeper:
   q: What is ZooKeeper?
   def: |

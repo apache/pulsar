@@ -20,20 +20,22 @@
 directories:
 - name: pulsar-broker
   language: Java
-  description: Code related to the Pulsar broker
-  key_files:
-  - path:
-    purpose:
+  description: Code related to the Pulsar [broker](../../getting-started/ConceptsAndArchitecture#brokers).
 - name: pulsar-common
   language: Java, Protocol Buffers
-  description: Common assets
+  description: Assets related to Pulsar's message protocol.
 - name: dashboard
   language: python
+  description: The web client powering Pulsar's [dashboard](../../admin/Dashboard).
 - name: kubernetes
   language: YAML
-  description: Stuff for [Kubernetes deployment](../../deployment/Kubernetes)
+  description: "[Kubernetes](../../deployment/Kubernetes) configuration for Pulsar."
+- name: docker
+  language: Dockerfile, shell, Python
+  description: Assets used to build Pulsar's [Docker image](https://hub.docker.com)
 - name: managed-ledger
   language: Java
+  description: 
 - name: pulsar-broker-auth-athenz
 - name: pulsar-client
 - name: pulsar-spark
@@ -41,3 +43,16 @@ directories:
 - name: pulsar-testclient
 - name: src
   language: XML
+- name: protobuf
+  description: Some helpers for generating code from Protocol Buffer definitions.
+- name: all
+  description: Configuration for Maven's assembly plugin.
+  language: xml
+- name: bin
+  description: Executable scripts used for Pulsar administration
+  language: Bash
+- name: site
+  description: Assets used to generate this website
+  language: Markdown, Sass, HTML, JavaScript
+- name: .travis
+  description: Settings for [Travis CI](https://travis-ci.org), the continuous integration system used by Pulsar
