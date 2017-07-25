@@ -1457,7 +1457,7 @@
 
 <h3 id="java-admin-client">Java admin client</h3>
 
-<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
+<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
 <span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
@@ -1485,7 +1485,7 @@
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">clusters</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
   <li>The <code class="highlighter-rouge">/admin/clusters</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
 <h3 id="provision">Provision</h3>
@@ -1675,7 +1675,7 @@ cluster-2
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-brokers"><code class="highlighter-rouge">brokers</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
   <li>The <code class="highlighter-rouge">/admin/brokers</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">brokers</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+  <li>The <code class="highlighter-rouge">brokers</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
 <p>In addition to being configurable when you start them up, brokers can also be <a href="#dynamic-broker-configuration">dynamically configured</a>.</p>
@@ -1987,7 +1987,7 @@ to manage property in Pulsar.</p>
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">clusters</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
   <li>The <code class="highlighter-rouge">/admin/clusters</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
 <h3 id="provision-1">Provision</h3>
@@ -2172,7 +2172,7 @@ cluster-2
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">namespaces</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
   <li>The <code class="highlighter-rouge">/admin/namespaces</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">namespaces</code> method of the <a target="_blank" href="/api/admin/com/yahoo/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+  <li>The <code class="highlighter-rouge">namespaces</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
 <h3 id="create">Create</h3>
@@ -2928,7 +2928,7 @@ published to the topic.</p>
   </tbody>
 </table>
 
-<p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../applications/JavaClient">Java client</a> by implementing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
+<p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../applications/JavaClient">Java client</a> by implementing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
 
 <h2 id="permissions">Permissions</h2>
 

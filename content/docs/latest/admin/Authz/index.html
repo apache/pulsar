@@ -1816,7 +1816,7 @@
 <span class="c"># Enable the TLS auth provider
 </span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
-<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">com.yahoo.pulsar.broker.authentication.AuthenticationProviderTls</span>
+<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderTls</span>
 </code></pre>
 </div>
 
@@ -1875,7 +1875,7 @@
 <p>You’ll need to add the following authentication parameters to that file to use TLS with Pulsar’s CLI tools:</p>
 
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
-<span class="py">authPlugin</span><span class="p">=</span><span class="s">com.yahoo.pulsar.client.impl.auth.AuthenticationTls</span>
+<span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationTls</span>
 <span class="py">authParams</span><span class="p">=</span><span class="s">tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem</span>
 <span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
@@ -1958,7 +1958,7 @@
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Add the Athenz auth provider
 </span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
-<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">com.yahoo.pulsar.broker.authentication.AuthenticationProviderAthenz</span>
+<span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz</span>
 <span class="py">athenzDomainNames</span><span class="p">=</span><span class="s">pulsar</span>
 
 <span class="c"># Enable TLS
@@ -2015,7 +2015,7 @@
 </span><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
 
 <span class="c"># Set Athenz auth plugin and its parameters
-</span><span class="py">authPlugin</span><span class="p">=</span><span class="s">com.yahoo.pulsar.client.impl.auth.AuthenticationAthenz</span>
+</span><span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationAthenz</span>
 <span class="py">authParams</span><span class="p">=</span><span class="s">tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1</span>
 
 <span class="c"># Enable TLS

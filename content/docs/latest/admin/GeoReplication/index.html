@@ -860,7 +860,7 @@
 
 <p>By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.</p>
 
-<p>Below is an example for the <a href="../../applications/JavaClient">Java API</a>. Note the use of the <code class="highlighter-rouge">setReplicationClusters</code> method when constructing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> object:</p>
+<p>Below is an example for the <a href="../../applications/JavaClient">Java API</a>. Note the use of the <code class="highlighter-rouge">setReplicationClusters</code> method when constructing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> object:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
 <span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>

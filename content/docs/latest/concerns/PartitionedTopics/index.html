@@ -1312,7 +1312,7 @@
 
 <h4 id="default-routers">Default routers</h4>
 
-<p>You can specify the routing mode in the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/ProducerConfiguration.html"><code class="highlighter-rouge">ProducerConfiguration</code></a> object that you use to configure your producer. You have three options:</p>
+<p>You can specify the routing mode in the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html"><code class="highlighter-rouge">ProducerConfiguration</code></a> object that you use to configure your producer. You have three options:</p>
 
 <p>The available routing modes are <code class="highlighter-rouge">SinglePartition</code>, <code class="highlighter-rouge">RoundRobinPartition</code>, and <code class="highlighter-rouge">CustomPartition</code>. Here’s an example:</p>
 
@@ -1329,7 +1329,7 @@
 
 <h4 id="custom-message-router">Custom message router</h4>
 
-<p>To use a custom message router, you need to provide an implementation of the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface, which has just one <code class="highlighter-rouge">choosePartition</code> method:</p>
+<p>To use a custom message router, you need to provide an implementation of the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface, which has just one <code class="highlighter-rouge">choosePartition</code> method:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MessageRouter</span> <span class="kd">extends</span> <span class="n">Serializable</span> <span class="o">{</span>
         <span class="kt">int</span> <span class="nf">choosePartition</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">);</span>
@@ -2025,7 +2025,7 @@ persistent://property/cluster/namespace/topic
   </tbody>
 </table>
 
-<p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../applications/JavaClient">Java client</a> by implementing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
+<p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../applications/JavaClient">Java client</a> by implementing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
 
 
       </section>

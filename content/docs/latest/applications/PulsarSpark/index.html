@@ -1175,7 +1175,7 @@
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>com.yahoo.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
   <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
@@ -1189,7 +1189,7 @@
 <div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"latest"</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
-    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'com.yahoo.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -1214,7 +1214,7 @@
 
 <h2 id="example">Example</h2>
 
-<p>You can find a complete example <a href="https://github.com/apache/incubator-pulsar/tree/master/tree/master/pulsar-spark/src/test/java/com/yahoo/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">here</a>.
+<p>You can find a complete example <a href="https://github.com/apache/incubator-pulsar/tree/master/tree/master/pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">here</a>.
 In this example, the number of messages which contain “Pulsar” string in received messages is counted.</p>
 
       </section>
