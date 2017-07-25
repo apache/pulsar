@@ -52,6 +52,8 @@
 
 <title>Deploying a Pulsar instance</title>
 
+<meta charset="utf-8">
+
 <link rel="stylesheet" href="/css/style.css">
 <link rel="shortcut icon" href="/img/favicon.ico">
 
@@ -104,7 +106,7 @@
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" href="/docs/latest">Documentation</a>
+        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
       </li>
 
       <li class="nav-item">
@@ -116,13 +118,13 @@
           Client libraries
         </a>
         <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
-          <a class="dropdown-item" href="/docs/latest/applications/JavaClient">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
             Java
           </a>
-          <a class="dropdown-item" href="/docs/latest/applications/PythonClient">
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
             Python
           </a>
-          <a class="dropdown-item" href="/docs/latest/applications/CppClient">
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
             C++
           </a>
           <div class="dropdown-divider"></div>
@@ -152,6 +154,8 @@
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
           <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
           <h3 class="dropdown-header">Resources</h3>
           <a class="dropdown-item" href="/presentations">Presentations</a>
           <a class="dropdown-item" href="/team">Team</a>
@@ -170,6 +174,7 @@
     <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
   </a>
 </nav>
+
 
       <main>
         <!--
@@ -218,199 +223,6 @@
 
 -->
 
-<!-- <aside class="sidebar">
-  
-  <section class="sidebar-group">
-    <h4>Getting started</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/getting-started/LocalCluster/">Run Pulsar locally</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/getting-started/Clients/">Client libraries</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/getting-started/ConceptsAndArchitecture/">Concepts and architecture</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Deployment</h4>
-    <ul>
-      
-      
-      
-      <li><a  class="active"
-              href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/deployment/Kubernetes/">Pulsar on Kubernetes</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Concerns</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/concerns/PartitionedTopics/">Partitioned topics</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/concerns/RetentionExpiry/">Retention and expiry</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Pulsar administration</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/AdminInterface/">Pulsar admin interface</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/ClustersBrokers/">Clusters and brokers</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/PropertiesNamespaces/">Properties and namespaces</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/ZooKeeperBookKeeper/">ZooKeeper and BookKeeper</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/Dashboard/">Dashboard</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/Authz/">Authentication and authorization</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/GeoReplication/">Geo-replication</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/Stats/">Pulsar statistics</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/admin/ModularLoadManager/">Modular load manager</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Pulsar applications</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/JavaClient/">The Pulsar Java client</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/CppClient/">The Pulsar C++ client</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/PythonClient/">The Pulsar Python client</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/WebSocket/">WebSocket API</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/PulsarSpark/">Spark Streaming receiver</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/PulsarStorm/">Apache Storm adaptor</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/applications/SimulationTools/">Simulation tools</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Developing Pulsar</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/project/Codebase/">Codebase</a></li>
-      
-    </ul>
-  </section>
-  
-  <section class="sidebar-group">
-    <h4>Reference</h4>
-    <ul>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/reference/RestApi/">Pulsar REST API</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/reference/CliTools/">Command-line tools</a></li>
-      
-      
-      
-      <li><a 
-              href="/docs/latest/reference/Configuration/">Pulsar configuration</a></li>
-      
-    </ul>
-  </section>
-  
-</aside>
--->
 
 <aside class="sidebar-nav">
   <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
@@ -430,21 +242,21 @@
           
           
           <li>
-            <a href="/docs/latest/getting-started/LocalCluster/">
+            <a href="/docs/latest/getting-started/LocalCluster">
               Run Pulsar locally
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/getting-started/Clients/">
+            <a href="/docs/latest/getting-started/Clients">
               Client libraries
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/getting-started/ConceptsAndArchitecture/">
+            <a href="/docs/latest/getting-started/ConceptsAndArchitecture">
               Concepts and architecture
             </a>
           </li>
@@ -468,46 +280,29 @@
           
           
           <li class="active">
-            <a href="/docs/latest/deployment/InstanceSetup/">
-              Deploying a Pulsar instance
+            <a href="/docs/latest/deployment/InstanceSetup">
+              Deploying on bare metal
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/deployment/Kubernetes/">
+            <a href="/docs/latest/deployment/Kubernetes">
               Pulsar on Kubernetes
             </a>
           </li>
           
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-concerns">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-concerns" aria-controls="collapse-concerns">
-            Concerns
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-concerns" role="tabpanel" aria-labelledby="heading-concerns">
-        <ul>
-          
           
           <li>
-            <a href="/docs/latest/concerns/PartitionedTopics/">
-              Partitioned topics
+            <a href="/docs/latest/deployment/Kubernetes/#pulsar-on-google-container-engine">
+              Pulsar on Google Container Engine
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/concerns/RetentionExpiry/">
-              Retention and expiry
+            <a href="/docs/latest/deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
             </a>
           </li>
           
@@ -530,63 +325,63 @@
           
           
           <li>
-            <a href="/docs/latest/admin/AdminInterface/">
+            <a href="/docs/latest/admin/AdminInterface">
               Pulsar admin interface
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/ClustersBrokers/">
+            <a href="/docs/latest/admin/ClustersBrokers">
               Clusters and brokers
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/PropertiesNamespaces/">
+            <a href="/docs/latest/admin/PropertiesNamespaces">
               Properties and namespaces
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/ZooKeeperBookKeeper/">
+            <a href="/docs/latest/admin/ZooKeeperBookKeeper">
               ZooKeeper and BookKeeper
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/Dashboard/">
+            <a href="/docs/latest/admin/Dashboard">
               Dashboard
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/Authz/">
+            <a href="/docs/latest/admin/Authz">
               Authentication and authorization
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/GeoReplication/">
+            <a href="/docs/latest/admin/GeoReplication">
               Geo-replication
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/Stats/">
+            <a href="/docs/latest/admin/Stats">
               Pulsar statistics
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/admin/ModularLoadManager/">
+            <a href="/docs/latest/admin/ModularLoadManager">
               Modular load manager
             </a>
           </li>
@@ -597,63 +392,104 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-pulsar-applications">
+      <div class="card-header" role="tab" id="heading-client-libraries">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-applications" aria-controls="collapse-pulsar-applications">
-            Pulsar applications
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-pulsar-applications" role="tabpanel" aria-labelledby="heading-pulsar-applications">
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
         <ul>
           
           
           <li>
-            <a href="/docs/latest/applications/JavaClient/">
-              The Pulsar Java client
+            <a href="/docs/latest/clients/Java">
+              Java client
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/applications/CppClient/">
-              The Pulsar C++ client
+            <a href="/docs/latest/clients/Cpp">
+              C++ client
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/applications/PythonClient/">
-              The Pulsar Python client
+            <a href="/docs/latest/clients/Python">
+              Python client
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/applications/WebSocket/">
+            <a href="/docs/latest/clients/WebSocket">
               WebSocket API
             </a>
           </li>
           
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
           
           <li>
-            <a href="/docs/latest/applications/PulsarSpark/">
-              Spark Streaming receiver
+            <a href="/docs/latest/adaptors/PulsarSpark">
+              Spark Streaming
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/applications/PulsarStorm/">
-              Apache Storm adaptor
+            <a href="/docs/latest/adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="/docs/latest/advanced/PartitionedTopics">
+              Partitioned topics
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/applications/SimulationTools/">
-              Simulation tools
+            <a href="/docs/latest/advanced/RetentionExpiry">
+              Retention and expiry
             </a>
           </li>
           
@@ -676,14 +512,21 @@
           
           
           <li>
-            <a href="/docs/latest/project/BinaryProtocol/">
+            <a href="/docs/latest/project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="/docs/latest/project/BinaryProtocol">
               Pulsar binary protocol
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/project/Codebase/">
+            <a href="/docs/latest/project/Codebase">
               Codebase
             </a>
           </li>
@@ -707,21 +550,21 @@
           
           
           <li>
-            <a href="/docs/latest/reference/RestApi/">
+            <a href="/docs/latest/reference/RestApi">
               Pulsar REST API
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/reference/CliTools/">
+            <a href="/docs/latest/reference/CliTools">
               Command-line tools
             </a>
           </li>
           
           
           <li>
-            <a href="/docs/latest/reference/Configuration/">
+            <a href="/docs/latest/reference/Configuration">
               Pulsar configuration
             </a>
           </li>
@@ -834,7 +677,7 @@
           
           
           
-          <li><a href="/docs/latest/concerns/PartitionedTopics/">Partitioned topics</a></li>
+          <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
           
           
           
@@ -854,9 +697,7 @@
           
           
           
-          <li><a href="/docs/latest/concerns/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
+          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
           
           
           
@@ -1015,8 +856,6 @@
           
           
           
-          
-          
         </ul>
       </div>
     </div>
@@ -1030,7 +869,16 @@
       </section>
 
       <section class="content">
-        <p>A Pulsar <em>instance</em> consists of multiple Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> that are potentially distributed across data centers or geographical regions.</p>
+        <p>A Pulsar <em>instance</em> consists of multiple Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using <a href="../../admin/GeoReplication">geo-replication</a>. Deploying a multi-cluster Pulsar instance involves the following basic steps:</p>
+
+<ul>
+  <li>Deploying two separate <a href="#deploying-zookeeper">ZooKeeper</a> quorums: a <a href="#deploying-local-zookeeper">local</a> quorum for each cluster in the instance and a <a href="#deploying-global-zookeeper">global</a> quorum for instance-wide tasks</li>
+  <li>Initializing <a href="#cluster-metadata-initialization">cluster metadata</a> for each cluster</li>
+  <li>Deploying a <a href="#deploying-bookkeeper">BookKeeper cluster</a> of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> in each Pulsar cluster</li>
+  <li>Deploying <a href="../../admin/ClustersBrokers#managing-brokers">brokers</a> in each Pulsar cluster</li>
+</ul>
+
+<p>If you’re deploying a single Pulsar cluster, see the <a href="../../admin/ClustersBrokers">Clusters and Brokers</a> guide.</p>
 
 <!--
 
@@ -1054,10 +902,10 @@
 -->
 <div class="admonition">
   <div class="info">
-    <span class="admonition-title"><p>Running Pulsar locally?</p>
+    <span class="admonition-title"><p>Running Pulsar locally or on Kubernetes?</p>
 </span>
     
-<p>This guide shows you how to deploy Pulsar in production. If you’re looking to run a standalone Pulsar cluster for development purposes on a single machine, see the <a href="../../getting-started/LocalCluster">Setting up a local cluster</a> guide.</p>
+<p>This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you’d like to run a standalone Pulsar cluster on a single machine for development purposes, see the <a href="../../getting-started/LocalCluster">Setting up a local cluster</a> guide. If you’re looking to run Pulsar on <a href="https://kubernetes.io">Kubernetes</a>, see the <a href="../Kubernetes">Pulsar on Kubernetes</a> guide, which includes sections on running Pulsar on Kubernetes on <a href="../Kubernetes#pulsar-on-google-container-engine">Google Container Engine</a> and on <a href="../Kubernetes#pulsar-on-amazon-web-services">Amazon Web Services</a>.</p>
 
   </div>
 </div>
@@ -1072,7 +920,7 @@
 
 <ul>
   <li>
-    <p>by clicking one of these two buttons:</p>
+    <p>by clicking one of these friendly buttons:</p>
 
     <p><a href="https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-src.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar latest source release</a>
 <a href="https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-bin.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar latest binary release</a></p>
@@ -1106,6 +954,8 @@
 
 <h2 id="what-your-package-contains">What your package contains</h2>
 
+<p>Both the source and binary packages contain the following directories:</p>
+
 <table>
   <thead>
     <tr>
@@ -1136,6 +986,8 @@
     </tr>
   </tbody>
 </table>
+
+<p>The source package contains all of the assets, specific to version latest, from the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar repository</a>.</p>
 
 <h2 id="deploying-zookeeper">Deploying ZooKeeper</h2>
 
@@ -1342,6 +1194,36 @@ of these regions is unreachable.</p>
   <li>A broker service URL enabling interaction with the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in the cluster</li>
 </ul>
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Global cluster</p>
+</span>
+    
+<p>In each Pulsar instance, there is a <code class="highlighter-rouge">global</code> cluster that you can administer just like other clusters. The <code class="highlighter-rouge">global</code> cluster enables you to do things like create global topics.</p>
+
+  </div>
+</div>
+
 <p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a>, you’ll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.</p>
 
 <p>Make sure to run <code class="highlighter-rouge">initialize-cluster-metadata</code> for each cluster in your instance.</p>
@@ -1437,7 +1319,7 @@ designed to use multiple devices:</p>
 
 <p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions <a href="#service-discovery-setup">immediately below</a>.</p>
 
-<p>You can also use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint for a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, such as <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
+<p>You can also use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an <a href="../../reference/Configuration">endpoint</a> for a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, such as <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
 
 <!--
 
@@ -1499,9 +1381,9 @@ designed to use multiple devices:</p>
 </code></pre>
 </div>
 
-<h2 id="provisioning-a-new-tenant">Provisioning a new tenant</h2>
+<h2 id="provisioning-new-tenants">Provisioning new tenants</h2>
 
-<p>Once you’ve set up an administrative client,</p>
+<p>Pulsar was built as a fundamentally <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. New tenants can be provisioned as Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be</p>
 
 <p>To allow a new tenant to use the system, we need to create a new <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>. You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool:</p>
 
