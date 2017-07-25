@@ -54,17 +54,15 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bokkeeper.stats.datasketches.DataSketchesMetricsProvider;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
-import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.PrometheusMetricsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.MathUtils;
@@ -201,13 +199,12 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowLoopback(true);
             bsConfs[i].setGcWaitTime(60000);
 
-            String statsFilePath = FileSystems.getDefault()
-                    .getPath(bkDataDir.getAbsolutePath(), "bookie-stats.json").toString();
-
-            // Initialize Stats Provider
-            statsProviders[i] = new DataSketchesMetricsProvider();
-            bsConfs[i].setProperty("dataSketchesMetricsJsonFileReporter", statsFilePath);
-            statsProviders[i].start(bsConfs[i]);
+            // Initialize Stats Provider only if we're running with 1 single bookie
+            // to avoid port conflicts
+            if (numberOfBookies == 1) {
+                statsProviders[i] = new PrometheusMetricsProvider();
+                statsProviders[i].start(bsConfs[i]);
+            }
 
             StatsLogger statsLogger = statsProviders[i].getStatsLogger("");
             bs[i] = new BookieServer(bsConfs[i], statsLogger);
