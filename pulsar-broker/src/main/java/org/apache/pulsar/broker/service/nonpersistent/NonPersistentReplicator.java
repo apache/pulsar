@@ -37,7 +37,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -55,6 +55,7 @@ public class NonPersistentReplicator implements Replicator {
     private volatile ProducerImpl producer;
 
     private final Rate msgOut = new Rate();
+    private final Rate msgDrop = new Rate();
     private final Rate msgExpired = new Rate();
 
     private static final ProducerConfiguration producerConfiguration = new ProducerConfiguration().setSendTimeout(0,
@@ -62,7 +63,7 @@ public class NonPersistentReplicator implements Replicator {
 
     private final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES);
 
-    private final ReplicatorStats stats = new ReplicatorStats();
+    private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) {
@@ -202,6 +203,7 @@ public class NonPersistentReplicator implements Replicator {
                 log.debug("[{}][{} -> {}] dropping message because replicator producer is not started/writable",
                         topicName, localCluster, remoteCluster);
             }
+            msgDrop.recordEvent();
             entry.release();
         }
     }
@@ -256,12 +258,14 @@ public class NonPersistentReplicator implements Replicator {
     public void updateRates() {
         msgOut.calculateRate();
         msgExpired.calculateRate();
+        msgDrop.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
+        stats.msgDropRate = msgDrop.getRate();
     }
 
     @Override
-    public ReplicatorStats getStats() {
+    public NonPersistentReplicatorStats getStats() {
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 

@@ -20,45 +20,15 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class ReplicatorStats {
-
-    /** Total rate of messages received from the remote cluster. msg/s */
-    public double msgRateIn;
-
-    /** Total throughput received from the remote cluster. bytes/s */
-    public double msgThroughputIn;
-
-    /** Total rate of messages delivered to the replication-subscriber. msg/s */
-    public double msgRateOut;
-
-    /** Total throughput delivered to the replication-subscriber. bytes/s */
-    public double msgThroughputOut;
-
-    /** Total rate of messages expired. msg/s */
-    public double msgRateExpired;
-
-    /** Number of messages pending to be replicated to remote cluster */
-    public long replicationBacklog;
-
-    /** is the replication-subscriber up and running to replicate to remote cluster */
-    public boolean connected;
-
-    /** Time in seconds from the time a message was produced to the time when it is about to be replicated */
-    public long replicationDelayInSeconds;
-
-    /** Address of incoming replication connection */
-    public String inboundConnection;
-
-    /** Timestamp of incoming connection establishment time */
-    public String inboundConnectedSince;
-
-    /** Address of outbound replication connection */
-    public String outboundConnection;
-
-    /** Timestamp of outbound connection establishment time */
-    public String outboundConnectedSince;
+public class NonPersistentReplicatorStats extends ReplicatorStats{
     
-    public ReplicatorStats add(ReplicatorStats stats) {
+    /**
+     * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
+     * delivery
+     **/
+    public double msgDropRate;
+
+    public NonPersistentReplicatorStats add(NonPersistentReplicatorStats stats) {
         checkNotNull(stats);
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
@@ -67,6 +37,7 @@ public class ReplicatorStats {
         this.msgRateExpired += stats.msgRateExpired;
         this.replicationBacklog += stats.replicationBacklog;
         this.connected &= stats.connected;
+        this.msgDropRate += stats.msgDropRate;
         this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
         return this;
     }

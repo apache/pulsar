@@ -103,11 +103,7 @@ public abstract class AdminResource extends PulsarWebResource {
      * Get the domain of the destination (whether it's queue or topic)
      */
     protected String domain() {
-        if (uri.getPath().startsWith("queues/")) {
-            return "queue";
-        } else if (uri.getPath().startsWith("topics/")) {
-            return "topic";
-        } else if (uri.getPath().startsWith("persistent/")) {
+        if (uri.getPath().startsWith("persistent/")) {
             return "persistent";
         } else if (uri.getPath().startsWith("non-persistent/")) {
             return "non-persistent";

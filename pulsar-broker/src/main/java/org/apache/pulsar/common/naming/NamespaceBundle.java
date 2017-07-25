@@ -35,8 +35,8 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     private final NamespaceName nsname;
     private final Range<Long> keyRange;
     private final NamespaceBundleFactory factory;
-    // TODO: remove this once we remove broker persistent/non-persistent mode configuration
-    // it can be used by load-manager while considering bundle ownership
+    // Issue#596: remove this once we remove broker persistent/non-persistent mode configuration
+    // it is used by load-manager while considering bundle ownership
     private boolean hasNonPersistentTopic = false;
 
     public NamespaceBundle(NamespaceName nsname, Range<Long> keyRange, NamespaceBundleFactory factory) {

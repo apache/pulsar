@@ -39,8 +39,8 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
-    private boolean enablePersistentTopics=true;
-    private boolean enableNonPersistentTopics=true;
+    private boolean persistentTopicsEnabled=true;
+    private boolean nonPersistentTopicsEnabled=true;
 
     // Most recently available system resource usage.
     private ResourceUsage cpu;
@@ -373,20 +373,20 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         return pulsarServiceUrlTls;
     }
     
-    public boolean isEnablePersistentTopics() {
-        return enablePersistentTopics;
+    public boolean isPersistentTopicsEnabled() {
+        return persistentTopicsEnabled;
     }
 
-    public void setEnablePersistentTopics(boolean enablePersistentTopics) {
-        this.enablePersistentTopics = enablePersistentTopics;
+    public void setPersistentTopicsEnabled(boolean persistentTopicsEnabled) {
+        this.persistentTopicsEnabled = persistentTopicsEnabled;
     }
 
-    public boolean isEnableNonPersistentTopics() {
-        return enableNonPersistentTopics;
+    public boolean isNonPersistentTopicsEnabled() {
+        return nonPersistentTopicsEnabled;
     }
 
-    public void setEnableNonPersistentTopics(boolean enableNonPersistentTopics) {
-        this.enableNonPersistentTopics = enableNonPersistentTopics;
+    public void setNonPersistentTopicsEnabled(boolean nonPersistentTopicsEnabled) {
+        this.nonPersistentTopicsEnabled = nonPersistentTopicsEnabled;
     }
 
 }

@@ -188,14 +188,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             public boolean isEnablePersistentTopics(String brokerUrl) {
                 final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
                 return brokerData != null && brokerData.getLocalData() != null
-                        && brokerData.getLocalData().isEnablePersistentTopics();
+                        && brokerData.getLocalData().isPersistentTopicsEnabled();
             }
 
             @Override
             public boolean isEnableNonPersistentTopics(String brokerUrl) {
                 final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
                 return brokerData != null && brokerData.getLocalData() != null
-                        && brokerData.getLocalData().isEnableNonPersistentTopics();
+                        && brokerData.getLocalData().isNonPersistentTopicsEnabled();
             }
         };
     }
@@ -250,10 +250,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
         // configure broker-topic mode
-        lastData.setEnablePersistentTopics(pulsar.getConfiguration().isEnablePersistentTopics());
-        lastData.setEnableNonPersistentTopics(pulsar.getConfiguration().isEnableNonPersistentTopics());
-        localData.setEnablePersistentTopics(pulsar.getConfiguration().isEnablePersistentTopics());
-        localData.setEnableNonPersistentTopics(pulsar.getConfiguration().isEnableNonPersistentTopics());
+        lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+        lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+        localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+        localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
         
         placementStrategy = ModularLoadManagerStrategy.create(conf);

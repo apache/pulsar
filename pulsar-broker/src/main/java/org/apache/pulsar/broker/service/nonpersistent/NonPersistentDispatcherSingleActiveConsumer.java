@@ -56,7 +56,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
     private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherSingleActiveConsumer> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherSingleActiveConsumer.class, "isClosed");
     private volatile int isClosed = FALSE;
-    private final Rate msgDropped;
+    private final Rate msgDrop;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic) {
@@ -65,7 +65,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
         ACTIVE_CONSUMER_UPDATER.set(this, null);
-        this.msgDropped = new Rate();
+        this.msgDrop = new Rate();
     }
 
     private void pickAndScheduleActiveConsumer() {
@@ -190,14 +190,14 @@ public final class NonPersistentDispatcherSingleActiveConsumer implements NonPer
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0) {
             currentConsumer.sendMessages(entries);
         } else {
-            msgDropped.recordEvent(entries.size());
+            msgDrop.recordEvent(entries.size());
             entries.forEach(Entry::release);
         }
     }
     
     @Override
     public Rate getMesssageDropRate() {
-        return msgDropped;
+        return msgDrop;
     }
 
     @Override

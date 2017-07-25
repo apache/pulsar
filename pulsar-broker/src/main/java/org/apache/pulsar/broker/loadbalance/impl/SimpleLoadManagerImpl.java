@@ -205,14 +205,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             public boolean isEnablePersistentTopics(String brokerUrl) {
                 ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
                 LoadReport loadReport = currentLoadReports.get(ru);
-                return loadReport != null && loadReport.isEnablePersistentTopics();
+                return loadReport != null && loadReport.isPersistentTopicsEnabled();
             }
 
             @Override
             public boolean isEnableNonPersistentTopics(String brokerUrl) {
                 ResourceUnit ru = new SimpleResourceUnit(brokerUrl, new PulsarResourceDescription());
                 LoadReport loadReport = currentLoadReports.get(ru);
-                return loadReport != null && loadReport.isEnableNonPersistentTopics();
+                return loadReport != null && loadReport.isNonPersistentTopicsEnabled();
             }
         };
     }
@@ -227,8 +227,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        lastLoadReport.setEnablePersistentTopics(pulsar.getConfiguration().isEnablePersistentTopics());
-        lastLoadReport.setEnableNonPersistentTopics(pulsar.getConfiguration().isEnableNonPersistentTopics());
+        lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+        lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
         
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
@@ -1106,8 +1106,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-                loadReport.setEnableNonPersistentTopics(pulsar.getConfiguration().isEnableNonPersistentTopics());
-                loadReport.setEnablePersistentTopics(pulsar.getConfiguration().isEnablePersistentTopics());
+                loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+                loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
                 loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
                         pulsar.getConfiguration().getWebServicePort()));
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());

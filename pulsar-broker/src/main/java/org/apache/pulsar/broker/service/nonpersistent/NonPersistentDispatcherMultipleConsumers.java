@@ -56,12 +56,12 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
     private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     private volatile int totalAvailablePermits = 0;
-    private final Rate msgDropped;
+    private final Rate msgDrop;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, String dispatcherName) {
         this.name = topic.getName() + " / " + dispatcherName;
         this.topic = topic;
-        this.msgDropped = new Rate();
+        this.msgDrop = new Rate();
     }
 
     @Override
@@ -159,7 +159,7 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
         if (consumer != null) {
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getRight());
         } else {
-            msgDropped.recordEvent(entries.size());
+            msgDrop.recordEvent(entries.size());
             entries.forEach(Entry::release);
         }
     }
@@ -171,7 +171,7 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
 
     @Override
     public Rate getMesssageDropRate() {
-        return msgDropped;
+        return msgDrop;
     }
     
     private Consumer getNextConsumer() {

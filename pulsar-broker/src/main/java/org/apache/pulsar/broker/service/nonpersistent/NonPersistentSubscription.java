@@ -41,7 +41,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 
 public class NonPersistentSubscription implements Subscription {
@@ -303,25 +303,22 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
-    public PersistentSubscriptionStats getStats() {
-        PersistentSubscriptionStats subStats = new PersistentSubscriptionStats();
+    public NonPersistentSubscriptionStats getStats() {
+        NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
-                consumer.updateRates();
                 ConsumerStats consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
-                subStats.unackedMessages += consumerStats.unackedMessages;
             });
         }
 
         subStats.type = getType();
         subStats.msgDropRate = dispatcher.getMesssageDropRate().getRate();
-        subStats.msgBacklog = getNumberOfEntriesInBacklog();
         return subStats;
     }
 
