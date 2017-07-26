@@ -306,6 +306,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="/docs/latest/deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -677,6 +684,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -804,6 +813,8 @@
           
           
           <li><a href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
+          
+          
           
           
           
@@ -1456,48 +1467,6 @@ for messages:</p>
 <p>To report the topic stats:</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
-
-<h2 id="monitoring">Monitoring</h2>
-
-<h3 id="broker-stats">Broker stats</h3>
-
-<p>The <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</p>
-
-<p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:</p>
-
-<ul>
-  <li>
-    <p><em>Destination dumps</em>, which containing stats for each individual topic. They can be fetched using</p>
-
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
-</code></pre>
-    </div>
-  </li>
-  <li>
-    <p>Broker metrics, containing broker info and topics stats aggregated at namespace
-level:</p>
-
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
-</code></pre>
-    </div>
-  </li>
-</ul>
-
-<p>All the message rates are updated every 1min.</p>
-
-<h3 id="bookkeeper-stats">BookKeeper stats</h3>
-
-<p>There are several stats frameworks that works with BookKeeper and that can be enabled by changing the <code class="highlighter-rouge">statsProviderClass</code> in <code class="highlighter-rouge">conf/bookkeeper.conf</code>.</p>
-
-<p>By following the instructions above, the <code class="highlighter-rouge">DataSketchesMetricsProvider</code> will be enabled. It features a very efficient way to compute latency quantiles, along with rates and counts.</p>
-
-<p>The stats are dumped every interval into a JSON file that is overwritten each time.</p>
-
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">statsProviderClass</span><span class="p">=</span><span class="s">org.apache.bokkeeper.stats.datasketches.DataSketchesMetricsProvider</span>
-<span class="py">dataSketchesMetricsJsonFileReporter</span><span class="p">=</span><span class="s">data/bookie-stats.json</span>
-<span class="py">dataSketchesMetricsUpdateIntervalSeconds</span><span class="p">=</span><span class="s">60</span>
 </code></pre>
 </div>
 

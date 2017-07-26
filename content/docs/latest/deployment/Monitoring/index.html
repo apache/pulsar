@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>Pulsar adaptor for Apache Storm</title>
+<title>Monitoring</title>
 
 <meta charset="utf-8">
 
@@ -307,7 +307,7 @@
           </li>
           
           
-          <li>
+          <li class="active">
             <a href="/docs/latest/deployment/Monitoring">
               Monitoring
             </a>
@@ -463,7 +463,7 @@
           </li>
           
           
-          <li class="active">
+          <li>
             <a href="/docs/latest/adaptors/PulsarStorm">
               Apache Storm
             </a>
@@ -588,285 +588,9 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Pulsar adaptor for Apache Storm</h1>
+        <h1 class="docs-title">Monitoring</h1>
         
         <section class="tags">
-          
-          <!-- <span class="badge badge-pill badge-primary">storm</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-storm">storm</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-storm">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>storm</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">java</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-java">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          <li><a href="/docs/latest/admin/AdminInterface/">The Pulsar admin interface</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
           
         </section>
 
@@ -874,104 +598,103 @@
       </section>
 
       <section class="content">
-        <p>Pulsar Storm is an adaptor for integrating with <a href="http://storm.apache.org/">Apache Storm</a> topologies. It provides core Storm implementations for sending and receiving data.</p>
+        <p>There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the
+usage of topics and the overall health of the individual components of the cluster.</p>
 
-<p>An application can inject data into a Storm topology via a generic Pulsar spout, as well as consume data from a Storm topology via a generic Pulsar bolt.</p>
+<h2 id="collecting-metrics">Collecting metrics</h2>
 
-<h2 id="using-the-pulsar-storm-adaptor">Using the Pulsar Storm Adaptor</h2>
+<h3 id="broker-stats">Broker stats</h3>
 
-<p>Include dependency for Pulsar Storm Adaptor:</p>
+<p>The <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</p>
 
-<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
-  <span class="nt">&lt;artifactId&gt;</span>pulsar-storm<span class="nt">&lt;/artifactId&gt;</span>
-  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
-<span class="nt">&lt;/dependency&gt;</span>
+<p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:</p>
+
+<ul>
+  <li>
+    <p><em>Destination dumps</em>, which containing stats for each individual topic. They can be fetched using</p>
+
+    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Broker metrics, containing broker info and topics stats aggregated at namespace
+level:</p>
+
+    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>All the message rates are updated every 1min.</p>
+
+<p>The aggregated broker metrics are also exposed in the <a href="https://prometheus.io">Prometheus</a> format at:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BROKER_ADDRESS</span>:8080/metrics
 </code></pre>
 </div>
 
-<h2 id="pulsar-spout">Pulsar Spout</h2>
+<h3 id="zookeeper-stats">ZooKeeper stats</h3>
 
-<p>The Pulsar Spout allows for the data published on a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> to be consumed by a Storm topology. It emits a Storm tuple based on the message received and the <code class="highlighter-rouge">MessageToValuesMapper</code> provided by the client.</p>
+<p>The ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
+detailed stats through Prometheus as well.</p>
 
-<p>The tuples that fail to be processed by the downstream bolts will be re-injected by the spout with an exponential backoff, within a configurable timeout (the default is 60 seconds) or a configurable number of retries, whichever comes first, after which it is <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by the consumer. Here’s an example construction of a spout:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
-<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
-
-<span class="c1">// Configure a Pulsar Consumer</span>
-<span class="n">ConsumerConfiguration</span> <span class="n">consumerConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>  
-
-<span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">"serial"</span><span class="o">)</span>
-<span class="n">MessageToValuesMapper</span> <span class="n">messageToValuesMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="n">MessageToValuesMapper</span><span class="o">()</span> <span class="o">{</span>
-
-    <span class="nd">@Override</span>
-    <span class="kd">public</span> <span class="n">Values</span> <span class="nf">toValues</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">)</span> <span class="o">{</span>
-        <span class="k">return</span> <span class="k">new</span> <span class="nf">Values</span><span class="o">(</span><span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
-    <span class="o">}</span>
-
-    <span class="nd">@Override</span>
-    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">declareOutputFields</span><span class="o">(</span><span class="n">OutputFieldsDeclarer</span> <span class="n">declarer</span><span class="o">)</span> <span class="o">{</span>
-        <span class="c1">// declare the output fields</span>
-        <span class="n">declarer</span><span class="o">.</span><span class="na">declare</span><span class="o">(</span><span class="k">new</span> <span class="n">Fields</span><span class="o">(</span><span class="s">"string"</span><span class="o">));</span>
-    <span class="o">}</span>
-<span class="o">};</span>
-
-<span class="c1">// Configure a Pulsar Spout</span>
-<span class="n">PulsarSpoutConfiguration</span> <span class="n">spoutConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpoutConfiguration</span><span class="o">();</span>
-<span class="n">spoutConf</span><span class="o">.</span><span class="na">setServiceUrl</span><span class="o">(</span><span class="s">"pulsar://broker.messaging.usw.example.com:6650"</span><span class="o">);</span>
-<span class="n">spoutConf</span><span class="o">.</span><span class="na">setTopic</span><span class="o">(</span><span class="s">"persistent://my-property/usw/my-ns/my-topic1"</span><span class="o">);</span>
-<span class="n">spoutConf</span><span class="o">.</span><span class="na">setSubscriptionName</span><span class="o">(</span><span class="s">"my-subscriber-name1"</span><span class="o">);</span>
-<span class="n">spoutConf</span><span class="o">.</span><span class="na">setMessageToValuesMapper</span><span class="o">(</span><span class="n">messageToValuesMapper</span><span class="o">);</span>
-
-<span class="c1">// Create a Pulsar Spout</span>
-<span class="n">PulsarSpout</span> <span class="n">spout</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpout</span><span class="o">(</span><span class="n">spoutConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">,</span> <span class="n">consumerConf</span><span class="o">);</span>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$ZK_SERVER</span>:8080/metrics
 </code></pre>
 </div>
 
-<h2 id="pulsar-bolt">Pulsar Bolt</h2>
+<h3 id="bookkeeper-stats">BookKeeper stats</h3>
 
-<p>The Pulsar bolt allows data in a Storm topology to be published on a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>. It publishes messages based on the Storm tuple received and the <code class="highlighter-rouge">TupleToMessageMapper</code> provided by the client.</p>
+<p>For BookKeeper you can configure the stats frameworks by changing the <code class="highlighter-rouge">statsProviderClass</code> in
+<code class="highlighter-rouge">conf/bookkeeper.conf</code>.</p>
 
-<p>A partitioned topic can also be used to publish messages on different topics. In the implementation of the <code class="highlighter-rouge">TupleToMessageMapper</code>, a “key” will need to be provided in the message which will send the messages with the same key to the same topic. Here’s an example bolt:</p>
+<p>By default, the default BookKeeper configuration included with Pulsar distribution will enable
+the Prometheus exporter.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
-<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
-
-<span class="c1">// Configure a Pulsar Producer  </span>
-<span class="n">ProducerConfiguration</span> <span class="n">producerConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
-
-<span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">"serial"</span><span class="o">)</span>
-<span class="n">TupleToMessageMapper</span> <span class="n">tupleToMessageMapper</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleToMessageMapper</span><span class="o">()</span> <span class="o">{</span>
-
-    <span class="nd">@Override</span>
-    <span class="kd">public</span> <span class="n">Message</span> <span class="nf">toMessage</span><span class="o">(</span><span class="n">Tuple</span> <span class="n">tuple</span><span class="o">)</span> <span class="o">{</span>
-        <span class="n">String</span> <span class="n">receivedMessage</span> <span class="o">=</span> <span class="n">tuple</span><span class="o">.</span><span class="na">getString</span><span class="o">(</span><span class="mi">0</span><span class="o">);</span>
-        <span class="c1">// message processing</span>
-        <span class="n">String</span> <span class="n">processedMsg</span> <span class="o">=</span> <span class="n">receivedMessage</span> <span class="o">+</span> <span class="s">"-processed"</span><span class="o">;</span>
-        <span class="k">return</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">().</span><span class="na">setContent</span><span class="o">(</span><span class="n">processedMsg</span><span class="o">.</span><span class="na">getBytes</span><span class="o">()).</span><span class="na">build</span><span class="o">();</span>
-    <span class="o">}</span>
-
-    <span class="nd">@Override</span>
-    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">declareOutputFields</span><span class="o">(</span><span class="n">OutputFieldsDeclarer</span> <span class="n">declarer</span><span class="o">)</span> <span class="o">{</span>
-        <span class="c1">// declare the output fields</span>
-    <span class="o">}</span>
-<span class="o">};</span>
-
-<span class="c1">// Configure a Pulsar Bolt</span>
-<span class="n">PulsarBoltConfiguration</span> <span class="n">boltConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBoltConfiguration</span><span class="o">();</span>
-<span class="n">boltConf</span><span class="o">.</span><span class="na">setServiceUrl</span><span class="o">(</span><span class="s">"pulsar://broker.messaging.usw.example.com:6650"</span><span class="o">);</span>
-<span class="n">boltConf</span><span class="o">.</span><span class="na">setTopic</span><span class="o">(</span><span class="s">"persistent://my-property/usw/my-ns/my-topic2"</span><span class="o">);</span>
-<span class="n">boltConf</span><span class="o">.</span><span class="na">setTupleToMessageMapper</span><span class="o">(</span><span class="n">tupleToMessageMapper</span><span class="o">);</span>
-
-<span class="c1">// Create a Pulsar Bolt</span>
-<span class="n">PulsarBolt</span> <span class="n">bolt</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBolt</span><span class="o">(</span><span class="n">boltConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">);</span>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BOOKIE_ADDRESS</span>:8000/metrics
 </code></pre>
 </div>
 
-<h2 id="example">Example</h2>
+<p>For bookies, the default port is <code class="highlighter-rouge">8000</code> (instead of <code class="highlighter-rouge">8080</code>) and that can be configured by changing
+the <code class="highlighter-rouge">prometheusStatsHttpPort</code> in <code class="highlighter-rouge">conf/bookkeeper.conf</code>.</p>
 
-<p>You can find a complete example <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java">here</a>.</p>
+<h2 id="configuring-prometheus">Configuring Prometheus</h2>
+
+<p>You can configure Prometheus to collect and store the metrics data by following the Prometheus
+<a href="https://prometheus.io/docs/introduction/getting_started/">Getting started</a> guide.</p>
+
+<p>When running on bare metal, you can provide the list of nodes that needs to be probed. When deploying
+in a Kubernetes cluster, the monitoring is automatically setup with the <a href="../../deployment/Kubernetes">provided</a>
+instructions.</p>
+
+<h2 id="dashboards">Dashboards</h2>
+
+<p>When collecting time series statistics, the major problem is to make sure the number of dimensions
+attached to the data does not explode.</p>
+
+<p>For that reason we only collect time series of metrics aggregated at the namespace level.</p>
+
+<p>The</p>
+
+<h3 id="pulsar-per-topic-dashboard">Pulsar per-topic dashboard</h3>
+
+<p>The per-topic dashboard instructions are available at <a href="../Dashboard">Dashboard</a>.</p>
+
+<h3 id="grafana">Grafana</h3>
+
+<p>You can use grafana to easily create dashboard driven by the data stored in Prometheus.</p>
+
+<p>There is a <code class="highlighter-rouge">pulsar-grafana</code> Docker image that is ready to use with the principal dashboards already
+in place. This is enabled by default when deploying Pulsar on Kubernetes.</p>
+
+<p>To use the dashboard manually:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>docker run -p3000:3000 <span class="se">\</span>
+        -e <span class="nv">PROMETHEUS_URL</span><span class="o">=</span>http://<span class="nv">$PROMETHEUS_HOST</span>:9090/ <span class="se">\</span>
+        streamlio/pulsar-grafana:latest
+</code></pre>
+</div>
 
       </section>
     </article>
@@ -979,7 +702,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Pulsar adaptor for Apache Storm</h4>
+        <h4>Monitoring</h4>
       </div>
       
     </nav>
