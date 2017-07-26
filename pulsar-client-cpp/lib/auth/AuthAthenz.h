@@ -20,7 +20,7 @@
 #define PULSAR_AUTH_ATHENZ_H_
 
 #include <pulsar/Authentication.h>
-#include <lib/ZTSClient.h>
+#include <lib/auth/athenz/ZTSClient.h>
 #include <lib/LogUtils.h>
 #include <iostream>
 #include <string>

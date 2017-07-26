@@ -17,12 +17,5 @@
 # under the License.
 #
 
-add_library(authTls MODULE AuthTls.cc)
-target_link_libraries(authTls ${CLIENT_LIBS})
-set_target_properties(authTls PROPERTIES OUTPUT_NAME authtls)
-
-add_library(authAthenz MODULE AuthAthenz.cc)
-target_link_libraries(authAthenz ${CLIENT_LIBS} ztsClient)
-set_target_properties(authAthenz PROPERTIES OUTPUT_NAME authathenz)
-
-add_subdirectory(athenz)
+add_library(ztsClient STATIC ZTSClient.cc)
+target_link_libraries(ztsClient ${CLIENT_LIBS})
