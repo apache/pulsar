@@ -22,12 +22,12 @@
 #include <boost/thread.hpp>
 
 namespace pulsar {
-    
+
     struct RoleToken {
         std::string token;
         long long expiryTime;
     };
-    
+
     class ZTSClient {
     public:
         ZTSClient(std::map<std::string, std::string>& params);
@@ -48,7 +48,6 @@ namespace pulsar {
         static std::string getSalt();
         static std::string ybase64Encode(const unsigned char *input, int length);
         const std::string getPrincipalToken() const;
-        
     };
-    
+
 }
