@@ -21,42 +21,29 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.carrotsearch.hppc.ObjectHashSet;
-import com.carrotsearch.hppc.ObjectSet;
+import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  */
-public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDispatcher {
+public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
+        implements NonPersistentDispatcher {
 
     private final NonPersistentTopic topic;
-    private final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
-    private final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
-    private int currentConsumerRoundRobinIndex = 0;
-
     private CompletableFuture<Void> closeFuture = null;
-
     private final String name;
-
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "isClosed");
-    private volatile int isClosed = FALSE;
-    private static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
+    private final Rate msgDrop;
+    protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     private volatile int totalAvailablePermits = 0;
-    private final Rate msgDrop;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, String dispatcherName) {
         this.name = topic.getName() + " / " + dispatcherName;
@@ -126,7 +113,7 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
             return;
         }
 
-        totalAvailablePermits += additionalNumberOfMessages;
+        TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, additionalNumberOfMessages);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Trigger new read after receiving flow control message", consumer);
         }
@@ -173,34 +160,9 @@ public class NonPersistentDispatcherMultipleConsumers implements NonPersistentDi
     public Rate getMesssageDropRate() {
         return msgDrop;
     }
-    
-    private Consumer getNextConsumer() {
-        if (consumerList.isEmpty() || closeFuture != null) {
-            // abort read if no consumers are connected or if disconnect is initiated
-            return null;
-        }
 
-        if (currentConsumerRoundRobinIndex >= consumerList.size()) {
-            currentConsumerRoundRobinIndex = 0;
-        }
-
-        // find next available consumer
-        int availableConsumerIndex = currentConsumerRoundRobinIndex;
-        do {
-            if (isConsumerAvailable(consumerList.get(availableConsumerIndex))) {
-                currentConsumerRoundRobinIndex = availableConsumerIndex;
-                return consumerList.get(currentConsumerRoundRobinIndex++);
-            }
-            if (++availableConsumerIndex >= consumerList.size()) {
-                availableConsumerIndex = 0;
-            }
-        } while (availableConsumerIndex != currentConsumerRoundRobinIndex);
-
-        // not found any consumer
-        return null;
-    }
-
-    private boolean isConsumerAvailable(Consumer consumer) {
+    @Override
+    public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
     }
 

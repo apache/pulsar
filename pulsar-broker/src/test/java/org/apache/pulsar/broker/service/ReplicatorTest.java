@@ -676,7 +676,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar3.close();
         replicator.disconnect(false);
         Thread.sleep(100);
-        Field field = PersistentReplicator.class.getDeclaredField("producer");
+        Field field = AbstractReplicator.class.getDeclaredField("producer");
         field.setAccessible(true);
         ProducerImpl producer = (ProducerImpl) field.get(replicator);
         assertNull(producer);
@@ -797,7 +797,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(1000);
 
         // Replicator producer must be closed
-        Field producerField = PersistentReplicator.class.getDeclaredField("producer");
+        Field producerField = AbstractReplicator.class.getDeclaredField("producer");
         producerField.setAccessible(true);
         ProducerImpl replicatorProducer = (ProducerImpl) producerField.get(replicator);
         assertEquals(replicatorProducer, null);

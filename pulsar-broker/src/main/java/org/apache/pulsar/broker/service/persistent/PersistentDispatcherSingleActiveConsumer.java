@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -35,65 +32,35 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class PersistentDispatcherSingleActiveConsumer implements Dispatcher, ReadEntriesCallback {
+public final class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements Dispatcher, ReadEntriesCallback {
 
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
-    private static final AtomicReferenceFieldUpdater<PersistentDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(PersistentDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
-    private volatile Consumer activeConsumer = null;
-    private final CopyOnWriteArrayList<Consumer> consumers;
+    
     private boolean havePendingRead = false;
-    private CompletableFuture<Void> closeFuture = null;
-    private final int partitionIndex;
-
-    // This dispatcher supports both the Exclusive and Failover subscription types
-    private final SubType subscriptionType;
 
     private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<PersistentDispatcherSingleActiveConsumer> IS_CLOSED_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherSingleActiveConsumer.class, "isClosed");
-    private volatile int isClosed = FALSE;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic) {
+        super(subscriptionType, partitionIndex, topic.getName());
         this.topic = topic;
         this.cursor = cursor;
-        this.consumers = new CopyOnWriteArrayList<>();
-        this.partitionIndex = partitionIndex;
-        this.subscriptionType = subscriptionType;
         this.readBatchSize = MaxReadBatchSize;
-        ACTIVE_CONSUMER_UPDATER.set(this, null);
     }
 
-    private void pickAndScheduleActiveConsumer() {
-        checkArgument(!consumers.isEmpty());
-
-        consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
-
-        int index = partitionIndex % consumers.size();
-        Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
-
-        if (prevConsumer == ACTIVE_CONSUMER_UPDATER.get(this)) {
-            // Active consumer did not change. Do nothing at this point
-            return;
-        }
-
+    protected void scheduleReadOnActiveConsumer() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
         }
@@ -106,93 +73,10 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         }
     }
 
-    @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topic.getName(), consumer);
-            consumer.disconnect();
-        }
-        if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
-            throw new ConsumerBusyException("Exclusive consumer is already connected");
-        }
-
-        consumers.add(consumer);
-
-        // Pick an active consumer and start it
-        pickAndScheduleActiveConsumer();
-
-    }
-
-    @Override
-    public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        log.info("Removing consumer {}", consumer);
-        if (!consumers.remove(consumer)) {
-            throw new ServerMetadataException("Consumer was not connected");
-        }
-
-        if (consumers.isEmpty()) {
-            ACTIVE_CONSUMER_UPDATER.set(this, null);
-        }
-
-        if (closeFuture == null && !consumers.isEmpty()) {
-            pickAndScheduleActiveConsumer();
-            return;
-        }
-
+    protected void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
         }
-
-        if (consumers.isEmpty() && closeFuture != null && !closeFuture.isDone()) {
-            // Control reaches here only when closeFuture is created
-            // and no more connected consumers left.
-            closeFuture.complete(null);
-        }
-    }
-
-    /**
-     * Handle unsubscribe command from the client API For failover subscription, if consumer is connected consumer, we
-     * can unsubscribe.
-     *
-     * @param consumer
-     *            Calling consumer object
-     */
-    @Override
-    public synchronized boolean canUnsubscribe(Consumer consumer) {
-        return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
-    }
-
-    @Override
-    public CompletableFuture<Void> close() {
-        IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers();
-    }
-
-    /**
-     * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
-     * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
-     *
-     * @return
-     */
-    @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
-        closeFuture = new CompletableFuture<>();
-
-        if (!consumers.isEmpty()) {
-            consumers.forEach(Consumer::disconnect);
-            if (havePendingRead && cursor.cancelPendingReadRequest()) {
-                havePendingRead = false;
-            }
-        } else {
-            // no consumer connected, complete disconnect immediately
-            closeFuture.complete(null);
-        }
-        return closeFuture;
-    }
-
-    @Override
-    public void reset() {
-        IS_CLOSED_UPDATER.set(this, FALSE);
     }
 
     @Override
@@ -295,7 +179,8 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
         redeliverUnacknowledgedMessages(consumer);
     }
 
-    private void readMoreEntries(Consumer consumer) {
+    @Override
+    protected void readMoreEntries(Consumer consumer) {
         int availablePermits = consumer.getAvailablePermits();
 
         if (availablePermits > 0) {
@@ -369,30 +254,10 @@ public final class PersistentDispatcherSingleActiveConsumer implements Dispatche
 
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
-
-    @Override
-    public boolean isConsumerConnected() {
-        return ACTIVE_CONSUMER_UPDATER.get(this) != null;
-    }
-
-    @Override
-    public CopyOnWriteArrayList<Consumer> getConsumers() {
-        return consumers;
-    }
-
-    @Override
-    public SubType getType() {
-        return subscriptionType;
-    }
-
-    public Consumer getActiveConsumer() {
-        return ACTIVE_CONSUMER_UPDATER.get(this);
-    }
-
     @Override
     public void addUnAckedMessages(int unAckMessages) {
         // No-op
     }
 
+    private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 }

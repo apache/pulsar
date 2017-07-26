@@ -183,7 +183,13 @@ public class NonPersistentTopic implements Topic {
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
-                subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
+                if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
+                } else {
+                    // it happens when subscription is created but dispatcher is not created as consumer is not added
+                    // yet
+                    entry.release();
+                }
             });
             data.release();
             if (msgDeliveryCount.decrementAndGet() == 0) {
