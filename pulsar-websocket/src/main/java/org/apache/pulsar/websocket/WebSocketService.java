@@ -80,6 +80,7 @@ public class WebSocketService implements Closeable {
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, List<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, List<ConsumerHandler>> topicConsumerMap;
+    private final ConcurrentOpenHashMap<String, List<ReaderHandler>> topicReaderMap;
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -91,6 +92,7 @@ public class WebSocketService implements Closeable {
         this.localCluster = localCluster;
         this.topicProducerMap = new ConcurrentOpenHashMap<>();
         this.topicConsumerMap = new ConcurrentOpenHashMap<>();
+        this.topicReaderMap = new ConcurrentOpenHashMap<>();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -301,6 +303,23 @@ public class WebSocketService implements Closeable {
         final String topicName = consumer.getConsumer().getTopic();
         if (topicConsumerMap.containsKey(topicName)) {
             return topicConsumerMap.get(topicName).remove(consumer);
+        }
+        return false;
+    }
+    
+    public boolean addReader(ReaderHandler reader) {
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> Lists.newArrayList())
+                .add(reader);
+    }
+    
+    public ConcurrentOpenHashMap<String, List<ReaderHandler>> getReaders() {
+        return topicReaderMap;
+    }
+    
+    public boolean removeReader(ReaderHandler reader) {
+        final String topicName = reader.getConsumer().getTopic();
+        if (topicReaderMap.containsKey(topicName)) {
+            return topicReaderMap.get(topicName).remove(reader);
         }
         return false;
     }

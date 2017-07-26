@@ -23,6 +23,7 @@ import java.util.Set;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.websocket.ConsumerHandler;
 import org.apache.pulsar.websocket.ProducerHandler;
+import org.apache.pulsar.websocket.ReaderHandler;
 
 import com.google.common.collect.Sets;
 
@@ -59,6 +60,13 @@ public class ProxyTopicStat {
         }
 
         public ConsumerStats(ConsumerHandler handler) {
+            this.subscriptionName = handler.getSubscription();
+            this.subscriptionType = handler.getSubscriptionType();
+            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
+        }
+        
+        public ConsumerStats(ReaderHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
             this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
