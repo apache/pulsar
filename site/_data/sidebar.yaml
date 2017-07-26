@@ -39,6 +39,8 @@ groups:
     endpoint: Kubernetes/#pulsar-on-google-container-engine
   - title: Pulsar on AWS
     endpoint: Kubernetes/#pulsar-on-amazon-web-services
+  - title: Monitoring
+    endpoint: Monitoring
 
 - title: Pulsar administration
   dir: admin
@@ -61,7 +63,7 @@ groups:
     endpoint: Stats
   - title: Modular load manager
     endpoint: ModularLoadManager
-    
+
 - title: Client libraries
   dir: clients
   docs:
