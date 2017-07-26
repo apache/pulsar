@@ -951,7 +951,7 @@ public class PersistentTopicTest {
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
         PulsarClient client =  spy( PulsarClient.create(brokerUrl.toString()) );
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
-        Field conf = PersistentReplicator.class.getDeclaredField("producerConfiguration");
+        Field conf = AbstractReplicator.class.getDeclaredField("producerConfiguration");
         conf.setAccessible(true);
 
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
