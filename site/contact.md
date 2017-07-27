@@ -19,6 +19,6 @@ Name | Scope |  |  |  |
 
 There is a Pulsar slack channel that is used for informal discussions for devs and users.
 
-The Slack instance is at https://apache-pulsar.slack.com/
+The Slack instance is at [https://apache-pulsar.slack.com/](https://apache-pulsar.slack.com/)
 
-You can self-register at https://apache-pulsar.herokuapp.com/
+You can self-register at [https://apache-pulsar.herokuapp.com/](https://apache-pulsar.slack.com/)

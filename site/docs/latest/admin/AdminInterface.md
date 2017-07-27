@@ -265,7 +265,7 @@ DELETE /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
 admin.resourceQuotas().resetNamespaceBundleResourceQuota(namespace, bundle)
 ```
 
-## Managing peristent topics
+## Managing persistent topics
 
 Persistent helps to access topic which is a logical endpoint for
 publishing and consuming messages. Producers publish messages to the
@@ -433,7 +433,7 @@ admin.clusters().getNamespaceIsolationPolicies(clusterName)
 ## Managing partitioned topics
 
 Partitioned topic is actually implemented as N internal topics, where N is the number of partitions.
-When publishing messages to a partitioned topic, each message is routed to one of several brokers. 
+When publishing messages to a partitioned topic, each message is routed to one of several brokers.
 The distribution of partitions across brokers is handled automatically by Pulsar.
 
 In below instructions and commands - persistent topic format is:

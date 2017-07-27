@@ -129,7 +129,7 @@ It provides a list of persistent topics existing under a given namespace.
 #### pulsar-admin
 
 ```shell
-$ pulsar-admin peristent list prop-1/cluster-1/namespace
+$ pulsar-admin persistent list prop-1/cluster-1/namespace
 persistent://property/cluster/namespace/topic
 persistent://property/cluster/namespace/topic
 ```
