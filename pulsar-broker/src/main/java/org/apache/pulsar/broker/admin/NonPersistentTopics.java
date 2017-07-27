@@ -32,16 +32,16 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.zookeeper.KeeperException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -73,14 +73,18 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PersistentTopicStats getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public NonPersistentTopicStats getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminOperationOnDestination(dn, authoritative);
         Topic topic = getTopicReference(dn);
-        return topic.getStats();
+        if(topic instanceof NonPersistentTopic) {
+            return ((NonPersistentTopic)topic).getStats();
+        }else {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Can not get stats for persistent topic");
+        }
     }
 
     @GET

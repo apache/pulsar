@@ -23,8 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 
 public interface NonPersistentTopics {
 
@@ -127,7 +127,7 @@ public interface NonPersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicStats getStats(String destination) throws PulsarAdminException;
+    NonPersistentTopicStats getStats(String destination) throws PulsarAdminException;
 
     /**
      * Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
@@ -139,7 +139,7 @@ public interface NonPersistentTopics {
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<PersistentTopicStats> getStatsAsync(String destination);
+    CompletableFuture<NonPersistentTopicStats> getStatsAsync(String destination);
 
     /**
      * Get the internal stats for the topic.

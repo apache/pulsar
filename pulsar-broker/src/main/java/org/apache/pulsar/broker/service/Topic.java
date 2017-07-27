@@ -82,7 +82,7 @@ public interface Topic {
 
     Subscription getSubscription(String subscription);
 
-    ConcurrentOpenHashMap<String, Replicator> getReplicators();
+    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
     PersistentTopicStats getStats();
 

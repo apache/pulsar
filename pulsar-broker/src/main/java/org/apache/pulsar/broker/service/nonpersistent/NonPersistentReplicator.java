@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
+import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final Rate msgOut = new Rate();
     private final Rate msgDrop = new Rate();
 
-    private final ReplicatorStats stats = new ReplicatorStats();
+    private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) {
@@ -136,7 +137,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public ReplicatorStats getStats() {
+    public NonPersistentReplicatorStats getStats() {
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 

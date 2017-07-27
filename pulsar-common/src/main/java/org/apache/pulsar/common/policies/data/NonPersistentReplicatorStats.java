@@ -20,38 +20,17 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- */
-public class PublisherStats {
-    /** Total rate of messages published by this publisher. msg/s */
-    public double msgRateIn;
+public class NonPersistentReplicatorStats extends ReplicatorStats {
 
-    /** Total throughput of messages published by this publisher. byte/s */
-    public double msgThroughputIn;
+    /**
+     * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable
+     **/
+    public double msgDropRate;
 
-    /** Average message size published by this publisher */
-    public double averageMsgSize;
-
-    /** Id of this publisher */
-    public long producerId;
-
-    /** Producer name */
-    public String producerName;
-
-    /** Address of this publisher */
-    public String address;
-
-    /** Timestamp of connection */
-    public String connectedSince;
-    
-    /** Client library version */
-    public String clientVersion;
-    
-    public PublisherStats add(PublisherStats stats) {
+    public NonPersistentReplicatorStats add(NonPersistentReplicatorStats stats) {
         checkNotNull(stats);
-        this.msgRateIn += stats.msgRateIn;
-        this.msgThroughputIn += stats.msgThroughputIn;
-        this.averageMsgSize += stats.averageMsgSize;
+        super.add(stats);
+        this.msgDropRate += stats.msgDropRate;
         return this;
     }
 }

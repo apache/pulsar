@@ -53,9 +53,13 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -380,8 +384,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         final String subName = "non-persistent";
         final int timeWaitToSync = 100;
 
-        PersistentTopicStats stats;
-        PersistentSubscriptionStats subStats;
+        NonPersistentTopicStats stats;
+        SubscriptionStats subStats;
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Shared);
@@ -438,8 +442,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             final String globalTopicName = "non-persistent://pulsar/global/ns/nonPersistentTopic";
             final int timeWaitToSync = 100;
 
-            PersistentTopicStats stats;
-            PersistentSubscriptionStats subStats;
+            NonPersistentTopicStats stats;
+            SubscriptionStats subStats;
 
             DestinationName dest = DestinationName.get(globalTopicName);
 
@@ -742,28 +746,28 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Consumer consumer2 = pulsarClient.subscribe(topicName, "subscriber-2", consumerConfig2);
             Producer producer = pulsarClient.createProducer(topicName, producerConf);
             ExecutorService executor = Executors.newFixedThreadPool(5);
-            AtomicBoolean failed = new AtomicBoolean(false);
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 100;
+            final int totalProduceMessages = 200;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
-                    try {
-                        producer.sendAsync(msgData).get(1, TimeUnit.SECONDS);
-                    } catch (Exception e) {
-                        failed.set(true);
-                    }
-                    latch.countDown();
+                    producer.sendAsync(msgData).handle((msg,e)->{
+                        latch.countDown();       
+                        return null;
+                    });
                 });
             }
             latch.await();
 
             NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
-            PersistentTopicStats stats = topic.getStats();
-            assertTrue(stats.publishers.get(0).msgDropRate > 0);
-            assertTrue(stats.subscriptions.get("subscriber-1").msgDropRate > 0);
-            assertTrue(stats.subscriptions.get("subscriber-2").msgDropRate > 0);
+            NonPersistentTopicStats stats = topic.getStats();
+            NonPersistentPublisherStats npStats = stats.publishers.get(0);
+            NonPersistentSubscriptionStats sub1Stats = stats.subscriptions.get("subscriber-1");
+            NonPersistentSubscriptionStats sub2Stats = stats.subscriptions.get("subscriber-2");
+            assertTrue(npStats.msgDropRate > 0);
+            assertTrue(sub1Stats.msgDropRate > 0);
+            assertTrue(sub2Stats.msgDropRate > 0);
 
             producer.close();
             consumer.close();

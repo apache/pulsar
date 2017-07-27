@@ -35,7 +35,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -301,8 +302,8 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
-    public PersistentSubscriptionStats getStats() {
-        PersistentSubscriptionStats subStats = new PersistentSubscriptionStats();
+    public NonPersistentSubscriptionStats getStats() {
+        NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {

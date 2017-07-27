@@ -51,7 +51,7 @@ public class PersistentTopicStats {
     public List<PublisherStats> publishers;
 
     /** Map of subscriptions with their individual statistics */
-    public Map<String, PersistentSubscriptionStats> subscriptions;
+    public Map<String, SubscriptionStats> subscriptions;
 
     /** Map of replication statistics by remote cluster context */
     public Map<String, ReplicatorStats> replication;
@@ -96,7 +96,7 @@ public class PersistentTopicStats {
         }
         if (this.subscriptions.size() != stats.subscriptions.size()) {
             for (String subscription : stats.subscriptions.keySet()) {
-                PersistentSubscriptionStats subscriptionStats = new PersistentSubscriptionStats();
+                SubscriptionStats subscriptionStats = new SubscriptionStats();
                 this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
             }
         } else {

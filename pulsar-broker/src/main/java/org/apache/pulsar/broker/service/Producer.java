@@ -32,9 +32,11 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishCallback;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +84,7 @@ public class Producer {
         this.msgDrop = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
 
-        this.stats = new PublisherStats();
+        this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();
         stats.connectedSince = DATE_FORMAT.format(Instant.now());
         stats.clientVersion = cnx.getClientVersion();
@@ -349,7 +351,9 @@ public class Producer {
         stats.msgRateIn = msgIn.getRate();
         stats.msgThroughputIn = msgIn.getValueRate();
         stats.averageMsgSize = msgIn.getAverageValue();
-        stats.msgDropRate = msgDrop.getRate();
+        if (stats instanceof NonPersistentPublisherStats) {
+            ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
+        }
     }
 
     public boolean isRemote() {

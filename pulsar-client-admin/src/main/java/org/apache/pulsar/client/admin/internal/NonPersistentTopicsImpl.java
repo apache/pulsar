@@ -20,46 +20,22 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.client.admin.NonPersistentTopics;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.util.Codec;
 
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
@@ -124,7 +100,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public PersistentTopicStats getStats(String destination) throws PulsarAdminException {
+    public NonPersistentTopicStats getStats(String destination) throws PulsarAdminException {
         try {
             return getStatsAsync(destination).get();
         } catch (ExecutionException e) {
@@ -136,14 +112,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<PersistentTopicStats> getStatsAsync(String destination) {
+    public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String destination) {
         DestinationName ds = validateTopic(destination);
-        final CompletableFuture<PersistentTopicStats> future = new CompletableFuture<>();
+        final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
         asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
-                new InvocationCallback<PersistentTopicStats>() {
+                new InvocationCallback<NonPersistentTopicStats>() {
 
                     @Override
-                    public void completed(PersistentTopicStats response) {
+                    public void completed(NonPersistentTopicStats response) {
                         future.complete(response);
                     }
 

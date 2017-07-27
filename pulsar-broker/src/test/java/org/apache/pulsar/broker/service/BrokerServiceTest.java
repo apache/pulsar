@@ -63,7 +63,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -135,7 +135,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String subName = "successSub";
 
         PersistentTopicStats stats;
-        PersistentSubscriptionStats subStats;
+        SubscriptionStats subStats;
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
@@ -213,7 +213,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String subName = "successSharedSub";
 
         PersistentTopicStats stats;
-        PersistentSubscriptionStats subStats;
+        SubscriptionStats subStats;
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Shared);

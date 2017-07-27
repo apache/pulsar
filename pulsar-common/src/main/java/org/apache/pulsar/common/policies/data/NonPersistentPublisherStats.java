@@ -22,36 +22,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  */
-public class PublisherStats {
-    /** Total rate of messages published by this publisher. msg/s */
-    public double msgRateIn;
+public class NonPersistentPublisherStats extends PublisherStats {
+    /**
+     * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
+     * messages per connection
+     **/
+    public double msgDropRate;
 
-    /** Total throughput of messages published by this publisher. byte/s */
-    public double msgThroughputIn;
-
-    /** Average message size published by this publisher */
-    public double averageMsgSize;
-
-    /** Id of this publisher */
-    public long producerId;
-
-    /** Producer name */
-    public String producerName;
-
-    /** Address of this publisher */
-    public String address;
-
-    /** Timestamp of connection */
-    public String connectedSince;
-    
-    /** Client library version */
-    public String clientVersion;
-    
-    public PublisherStats add(PublisherStats stats) {
+    public NonPersistentPublisherStats add(NonPersistentPublisherStats stats) {
         checkNotNull(stats);
-        this.msgRateIn += stats.msgRateIn;
-        this.msgThroughputIn += stats.msgThroughputIn;
-        this.averageMsgSize += stats.averageMsgSize;
+        super.add(stats);
+        this.msgDropRate += stats.msgDropRate;
         return this;
     }
 }

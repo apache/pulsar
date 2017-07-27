@@ -36,16 +36,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.zookeeper.KeeperException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.internal.Lists;
-import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.base.Objects;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -58,6 +48,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -69,17 +60,27 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
+import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.beust.jcommander.internal.Lists;
+import com.carrotsearch.hppc.ObjectObjectHashMap;
+import com.google.common.base.Objects;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
@@ -94,7 +95,7 @@ public class NonPersistentTopic implements Topic {
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
 
-    private final ConcurrentOpenHashMap<String, Replicator> replicators;
+    private final ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators;
 
     private final BrokerService brokerService;
 
@@ -574,7 +575,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
+    public ConcurrentOpenHashMap<String, NonPersistentReplicator> getReplicators() {
         return replicators;
     }
 
@@ -734,28 +735,28 @@ public class NonPersistentTopic implements Topic {
         destStatsStream.endObject();
     }
 
-    public PersistentTopicStats getStats() {
+    public NonPersistentTopicStats getStats() {
 
-        PersistentTopicStats stats = new PersistentTopicStats();
+        NonPersistentTopicStats stats = new NonPersistentTopicStats();
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
         producers.forEach(producer -> {
-            PublisherStats PublisherStats = producer.getStats();
-            stats.msgRateIn += PublisherStats.msgRateIn;
-            stats.msgThroughputIn += PublisherStats.msgThroughputIn;
+            NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
+            stats.msgRateIn += publisherStats.msgRateIn;
+            stats.msgThroughputIn += publisherStats.msgThroughputIn;
 
             if (producer.isRemote()) {
-                remotePublishersStats.put(producer.getRemoteCluster(), PublisherStats);
+                remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.publishers.add(PublisherStats);
+                stats.publishers.add(publisherStats);
             }
         });
 
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
 
         subscriptions.forEach((name, subscription) -> {
-            PersistentSubscriptionStats subStats = subscription.getStats();
+            NonPersistentSubscriptionStats subStats = subscription.getStats();
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -763,7 +764,7 @@ public class NonPersistentTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            ReplicatorStats ReplicatorStats = replicator.getStats();
+            NonPersistentReplicatorStats ReplicatorStats = replicator.getStats();
 
             // Add incoming msg rates
             PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
