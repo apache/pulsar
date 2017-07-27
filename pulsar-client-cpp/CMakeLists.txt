@@ -22,7 +22,11 @@ project (pulsar-cpp)
 
 set(Boost_NO_BOOST_CMAKE ON)
 
-set (CMAKE_CXX_FLAGS "-O3 -g -Wno-deprecated-declarations -std=c++0x ${CMAKE_CXX_FLAGS}")
+if (NOT CMAKE_CXX_FLAGS)
+    set(CMAKE_CXX_FLAGS "-std=c++11")
+endif(NOT CMAKE_CXX_FLAGS)
+
+set(CMAKE_CXX_FLAGS "-O3 -g -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
 set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
 
