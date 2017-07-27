@@ -46,7 +46,7 @@ public class PublisherStats {
     
     /** Client library version */
     public String clientVersion;
-    
+
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);
         this.msgRateIn += stats.msgRateIn;

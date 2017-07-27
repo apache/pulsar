@@ -217,7 +217,7 @@ public class Consumer {
         }
     }
 
-    int getBatchSizeforEntry(ByteBuf metadataAndPayload) {
+    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, String subscription, long consumerId) {
         try {
             // save the reader index and restore after parsing
             metadataAndPayload.markReaderIndex();
@@ -244,7 +244,7 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int batchSize = getBatchSizeforEntry(metadataAndPayload);
+            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription.toString(), consumerId);
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
                 iter.remove();

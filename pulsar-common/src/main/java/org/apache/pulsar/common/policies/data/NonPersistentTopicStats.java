@@ -64,4 +64,16 @@ public class NonPersistentTopicStats extends PersistentTopicStats {
         this.msgDropRate += stats.msgDropRate;
         return this;
     }
+    
+    public List<NonPersistentPublisherStats> getPublishers() {
+        return this.publishers;
+    }
+
+    public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
+        return this.subscriptions;
+    }
+
+    public Map<String, NonPersistentReplicatorStats> getReplication() {
+        return this.replication;
+    }
 }

@@ -749,7 +749,7 @@ public class NonPersistentTopic implements Topic {
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.publishers.add(publisherStats);
+                stats.getPublishers().add(publisherStats);
             }
         });
 
@@ -760,7 +760,7 @@ public class NonPersistentTopic implements Topic {
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
-            stats.subscriptions.put(name, subStats);
+            stats.getSubscriptions().put(name, subStats);
         });
 
         replicators.forEach((cluster, replicator) -> {
@@ -778,7 +778,7 @@ public class NonPersistentTopic implements Topic {
             stats.msgRateOut += ReplicatorStats.msgRateOut;
             stats.msgThroughputOut += ReplicatorStats.msgThroughputOut;
 
-            stats.replication.put(replicator.getRemoteCluster(), ReplicatorStats);
+            stats.getReplication().put(replicator.getRemoteCluster(), ReplicatorStats);
         });
 
         return stats;

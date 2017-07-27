@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
+
 import java.util.List;
 
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,10 +33,12 @@ import org.slf4j.LoggerFactory;
 public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
 
     private final Rate msgDrop;
+    private final String name;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            NonPersistentTopic topic) {
+            NonPersistentTopic topic, String subName) {
         super(subscriptionType, partitionIndex, topic.getName());
+        this.name = topic.getName() + " / " + subName;
         this.msgDrop = new Rate();
     }
 
@@ -44,8 +48,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             currentConsumer.sendMessages(entries);
         } else {
-            msgDrop.recordEvent(entries.size());
-            entries.forEach(Entry::release);
+            entries.forEach(entry -> {
+                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), name, -1);
+                if (totalMsgs > 0) {
+                    msgDrop.recordEvent();
+                }
+                entry.release();
+            });
         }
     }
     

@@ -80,11 +80,7 @@ public class NonPersistentTopics extends PersistentTopics {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminOperationOnDestination(dn, authoritative);
         Topic topic = getTopicReference(dn);
-        if(topic instanceof NonPersistentTopic) {
-            return ((NonPersistentTopic)topic).getStats();
-        }else {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Can not get stats for persistent topic");
-        }
+        return ((NonPersistentTopic)topic).getStats();
     }
 
     @GET

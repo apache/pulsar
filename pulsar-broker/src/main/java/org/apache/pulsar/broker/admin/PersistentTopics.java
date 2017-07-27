@@ -775,11 +775,6 @@ public class PersistentTopics extends AdminResource {
             }
         } else {
             validateAdminOperationOnDestination(dn, authoritative);
-            if (!(getTopicReference(dn) instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), dn, subName);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Skip messages on a non-persistent topic is not allowed");
-            }
             PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
             try {
                 if (subName.startsWith(topic.replicatorPrefix)) {
@@ -820,11 +815,6 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
         }
         validateAdminOperationOnDestination(dn, authoritative);
-        if (!(getTopicReference(dn) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), dn, subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
-        }
         PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
         try {
             if (subName.startsWith(topic.replicatorPrefix)) {
@@ -887,11 +877,6 @@ public class PersistentTopics extends AdminResource {
         } else {
             // validate ownership and redirect if current broker is not owner
             validateAdminOperationOnDestination(dn, authoritative);
-            if (!(getTopicReference(dn) instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), dn);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Expire messages on a non-persistent topic is not allowed");
-            }
             PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
             topic.getReplicators().forEach((subName, replicator) -> {
                 expireMessages(property, cluster, namespace, destination, subName, expireTimeInSeconds, authoritative);
@@ -951,11 +936,6 @@ public class PersistentTopics extends AdminResource {
             validateAdminOperationOnDestination(dn, authoritative);
             log.info("[{}][{}] received reset cursor on subscription {} to time {}", clientAppId(), destination,
                     subName, timestamp);
-            if (!(getTopicReference(dn) instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), dn, subName);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Reset cursor on a non-persistent topic is not allowed");
-            }
             PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
@@ -1136,13 +1116,7 @@ public class PersistentTopics extends AdminResource {
         validateAdminOperationOnDestination(dn, authoritative);
         Topic topic = getTopicReference(dn);
         try {
-            if (topic instanceof PersistentTopic) {
-                return ((PersistentTopic) topic).terminate().get();
-            } else {
-                log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), dn);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Expire messages on a non-persistent topic is not allowed");
-            }
+            return ((PersistentTopic) topic).terminate().get();
         } catch (Exception exception) {
             log.error("[{}] Failed to terminated topic {}", clientAppId(), dn, exception);
             throw new RestException(exception);

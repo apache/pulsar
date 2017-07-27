@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -146,8 +147,13 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         if (consumer != null) {
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getRight());
         } else {
-            msgDrop.recordEvent(entries.size());
-            entries.forEach(Entry::release);
+            entries.forEach(entry -> {
+                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), name, -1);
+                if (totalMsgs > 0) {
+                    msgDrop.recordEvent();
+                }
+                entry.release();
+            });
         }
     }
 

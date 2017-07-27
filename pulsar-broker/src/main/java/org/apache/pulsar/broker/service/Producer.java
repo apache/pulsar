@@ -59,7 +59,7 @@ public class Producer {
     private final String appId;
     private Rate msgIn;
     // it records msg-drop rate only for non-persistent topic
-    private Rate msgDrop;
+    private final Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -81,9 +81,8 @@ public class Producer {
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
         this.msgIn = new Rate();
-        this.msgDrop = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
-
+        this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();
         stats.connectedSince = DATE_FORMAT.format(Instant.now());
@@ -181,8 +180,10 @@ public class Producer {
         }
     }
 
-    public void recordMessageDrop() {
-        msgDrop.recordEvent();
+    public void recordMessageDrop(int batchSize) {
+        if (this.isNonPersistentTopic) {
+            msgDrop.recordEvent(batchSize);
+        }
     }
 
     private static final class MessagePublishedCallback implements PublishCallback, Runnable {
@@ -347,11 +348,11 @@ public class Producer {
 
     public void updateRates() {
         msgIn.calculateRate();
-        msgDrop.calculateRate();
         stats.msgRateIn = msgIn.getRate();
         stats.msgThroughputIn = msgIn.getValueRate();
         stats.averageMsgSize = msgIn.getAverageValue();
-        if (stats instanceof NonPersistentPublisherStats) {
+        if (this.isNonPersistentTopic) {
+            msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
     }

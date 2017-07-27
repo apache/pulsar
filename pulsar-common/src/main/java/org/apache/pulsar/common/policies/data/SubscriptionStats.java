@@ -55,7 +55,7 @@ public class SubscriptionStats {
 
     /** List of connected consumers on this subscription w/ their stats */
     public List<ConsumerStats> consumers;
-    
+
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
     }

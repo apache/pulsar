@@ -57,7 +57,7 @@ public class ReplicatorStats {
 
     /** Timestamp of outbound connection establishment time */
     public String outboundConnectedSince;
-    
+
     public ReplicatorStats add(ReplicatorStats stats) {
         checkNotNull(stats);
         this.msgRateIn += stats.msgRateIn;

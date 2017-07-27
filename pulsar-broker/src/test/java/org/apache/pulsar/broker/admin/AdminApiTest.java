@@ -1836,9 +1836,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10);
 
         NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
-        assertEquals(topicStats.subscriptions.get("my-sub").consumers.size(), 1);
-        assertEquals(topicStats.publishers.size(), 0);
+        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().get("my-sub").consumers.size(), 1);
+        assertEquals(topicStats.getPublishers().size(), 0);
 
         PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
@@ -1847,8 +1847,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         client.close();
 
         topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertTrue(topicStats.subscriptions.keySet().contains("my-sub"));
-        assertEquals(topicStats.publishers.size(), 0);
+        assertTrue(topicStats.getSubscriptions().keySet().contains("my-sub"));
+        assertEquals(topicStats.getPublishers().size(), 0);
 
         // test partitioned-topic
         final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";

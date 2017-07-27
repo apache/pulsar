@@ -397,10 +397,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         rolloverPerIntervalStats(pulsar);
         stats = topicRef.getStats();
-        subStats = stats.subscriptions.values().iterator().next();
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
-        assertEquals(stats.subscriptions.keySet().size(), 1);
+        assertEquals(stats.getSubscriptions().keySet().size(), 1);
         assertEquals(subStats.consumers.size(), 1);
 
         Producer producer = pulsarClient.createProducer(topicName);
@@ -415,7 +415,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         rolloverPerIntervalStats(pulsar);
         stats = topicRef.getStats();
-        subStats = stats.subscriptions.values().iterator().next();
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         assertTrue(subStats.msgRateOut > 0);
         assertEquals(subStats.consumers.size(), 1);
@@ -476,10 +476,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             rolloverPerIntervalStats(replicationPulasr);
             stats = topicRef.getStats();
-            subStats = stats.subscriptions.values().iterator().next();
+            subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
-            assertEquals(stats.subscriptions.keySet().size(), 2);
+            assertEquals(stats.getSubscriptions().keySet().size(), 2);
             assertEquals(subStats.consumers.size(), 1);
 
             Thread.sleep(timeWaitToSync);
@@ -547,7 +547,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             rolloverPerIntervalStats(replicationPulasr);
             stats = topicRef.getStats();
-            subStats = stats.subscriptions.values().iterator().next();
+            subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.msgRateOut > 0);
             assertEquals(subStats.consumers.size(), 1);
@@ -762,9 +762,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
             NonPersistentTopicStats stats = topic.getStats();
-            NonPersistentPublisherStats npStats = stats.publishers.get(0);
-            NonPersistentSubscriptionStats sub1Stats = stats.subscriptions.get("subscriber-1");
-            NonPersistentSubscriptionStats sub2Stats = stats.subscriptions.get("subscriber-2");
+            NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
+            NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
+            NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
             assertTrue(npStats.msgDropRate > 0);
             assertTrue(sub1Stats.msgDropRate > 0);
             assertTrue(sub2Stats.msgDropRate > 0);
