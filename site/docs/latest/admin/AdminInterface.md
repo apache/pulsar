@@ -34,7 +34,7 @@ In this document, examples from each of the three available interfaces will be s
 
 {% include explanations/broker-admin.md %}
 
-### Properties
+## Properties
 
 A property identifies an application domain. For e.g. finance, mail,
 sports etc are examples of a property. Tool allows to do CRUD operation
@@ -174,10 +174,6 @@ N/A
 ```java
 admin.properties().deleteProperty(property);
 ```
-
-### Clusters
-
-{% include explanations/cluster-admin.md %}
 
 ## Managing namespaces
 
