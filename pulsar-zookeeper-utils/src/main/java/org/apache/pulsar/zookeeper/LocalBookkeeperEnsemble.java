@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.PrometheusMetricsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -201,12 +202,15 @@ public class LocalBookkeeperEnsemble {
 
             // Initialize Stats Provider only if we're running with 1 single bookie
             // to avoid port conflicts
+            StatsLogger statsLogger;
             if (numberOfBookies == 1) {
                 statsProviders[i] = new PrometheusMetricsProvider();
                 statsProviders[i].start(bsConfs[i]);
+                statsLogger = statsProviders[i].getStatsLogger("");
+            } else {
+                statsLogger = NullStatsLogger.INSTANCE;
             }
 
-            StatsLogger statsLogger = statsProviders[i].getStatsLogger("");
             bs[i] = new BookieServer(bsConfs[i], statsLogger);
             bs[i].start();
             LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, initialPort + i,
@@ -237,7 +241,9 @@ public class LocalBookkeeperEnsemble {
         }
 
         for (StatsProvider statsProvider : statsProviders) {
-            statsProvider.stop();
+            if (statsProvider != null) {
+                statsProvider.stop();
+            }
         }
 
         zkc.close();
