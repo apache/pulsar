@@ -1,6 +1,6 @@
 [Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions [immediately below](#service-discovery-setup).
 
-You can also use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint for a Pulsar {% popover cluster %}, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
+You can also use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an [endpoint](../../reference/Configuration) for a Pulsar {% popover cluster %}, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 {% include admonition.html type="success" title="Service discovery already provided by many scheduling systems" content="
 Many large-scale deployment systems, such as [Kubernetes](../../deployment/Kubernetes), have service discovery systems built in. If you're running Pulsar on such a system, you many not need to provide your own service discovery mechanism.

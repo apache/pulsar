@@ -66,6 +66,8 @@
         <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
         <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
         <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
+        <exclude>pulsar-client-cpp/perf/perfProducer</exclude>
+        <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
 
         <exclude>**/python/dist/**</exclude>
         <exclude>**/python/wheelhouse/**</exclude>

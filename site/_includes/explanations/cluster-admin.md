@@ -4,7 +4,7 @@ Clusters can be managed via:
 
 * The [`clusters`](../../reference/CliTools#pulsar-admin-clusters) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 * The `/admin/clusters` endpoint of the admin [REST API](../../reference/RestApi)
-* The `clusters` method of the {% javadoc PulsarAdmin admin com.yahoo.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
+* The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
 
 ### Provision
 
@@ -39,6 +39,39 @@ ClusterData clusterData = new ClusterData(
 );
 admin.clusters().createCluster(clusterName, clusterData);
 ```
+
+### Initialize cluster metadata
+
+When provision a new cluster, you need to initialize that cluster's [metadata](../../getting-started/ConceptsAndArchitecture#metadata-store). When initializing cluster metadata, you need to specify all of the following:
+
+* The name of the cluster
+* The local ZooKeeper connection string for the cluster
+* The global ZooKeeper connection string for the entire instance
+* The web service URL for the cluster
+* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+
+You must initialize cluster metadata *before* starting up any [brokers](#managing-brokers) that will belong to the cluster.
+
+{% include admonition.html type="warning" title="No cluster metadata initialization through the REST API or the Java admin API" content='
+Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly. Instead, you can use the [`pulsar`](../../reference/CliTools#pulsar) CLI tool, in particular the [`initialize-cluster-metadata`](../../reference/CliTools#pulsar-initialize-cluster-metadata) command.
+' %}
+
+Here's an example cluster metadata initialization command:
+
+```shell
+bin/pulsar initialize-cluster-metadata \
+  --cluster us-west \
+  --zookeeper zk1.us-west.example.com:2181 \
+  --global-zookeeper zk1.us-west.example.com:2184 \
+  --web-service-url http://pulsar.us-west.example.com:8080/ \
+  --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+```
+
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](../../admin/Authz#tls-client-auth) in your instance.
+
+Make sure to initialize
 
 ### Get configuration
 

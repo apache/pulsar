@@ -56,12 +56,12 @@ content="You may have noticed that we did not explicitly create the `my-topic` t
 
 ## Using Pulsar clients locally
 
-Pulsar currently offers client libraries for [Java](../../applications/JavaClient), [Python](../../applications/PythonClient), and [C++](../../applications/CppClient). If you're running a local {% popover standalone %} cluster, you can use one of these root URLs for interacting with your cluster:
+Pulsar currently offers client libraries for [Java](../../clients/Java), [Python](../../clients/Python), and [C++](../../clients/Cpp). If you're running a local {% popover standalone %} cluster, you can use one of these root URLs for interacting with your cluster:
 
 * `http://localhost:8080`
 * `pulsar://localhost:6650`
 
-Here's an example producer for a Pulsar {% popover topic %} using the [Java](../../applications/JavaClient) client:
+Here's an example producer for a Pulsar {% popover topic %} using the [Java](../../clients/Java) client:
 
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
@@ -72,7 +72,7 @@ PulsarClient client = PulsarClient.create(localClusterUrl);
 Producer producer = client.createProducer(topic);
 ```
 
-Here's an example [Python](../../applications/PythonClient) producer:
+Here's an example [Python](../../clients/Python) producer:
 
 ```python
 import pulsar
@@ -83,7 +83,7 @@ client = pulsar.Client('pulsar://localhost:6650')
 producer = client.create_producer(TOPIC)
 ```
 
-Finally, here's an example [C++](../../applications/CppClient) producer:
+Finally, here's an example [C++](../../clients/Cpp) producer:
 
 ```cpp
 Client client("pulsar://localhost:6650");

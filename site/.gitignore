@@ -3,7 +3,8 @@
 .bundle/
 node_modules/
 vendor/
-api/
+api/admin/
+api/client/
 generated/
 .sass-cache
 _data/config/*.bak

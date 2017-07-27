@@ -31,13 +31,13 @@ ruby_setup:
 		--path vendor/bundle
 
 python_setup:
-	pip install pdoc pygments
+	sudo pip install pdoc pygments
 
 setup: ruby_setup
 
-travis_setup: ruby_setup
+travis_setup: ruby_setup python_setup
 
-travis_build:
+travis_build: javadoc
 	scripts/build-all-versions.sh
 
 travis_publish:
@@ -52,7 +52,7 @@ serve: clean_local
 		--config _config.yml,_config.local.yml
 
 javadoc:
-	rm -rf api
+	rm -rf api/{admin,client}
 	scripts/javadoc-gen.sh
 
 python_doc_gen:

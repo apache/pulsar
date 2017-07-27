@@ -109,6 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.0.23</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
+    <rocksdb.version>5.5.5</rocksdb.version>
   </properties>
 
   <dependencyManagement>
@@ -205,6 +206,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>prometheus-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.rocksdb</groupId>
+        <artifactId>rocksdbjni</artifactId>
+        <version>${rocksdb.version}</version>
       </dependency>
 
       <dependency>
@@ -486,7 +493,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>aspectjweaver</artifactId>
         <version>${aspectj.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>com.ea.agentloader</groupId>
         <artifactId>ea-agent-loader</artifactId>
@@ -603,13 +610,6 @@ flexible messaging model and an intuitive client API.</description>
             <cc>JAVADOC_STYLE</cc>
           </mapping>
         </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -639,6 +639,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/test-output/**</exclude>
             <exclude>**/*.hgrm</exclude>
             <exclude>**/*.test</exclude>
+
+            <!-- Other license files -->
+            <exclude>licenses/LICENSE-*.txt</exclude>
+            <exclude>src/assemble/README.bin.txt</exclude>
+
+            <!-- Exclude site since it's not released -->
+            <exclude>**/site/**</exclude>
 
             <exclude>**/*.patch</exclude>
             <exclude>**/*.md</exclude>

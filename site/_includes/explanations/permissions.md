@@ -14,6 +14,37 @@ $ pulsar-admin namespaces grant-permission test-property/cl1/ns1 \
   --role admin10
 ```
 
+Wildcard authorization can be performed when `authorizationAllowWildcardsMatching` is set to `true` in `broker.conf`.
+
+e.g.
+```shell
+$ pulsar-admin namespaces grant-permission test-property/cl1/ns1 \
+                        --actions produce,consume \
+                        --role 'my.role.*'
+```
+
+Then, roles `my.role.1`, `my.role.2`, `my.role.foo`, `my.role.bar`, etc. can produce and consume.  
+
+```shell
+$ pulsar-admin namespaces grant-permission test-property/cl1/ns1 \
+                        --actions produce,consume \
+                        --role '*.role.my'
+```
+
+Then, roles `1.role.my`, `2.role.my`, `foo.role.my`, `bar.role.my`, etc. can produce and consume.
+
+**Note**: A wildcard matching works at **the beginning or end of the role name only**.
+
+e.g.
+```shell
+$ pulsar-admin namespaces grant-permission test-property/cl1/ns1 \
+                        --actions produce,consume \
+                        --role 'my.*.role'
+```
+
+In this case, only the role `my.*.role` has permissions.  
+Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** produce and consume.
+
 #### REST API
 
 {% endpoint POST /admin/namespaces/:property/:cluster/:namespace/permissions/:role %}

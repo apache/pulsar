@@ -25,14 +25,14 @@ MVN_VERSION=`./get-version.sh`
 
 echo "Pulsar version: ${MVN_VERSION}"
 
-PULSAR_TGZ=$(dirname $PWD)/all/target/pulsar-${MVN_VERSION}-bin.tar.gz
+PULSAR_TGZ=$(dirname $PWD)/all/target/apache-pulsar-${MVN_VERSION}-bin.tar.gz
 
 if [ ! -f $PULSAR_TGZ ]; then
     echo "Pulsar bin distribution not found at ${PULSAR_TGZ}"
     exit 1
 fi
 
-LINKED_PULSAR_TGZ=pulsar-${MVN_VERSION}-bin.tar.gz
+LINKED_PULSAR_TGZ=apache-pulsar-${MVN_VERSION}-bin.tar.gz
 ln -f ${PULSAR_TGZ} $LINKED_PULSAR_TGZ
 
 echo "Using Pulsar binary package at ${PULSAR_TGZ}"
@@ -46,7 +46,7 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-rm pulsar-${MVN_VERSION}-bin.tar.gz
+rm apache-pulsar-${MVN_VERSION}-bin.tar.gz
 
 
 # Build pulsar-grafana image

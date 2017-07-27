@@ -106,7 +106,7 @@ tlsTrustCertsFilePath=/path/to/cacert.pem
 # Enable the TLS auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderTls
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
 {% include message.html id="broker_conf_doc" %}
@@ -125,8 +125,8 @@ tlsKeyFilePath=/path/to/broker-key.pem
 
 For more information on Pulsar client authentication using TLS, see the following language-specific docs:
 
-* [Java client](../../applications/JavaClient)
-* [C++ client](../../applications/CppClient)
+* [Java client](../../clients/Java)
+* [C++ client](../../clients/Cpp)
 
 #### Configure CLI tools
 
@@ -136,7 +136,7 @@ You'll need to add the following authentication parameters to that file to use T
 
 ```properties
 serviceUrl=https://broker.example.com:8443/
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationTls
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem
 useTls=true
 tlsAllowInsecureConnection=false
@@ -161,7 +161,7 @@ On the {% popover tenant %} side, you need to:
 2. Generate a private/public key pair
 3. Create a service, such as `some_app`, on the domain with the public key
 
-Note that the private key generated in step 2 needs to be specified when the Pulsar client connects to the {% popover broker %} (see client configuration examples for [Java](../../applications/JavaClient#tls-authentication) and [C++](../../applications/CppClient#tls-authentication)).
+Note that the private key generated in step 2 needs to be specified when the Pulsar client connects to the {% popover broker %} (see client configuration examples for [Java](../../clients/Java#tls-authentication) and [C++](../../clients/Cpp#tls-authentication)).
 
 For more specific steps involving the Athenz UI, please refer to [this doc](https://github.com/yahoo/athenz/blob/master/docs/example_service_athenz_setup.md#client-tenant-domain).
 
@@ -187,7 +187,7 @@ In the `conf/broker.conf` configuration file in your Pulsar installation, you ne
 # Add the Athenz auth provider
 authenticationEnabled=true
 authorizationEnabled=true
-authenticationProviders=com.yahoo.pulsar.broker.authentication.AuthenticationProviderAthenz
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz
 athenzDomainNames=pulsar
 
 # Enable TLS
@@ -202,7 +202,7 @@ tlsKeyFilePath=/path/to/broker-key.pem
 
 For more information on Pulsar client authentication using Athenz, see the following language-specific docs:
 
-* [Java client](../../applications/JavaClient#athenz)
+* [Java client](../../clients/Java#athenz)
 
 #### Configure CLI tools for Athenz
 
@@ -215,7 +215,7 @@ You’ll need to add the following authentication parameters to that file to use
 serviceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
-authPlugin=com.yahoo.pulsar.client.impl.auth.AuthenticationAthenz
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 authParams=tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1
 
 # Enable TLS

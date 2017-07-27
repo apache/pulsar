@@ -67,7 +67,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
-    // Actions that can be authorized by using permitted role name which contains wildcard
+    // Allow wildcard matching in authorization
+    // (wildcard matching only applicable if wildcard-char:
+    // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
     private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the proxy itself. Used to connect to brokers

@@ -19,23 +19,7 @@
 
 -->
 {% unless page.sidebar_disable == true %}
-<!-- <aside class="sidebar">
-  {% for group in site.data.sidebar.groups %}
-  <section class="sidebar-group">
-    <h4>{{ group.title }}</h4>
-    <ul>
-      {% for doc in group.docs %}
-      {% capture doc_url %}{{ site.baseurl }}docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
-      {% capture page_url %}{{ site.baseurl }}{{ page.url | remove_first: "/" }}{% endcapture %}
-      <li><a {% if page_url == doc_url %} class="active"{% endif %}
-              href="{{ doc_url }}">{{ doc.title }}</a></li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endfor %}
-</aside>
--->
-{% capture page_url %}{{ site.baseurl }}{{ page.url | remove_first: "/" }}{% endcapture %}
+{% capture page_url %}/{{ page.url | remove_first: "/" }}{% endcapture %}
 <aside class="sidebar-nav">
   <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
     {% for group in site.data.sidebar.groups %}
@@ -52,9 +36,9 @@
       <div class="sidebar-group collapse" id="collapse-{{ slug }}" role="tabpanel" aria-labelledby="heading-{{ slug }}">
         <ul>
           {% for doc in group.docs %}
-          {% capture doc_url %}{{ site.baseurl }}docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
+          {% capture doc_url %}/docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
           <li{% if page_url == doc_url %} class="active"{% endif %}>
-            <a href="{{ doc_url }}">
+            <a href="/docs/latest/{{ group.dir }}/{{ doc.endpoint }}">
               {{ doc.title }}
             </a>
           </li>

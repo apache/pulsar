@@ -1,5 +1,5 @@
-{% capture binary_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-{% capture source_release_url %}https://github.com/yahoo/pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
+{% capture binary_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
+{% capture source_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
 
 ## System requirements
 
@@ -9,13 +9,13 @@ Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsa
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:
 
-* by clicking one of these two buttons:
+* by clicking one of these friendly buttons:
 
   <a href="{{ source_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} source release</a>
   <a href="{{ binary_release_url }}" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar {{ site.current_version }} binary release</a>
 
 * from the Pulsar [downloads page](/download)
-* from the Pulsar [releases page](https://github.com/yahoo/pulsar/releases/latest)
+* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
@@ -40,6 +40,8 @@ $ cd pulsar-{{ site.latest }}
 
 ## What your package contains
 
+Both the source and binary packages contain the following directories:
+
 Directory | Contains
 :---------|:--------
 `bin` | Pulsar's [command-line tools](../../reference/CliTools), such as [`pulsar`](../../reference/CliTools#pulsar) and [`pulsar-admin`](../../reference/CliTools#pulsar-admin)
@@ -47,3 +49,5 @@ Directory | Contains
 `data` | The data storage directory used by {% popover ZooKeeper %} and {% popover BookKeeper %}.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `logs` | Logs created by the installation.
+
+The source package contains all of the assets, specific to version {{ site.current_version}}, from the [Pulsar repository]({{ site.pulsar_repo }}).
