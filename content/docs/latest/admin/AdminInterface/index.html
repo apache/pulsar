@@ -154,8 +154,6 @@
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
           <div class="dropdown-divider"></div>
-          <a class="dropdown-item" href="/presentations">Presentations</a>
-          <a class="dropdown-item" href="/team">Team</a>
           <h3 class="dropdown-header">Resources</h3>
           <a class="dropdown-item" href="/presentations">Presentations</a>
           <a class="dropdown-item" href="/team">Team</a>
@@ -1753,7 +1751,7 @@ brokerShutdownTimeoutMs:100
 </code></pre>
 </div>
 
-<h3 id="properties">Properties</h3>
+<h2 id="managing-properties">Managing Properties</h2>
 
 <p>A property identifies an application domain. For e.g. finance, mail,
 sports etc are examples of a property. Tool allows to do CRUD operation
@@ -1887,252 +1885,6 @@ to manage property in Pulsar.</p>
 </code></pre>
 </div>
 
-<h3 id="clusters">Clusters</h3>
-
-<p>Pulsar clusters consist of one or more Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, one or more <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> servers (aka <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>), and a <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> cluster that provides configuration and coordination management.</p>
-
-<p>Clusters can be managed via:</p>
-
-<ul>
-  <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">clusters</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
-  <li>The <code class="highlighter-rouge">/admin/clusters</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
-</ul>
-
-<h3 id="provision-1">Provision</h3>
-
-<p>New clusters can be provisioned using the admin interface.</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<div class="admonition">
-  <div class="warning">
-    
-    <p>Please note that this operation requires <a href="../../admin/Authz#superusers">superuser</a> privileges.</p>
-
-  </div>
-</div>
-
-<h4 id="pulsar-admin-10">pulsar-admin</h4>
-
-<p>You can provision a new cluster using the <a href="../../reference/CliTools#pulsar-admin-clusters-create"><code class="highlighter-rouge">create</code></a> subcommand. Here’s an example:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:8080 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:6650
-</code></pre>
-</div>
-
-<h4 id="rest-api-8">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
-
-<h4 id="java-15">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
-        <span class="n">serviceUrl</span><span class="o">,</span>
-        <span class="n">serviceUrlTls</span><span class="o">,</span>
-        <span class="n">brokerServiceUrl</span><span class="o">,</span>
-        <span class="n">brokerServiceUrlTls</span>
-<span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="initialize-cluster-metadata-1">Initialize cluster metadata</h3>
-
-<p>When provision a new cluster, you need to initialize that cluster’s <a href="../../getting-started/ConceptsAndArchitecture#metadata-store">metadata</a>. When initializing cluster metadata, you need to specify all of the following:</p>
-
-<ul>
-  <li>The name of the cluster</li>
-  <li>The local ZooKeeper connection string for the cluster</li>
-  <li>The global ZooKeeper connection string for the entire instance</li>
-  <li>The web service URL for the cluster</li>
-  <li>A broker service URL enabling interaction with the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in the cluster</li>
-</ul>
-
-<p>You must initialize cluster metadata <em>before</em> starting up any <a href="#managing-brokers">brokers</a> that will belong to the cluster.</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="warning">
-    <span class="admonition-title"><p>No cluster metadata initialization through the REST API or the Java admin API</p>
-</span>
-    
-<p>Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly. Instead, you can use the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool, in particular the <a href="../../reference/CliTools#pulsar-initialize-cluster-metadata"><code class="highlighter-rouge">initialize-cluster-metadata</code></a> command.</p>
-
-  </div>
-</div>
-
-<p>Here’s an example cluster metadata initialization command:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster us-west <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
-</code></pre>
-</div>
-
-<p>You’ll need to use <code class="highlighter-rouge">--*-tls</code> flags only if you’re using <a href="../../admin/Authz#tls-client-auth">TLS authentication</a> in your instance.</p>
-
-<p>Make sure to initialize</p>
-
-<h3 id="get-configuration-1">Get configuration</h3>
-
-<p>You can fetch the <a href="../../reference/Configuration">configuration</a> for an existing cluster at any time.</p>
-
-<h4 id="pulsar-admin-11">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-get"><code class="highlighter-rouge">get</code></a> subcommand and specify the name of the cluster. Here’s an example:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters get cluster-1
-<span class="o">{</span>
-    <span class="s2">"serviceUrl"</span>: <span class="s2">"http://my-cluster.org.com:8080/"</span>,
-    <span class="s2">"serviceUrlTls"</span>: null,
-    <span class="s2">"brokerServiceUrl"</span>: <span class="s2">"pulsar://my-cluster.org.com:6650/"</span>,
-    <span class="s2">"brokerServiceUrlTls"</span>: null
-<span class="o">}</span>
-</code></pre>
-</div>
-
-<h4 id="rest-api-9">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
-
-<h4 id="java-16">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="update-1">Update</h3>
-
-<p>You can update the configuration for an existing cluster at any time.</p>
-
-<h4 id="pulsar-admin-12">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-update"><code class="highlighter-rouge">update</code></a> subcommand and specify new configuration values using flags.</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:4081 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:3350
-</code></pre>
-</div>
-
-<h4 id="rest-8">REST</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
-
-<h4 id="java-17">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
-        <span class="n">serviceUrl</span><span class="o">,</span>
-        <span class="n">serviceUrlTls</span><span class="o">,</span>
-        <span class="n">brokerServiceUrl</span><span class="o">,</span>
-        <span class="n">brokerServiceUrlTls</span>
-<span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updateCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="delete-1">Delete</h3>
-
-<p>Clusters can be deleted from a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
-
-<h4 id="pulsar-admin-13">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the name of the cluster.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
-</code></pre>
-</div>
-
-<h4 id="rest-api-10">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/clusters/:cluster">More info</a></p>
-
-<h4 id="java-18">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="list-1">List</h3>
-
-<p>You can fetch a list of all clusters in a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
-
-<h4 id="pulsar-admin-14">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-list"><code class="highlighter-rouge">list</code></a> subcommand.</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters list
-cluster-1
-cluster-2
-</code></pre>
-</div>
-
-<h4 id="rest-api-11">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/clusters</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/clusters">More info</a></p>
-
-<h6 id="java-19">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
-</code></pre>
-</div>
-
 <h2 id="managing-namespaces">Managing namespaces</h2>
 
 <p>Pulsar <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> are logical groupings of <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
@@ -2149,7 +1901,7 @@ cluster-2
 
 <p>You can create new namespaces under a given <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and within a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
 
-<h4 id="pulsar-admin-15">pulsar-admin</h4>
+<h4 id="pulsar-admin-10">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-create"><code class="highlighter-rouge">create</code></a> subcommand and specify the namespace by name:</p>
 
@@ -2157,13 +1909,13 @@ cluster-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-12">REST API</h4>
+<h4 id="rest-api-8">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
 
-<h4 id="java-20">Java</h4>
+<h4 id="java-15">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">createNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre>
@@ -2173,7 +1925,7 @@ cluster-2
 
 <p>You can fetch the current policies associated with a namespace at any time.</p>
 
-<h4 id="pulsar-admin-16">pulsar-admin</h4>
+<h4 id="pulsar-admin-11">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-policies"><code class="highlighter-rouge">policies</code></a> subcommand and specify the namespace:</p>
 
@@ -2202,13 +1954,13 @@ cluster-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-13">REST API</h4>
+<h4 id="rest-api-9">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
 
-<h4 id="java-21">Java</h4>
+<h4 id="java-16">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre>
@@ -2218,7 +1970,7 @@ cluster-2
 
 <p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>.</p>
 
-<h4 id="pulsar-admin-17">pulsar-admin</h4>
+<h4 id="pulsar-admin-12">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a> subcommand and specify the property:</p>
 
@@ -2228,13 +1980,13 @@ cluster-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-14">REST API</h4>
+<h4 id="rest-api-10">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property">More info</a></p>
 
-<h4 id="java-22">Java</h4>
+<h4 id="java-17">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">);</span>
 </code></pre>
@@ -2244,7 +1996,7 @@ cluster-2
 
 <p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
 
-<h4 id="pulsar-admin-18">pulsar-admin</h4>
+<h4 id="pulsar-admin-13">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a> subcommand and specify the cluster:</p>
 
@@ -2254,23 +2006,23 @@ cluster-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-15">REST API</h4>
+<h4 id="rest-api-11">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster">More info</a></p>
 
-<h4 id="java-23">Java</h4>
+<h4 id="java-18">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<h3 id="delete-2">Delete</h3>
+<h3 id="delete-1">Delete</h3>
 
 <p>You can delete existing namespaces from a property/cluster.</p>
 
-<h4 id="pulsar-admin-19">pulsar-admin</h4>
+<h4 id="pulsar-admin-14">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the namespace:</p>
 
@@ -2278,13 +2030,13 @@ cluster-2
 </code></pre>
 </div>
 
-<h4 id="rest-9">REST</h4>
+<h4 id="rest-8">REST</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
 
-<h4 id="java-24">Java</h4>
+<h4 id="java-19">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre>
@@ -2298,7 +2050,7 @@ cluster-2
 
 <p>You can grant permissions to specific roles for lists of operations such as <code class="highlighter-rouge">produce</code> and <code class="highlighter-rouge">consume</code>.</p>
 
-<h4 id="pulsar-admin-20">pulsar-admin</h4>
+<h4 id="pulsar-admin-15">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a> subcommand and specify a namespace, actions using the <code class="highlighter-rouge">--actions</code> flag, and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
 
@@ -2339,13 +2091,13 @@ cluster-2
 <p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
 Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
 
-<h4 id="rest-api-16">REST API</h4>
+<h4 id="rest-api-12">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
 
-<h4 id="java-25">Java</h4>
+<h4 id="java-20">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
 </code></pre>
@@ -2355,7 +2107,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>You can see which permissions have been granted to which roles in a namespace.</p>
 
-<h4 id="pulsar-admin-21">pulsar-admin</h4>
+<h4 id="pulsar-admin-16">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a> subcommand and specify a namespace:</p>
 
@@ -2369,13 +2121,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h4 id="rest-api-17">REST API</h4>
+<h4 id="rest-api-13">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
 
-<h4 id="java-26">Java</h4>
+<h4 id="java-21">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre>
@@ -2385,7 +2137,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.</p>
 
-<h4 id="pulsar-admin-22">pulsar-admin</h4>
+<h4 id="pulsar-admin-17">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> subcommand and specify a namespace and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
 
@@ -2394,13 +2146,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h4 id="rest-api-18">REST API</h4>
+<h4 id="rest-api-14">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
 
-<h4 id="java-27">Java</h4>
+<h4 id="java-22">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
 </code></pre>
@@ -2417,13 +2169,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-10">REST</h6>
+<h6 id="rest-9">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:property&lt;/span&gt;/&lt;span class="endpoint"&gt;:cluster&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 </code></pre>
 </div>
 
-<h6 id="java-28">Java</h6>
+<h6 id="java-23">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
 </code></pre>
@@ -2443,13 +2195,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-11">REST</h6>
+<h6 id="rest-10">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
 </code></pre>
 </div>
 
-<h6 id="java-29">Java</h6>
+<h6 id="java-24">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -2483,13 +2235,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-12">REST</h6>
+<h6 id="rest-11">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
 </code></pre>
 </div>
 
-<h6 id="java-30">Java</h6>
+<h6 id="java-25">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
 </code></pre>
@@ -2514,13 +2266,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </span></code></pre>
 </div>
 
-<h6 id="rest-13">REST</h6>
+<h6 id="rest-12">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
 </code></pre>
 </div>
 
-<h6 id="java-31">Java</h6>
+<h6 id="java-26">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -2540,13 +2292,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-14">REST</h6>
+<h6 id="rest-13">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
 </code></pre>
 </div>
 
-<h6 id="java-32">Java</h6>
+<h6 id="java-27">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
 </code></pre>
@@ -2581,13 +2333,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-15">REST</h6>
+<h6 id="rest-14">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
 </code></pre>
 </div>
 
-<h6 id="java-33">Java</h6>
+<h6 id="java-28">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
 </code></pre>
@@ -2612,13 +2364,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </span></code></pre>
 </div>
 
-<h6 id="rest-16">REST</h6>
+<h6 id="rest-15">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
 </code></pre>
 </div>
 
-<h6 id="java-34">Java</h6>
+<h6 id="java-29">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -2638,13 +2390,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-17">REST</h6>
+<h6 id="rest-16">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
 </code></pre>
 </div>
 
-<h6 id="java-35">Java</h6>
+<h6 id="java-30">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre>
@@ -2664,13 +2416,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-18">REST</h6>
+<h6 id="rest-17">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
 </code></pre>
 </div>
 
-<h6 id="java-36">Java</h6>
+<h6 id="java-31">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
 </code></pre>
@@ -2690,13 +2442,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-19">REST</h6>
+<h6 id="rest-18">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
 </code></pre>
 </div>
 
-<h6 id="java-37">Java</h6>
+<h6 id="java-32">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -2716,13 +2468,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-20">REST</h6>
+<h6 id="rest-19">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
 </code></pre>
 </div>
 
-<h6 id="java-38">Java</h6>
+<h6 id="java-33">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre>
@@ -2742,13 +2494,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-21">REST</h6>
+<h6 id="rest-20">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
 </code></pre>
 </div>
 
-<h6 id="java-39">Java</h6>
+<h6 id="java-34">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre>
@@ -2768,13 +2520,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-22">REST</h6>
+<h6 id="rest-21">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
 </code></pre>
 </div>
 
-<h6 id="java-40">Java</h6>
+<h6 id="java-35">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre>
@@ -2794,13 +2546,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="rest-23">REST</h6>
+<h6 id="rest-22">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
 </code></pre>
 </div>
 
-<h6 id="java-41">Java</h6>
+<h6 id="java-36">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
 </code></pre>
@@ -2823,13 +2575,13 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </span></code></pre>
 </div>
 
-<h6 id="rest-24">REST</h6>
+<h6 id="rest-23">REST</h6>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
 </code></pre>
 </div>
 
-<h6 id="java-42">Java</h6>
+<h6 id="java-37">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -2843,7 +2595,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>You can unload a namespace, or a <span class="popover-term" tabindex="0" title="What is a namespace bundle?" data-placement="top" data-content="A virtual group of topics that belong to the same namespace. A namespace bundle is defined as a range between two 32-bit hashes, such as 0x00000000 and 0xffffffff." data-toggle="popover" data-trigger="focus">namespace bundle</span>, from the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> that is currently responsible for it.</p>
 
-<h4 id="pulsar-admin-23">pulsar-admin</h4>
+<h4 id="pulsar-admin-18">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-unload"><code class="highlighter-rouge">unload</code></a> subcommand of the <a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a> command.</p>
 
@@ -2853,16 +2605,904 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h4 id="rest-api-19">REST API</h4>
+<h4 id="rest-api-15">REST API</h4>
 
-<h4 id="java-43">Java</h4>
+<h4 id="java-38">Java</h4>
 
-<h2 id="managing-peristent-topics">Managing peristent topics</h2>
+<h3 id="resource-quotas">Resource-Quotas</h3>
+
+<h4 id="set-namespace-resource-quota">set namespace resource quota</h4>
+
+<p>It sets customize quota information for a given namespace bundle.</p>
+
+<h6 id="cli-21">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas set --bandwidthIn 10 --bandwidthOut 10 --bundle 0x00000000_0xffffffff --memory 10 --msgRateIn 10 --msgRateOut 10 --namespace test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-24">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-39">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">setNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">quota</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="get-namespace-resource-quota">get namespace resource quota</h4>
+
+<p>It shows configured resource quota information.</p>
+
+<h6 id="cli-22">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas get  --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">80.40352101165782</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">132.58187392933146</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">144273.8819600397</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">234497.9190227951</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"memory"</span><span class="p">:</span><span class="w"> </span><span class="mf">199.91739142481595</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"dynamic"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span><span class="p">}</span><span class="w">          
+</span></code></pre>
+</div>
+
+<h6 id="rest-25">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-40">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">getNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="reset-namespace-resource-quota">reset namespace resource quota</h4>
+
+<p>It again reverts back the customized resource quota and sets back default resource_quota.</p>
+
+<h6 id="cli-23">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas reset-namespace-bundle-quota --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-26">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
+</code></pre>
+</div>
+
+<h6 id="java-41">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">resetNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h2 id="managing-persistent-topics">Managing persistent topics</h2>
 
 <p>Persistent helps to access topic which is a logical endpoint for
 publishing and consuming messages. Producers publish messages to the
 topic and consumers subscribe to the topic, to consume messages
 published to the topic.</p>
+
+<p>In below instructions and commands - persistent topic format is:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<p>Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.</p>
+
+<p>In all of the instructions and commands below, the topic name structure is:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+</section>
+
+<h3 id="list-of-topics">List of topics</h3>
+
+<p>It provides a list of persistent topics exist under a given namespace.</p>
+
+<h4 id="pulsar-admin-19">pulsar-admin</h4>
+
+<p>List of topics can be fetched using <a href="../../reference/CliTools#list"><code class="highlighter-rouge">list</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent list <span class="se">\</span>
+  my-property/my-cluster/my-namespace <span class="se">\</span>
+  my-topic
+</code></pre>
+</div>
+
+<h4 id="rest-api-16">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace">More info</a></p>
+
+<h4 id="java-42">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">namespace</span> <span class="o">=</span> <span class="s">"my-property/my-cluster-my-namespace"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="grant-permission">Grant permission</h3>
+
+<p>It grants permissions on a client role to perform specific actions on a given topic.</p>
+
+<h4 id="pulsar-admin-20">pulsar-admin</h4>
+
+<p>Permission can be granted using <a href="../../reference/CliTools#grant-permission"><code class="highlighter-rouge">grant-permission</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent grant-permission <span class="se">\</span>
+  --actions produce,consume --role application1 <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+
+</code></pre>
+</div>
+
+<h4 id="rest-api-17">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+
+<h4 id="java-43">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
+<span class="n">Set</span><span class="o">&lt;</span><span class="n">AuthAction</span><span class="o">&gt;</span> <span class="n">actions</span>  <span class="o">=</span> <span class="n">Sets</span><span class="o">.</span><span class="na">newHashSet</span><span class="o">(</span><span class="n">AuthAction</span><span class="o">.</span><span class="na">produce</span><span class="o">,</span> <span class="n">AuthAction</span><span class="o">.</span><span class="na">consume</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">actions</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-permission-1">Get permission</h3>
+
+<p>Permission can be fetched using <a href="../../reference/CliTools#permissions"><code class="highlighter-rouge">permissions</code></a> command.</p>
+
+<h4 id="pulsar-admin-21">pulsar-admin</h4>
+
+<p>TODO: admin</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent permissions <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+
+<span class="o">{</span>
+    <span class="s2">"application1"</span>: <span class="o">[</span>
+        <span class="s2">"consume"</span>,
+        <span class="s2">"produce"</span>
+    <span class="o">]</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-18">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
+
+<h4 id="java-44">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="revoke-permission">Revoke permission</h3>
+
+<p>It revokes a permission which was granted on a client role.</p>
+
+<h4 id="pulsar-admin-22">pulsar-admin</h4>
+
+<p>Permission can be revoked using <a href="../../reference/CliTools#revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent revoke-permission <span class="se">\</span>
+  --role application1 <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+
+<span class="o">{</span>
+    <span class="s2">"application1"</span>: <span class="o">[</span>
+        <span class="s2">"consume"</span>,
+        <span class="s2">"produce"</span>
+    <span class="o">]</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-19">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+
+<h4 id="java-45">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-stats">Get stats</h3>
+
+<p>It shows current statistics of a given non-partitioned topic.</p>
+
+<ul>
+  <li>
+    <p><strong>msgRateIn</strong>: The sum of all local and replication publishers’ publish rates in messages per second</p>
+  </li>
+  <li>
+    <p><strong>msgThroughputIn</strong>: Same as above, but in bytes per second instead of messages per second</p>
+  </li>
+  <li>
+    <p><strong>msgRateOut</strong>: The sum of all local and replication consumers’ dispatch rates in messages per second</p>
+  </li>
+  <li>
+    <p><strong>msgThroughputOut</strong>: Same as above, but in bytes per second instead of messages per second</p>
+  </li>
+  <li>
+    <p><strong>averageMsgSize</strong>: The average size in bytes of messages published within the last interval</p>
+  </li>
+  <li>
+    <p><strong>storageSize</strong>: The sum of the ledgers’ storage size for this topic. See</p>
+  </li>
+  <li>
+    <p><strong>publishers</strong>: The list of all local publishers into the topic. There can be zero or thousands</p>
+  </li>
+  <li>
+    <p><strong>averageMsgSize</strong>: Average message size in bytes from this publisher within the last interval</p>
+  </li>
+  <li>
+    <p><strong>producerId</strong>: Internal identifier for this producer on this topic</p>
+  </li>
+  <li>
+    <p><strong>producerName</strong>: Internal identifier for this producer, generated by the client library</p>
+  </li>
+  <li>
+    <p><strong>address</strong>: IP address and source port for the connection of this producer</p>
+  </li>
+  <li>
+    <p><strong>connectedSince</strong>: Timestamp this producer was created or last reconnected</p>
+  </li>
+  <li>
+    <p><strong>subscriptions</strong>: The list of all local subscriptions to the topic</p>
+  </li>
+  <li>
+    <p><strong>my-subscription</strong>: The name of this subscription (client defined)</p>
+  </li>
+  <li>
+    <p><strong>msgBacklog</strong>: The count of messages in backlog for this subscription</p>
+  </li>
+  <li>
+    <p><strong>type</strong>: This subscription type</p>
+  </li>
+  <li>
+    <p><strong>msgRateExpired</strong>: The rate at which messages were discarded instead of dispatched from this subscription due to TTL</p>
+  </li>
+  <li>
+    <p><strong>consumers</strong>: The list of connected consumers for this subscription</p>
+  </li>
+  <li>
+    <p><strong>consumerName</strong>: Internal identifier for this consumer, generated by the client library</p>
+  </li>
+  <li>
+    <p><strong>availablePermits</strong>: The number of messages this consumer has space for in the client library’s listen queue. A value of 0 means the client library’s queue is full and receive() isn’t being called. A nonzero value means this consumer is ready to be dispatched messages.</p>
+  </li>
+  <li>
+    <p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p>
+  </li>
+  <li>
+    <p><strong>replicationBacklog</strong>: The outbound replication backlog in messages</p>
+  </li>
+  <li>
+    <p><strong>connected</strong>: Whether the outbound replicator is connected</p>
+  </li>
+  <li>
+    <p><strong>replicationDelayInSeconds</strong>: How long the oldest message has been waiting to be sent through the connection, if connected is true</p>
+  </li>
+  <li>
+    <p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster’s publisher connection to this broker</p>
+  </li>
+  <li>
+    <p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.</p>
+  </li>
+</ul>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">4641.528542257553</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">44663039.74947473</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">1232439.816728665</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">135532389160</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">57.855383881403576</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">558994.7078932219</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">613135</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"my-topic_subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">116632</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">36.98245516804671</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h4 id="pulsar-admin-23">pulsar-admin</h4>
+
+<p>Topic stats can be fetched using <a href="../../reference/CliTools#stats"><code class="highlighter-rouge">stats</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent stats <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-20">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/stats</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/stats">More info</a></p>
+
+<h4 id="java-46">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-internal-stats">Get internal stats</h3>
+
+<p>It shows detailed statistics of a topic.</p>
+
+<ul>
+  <li>
+    <p><strong>entriesAddedCounter</strong>: Messages published since this broker loaded this topic</p>
+  </li>
+  <li>
+    <p><strong>numberOfEntries</strong>: Total number of messages being tracked</p>
+  </li>
+  <li>
+    <p><strong>totalSize</strong>: Total storage size in bytes of all messages</p>
+  </li>
+  <li>
+    <p><strong>currentLedgerEntries</strong>: Count of messages written to the ledger currently open for writing</p>
+  </li>
+  <li>
+    <p><strong>currentLedgerSize</strong>: Size in bytes of messages written to ledger currently open for writing</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerCreatedTimestamp</strong>: time when last ledger was created</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerCreationFailureTimestamp:</strong> time when last ledger was failed</p>
+  </li>
+  <li>
+    <p><strong>waitingCursorsCount</strong>: How many cursors are “caught up” and waiting for a new message to be published</p>
+  </li>
+  <li>
+    <p><strong>pendingAddEntriesCount</strong>: How many messages have (asynchronous) write requests we are waiting on completion</p>
+  </li>
+  <li>
+    <p><strong>lastConfirmedEntry</strong>: The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger has been opened or is currently being opened but has no entries written yet.</p>
+  </li>
+  <li>
+    <p><strong>state</strong>: The state of this ledger for writing. LedgerOpened means we have a ledger open for saving published messages.</p>
+  </li>
+  <li>
+    <p><strong>ledgers</strong>: The ordered list of all ledgers for this topic holding its messages</p>
+  </li>
+  <li>
+    <p><strong>cursors</strong>: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</p>
+  </li>
+  <li>
+    <p><strong>markDeletePosition</strong>: The ack position: the last message the subscriber acknowledged receiving</p>
+  </li>
+  <li>
+    <p><strong>readPosition</strong>: The latest position of subscriber for reading message</p>
+  </li>
+  <li>
+    <p><strong>waitingReadOp</strong>: This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.</p>
+  </li>
+  <li>
+    <p><strong>pendingReadOps</strong>: The counter for how many outstanding read requests to the BookKeepers we have in progress</p>
+  </li>
+  <li>
+    <p><strong>messagesConsumedCounter</strong>: Number of messages this cursor has acked since this broker loaded this topic</p>
+  </li>
+  <li>
+    <p><strong>cursorLedger</strong>: The ledger being used to persistently store the current markDeletePosition</p>
+  </li>
+  <li>
+    <p><strong>cursorLedgerLastEntry</strong>: The last entryid used to persistently store the current markDeletePosition</p>
+  </li>
+  <li>
+    <p><strong>individuallyDeletedMessages</strong>: If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position</p>
+  </li>
+  <li>
+    <p><strong>lastLedgerSwitchTimestamp</strong>: The last time the cursor ledger was rolled over</p>
+  </li>
+  <li>
+    <p><strong>state</strong>: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.</p>
+  </li>
+</ul>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"entriesAddedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449518</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"numberOfEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"totalSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"currentLedgerEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"currentLedgerSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastLedgerCreatedTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 03:00:23.825"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastLedgerCreationFailureTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"waitingCursorsCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"pendingAddEntriesCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"lastConfirmedEntry"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3232"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LedgerOpened"</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"ledgers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"ledgerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">324711539</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"cursors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"markDeletePosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3133"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"readPosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3233"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"waitingReadOp"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"pendingReadOps"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"messagesConsumedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449501</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"cursorLedger"</span><span class="p">:</span><span class="w"> </span><span class="mi">324702104</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"cursorLedgerLastEntry"</span><span class="p">:</span><span class="w"> </span><span class="mi">21</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"individuallyDeletedMessages"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"lastLedgerSwitchTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 01:30:19.313"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Open"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h4 id="pulsar-admin-24">pulsar-admin</h4>
+
+<p>Topic internal-stats can be fetched using <a href="../../reference/CliTools#stats-internal"><code class="highlighter-rouge">stats-internal</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-21">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/internalStats">More info</a></p>
+
+<h4 id="java-47">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="peek-messages">Peek messages</h3>
+
+<p>It peeks N messages for a specific subscription of a given topic.</p>
+
+<h4 id="pulsar-admin-25">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent peek-messages <span class="se">\</span>
+  --count 10 --subscription my-subscription <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+
+Message ID: 315674752:0  
+Properties:  <span class="o">{</span>  <span class="s2">"X-Pulsar-publish-time"</span> : <span class="s2">"2015-07-13 17:40:28.451"</span>  <span class="o">}</span>
+msg-payload
+</code></pre>
+</div>
+
+<h4 id="rest-api-22">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/position/<span class="endpoint">:messagePosition</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition">More info</a></p>
+
+<h4 id="java-48">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="skip-messages">Skip messages</h3>
+
+<p>It skips N messages for a specific subscription of a given topic.</p>
+
+<h4 id="pulsar-admin-26">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent skip <span class="se">\</span>
+  --count 10 --subscription my-subscription <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-23">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip/<span class="endpoint">:numMessages</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages">More info</a></p>
+
+<h4 id="java-49">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="skip-all-messages">Skip all messages</h3>
+
+<p>It skips all old messages for a specific subscription of a given topic.</p>
+
+<h4 id="pulsar-admin-27">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent skip-all <span class="se">\</span>
+  --subscription my-subscription <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-24">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip_all</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all">More info</a></p>
+
+<h4 id="java-50">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="reset-cursor">Reset cursor</h3>
+
+<p>It resets a subscription’s cursor position back to the position which was recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position.</p>
+
+<h4 id="pulsar-admin-28">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent reset-cursor <span class="se">\</span>
+  --subscription my-subscription --time 10 <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-25">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/resetcursor/<span class="endpoint">:timestamp</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">More info</a></p>
+
+<h4 id="java-51">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="kt">long</span> <span class="n">timestamp</span> <span class="o">=</span> <span class="mi">2342343L</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="lookup-of-topic">Lookup of topic</h3>
+
+<p>It locates broker url which is serving the given topic.</p>
+
+<h4 id="pulsar-admin-29">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent lookup <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  
+ <span class="s2">"pulsar://broker1.org.com:4480"</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-26">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
+
+<h4 id="java-52">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">lookupDestination</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="get-subscriptions">Get subscriptions</h3>
+
+<p>It shows all subscription names for a given topic.</p>
+
+<h4 id="pulsar-admin-30">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent subscriptions <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+ 
+ my-subscription
+</code></pre>
+</div>
+
+<h4 id="rest-api-27">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscriptions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscriptions">More info</a></p>
+
+<h4 id="java-53">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="unsubscribe">Unsubscribe</h3>
+
+<p>It can also help to unsubscribe a subscription which is no more processing further messages.</p>
+
+<h4 id="pulsar-admin-31">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent unsubscribe <span class="se">\</span>
+  --subscription my-subscription <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-28">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/unsubscribe/<span class="endpoint">:subscription</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/unsubscribe/:subscription">More info</a></p>
+
+<h4 id="java-54">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">subscriptionName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subscriptionName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="namespace-isolation-policy">Namespace isolation policy</h3>
+
+<h4 id="createupdate-ns-isolation-policy">create/update ns-isolation policy</h4>
+
+<p>It creates a namespace isolation policy.</p>
+
+<ul>
+  <li>
+    <p>auto-failover-policy-params: comma separated name=value auto failover policy parameters</p>
+  </li>
+  <li>
+    <p>auto-failover-policy-type: auto failover policy type name [‘min_available’]</p>
+  </li>
+  <li>
+    <p>namespaces: comma separated namespaces-regex list</p>
+  </li>
+  <li>
+    <p>primary: comma separated primary-broker-regex list</p>
+  </li>
+  <li>
+    <p>secondary: comma separated secondary-broker-regex list</p>
+  </li>
+</ul>
+
+<h6 id="cli-24">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy --auto-failover-policy-params min_limit=0 --auto-failover-policy-type min_available --namespaces test-property/cl1/ns.*|test-property/cl1/test-ns*.* --secondary broker2.* --primary broker1.* cl1 ns-is-policy1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-27">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-55">Java</h6>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">,</span> <span class="n">namespaceIsolationData</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h4 id="get-ns-isolation-policy">get ns-isolation policy</h4>
+
+<p>It shows a created namespace isolation policy.</p>
+
+<h6 id="cli-25">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy get cl1 ns-is-policy1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"broker1.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="s2">"broker2.*"</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
+        </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-28">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-56">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="delete-ns-isolation-policy">delete ns-isolation policy</h4>
+
+<p>It deletes a namespace isolation policy.</p>
+
+<h6 id="cli-26">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy delete ns-is-policy1
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>N/A
+</code></pre>
+</div>
+
+<h6 id="rest-29">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
+</code></pre>
+</div>
+
+<h6 id="java-57">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="list-all-ns-isolation-policy">list all ns-isolation policy</h4>
+
+<p>It shows all namespace isolation policies served by a given cluster.</p>
+
+<h6 id="cli-27">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy list cl1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"ns-is-policy1"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"broker1.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+            </span><span class="s2">"broker2.*"</span><span class="w">
+        </span><span class="p">],</span><span class="w">
+        </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+                </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
+            </span><span class="p">}</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-30">REST</h6>
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies
+</code></pre>
+</div>
+
+<h6 id="java-58">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicies</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h2 id="managing-partitioned-topics">Managing partitioned topics</h2>
+
+<p>Partitioned topic is actually implemented as N internal topics, where N is the number of partitions.
+When publishing messages to a partitioned topic, each message is routed to one of several brokers.
+The distribution of partitions across brokers is handled automatically by Pulsar.</p>
 
 <p>In below instructions and commands - persistent topic format is:</p>
 
@@ -2943,569 +3583,7 @@ published to the topic.</p>
 
 <p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../clients/Java">Java client</a> by implementing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
 
-<h2 id="permissions">Permissions</h2>
-
-<h4 id="grant-permission">Grant permission</h4>
-
-<p>It grants permissions on a client role to perform specific actions on a given topic.</p>
-
-<h6 id="cli-21">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent grant-permission --actions produce,consume --role application1 persistent://test-property/cl1/ns1/tp1
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-25">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
-</code></pre>
-</div>
-
-<h6 id="java-44">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">))</span>
-</code></pre>
-</div>
-
-<h4 id="get-permission-1">Get permission</h4>
-
-<p>It shows a list of client role permissions on a given topic.</p>
-
-<h6 id="cli-22">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin permissions persistent://test-property/cl1/ns1/tp1
-</code></pre>
-</div>
-
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"application1"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-        </span><span class="s2">"consume"</span><span class="p">,</span><span class="w">
-        </span><span class="s2">"produce"</span><span class="w">
-    </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
-
-<h6 id="rest-26">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions
-</code></pre>
-</div>
-
-<h6 id="java-45">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="revoke-permission">Revoke permission</h4>
-
-<p>It revokes a permission which was granted on a client role.</p>
-
-<h6 id="cli-23">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent revoke-permission --role application1 persistent://test-property/cl1/ns1/tp1
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-27">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}
-</code></pre>
-</div>
-
-<h6 id="java-46">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="peek-messages">Peek messages</h4>
-
-<p>It peeks N messages for a specific subscription of a given topic.</p>
-
-<h6 id="cli-24">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent peek-messages --count 10 --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>Message ID: 315674752:0  
-Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
-msg-payload
-</code></pre>
-</div>
-
-<h6 id="rest-28">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}
-</code></pre>
-</div>
-
-<h6 id="java-47">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="skip-messages">Skip messages</h4>
-
-<p>It skips N messages for a specific subscription of a given topic.</p>
-
-<h6 id="cli-25">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent skip --count 10 --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-29">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip/{numMessages}
-</code></pre>
-</div>
-
-<h6 id="java-48">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="skip-all-messages">Skip all messages</h4>
-
-<p>It skips all old messages for a specific subscription of a given topic.</p>
-
-<h6 id="cli-26">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent skip-all --subscription my-subscription persistent://test-property/cl1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-30">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip_all
-</code></pre>
-</div>
-
-<h6 id="java-49">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="expire-messages">Expire messages</h4>
-
-<p>It expires messages which are older than given expiry time (in seconds) for a specific subscription of a given topic.</p>
-
-<h6 id="cli-27">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent expire-messages --subscription my-subscription --expireTime 120 persistent://test-property/cl1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-31">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}
-</code></pre>
-</div>
-
-<h6 id="java-50">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">expireMessages</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">expireTimeInSeconds</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="expire-all-messages">Expire all messages</h4>
-
-<p>It expires messages which are older than given expiry time (in seconds) for all subscriptions of a given topic.</p>
-
-<h6 id="cli-28">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent expire-messages-all-subscriptions --expireTime 120 persistent://test-property/cl1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-32">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}
-</code></pre>
-</div>
-
-<h6 id="java-51">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">expireMessagesForAllSubscriptions</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">expireTimeInSeconds</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="reset-cursor">Reset cursor</h4>
-
-<p>It resets a subscription’s cursor position back to the position which was recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position.</p>
-
-<h6 id="cli-29">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent reset-cursor --subscription my-subscription --time 10 persistent://test-property/pstg-gq1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-33">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}
-</code></pre>
-</div>
-
-<h6 id="java-52">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">resetCursor</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="lookup-of-topic">Lookup of topic</h4>
-
-<p>It locates broker url which is serving the given topic.</p>
-
-<h6 id="cli-30">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent lookup persistent://test-property/pstg-gq1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>"pulsar://broker1.org.com:4480"
-</code></pre>
-</div>
-
-<h6 id="rest-34">REST</h6>
-<div class="highlighter-rouge"><pre class="highlight"><code>GET http://&lt;broker-url&gt;:&lt;port&gt;/lookup/v2/destination/persistent/{property}/{cluster}/{namespace}/{dest}
-(\* this api serves by “lookup” resource and not “persistent”)
-</code></pre>
-</div>
-
-<h6 id="java-53">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">lookups</span><span class="o">().</span><span class="na">lookupDestination</span><span class="o">(</span><span class="n">destination</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="get-subscriptions">Get subscriptions</h4>
-
-<p>It shows all subscription names for a given topic.</p>
-
-<h6 id="cli-31">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin persistent subscriptions persistent://test-property/pstg-gq1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>my-subscription
-</code></pre>
-</div>
-
-<h6 id="rest-35">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscriptions
-</code></pre>
-</div>
-
-<h6 id="java-54">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="unsubscribe">unsubscribe</h4>
-
-<p>It can also help to unsubscribe a subscription which is no more processing further messages.</p>
-
-<h6 id="cli-32">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$pulsar-admin persistent unsubscribe --subscription my-subscription persistent://test-property/pstg-gq1/ns1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-36">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}
-</code></pre>
-</div>
-
-<h6 id="java-55">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">subName</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h3 id="namespace-isolation-policy">Namespace isolation policy</h3>
-
-<h4 id="createupdate-ns-isolation-policy">create/update ns-isolation policy</h4>
-
-<p>It creates a namespace isolation policy.</p>
-
-<ul>
-  <li>
-    <p>auto-failover-policy-params: comma separated name=value auto failover policy parameters</p>
-  </li>
-  <li>
-    <p>auto-failover-policy-type: auto failover policy type name [‘min_available’]</p>
-  </li>
-  <li>
-    <p>namespaces: comma separated namespaces-regex list</p>
-  </li>
-  <li>
-    <p>primary: comma separated primary-broker-regex list</p>
-  </li>
-  <li>
-    <p>secondary: comma separated secondary-broker-regex list</p>
-  </li>
-</ul>
-
-<h6 id="cli-33">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy --auto-failover-policy-params min_limit=0 --auto-failover-policy-type min_available --namespaces test-property/cl1/ns.*|test-property/cl1/test-ns*.* --secondary broker2.* --primary broker1.* cl1 ns-is-policy1
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-37">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
-</code></pre>
-</div>
-
-<h6 id="java-56">Java</h6>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">,</span> <span class="n">namespaceIsolationData</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h4 id="get-ns-isolation-policy">get ns-isolation policy</h4>
-
-<p>It shows a created namespace isolation policy.</p>
-
-<h6 id="cli-34">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy get cl1 ns-is-policy1
-</code></pre>
-</div>
-
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-        </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
-    </span><span class="p">],</span><span class="w">
-    </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-        </span><span class="s2">"broker1.*"</span><span class="w">
-    </span><span class="p">],</span><span class="w">
-    </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-        </span><span class="s2">"broker2.*"</span><span class="w">
-    </span><span class="p">],</span><span class="w">
-    </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
-        </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-            </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
-        </span><span class="p">}</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
-
-<h6 id="rest-38">REST</h6>
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
-</code></pre>
-</div>
-
-<h6 id="java-57">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="delete-ns-isolation-policy">delete ns-isolation policy</h4>
-
-<p>It deletes a namespace isolation policy.</p>
-
-<h6 id="cli-35">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy delete ns-is-policy1
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-39">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/clusters/{cluster}/namespaceIsolationPolicies/{policyName}
-</code></pre>
-</div>
-
-<h6 id="java-58">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteNamespaceIsolationPolicy</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">policyName</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="list-all-ns-isolation-policy">list all ns-isolation policy</h4>
-
-<p>It shows all namespace isolation policies served by a given cluster.</p>
-
-<h6 id="cli-36">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin ns-isolation-policy list cl1
-</code></pre>
-</div>
-
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"ns-is-policy1"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="nt">"namespaces"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-            </span><span class="s2">"test-property/cl1/ns.*|test-property/cl1/test-ns*.*"</span><span class="w">
-        </span><span class="p">],</span><span class="w">
-        </span><span class="nt">"primary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-            </span><span class="s2">"broker1.*"</span><span class="w">
-        </span><span class="p">],</span><span class="w">
-        </span><span class="nt">"secondary"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-            </span><span class="s2">"broker2.*"</span><span class="w">
-        </span><span class="p">],</span><span class="w">
-        </span><span class="nt">"auto_failover_policy"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-            </span><span class="nt">"policy_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min_available"</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-                </span><span class="nt">"min_limit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
-            </span><span class="p">}</span><span class="w">
-        </span><span class="p">}</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
-
-<h6 id="rest-40">REST</h6>
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/clusters/{cluster}/namespaceIsolationPolicies
-</code></pre>
-</div>
-
-<h6 id="java-59">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getNamespaceIsolationPolicies</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h3 id="resource-quotas">Resource-Quotas</h3>
-
-<h4 id="set-namespace-resource-quota">set namespace resource quota</h4>
-
-<p>It sets customize quota information for a given namespace bundle.</p>
-
-<h6 id="cli-37">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas set --bandwidthIn 10 --bandwidthOut 10 --bundle 0x00000000_0xffffffff --memory 10 --msgRateIn 10 --msgRateOut 10 --namespace test-property/cl1/ns1
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-41">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
-</code></pre>
-</div>
-
-<h6 id="java-60">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">setNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">quota</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="get-namespace-resource-quota">get namespace resource quota</h4>
-
-<p>It shows configured resource quota information.</p>
-
-<h6 id="cli-38">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas get  --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
-</code></pre>
-</div>
-
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">80.40352101165782</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">132.58187392933146</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">144273.8819600397</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">234497.9190227951</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"memory"</span><span class="p">:</span><span class="w"> </span><span class="mf">199.91739142481595</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"dynamic"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span><span class="p">}</span><span class="w">          
-</span></code></pre>
-</div>
-
-<h6 id="rest-42">REST</h6>
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
-</code></pre>
-</div>
-
-<h6 id="java-61">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">getNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h4 id="reset-namespace-resource-quota">reset namespace resource quota</h4>
-
-<p>It again reverts back the customized resource quota and sets back default resource_quota.</p>
-
-<h6 id="cli-39">CLI</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin resource-quotas reset-namespace-bundle-quota --bundle 0x00000000_0xffffffff --namespace test-property/cl1/my-topic
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
-
-<h6 id="rest-43">REST</h6>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/resource-quotas/{property}/{cluster}/{namespace}/{bundle}
-</code></pre>
-</div>
-
-<h6 id="java-62">Java</h6>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">resourceQuotas</span><span class="o">().</span><span class="na">resetNamespaceBundleResourceQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
-</code></pre>
-</div>
-
-<h2 id="partitioned-topics">Partitioned topics</h2>
+<h3 id="partitioned-topics">Partitioned topics</h3>
 
 <p>You can use Pulsar’s <a href="../../admin/AdminInterface">admin API</a> to create and manage partitioned topics.</p>
 
@@ -3569,7 +3647,7 @@ msg-payload
   </div>
 </div>
 
-<h4 id="pulsar-admin-24">pulsar-admin</h4>
+<h4 id="pulsar-admin-32">pulsar-admin</h4>
 
 <p>You can create partitioned topics using the <a href="../../reference/CliTools#pulsar-admin-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></a> command and specifying the topic name as an argument and the number of partitions using the <code class="highlighter-rouge">-p</code> or <code class="highlighter-rouge">--partitions</code> flag. Here’s an example:</p>
 
@@ -3579,13 +3657,13 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-20">REST API</h4>
+<h4 id="rest-api-29">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
 
-<h4 id="java-63">Java</h4>
+<h4 id="java-59">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numPartitions</span> <span class="o">=</span> <span class="mi">4</span><span class="o">;</span>
@@ -3612,7 +3690,7 @@ msg-payload
   </tbody>
 </table>
 
-<h4 id="pulsar-admin-25">pulsar-admin</h4>
+<h4 id="pulsar-admin-33">pulsar-admin</h4>
 
 <p>You can see the see number of partitions in a partitioned topic using the <a href="../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></a> subcommand. Here’s an example:</p>
 
@@ -3624,20 +3702,20 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-21">REST API</h4>
+<h4 id="rest-api-30">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>:/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
 
-<h4 id="java-64">Java</h4>
+<h4 id="java-60">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPartitionedTopicMetadata</span><span class="o">(</span><span class="n">topicName</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<h3 id="update-2">Update</h3>
+<h3 id="update-1">Update</h3>
 
 <p>You can update the number of partitions on an existing partitioned topic <em>if</em> the topic is non-global. To update, the new number of partitions must be greater than the existing number.</p>
 
@@ -3645,7 +3723,7 @@ msg-payload
 
 <p>Already created partitioned producers and consumers can’t see newly created partitions and it requires to recreate them at application so, newly created producers and consumers can connect to newly added partitions as well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.</p>
 
-<h4 id="pulsar-admin-26">pulsar-admin</h4>
+<h4 id="pulsar-admin-34">pulsar-admin</h4>
 
 <p>Partitioned topics can be deleted using the <a href="../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic"><code class="highlighter-rouge">update-partitioned-topic</code></a> command.</p>
 
@@ -3655,21 +3733,21 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-22">REST API</h4>
+<h4 id="rest-api-31">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
 
-<h4 id="java-65">Java</h4>
+<h4 id="java-61">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">updatePartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<h3 id="delete-3">Delete</h3>
+<h3 id="delete-2">Delete</h3>
 
-<h4 id="pulsar-admin-27">pulsar-admin</h4>
+<h4 id="pulsar-admin-35">pulsar-admin</h4>
 
 <p>Partitioned topics can be deleted using the <a href="../../reference/CliTools#pulsar-admin-persistent-delete-partitioned-topic"><code class="highlighter-rouge">delete-partitioned-topic</code></a> command, specifying the topic by name:</p>
 
@@ -3678,37 +3756,37 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-23">REST API</h4>
+<h4 id="rest-api-32">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitions">More info</a></p>
 
-<h4 id="java-66">Java</h4>
+<h4 id="java-62">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<h3 id="list-2">List</h3>
+<h3 id="list-1">List</h3>
 
 <p>It provides a list of persistent topics existing under a given namespace.</p>
 
-<h4 id="pulsar-admin-28">pulsar-admin</h4>
+<h4 id="pulsar-admin-36">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin peristent list prop-1/cluster-1/namespace
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent list prop-1/cluster-1/namespace
 persistent://property/cluster/namespace/topic
 persistent://property/cluster/namespace/topic
 </code></pre>
 </div>
 
-<h4 id="rest-api-24">REST API</h4>
+<h4 id="rest-api-33">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace">More info</a></p>
 
-<h4 id="java-67">Java</h4>
+<h4 id="java-63">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre>
@@ -3936,7 +4014,7 @@ persistent://property/cluster/namespace/topic
   </tbody>
 </table>
 
-<h4 id="pulsar-admin-29">pulsar-admin</h4>
+<h4 id="pulsar-admin-37">pulsar-admin</h4>
 
 <p><a href="../../reference/CliTools#pulsar-admin-persistent-partitioned-stats"><code class="highlighter-rouge">partitioned-stats</code></a></p>
 
@@ -3946,13 +4024,13 @@ persistent://property/cluster/namespace/topic
 </code></pre>
 </div>
 
-<h4 id="rest-api-25">REST API</h4>
+<h4 id="rest-api-34">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitioned-stats</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/partitioned-stats">More info</a></p>
 
-<h4 id="java-68">Java</h4>
+<h4 id="java-64">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
 </code></pre>
@@ -4164,20 +4242,20 @@ persistent://property/cluster/namespace/topic
 </span></code></pre>
 </div>
 
-<h4 id="pulsar-admin-30">pulsar-admin</h4>
+<h4 id="pulsar-admin-38">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
   persistent://test-property/cl1/ns1/tp1
 </code></pre>
 </div>
 
-<h4 id="rest-api-26">REST API</h4>
+<h4 id="rest-api-35">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/internalStats">More info</a></p>
 
-<h4 id="java-69">Java</h4>
+<h4 id="java-65">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
 </code></pre>
