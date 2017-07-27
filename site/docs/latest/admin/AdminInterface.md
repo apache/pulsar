@@ -34,7 +34,7 @@ In this document, examples from each of the three available interfaces will be s
 
 {% include explanations/broker-admin.md %}
 
-## Properties
+## Managing Properties
 
 A property identifies an application domain. For e.g. finance, mail,
 sports etc are examples of a property. Tool allows to do CRUD operation
