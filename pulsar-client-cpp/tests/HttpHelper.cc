@@ -32,16 +32,15 @@ int makePutRequest(const std::string& url, const std::string& body) {
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
     int res = curl_easy_perform(curl);
-    curl_slist_free_all(list); /* free the list again */ 
-    
+    curl_slist_free_all(list); /* free the list again */
+
     if (res != CURLE_OK) {
         return -1;
     }
 
-    int httpResult = 0;
+    long httpResult = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpResult);
     curl_easy_cleanup(curl);
-    return httpResult;
+    return (int) httpResult;
 }
