@@ -28,7 +28,7 @@ tar xfz ../all/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-component
 PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone > broker.log &
 standalone_pid=$!;
 
-PULSAR_STANDALONE_CONF=$PWD/test-conf/authentication.conf pulsar-dist/bin/pulsar standalone \
+PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar standalone \
               --zookeeper-port 2191 --bookkeeper-port 3191 \
               --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
               data2/standalone/bookkeeper > broker-tls.log &

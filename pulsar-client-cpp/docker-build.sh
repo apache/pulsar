@@ -18,6 +18,8 @@
 # under the License.
 #
 
+# Build Pulsar C++ client within a Docker container
+
 # Fail script in case of errors
 set -e
 
@@ -40,9 +42,3 @@ find . -name CMakeCache.txt | xargs rm -f
 find . -name CMakeFiles | xargs rm -rf
 
 $DOCKER_CMD bash -c 'cd /pulsar/pulsar-client-cpp && cmake . && make'
-
-echo "---- Execute Pulsar C++ client unit tests"
-
-# Start 2 Pulsar standalone instances (one with TLS and one without)
-# and execute the tests
-$DOCKER_CMD bash -c 'cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh'

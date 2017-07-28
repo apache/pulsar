@@ -33,6 +33,21 @@ Pulsar C++ Client Library has been tested on:
 * Mac OS X
 
 ## Compilation
+
+### Compile within a Docker container
+
+You can compile the C++ client library within a Docker container that already
+contains all the required dependencies.
+
+```shell
+./docker-build.sh
+```
+
+Run unit tests:
+```shell
+./docker-tests.sh
+```
+
 ### Compile on Ubuntu Server 16.04
 
 #### Install all dependencies:
