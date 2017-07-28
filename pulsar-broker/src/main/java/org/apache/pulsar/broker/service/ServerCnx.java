@@ -87,7 +87,8 @@ public class ServerCnx extends PulsarHandler {
     private int pendingSendRequest = 0;
     private final String replicatorPrefix;
     private String clientVersion = null;
-    private final Semaphore nonPersistentMessageSemaphore;
+    private int nonPersistentPendingMessages = 0;
+    private final int MaxNonPersistentPendingMessages;
 
     enum State {
         Start, Connected
@@ -102,8 +103,8 @@ public class ServerCnx extends PulsarHandler {
         this.producers = new ConcurrentLongHashMap<>(8, 1);
         this.consumers = new ConcurrentLongHashMap<>(8, 1);
         this.replicatorPrefix = service.pulsar().getConfiguration().getReplicatorPrefix();
-        this.nonPersistentMessageSemaphore = new Semaphore(
-                service.pulsar().getConfiguration().getMaxConcurrentNonPersistentMessagePerConnection(), false);
+        this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
+                .getMaxConcurrentNonPersistentMessagePerConnection();
     }
 
     @Override
@@ -576,7 +577,7 @@ public class ServerCnx extends PulsarHandler {
         }
 
         // avoid processing non-persist message if reached max concurrent-message limit
-        if (producer.isNonPersistentTopic() && !nonPersistentMessageSemaphore.tryAcquire()) {
+        if (producer.isNonPersistentTopic() && nonPersistentPendingMessages++ > MaxNonPersistentPendingMessages) {
             final long producerId = send.getProducerId();
             final long sequenceId = send.getSequenceId();
             service.getTopicOrderedExecutor().submitOrdered(producer.getTopic(), SafeRun.safeRun(() -> {
@@ -834,7 +835,7 @@ public class ServerCnx extends PulsarHandler {
             ctx.channel().config().setAutoRead(true);
         }
         if (isNonPersistentTopic) {
-            nonPersistentMessageSemaphore.release();
+            nonPersistentPendingMessages--;
         }
     }
 
