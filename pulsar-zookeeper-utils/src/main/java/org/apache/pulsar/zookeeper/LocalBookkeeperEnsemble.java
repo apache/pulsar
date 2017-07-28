@@ -85,14 +85,16 @@ public class LocalBookkeeperEnsemble {
 
     int numberOfBookies;
     private boolean clearOldData = false;
+    private boolean isStandaloneMode = false;
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort) {
-        this(numberOfBookies, zkPort, bkBasePort, null, null, true);
+        this(numberOfBookies, zkPort, bkBasePort, null, null, false, true);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
-            String bkDataDirName, boolean clearOldData) {
+            String bkDataDirName, boolean isStandaloneMode, boolean clearOldData) {
         this.numberOfBookies = numberOfBookies;
+        this.isStandaloneMode = isStandaloneMode;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
         this.initialPort = bkBasePort;
@@ -203,7 +205,7 @@ public class LocalBookkeeperEnsemble {
             // Initialize Stats Provider only if we're running with 1 single bookie
             // to avoid port conflicts
             StatsLogger statsLogger;
-            if (numberOfBookies == 1) {
+            if (isStandaloneMode && numberOfBookies == 1) {
                 statsProviders[i] = new PrometheusMetricsProvider();
                 statsProviders[i].start(bsConfs[i]);
                 statsLogger = statsProviders[i].getStatsLogger("");

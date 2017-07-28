@@ -148,7 +148,7 @@ public class PulsarStandaloneStarter {
 
         if (!onlyBroker) {
             // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData);
+            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, true, wipeData);
             bkEnsemble.start();
         }
 
@@ -158,7 +158,7 @@ public class PulsarStandaloneStarter {
 
         // load aspectj-weaver agent for instrumentation
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
-        
+
         // Start Broker
         broker = new PulsarService(config);
         broker.start();
