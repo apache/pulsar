@@ -74,7 +74,13 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#add-org.apache.pulsar.common.policies.data.ConsumerStats-">add(ConsumerStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#add-org.apache.pulsar.common.policies.data.PersistentSubscriptionStats-">add(PersistentSubscriptionStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html#add-org.apache.pulsar.common.policies.data.NonPersistentPublisherStats-">add(NonPersistentPublisherStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentPublisherStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html#add-org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats-">add(NonPersistentReplicatorStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentReplicatorStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html#add-org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats-">add(NonPersistentSubscriptionStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentSubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#add-org.apache.pulsar.common.policies.data.NonPersistentTopicStats-">add(NonPersistentTopicStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#add-org.apache.pulsar.common.policies.data.PersistentTopicStats-">add(PersistentTopicStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
@@ -86,6 +92,8 @@
 <dd>
 <div class="block">Add quota.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#add-org.apache.pulsar.common.policies.data.SubscriptionStats-">add(SubscriptionStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#addCursorDetails-java.lang.String-long-long-">addCursorDetails(String, long, long)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#addLedgerDetails-long-long-long-long-">addLedgerDetails(long, long, long, long)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
@@ -166,7 +174,7 @@
 <dd>
 <div class="block">Flag to verify if consumer is blocked due to reaching threshold of unacked messages</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#blockedSubscriptionOnUnackedMsgs">blockedSubscriptionOnUnackedMsgs</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#blockedSubscriptionOnUnackedMsgs">blockedSubscriptionOnUnackedMsgs</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Flag to verify if subscription is blocked due to reaching threshold of unacked messages</div>
 </dd>
@@ -282,7 +290,7 @@
 <dd>
 <div class="block">Name of the consumer</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#consumers">consumers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#consumers">consumers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">List of connected consumers on this subscription w/ their stats</div>
 </dd>
@@ -312,9 +320,17 @@
 <dd>
 <div class="block">Create a namespace isolation policy for a cluster</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Create a partitioned topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Create a partitioned topic.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Create a partitioned topic asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
@@ -586,9 +602,17 @@
 <dd>
 <div class="block">Get a JSON representation of the topic metadata stored in ZooKeeper</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get the internal stats for the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the internal stats for the topic.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get the internal stats for the topic asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
@@ -672,9 +696,17 @@
 <dd>
 <div class="block">Get the list of partitioned topics under a namespace.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get metadata of a partitioned topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get metadata of a partitioned topic.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
@@ -726,6 +758,10 @@
 <dd>
 <div class="block">Get the config of the property.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#getPublishers--">getPublishers()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#getReplication--">getReplication()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getReplicationConfigVersion-java.lang.String-">getReplicationConfigVersion(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Get the replication configuration version for a given namespace</div>
@@ -750,9 +786,17 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrlTls--">getServiceUrlTls()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get the stats for the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the stats for the topic.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get the stats for the topic asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
@@ -764,6 +808,8 @@
 <dd>
 <div class="block">Get the list of subscriptions.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#getSubscriptions--">getSubscriptions()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getSubscriptionsAsync-java.lang.String-">getSubscriptionsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the list of subscriptions asynchronously.</div>
@@ -915,17 +961,36 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#MinAvailablePolicy-org.apache.pulsar.common.policies.data.AutoFailoverPolicyData-">MinAvailablePolicy(AutoFailoverPolicyData)</a></span> - Constructor for class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#msgBacklog">msgBacklog</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgBacklog">msgBacklog</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Number of messages in the subscription backlog</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#msgRateExpired">msgRateExpired</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html#msgDropRate">msgDropRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentPublisherStats</a></dt>
 <dd>
-<div class="block">Total rate of messages expired on this subscription.</div>
+<div class="block">for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
+ messages per connection</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html#msgDropRate">msgDropRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentReplicatorStats</a></dt>
+<dd>
+<div class="block">for non-persistent topic: broker drops msg for replicator if replicator connection is not writable</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html#msgDropRate">msgDropRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentSubscriptionStats</a></dt>
+<dd>
+<div class="block">for non-persistent topic: broker drops msg for subscription if none of the consumer available for message
+ delivery</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#msgDropRate">msgDropRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>
+<div class="block">for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
+ messages per connection</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#msgRateExpired">msgRateExpired</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
 <dd>
 <div class="block">Total rate of messages expired.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateExpired">msgRateExpired</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>
+<div class="block">Total rate of messages expired on this subscription.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateIn">msgRateIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
@@ -943,10 +1008,6 @@
 <dd>
 <div class="block">Total rate of messages delivered to the consumer.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
-<dd>
-<div class="block">Total rate of messages delivered on this subscription.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
 <div class="block">Total rate of messages dispatched for the topic.</div>
@@ -955,11 +1016,15 @@
 <dd>
 <div class="block">Total rate of messages delivered to the replication-subscriber.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>
+<div class="block">Total rate of messages delivered on this subscription.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#msgRateRedeliver">msgRateRedeliver</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>
 <div class="block">Total rate of messages redelivered by this consumer.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#msgRateRedeliver">msgRateRedeliver</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateRedeliver">msgRateRedeliver</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Total rate of messages redelivered on this subscription.</div>
 </dd>
@@ -979,10 +1044,6 @@
 <dd>
 <div class="block">Total throughput delivered to the consumer.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
-<dd>
-<div class="block">Total throughput delivered on this subscription.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
 <div class="block">Total throughput of messages dispatched for the topic.</div>
@@ -990,6 +1051,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
 <dd>
 <div class="block">Total throughput delivered to the replication-subscriber.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>
+<div class="block">Total throughput delivered on this subscription.</div>
 </dd>
 </dl>
 <a name="I:N">
@@ -1028,6 +1093,26 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#namespaces--">namespaces()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#namespaces">namespaces</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">NonPersistentPublisherStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html#NonPersistentPublisherStats--">NonPersistentPublisherStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentPublisherStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentPublisherStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">NonPersistentReplicatorStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html#NonPersistentReplicatorStats--">NonPersistentReplicatorStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentReplicatorStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">NonPersistentSubscriptionStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html#NonPersistentSubscriptionStats--">NonPersistentSubscriptionStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentSubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">NonPersistentTopics</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#nonPersistentTopics--">nonPersistentTopics()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">NonPersistentTopicStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#NonPersistentTopicStats--">NonPersistentTopicStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.NotAllowedException.html#NotAllowedException-ClientErrorException-">NotAllowedException(ClientErrorException)</a></span> - Constructor for exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.NotAllowedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAllowedException</a></dt>
 <dd>&nbsp;</dd>
@@ -1107,10 +1192,6 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.LedgerDetails.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PersistentOfflineTopicStats.LedgerDetails</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PersistentSubscriptionStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#PersistentSubscriptionStats--">PersistentSubscriptionStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PersistentTopicInternalStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#PersistentTopicInternalStats--">PersistentTopicInternalStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
@@ -1157,6 +1238,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#PropertyAdmin-java.util.List-java.util.Set-">PropertyAdmin(List&lt;String&gt;, Set&lt;String&gt;)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#publishers">publishers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>
+<div class="block">List of connected publishers on this topic w/ their stats</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#publishers">publishers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
 <div class="block">List of connected publishers on this topic w/ their stats</div>
@@ -1229,6 +1314,10 @@
 <dd>
 <div class="block">Remove a backlog quota policy from a namespace.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#replication">replication</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>
+<div class="block">Map of replication statistics by remote cluster context</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#replication">replication</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
 <div class="block">Map of replication statistics by remote cluster context</div>
@@ -1247,13 +1336,17 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#ReplicatorStats--">ReplicatorStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentSubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PartitionedTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PartitionedTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PartitionedTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#resetCursor-java.lang.String-java.lang.String-long-">resetCursor(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
@@ -1453,10 +1546,18 @@
 <dd>
 <div class="block">Space used to store the messages for the topic.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#subscriptions">subscriptions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
+<dd>
+<div class="block">Map of subscriptions with their individual statistics</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#subscriptions">subscriptions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>
 <div class="block">Map of subscriptions with their individual statistics</div>
 </dd>
+<dt><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">SubscriptionStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#SubscriptionStats--">SubscriptionStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#substract-org.apache.pulsar.common.policies.data.ResourceQuota-">substract(ResourceQuota)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
 <div class="block">Substract quota.</div>
@@ -1507,7 +1608,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#totalSize">totalSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#type">type</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#type">type</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">whether this subscription is Exclusive or Shared or Failover</div>
 </dd>
@@ -1521,7 +1622,7 @@
 <dd>
 <div class="block">Number of unacknowledged messages for the consumer</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html#unackedMessages">unackedMessages</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentSubscriptionStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#unackedMessages">unackedMessages</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Number of unacknowledged messages for the subscription</div>
 </dd>

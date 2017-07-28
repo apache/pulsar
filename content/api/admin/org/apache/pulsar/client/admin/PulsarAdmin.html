@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -204,14 +204,18 @@ implements Closeable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#namespaces--">namespaces</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i7" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#nonPersistentTopics--">nonPersistentTopics</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#persistentTopics--">persistentTopics</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#properties--">properties</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#resourceQuotas--">resourceQuotas</a></span>()</code>&nbsp;</td>
 </tr>
@@ -392,6 +396,19 @@ implements Closeable</pre>
 <li class="blockList">
 <h4>persistentTopics</h4>
 <pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a>&nbsp;persistentTopics()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the persistentTopics management object</dd>
+</dl>
+</li>
+</ul>
+<a name="nonPersistentTopics--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>nonPersistentTopics</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a>&nbsp;nonPersistentTopics()</pre>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the persistentTopics management object</dd>
