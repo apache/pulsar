@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -38,7 +38,7 @@ public class PersistentTopicStatsTest {
         persistentTopicStats.averageMsgSize = 1;
         persistentTopicStats.storageSize = 1;
         persistentTopicStats.publishers.add(new PublisherStats());
-        persistentTopicStats.subscriptions.put("test_ns", new PersistentSubscriptionStats());
+        persistentTopicStats.subscriptions.put("test_ns", new SubscriptionStats());
         persistentTopicStats.replication.put("test_ns", new ReplicatorStats());
         PersistentTopicStats target = new PersistentTopicStats();
         target.add(persistentTopicStats);

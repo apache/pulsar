@@ -23,7 +23,6 @@ import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_PO
 
 import java.net.URI;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,8 +49,9 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -64,12 +64,12 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
@@ -1273,7 +1273,7 @@ public class Namespaces extends AdminResource {
 
     private void clearBacklog(NamespaceName nsName, String bundleRange, String subscription) {
         try {
-            List<PersistentTopic> topicList = pulsar().getBrokerService()
+            List<Topic> topicList = pulsar().getBrokerService()
                     .getAllTopicsFromNamespaceBundle(nsName.toString(), nsName.toString() + "/" + bundleRange);
 
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -1281,12 +1281,16 @@ public class Namespaces extends AdminResource {
                 if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
                 }
-                for (PersistentTopic topic : topicList) {
-                    futures.add(topic.clearBacklog(subscription));
+                for (Topic topic : topicList) {
+                    if(topic instanceof PersistentTopic) {
+                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));    
+                    }
                 }
             } else {
-                for (PersistentTopic topic : topicList) {
-                    futures.add(topic.clearBacklog());
+                for (Topic topic : topicList) {
+                    if(topic instanceof PersistentTopic) {
+                        futures.add(((PersistentTopic)topic).clearBacklog());    
+                    }
                 }
             }
 
@@ -1300,14 +1304,14 @@ public class Namespaces extends AdminResource {
 
     private void unsubscribe(NamespaceName nsName, String bundleRange, String subscription) {
         try {
-            List<PersistentTopic> topicList = pulsar().getBrokerService()
+            List<Topic> topicList = pulsar().getBrokerService()
                     .getAllTopicsFromNamespaceBundle(nsName.toString(), nsName.toString() + "/" + bundleRange);
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor");
             } else {
-                for (PersistentTopic topic : topicList) {
-                    PersistentSubscription sub = topic.getPersistentSubscription(subscription);
+                for (Topic topic : topicList) {
+                    Subscription sub = topic.getSubscription(subscription);
                     if (sub != null) {
                         futures.add(sub.delete());
                     }

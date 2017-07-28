@@ -52,7 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
@@ -580,7 +580,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final int timeWaitToSync = 100;
 
             PersistentTopicStats stats;
-            PersistentSubscriptionStats subStats;
+            SubscriptionStats subStats;
 
             // configure maxUnackMessagePerDispatcher then restart broker to get this change
             conf.setMaxUnackedMessagesPerSubscription(10);

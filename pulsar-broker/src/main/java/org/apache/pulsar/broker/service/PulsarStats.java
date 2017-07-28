@@ -84,7 +84,7 @@ public class PulsarStats implements Closeable {
     }
 
     public synchronized void updateStats(
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> topicsMap) {
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> topicsMap) {
 
         StatsOutputStream topicStatsStream = new StatsOutputStream(tempTopicStatsBuf);
 
@@ -123,7 +123,9 @@ public class PulsarStats implements Closeable {
                             }
                             // this task: helps to activate inactive-backlog-cursors which have caught up and
                             // connected, also deactivate active-backlog-cursors which has backlog
-                            topic.getManagedLedger().checkBackloggedCursors();
+                            if (topic instanceof PersistentTopic) {
+                                ((PersistentTopic) topic).getManagedLedger().checkBackloggedCursors();
+                            }
                         });
 
                         topicStatsStream.endObject();

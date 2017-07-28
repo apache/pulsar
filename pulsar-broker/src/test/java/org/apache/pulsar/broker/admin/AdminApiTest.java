@@ -60,9 +60,9 @@ import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -74,10 +74,13 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -85,8 +88,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
@@ -1809,6 +1810,51 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         public PulsarAdmin getAdmin() {
             return admin;
         }
+    }
+    /**
+     * verifies admin api command for non-persistent topic.
+     * It verifies: partitioned-topic, stats
+     * @throws Exception
+     */
+    @Test
+    public void nonPersistentTopics() throws Exception {
+        final String topicName = "nonPersistentTopic";
+
+        final String persistentTopicName = "non-persistent://prop-xyz/use/ns1/" + topicName;
+        // Force to create a destination
+        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0);
+
+        // create consumer and subscription
+        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        PulsarClient client = PulsarClient.create(pulsarUrl.toString(), clientConf);
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        Consumer consumer = client.subscribe(persistentTopicName, "my-sub", conf);
+
+        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10);
+
+        NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
+        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().get("my-sub").consumers.size(), 1);
+        assertEquals(topicStats.getPublishers().size(), 0);
+
+        PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
+        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+
+        consumer.close();
+        client.close();
+
+        topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
+        assertTrue(topicStats.getSubscriptions().keySet().contains("my-sub"));
+        assertEquals(topicStats.getPublishers().size(), 0);
+
+        // test partitioned-topic
+        final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";
+        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
+        admin.nonPersistentTopics().createPartitionedTopic(partitionedTopicName, 5);
+        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
     }
     
 }

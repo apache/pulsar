@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.PersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.testng.annotations.Test;
@@ -38,7 +38,7 @@ public class PartitionedTopicStatsTest {
         partitionedTopicStats.averageMsgSize = 1;
         partitionedTopicStats.storageSize = 1;
         partitionedTopicStats.publishers.add(new PublisherStats());
-        partitionedTopicStats.subscriptions.put("test_ns", new PersistentSubscriptionStats());
+        partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStats());
         partitionedTopicStats.replication.put("test_ns", new ReplicatorStats());
         partitionedTopicStats.metadata.partitions = 1;
         partitionedTopicStats.partitions.put("test", partitionedTopicStats);

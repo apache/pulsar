@@ -98,7 +98,7 @@ public class DestinationName implements ServiceUnitId {
             }
 
             List<String> parts = Splitter.on("://").limit(2).splitToList(destination);
-            this.domain = DestinationDomain.valueOf(parts.get(0));
+            this.domain = DestinationDomain.getEnum(parts.get(0));
 
             String rest = parts.get(1);
             // property/cluster/namespace/<localName>

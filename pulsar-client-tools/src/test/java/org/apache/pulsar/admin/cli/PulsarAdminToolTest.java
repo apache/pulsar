@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -420,6 +421,26 @@ public class PulsarAdminToolTest {
                 Matchers.longThat(new TimestampMatcher()));
     }
 
+    
+    @Test
+    void nonPersistentTopics() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        NonPersistentTopics mockTopics = mock(NonPersistentTopics.class);
+        when(admin.nonPersistentTopics()).thenReturn(mockTopics);
+
+        CmdNonPersistentTopics topics = new CmdNonPersistentTopics(admin);
+
+        topics.run(split("stats non-persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getStats("non-persistent://myprop/clust/ns1/ds1");
+
+        topics.run(split("stats-internal non-persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInternalStats("non-persistent://myprop/clust/ns1/ds1");
+
+        topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
+        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
+      
+    }
+    
     @Test
     void tool() throws Exception {
         java.util.Properties properties = new java.util.Properties();

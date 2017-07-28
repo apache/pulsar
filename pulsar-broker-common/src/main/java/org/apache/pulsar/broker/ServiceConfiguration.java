@@ -111,6 +111,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Max number of concurrent topic loading request broker allows to control number of zk-operations
     @FieldContext(dynamic = true)
     private int maxConcurrentTopicLoadRequest = 5000;
+    // Max concurrent non-persistent message can be processed per connection
+    private int maxConcurrentNonPersistentMessagePerConnection = 1000;
+    // Number of worker threads to serve non-persistent topic 
+    private int numWorkerThreadsForNonPersistentTopic = 8;
+    // Enable broker to load persistent topics
+    private boolean enablePersistentTopics = true;
+    // Enable broker to load non-persistent topics
+    private boolean enableNonPersistentTopics = true;
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -505,6 +513,38 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMaxConcurrentTopicLoadRequest(int maxConcurrentTopicLoadRequest) {
         this.maxConcurrentTopicLoadRequest = maxConcurrentTopicLoadRequest;
+    }
+
+    public int getMaxConcurrentNonPersistentMessagePerConnection() {
+        return maxConcurrentNonPersistentMessagePerConnection;
+    }
+
+    public void setMaxConcurrentNonPersistentMessagePerConnection(int maxConcurrentNonPersistentMessagePerConnection) {
+        this.maxConcurrentNonPersistentMessagePerConnection = maxConcurrentNonPersistentMessagePerConnection;
+    }
+
+    public int getNumWorkerThreadsForNonPersistentTopic() {
+        return numWorkerThreadsForNonPersistentTopic;
+    }
+
+    public void setNumWorkerThreadsForNonPersistentTopic(int numWorkerThreadsForNonPersistentTopic) {
+        this.numWorkerThreadsForNonPersistentTopic = numWorkerThreadsForNonPersistentTopic;
+    }
+
+    public boolean isEnablePersistentTopics() {
+        return enablePersistentTopics;
+    }
+
+    public void setEnablePersistentTopics(boolean enablePersistentTopics) {
+        this.enablePersistentTopics = enablePersistentTopics;
+    }
+
+    public boolean isEnableNonPersistentTopics() {
+        return enableNonPersistentTopics;
+    }
+
+    public void setEnableNonPersistentTopics(boolean enableNonPersistentTopics) {
+        this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 
     public boolean isTlsEnabled() {

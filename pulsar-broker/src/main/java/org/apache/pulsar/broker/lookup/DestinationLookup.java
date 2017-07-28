@@ -60,6 +60,15 @@ import io.netty.buffer.ByteBuf;
 public class DestinationLookup extends PulsarWebResource {
 
     @GET
+    @Path("non-persistent/{property}/{cluster}/{namespace}/{dest}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void lookupNonPersistentDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended AsyncResponse asyncResponse) {
+        lookupDestinationAsync(property, cluster, namespace, dest, authoritative, asyncResponse);
+    }
+    @GET
     @Path("persistent/{property}/{cluster}/{namespace}/{dest}")
     @Produces(MediaType.APPLICATION_JSON)
     public void lookupDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,

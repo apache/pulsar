@@ -175,6 +175,11 @@ public class ClientCnx extends PulsarHandler {
             entryId = sendReceipt.getMessageId().getEntryId();
         }
 
+        if (ledgerId == -1 && entryId == -1) {
+            log.warn("[{}] Message has been dropped for non-persistent topic producer-id {}", ctx.channel(),
+                    producerId);
+        }
+        
         if (log.isDebugEnabled()) {
             log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
                     ledgerId, entryId);
