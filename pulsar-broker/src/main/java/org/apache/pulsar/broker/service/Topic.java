@@ -20,13 +20,18 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
+import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.pulsar.utils.StatsOutputStream;
 
 import io.netty.buffer.ByteBuf;
 
@@ -44,12 +49,12 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
-
-    CompletableFuture<PersistentSubscription> createSubscription(String subscriptionName);
+    
+    CompletableFuture<Subscription> createSubscription(String subscriptionName);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
-    ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions();
+    ConcurrentOpenHashMap<String, ? extends Subscription> getSubscriptions();
 
     CompletableFuture<Void> delete();
 
@@ -68,8 +73,18 @@ public interface Topic {
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);
-
+    
     BacklogQuota getBacklogQuota();
 
-    CompletableFuture<MessageId> terminate();
+    void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
+            StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
+            String namespaceName);
+
+    Subscription getSubscription(String subscription);
+
+    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+
+    PersistentTopicStats getStats();
+
+    PersistentTopicInternalStats getInternalStats();
 }

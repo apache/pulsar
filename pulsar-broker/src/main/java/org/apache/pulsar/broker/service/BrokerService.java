@@ -53,6 +53,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -65,6 +66,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -79,6 +81,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -116,6 +119,7 @@ import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
@@ -131,11 +135,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> multiLayerTopicsMap;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> multiLayerTopicsMap;
     private int numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+    private final OrderedSafeExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<DestinationName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = prepareDynamicConfigurationMap();
@@ -189,6 +194,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
+        this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "broker-np-topic-workers");
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
         final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
@@ -356,6 +362,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         pulsarStats.close();
         ClientCnxnAspect.removeListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(null);
+        topicOrderedExecutor.shutdown();
         log.info("Broker service completely shut down");
     }
 
@@ -409,7 +416,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     return topicFuture;
                 }
             }
-            return topics.computeIfAbsent(topic, this::createPersistentTopic);
+            final boolean isPersistentTopic = DestinationName.get(topic).getDomain().equals(DestinationDomain.persistent);
+            return topics.computeIfAbsent(topic, (topicName) -> {
+                return isPersistentTopic ? this.createPersistentTopic(topicName)
+                        : createNonPersistentTopic(topicName);
+            });
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topic, e);
             return failedFuture(e);
@@ -423,6 +434,40 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             return failedFuture(cause);
         }
+    }
+
+    private CompletableFuture<Topic> createNonPersistentTopic(String topic) {
+        CompletableFuture<Topic> topicFuture = new CompletableFuture<Topic>();
+
+        if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Broker is unable to load non-persistent topic {}", topic);
+            }
+            topicFuture.completeExceptionally(
+                    new NotAllowedException("Broker is not unable to load non-persistent topic"));
+            return topicFuture;
+        }
+        final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+        NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
+        CompletableFuture<Void> replicationFuture = nonPersistentTopic.checkReplication();
+        replicationFuture.thenRun(() -> {
+            log.info("Created topic {}", nonPersistentTopic);
+            long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
+            pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+            addTopicToStatsMaps(DestinationName.get(topic), nonPersistentTopic);
+            topicFuture.complete(nonPersistentTopic);
+        });
+        replicationFuture.exceptionally((ex) -> {
+            log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
+            nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                topicFuture.completeExceptionally(ex);
+            });
+
+            return null;
+        });
+
+        return topicFuture;
     }
 
     private static <T> CompletableFuture<T> failedFuture(Throwable t) {
@@ -475,6 +520,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Topic> topicFuture = new CompletableFuture<>();
+        if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Broker is unable to load persistent topic {}", topic);
+            }
+            topicFuture.completeExceptionally(new NotAllowedException("Broker is not unable to load persistent topic"));
+            return topicFuture;
+        }
 
         final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -622,7 +674,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return future;
     }
 
-    private void addTopicToStatsMaps(DestinationName topicName, PersistentTopic topic) {
+    private void addTopicToStatsMaps(DestinationName topicName, Topic topic) {
         try {
             NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
 
@@ -645,7 +697,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         checkNotNull(oldBundle);
         try {
             // retrieve all topics under existing old bundle
-            List<PersistentTopic> topics = getAllTopicsFromNamespaceBundle(oldBundle.getNamespaceObject().toString(),
+            List<Topic> topics = getAllTopicsFromNamespaceBundle(oldBundle.getNamespaceObject().toString(),
                     oldBundle.toString());
             if (!isEmpty(topics)) {
                 // add topic under new split bundles which already updated into NamespaceBundleFactory.bundleCache
@@ -710,7 +762,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkGC(int gcIntervalInSeconds) {
         topics.forEach((n, t) -> {
-            PersistentTopic topic = (PersistentTopic) t.getNow(null);
+            Topic topic = t.getNow(null);
             if (topic != null) {
                 topic.checkGC(gcIntervalInSeconds);
             }
@@ -719,7 +771,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageExpiry() {
         topics.forEach((n, t) -> {
-            PersistentTopic topic = (PersistentTopic) t.getNow(null);
+            Topic topic = t.getNow(null);
             if (topic != null) {
                 topic.checkMessageExpiry();
             }
@@ -755,16 +807,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void monitorBacklogQuota() {
         topics.forEach((n, t) -> {
             try {
-                PersistentTopic topic = (PersistentTopic) t.getNow(null);
-                if (topic != null && isBacklogExceeded(topic)) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(topic);
-                } else if (topic == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("topic is null ");
-                    }
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("quota not exceeded for [{}]", topic.getName());
+                if (t.getNow(null) != null && t.getNow(null) instanceof PersistentTopic) {
+                    PersistentTopic topic = (PersistentTopic) t.getNow(null);
+                    if (isBacklogExceeded(topic)) {
+                        getBacklogQuotaManager().handleExceededBacklogQuota(topic);
+                    } else if (topic == null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("topic is null ");
+                        }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("quota not exceeded for [{}]", topic.getName());
+                        }
                     }
                 }
             } catch (Exception xle) {
@@ -831,9 +885,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             String namespaceName = destination.getNamespaceObject().toString();
 
             synchronized (multiLayerTopicsMap) {
-                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>> namespaceMap = multiLayerTopicsMap
+                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
                         .get(namespaceName);
-                ConcurrentOpenHashMap<String, PersistentTopic> bundleMap = namespaceMap.get(bundleName);
+                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
                 bundleMap.remove(topic);
                 if (bundleMap.isEmpty()) {
                     namespaceMap.remove(bundleName);
@@ -918,7 +972,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, PersistentTopicStats> getTopicStats() {
         HashMap<String, PersistentTopicStats> stats = new HashMap<>();
         topics.forEach((name, topicFuture) -> {
-            PersistentTopic currentTopic = (PersistentTopic) topicFuture.getNow(null);
+            Topic currentTopic = topicFuture.getNow(null);
             if (currentTopic != null) {
                 stats.put(name, currentTopic.getStats());
             }
@@ -930,7 +984,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return authenticationService;
     }
 
-    public List<PersistentTopic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
+    public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
         return multiLayerTopicsMap.get(namespace).get(bundle).values();
     }
 
@@ -1111,7 +1165,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, PersistentTopic>>> getMultiLayerTopicMap() {
+    public OrderedSafeExecutor getTopicOrderedExecutor() {
+        return topicOrderedExecutor;
+    }
+    
+    public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
     }
 

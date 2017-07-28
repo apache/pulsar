@@ -19,5 +19,29 @@
 package org.apache.pulsar.common.naming;
 
 public enum DestinationDomain {
-    persistent
+    persistent("persistent"), non_persistent("non-persistent");
+
+    private String value;
+
+    private DestinationDomain(String value) {
+        this.value = value;
+    }
+
+    public String value() {
+        return this.value;
+    }
+    
+    public static DestinationDomain getEnum(String value) {
+        for (DestinationDomain e : values()) {
+            if (e.value.equalsIgnoreCase(value)) {
+                return e;
+            }
+        }
+        throw new IllegalArgumentException("Invalid enum value " + value);
+    }
+
+    @Override
+    public String toString() {
+        return this.value;
+    }
 }

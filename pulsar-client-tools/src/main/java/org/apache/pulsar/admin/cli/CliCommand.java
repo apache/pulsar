@@ -56,6 +56,15 @@ abstract class CliCommand {
         }
         return ds.toString();
     }
+    
+    String validateNonPersistentTopic(List<String> params) {
+        String destination = checkArgument(params);
+        DestinationName ds = DestinationName.get(destination);
+        if (ds.getDomain() != DestinationDomain.non_persistent) {
+            throw new ParameterException("Need to provide a non-persistent topic name");
+        }
+        return ds.toString();
+    }
 
     void validateLatencySampleRate(int sampleRate) {
         if (sampleRate < 0) {

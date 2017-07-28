@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -60,11 +61,14 @@ public class LoadManagerShared {
     // The brokers are put into brokerCandidateCache.
     public static synchronized void applyPolicies(final ServiceUnitId serviceUnit,
             final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
-            final Set<String> availableBrokers) {
+            final Set<String> availableBrokers,
+            final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
         primariesCache.clear();
         sharedCache.clear();
         NamespaceName namespace = serviceUnit.getNamespaceObject();
         boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
+        boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
+                ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
         if (isIsolationPoliciesPresent) {
             log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
@@ -104,10 +108,26 @@ public class LoadManagerShared {
 
                 }
             } else {
-                if (policies.isSharedBroker(brokerUrl.getHost())) {
+                // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
+                if (isNonPersistentTopic
+                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (!isNonPersistentTopic
+                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                    // persistent topic can be assigned to only brokers that enabled for persistent-topic 
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
+                } else if (policies.isSharedBroker(brokerUrl.getHost())) {
                     sharedCache.add(broker);
-                    log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                            brokerUrl.getHost(), namespace.toString());
+                    if (log.isDebugEnabled()) {
+                        log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
+                                brokerUrl.getHost(), namespace.toString());
+                    }
                 }
             }
         }
@@ -247,5 +267,11 @@ public class LoadManagerShared {
             candidates.removeIf(broker -> brokerToNamespaceToBundleRange.get(broker).get(namespaceName)
                     .size() != finalLeastBundles);
         }
+    }
+    
+    interface BrokerTopicLoadingPredicate {
+        boolean isEnablePersistentTopics(String brokerUrl);
+
+        boolean isEnableNonPersistentTopics(String brokerUrl);
     }
 }

@@ -44,16 +44,24 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.TimeAverageMessageData;
-import org.apache.pulsar.broker.loadbalance.*;
+import org.apache.pulsar.broker.loadbalance.BrokerFilter;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
+import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
+import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -153,6 +161,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
+    
+    // check if given broker can load persistent/non-persistent topic
+    private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
+
 
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
             .readValue(content, LocalBrokerData.class);
@@ -170,6 +182,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         loadSheddingPipeline.add(new OverloadShedder(conf));
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
+        
+        this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
+            @Override
+            public boolean isEnablePersistentTopics(String brokerUrl) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+                return brokerData != null && brokerData.getLocalData() != null
+                        && brokerData.getLocalData().isPersistentTopicsEnabled();
+            }
+
+            @Override
+            public boolean isEnableNonPersistentTopics(String brokerUrl) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+                return brokerData != null && brokerData.getLocalData() != null
+                        && brokerData.getLocalData().isNonPersistentTopicsEnabled();
+            }
+        };
     }
 
     /**
@@ -221,6 +249,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
+        // configure broker-topic mode
+        lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+        lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+        localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+        localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
+        
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         this.pulsar = pulsar;
@@ -576,7 +611,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
                     key -> getBundleDataOrDefault(bundle));
             brokerCandidateCache.clear();
-            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+            LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                    brokerTopicLoadingPredicate);
             LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
                     brokerToNamespaceToBundleRange);
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
@@ -588,12 +624,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 }
             } catch ( BrokerFilterException x ) {
                 // restore the list of brokers to the full set
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        brokerTopicLoadingPredicate);
             }
 
             if ( brokerCandidateCache.isEmpty() ) {
                 // restore the list of brokers to the full set
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        brokerTopicLoadingPredicate);
             }
 
             // Choose a broker among the potentially smaller filtered list, when possible
@@ -603,7 +641,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers());
+                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                        brokerTopicLoadingPredicate);
                 broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
             }
 

@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 
 /**
  */
-public class PersistentSubscriptionStats {
+public class SubscriptionStats {
     /** Total rate of messages delivered on this subscription. msg/s */
     public double msgRateOut;
 
@@ -56,7 +56,7 @@ public class PersistentSubscriptionStats {
     /** List of connected consumers on this subscription w/ their stats */
     public List<ConsumerStats> consumers;
 
-    public PersistentSubscriptionStats() {
+    public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
     }
 
@@ -72,7 +72,7 @@ public class PersistentSubscriptionStats {
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats
-    public PersistentSubscriptionStats add(PersistentSubscriptionStats stats) {
+    public SubscriptionStats add(SubscriptionStats stats) {
         checkNotNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;

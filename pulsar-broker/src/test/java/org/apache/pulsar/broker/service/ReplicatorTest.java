@@ -471,7 +471,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer1.produce(2);
         producer1.close();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
-        PersistentReplicator replicator = topic.getReplicators().get(topic.getReplicators().keys().get(0));
+        PersistentReplicator replicator = (PersistentReplicator) topic.getReplicators().get(topic.getReplicators().keys().get(0));
         replicator.skipMessages(2);
         CompletableFuture<Entry> result = replicator.peekNthMessage(1);
         Entry entry = result.get(50, TimeUnit.MILLISECONDS);
@@ -495,7 +495,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer1.produce(2);
         producer1.close();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
-        PersistentReplicator replicator = spy(topic.getReplicators().get(topic.getReplicators().keys().get(0)));
+        PersistentReplicator replicator = (PersistentReplicator) spy(topic.getReplicators().get(topic.getReplicators().keys().get(0)));
         replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
         replicator.clearBacklog().get();
         Thread.sleep(100);
@@ -671,12 +671,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
-        PersistentReplicator replicator = topic.getPersistentReplicator(replicatorClusterName);
+        Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
         pulsar2.close();
         pulsar3.close();
         replicator.disconnect(false);
         Thread.sleep(100);
-        Field field = PersistentReplicator.class.getDeclaredField("producer");
+        Field field = AbstractReplicator.class.getDeclaredField("producer");
         field.setAccessible(true);
         ProducerImpl producer = (ProducerImpl) field.get(replicator);
         assertNull(producer);
@@ -713,7 +713,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
             // Replicator for r1 -> r2
             PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
-            PersistentReplicator replicator = topic.getPersistentReplicator("r2");
+            Replicator replicator = topic.getPersistentReplicator("r2");
 
             // Restrict backlog quota limit to 1
             admin1.namespaces().setBacklogQuota("pulsar/global/ns1", new BacklogQuota(1, policy));
@@ -766,7 +766,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // Replicator for r1 -> r2
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
-        PersistentReplicator replicator = topic.getPersistentReplicator("r2");
+        PersistentReplicator replicator = (PersistentReplicator) topic.getPersistentReplicator("r2");
 
         // close the cursor
         Field cursorField = PersistentReplicator.class.getDeclaredField("cursor");
@@ -797,7 +797,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(1000);
 
         // Replicator producer must be closed
-        Field producerField = PersistentReplicator.class.getDeclaredField("producer");
+        Field producerField = AbstractReplicator.class.getDeclaredField("producer");
         producerField.setAccessible(true);
         ProducerImpl replicatorProducer = (ProducerImpl) producerField.get(replicator);
         assertEquals(replicatorProducer, null);
