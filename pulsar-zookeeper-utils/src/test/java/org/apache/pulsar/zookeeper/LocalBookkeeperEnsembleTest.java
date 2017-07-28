@@ -83,7 +83,7 @@ public class LocalBookkeeperEnsembleTest {
 
         // Start local Bookies/ZooKeepers and confirm that specified data directories are created
         LocalBookkeeperEnsemble ensemble1 = new LocalBookkeeperEnsemble(numBk, zkPort, bkPort, zkDirName, bkDirName,
-                true);
+                false, true);
         ensemble1.start();
         assertTrue(zkDir.exists());
         assertTrue(bkDir.exists());
@@ -91,7 +91,7 @@ public class LocalBookkeeperEnsembleTest {
 
         // Restart local Bookies/ZooKeepers without refreshing data
         LocalBookkeeperEnsemble ensemble2 = new LocalBookkeeperEnsemble(numBk, zkPort, bkPort, zkDirName, bkDirName,
-                false);
+                false, false);
         ensemble2.start();
         assertTrue(ensemble2.getZkServer().isRunning());
         assertEquals(ensemble2.getZkServer().getClientPort(), zkPort);
