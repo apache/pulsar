@@ -20,23 +20,31 @@
 -->
 <settings>
   <servers>
-      <server>
-          <!-- Maven Central Deployment -->
-          <id>ossrh</id>
-          <username>${env.SONATYPE_USERNAME}</username>
-          <password>${env.SONATYPE_PASSWORD}</password>
-      </server>
+    <!-- To publish a snapshot of some part of Maven -->
+    <server>
+      <id>apache.snapshots.https</id>
+      <username>${env.APACHE_USER}</username>
+      <password>${env.APACHE_PASSWORD}</password>
+    </server>
+    
+    <!-- To stage a release of some part of Maven -->
+    <server>
+      <id>apache.releases.https</id>
+      <username>${env.APACHE_USER}</username>
+      <password>${env.APACHE_PASSWORD}</password>
+    </server>
   </servers>
+
   <profiles>
-      <profile>
-        <id>ossrh</id>
-        <activation>
-          <activeByDefault>true</activeByDefault>
-        </activation>
-        <properties>
-          <gpg.executable>${env.GPG_EXECUTABLE}</gpg.executable>
-          <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
-        </properties>
-      </profile>
-    </profiles>
+    <profile>
+      <id>apache</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <gpg.executable>${env.GPG_EXECUTABLE}</gpg.executable>
+        <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
+      </properties>
+    </profile>
+  </profiles>
 </settings>
