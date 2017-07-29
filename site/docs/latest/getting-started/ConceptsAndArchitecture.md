@@ -79,7 +79,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 
 | Topic name component | Description                                                                                                                                                                                                                                  |
 |:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `persistent`         | Identifies a topic for which all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}). Pulsar currently only supports persistent topics. |
+| `persistent`         | It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk. |
 | `property`           | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.                                                                                      |
 | `cluster`            | Where the topic is located. Typically there will be one {% popover cluster %} for each geographical region or data center.                                                                                                                   |
 | `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the namespace level. Each property (tenant) can have multiple namespaces.                              |
@@ -118,6 +118,10 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 ### Partitioned topics
 
 {% include explanations/partitioned-topics.md %}
+
+### Non-persistent topics
+
+{% include explanations/non-persistent-topics.md %}
 
 ## Architecture overview
 
