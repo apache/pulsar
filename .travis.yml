@@ -56,19 +56,16 @@ script:
     - (cd site && make travis_build)
 
 deploy:
-  # Disabled the deployment of snapshots jars to Maven central for now
-  # until we figure out a way to deploy them through the proper Apache
-  # route.
-  # -
-  #   provider: script
-  #   skip_cleanup: true
-  #   script: mvn deploy -DskipTests --settings .travis/settings.xml
-  #   on:
-  #     tags: false
+  -
+     provider: script
+     skip_cleanup: true
+     script: mvn deploy -DskipTests --settings .travis/settings.xml
+     on:
+       tags: false
   -
     provider: script
     skip_cleanup: true
-    script: mvn install deploy -Prelease -DskipTests --settings .travis/settings.xml
+    script: mvn install deploy -Papache-release -DskipTests --settings .travis/settings.xml
     on:
       repo: apache/incubator-pulsar
       tags: true
