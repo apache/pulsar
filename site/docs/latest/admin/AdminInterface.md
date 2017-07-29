@@ -430,10 +430,10 @@ GET /admin/clusters/{cluster}/namespaceIsolationPolicies
 admin.clusters().getNamespaceIsolationPolicies(clusterName)
 ```
 
-## Managing non-peristent topics
+## Managing non-persistent topics
 
-Non-persistent can be used in applications that only want to consume real time published messages and 
-do not need persistent guarantee that can also reduce message-publish latency by removing overhead of 
+Non-persistent can be used in applications that only want to consume real time published messages and
+do not need persistent guarantee that can also reduce message-publish latency by removing overhead of
 persisting messages.
 
 {% include explanations/non-persistent-topic-admin.md %}
