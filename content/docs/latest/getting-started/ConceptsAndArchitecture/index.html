@@ -892,7 +892,7 @@
   <tbody>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">persistent</code></td>
-      <td style="text-align: left">Identifies a topic for which all messages are durably <a href="#persistent-storage">persisted</a> on disk (that means on multiple disks unless the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> is <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span>). Pulsar currently only supports persistent topics.</td>
+      <td style="text-align: left">It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably <a href="#persistent-storage">persisted</a> on disk (that means on multiple disks unless the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> is <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span>), whereas <a href="#non-persistent-topics">non-persistent</a> topic does not persist message into storage disk.</td>
     </tr>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">property</code></td>
@@ -1030,6 +1030,95 @@
 </table>
 
 <p>In addition to these default modes, you can also create a custom routing mode if you’re using the <a href="../../clients/Java">Java client</a> by implementing the <a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a> interface.</p>
+
+<h3 id="non-persistent-topics">Non-persistent topics</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Notice</p>
+</span>
+    
+<p>This feature is still in experimental mode and implementation details may change in future release.</p>
+
+  </div>
+</div>
+
+<p>As name suggests, non-persist topic does not persist messages into any durable storage disk unlike persistent topic where messages are durably persisted on multiple disks.</p>
+
+<p>Therefore, if you are using persistent delivery, messages are persisted to disk/database so that they will survive a broker restart or subscriber failover. While using non-persistent delivery, if you kill a broker or subscriber is disconnected then subscriber will lose all in-transit messages. So, client may see message loss with non-persistent topic.</p>
+
+<ul>
+  <li>In non-persistent topic, as soon as broker receives published message, it immediately delivers this message to all connected subscribers without persisting them into any storage. So, if subscriber gets disconnected with broker then broker will not be able to deliver those in-transit messages and subscribers will never be able to receive those messages again. Broker also drops a message for the consumer, if consumer does not have enough permit to consume message, or consumer TCP channel is not writable. Therefore, consumer receiver queue size (to accommodate enough permits) and TCP-receiver window size (to keep channel writable) should be configured properly to avoid message drop for that consumer.</li>
+  <li>Broker only allows configured number of in-flight messages per client connection. So, if producer tries to publish messages higher than this rate, then broker silently drops those new incoming messages without processing and delivering them to the subscribers. However, broker acknowledges with special message-id (<code class="highlighter-rouge">msg-id: -1:-1</code>) for those dropped messages to signal producer about the message drop.</li>
+</ul>
+
+<h3 id="performance">Performance</h3>
+
+<p>Non-persistent messaging is usually faster than persistent messaging because broker does not persist messages and immediately sends ack back to producer as soon as that message deliver to all connected subscribers. Therefore, producer sees comparatively low publish latency with non-persistent topic.</p>
+
+<h2 id="client-api">Client API</h2>
+
+<p>A topic name will look like:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>non-persistent://my-property/us-west/my-namespace/my-topic
+</code></pre>
+</div>
+
+<p>Producer and consumer can connect to non-persistent topic in a similar way, as persistent topic except topic name must start with <code class="highlighter-rouge">non-persistent</code>.</p>
+
+<p>Non-persistent topic supports all 3 different subscription-modes: <strong>Exclusive</strong>, <strong>Shared</strong>, <strong>Failover</strong> which are already explained in details at <a href="../../getting-started/ConceptsAndArchitecture.md">GettingStarted</a>.</p>
+
+<h3 id="consumer-api">Consumer API</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">,</span>
+            <span class="s">"my-subscribtion-name"</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="producer-api">Producer API</h3>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span>
+            <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="broker-configuration">Broker configuration</h3>
+
+<p>Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics.</p>
+
+<p>Broker configuration for enabling broker to own only configured type of topics</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code># It disables broker to load persistent topics
+enablePersistentTopics=false
+# It enables broker to load non-persistent topics
+enableNonPersistentTopics=true
+</code></pre>
+</div>
 
 <h2 id="architecture-overview">Architecture overview</h2>
 
