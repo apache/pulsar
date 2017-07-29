@@ -46,12 +46,7 @@
 
     <dependency>
       <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>datasketches-metrics-provider</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId></exclusion>
-      </exclusions>
+      <artifactId>prometheus-metrics-provider</artifactId>
     </dependency>
 
     <dependency>
