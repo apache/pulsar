@@ -63,9 +63,6 @@ import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
-import org.apache.bookkeeper.stats.PrometheusMetricsProvider;
-import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -85,16 +82,14 @@ public class LocalBookkeeperEnsemble {
 
     int numberOfBookies;
     private boolean clearOldData = false;
-    private boolean isStandaloneMode = false;
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort) {
-        this(numberOfBookies, zkPort, bkBasePort, null, null, false, true);
+        this(numberOfBookies, zkPort, bkBasePort, null, null, true);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
-            String bkDataDirName, boolean isStandaloneMode, boolean clearOldData) {
+            String bkDataDirName, boolean clearOldData) {
         this.numberOfBookies = numberOfBookies;
-        this.isStandaloneMode = isStandaloneMode;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
         this.initialPort = bkBasePort;
@@ -116,7 +111,6 @@ public class LocalBookkeeperEnsemble {
     String bkDataDirName;
     BookieServer bs[];
     ServerConfiguration bsConfs[];
-    StatsProvider statsProviders[];
     Integer initialPort = 5000;
 
     /**
@@ -181,7 +175,6 @@ public class LocalBookkeeperEnsemble {
 
         bs = new BookieServer[numberOfBookies];
         bsConfs = new ServerConfiguration[numberOfBookies];
-        statsProviders = new StatsProvider[numberOfBookies];
 
         for (int i = 0; i < numberOfBookies; i++) {
 
@@ -202,18 +195,7 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowLoopback(true);
             bsConfs[i].setGcWaitTime(60000);
 
-            // Initialize Stats Provider only if we're running with 1 single bookie
-            // to avoid port conflicts
-            StatsLogger statsLogger;
-            if (isStandaloneMode && numberOfBookies == 1) {
-                statsProviders[i] = new PrometheusMetricsProvider();
-                statsProviders[i].start(bsConfs[i]);
-                statsLogger = statsProviders[i].getStatsLogger("");
-            } else {
-                statsLogger = NullStatsLogger.INSTANCE;
-            }
-
-            bs[i] = new BookieServer(bsConfs[i], statsLogger);
+            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
             bs[i].start();
             LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, initialPort + i,
                     bkDataDir.getAbsolutePath());
@@ -240,12 +222,6 @@ public class LocalBookkeeperEnsemble {
         LOG.debug("Local ZK/BK stopping ...");
         for (BookieServer bookie : bs) {
             bookie.shutdown();
-        }
-
-        for (StatsProvider statsProvider : statsProviders) {
-            if (statsProvider != null) {
-                statsProvider.stop();
-            }
         }
 
         zkc.close();

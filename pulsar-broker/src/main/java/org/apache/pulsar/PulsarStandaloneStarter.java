@@ -148,7 +148,7 @@ public class PulsarStandaloneStarter {
 
         if (!onlyBroker) {
             // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, true, wipeData);
+            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData);
             bkEnsemble.start();
         }
 
