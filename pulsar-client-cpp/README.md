@@ -55,7 +55,7 @@ Run unit tests:
 ```shell
 apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
                 libprotobuf-dev libboost-all-dev  libgtest-dev \
-                libjsoncpp-dev libxml2-utils protobuf-compiler
+                libjsoncpp-dev libxml2-utils protobuf-compiler python-setuptools
 ```
 
 #### Compile and install Google Test:

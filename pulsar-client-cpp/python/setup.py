@@ -26,17 +26,14 @@ from distutils.command import build_ext
 
 def get_version():
     # Get the pulsar version from pom.xml
-    command = '''pushd ../.. > /dev/null
-    mvn -q \\
-         -Dexec.executable="echo" \\
-         -Dexec.args='${project.version}' \\
-         --non-recursive \\
-         org.codehaus.mojo:exec-maven-plugin:1.3.1:exec;\\
-     popd > /dev/null'''
+    command = '''cat ../../pom.xml | xmllint --format - | \\
+        sed "s/xmlns=\\".*\\"//g" | xmllint --stream --pattern /project/version --debug - | \\
+        grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"'''
     process = subprocess.Popen(['bash', '-c', command], stdout=subprocess.PIPE)
     output, error = process.communicate()
     if error:
         raise 'Failed to get version: ' + error
+
     return str(output.strip())
 
 
