@@ -198,6 +198,7 @@ add_subdirectory(perf)
 add_subdirectory(examples)
 add_subdirectory(tests)
 add_subdirectory(python)
+add_subdirectory(wireshark)
 
 # `make format` option
 set(CLANG_FORMAT_VERSION "5.0")

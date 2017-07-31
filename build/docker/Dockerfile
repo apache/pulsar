@@ -28,7 +28,7 @@ RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2
+                gnupg2 wireshark-dev
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
