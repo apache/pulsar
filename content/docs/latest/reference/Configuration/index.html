@@ -1018,21 +1018,14 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>statsProviderClass</td>
       <td>
 </td>
-      <td>org.apache.bokkeeper.stats.datasketches.DataSketchesMetricsProvider</td>
+      <td>org.apache.bokkeeper.stats.PrometheusMetricsProvider</td>
     </tr>
     
-    <tr id="bookkeeper-dataSketchesMetricsJsonFileReporter">
-      <td>dataSketchesMetricsJsonFileReporter</td>
+    <tr id="bookkeeper-prometheusStatsHttpPort">
+      <td>prometheusStatsHttpPort</td>
       <td>
 </td>
-      <td>data/bookie-stats.json</td>
-    </tr>
-    
-    <tr id="bookkeeper-dataSketchesMetricsUpdateIntervalSeconds">
-      <td>dataSketchesMetricsUpdateIntervalSeconds</td>
-      <td>
-</td>
-      <td>60</td>
+      <td>8000</td>
     </tr>
     
     <tr id="bookkeeper-dbStorage_writeCacheMaxSizeMb">
