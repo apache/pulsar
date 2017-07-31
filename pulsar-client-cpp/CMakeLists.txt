@@ -46,7 +46,7 @@ if (LINK_STATIC)
     SET(OPENSSL_USE_STATIC_LIBS TRUE)
 
     find_library(ZLIB_LIBRARY_PATH REQUIRED NAMES libz.a z)
-    find_library(PROTO_LIBRARIES NAMES libprotobuf.a)
+    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
     find_library(LIB_JSON NAMES libjsoncpp.a)
     find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
@@ -123,7 +123,7 @@ set(COMMON_LIBS
   ${Boost_ATOMIC_LIBRARY}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
-  ${PROTO_LIBRARIES}
+  ${PROTOBUF_LIBRARIES}
   ${LOG4CXX_LIBRARY_PATH}
   ${APR_LIBRARY_PATH}
   ${APR_UTIL_LIBRARY_PATH}
