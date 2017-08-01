@@ -20,8 +20,6 @@
 
 # Build Pulsar C++ client within a Docker container
 
-ARGS=$*
-
 # Fail script in case of errors
 set -e
 
@@ -43,4 +41,4 @@ DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
 find . -name CMakeCache.txt | xargs rm -f
 find . -name CMakeFiles | xargs rm -rf
 
-$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && cmake . $ARGS && make"
+$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make"
