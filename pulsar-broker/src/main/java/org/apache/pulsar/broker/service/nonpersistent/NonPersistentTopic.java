@@ -160,9 +160,9 @@ public class NonPersistentTopic implements Topic {
     public NonPersistentTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<Producer>();
-        this.subscriptions = new ConcurrentOpenHashMap<>();
-        this.replicators = new ConcurrentOpenHashMap<>();
+        this.producers = new ConcurrentOpenHashSet<Producer>(16, 1);
+        this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.executor = brokerService.getTopicOrderedExecutor();
