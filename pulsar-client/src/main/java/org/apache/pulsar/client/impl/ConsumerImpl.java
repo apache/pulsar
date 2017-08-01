@@ -338,15 +338,25 @@ public class ConsumerImpl extends ConsumerBase {
             return true;
         }
         int batchIndex = batchMessageId.getBatchIndex();
-        int batchSize = bitSet.length();
-        if (ackType == AckType.Individual) {
-            bitSet.clear(batchIndex);
-        } else {
-            // +1 since to argument is exclusive
-            bitSet.clear(0, batchIndex + 1);
+        // bitset is not thread-safe and requires external synchronization
+        int batchSize = 0;
+        boolean isAllMsgsAcked = false;
+        lock.writeLock().lock();
+        try {
+            batchSize = bitSet.length();
+            if (ackType == AckType.Individual) {
+                bitSet.clear(batchIndex);
+            } else {
+                // +1 since to argument is exclusive
+                bitSet.clear(0, batchIndex + 1);
+            }
+            isAllMsgsAcked = bitSet.isEmpty();
+        } finally {
+            lock.writeLock().unlock();
         }
+        
         // all messages in this batch have been acked
-        if (bitSet.isEmpty()) {
+        if (isAllMsgsAcked) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
                     consumerName, batchMessageId, ackType, bitSet.cardinality(), bitSet.length());

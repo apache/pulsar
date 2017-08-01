@@ -27,16 +27,23 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.slf4j.Logger;
@@ -594,5 +601,73 @@ public class BatchMessageTest extends BrokerTestBase {
         noBatchProducer.close();
     }
 
+    /**
+     * Verifies batch-message acking is thread-safe 
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 3000)
+    public void testConcurrentBatchMessageAck() throws Exception {
+        int numMsgs = 10;
+        final String topicName = "persistent://prop/use/ns-abc/testConcurrentAck";
+        final String subscriptionName = "sub-1";
+
+        ConsumerConfiguration consConf = new ConsumerConfiguration();
+        consConf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, consConf);
+        consumer.close();
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
+        producerConf.setBatchingMaxMessages(numMsgs);
+        producerConf.setBatchingEnabled(true);
+        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            Message msg = MessageBuilder.create().setContent(message).build();
+            sendFutureList.add(producer.sendAsync(msg));
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+
+        final Consumer myConsumer = pulsarClient.subscribe(topicName, subscriptionName, consConf);
+        // assertEquals(dispatcher.getTotalUnackedMessages(), 1);
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+
+        final CountDownLatch latch = new CountDownLatch(numMsgs);
+        final AtomicBoolean failed = new AtomicBoolean(false);
+        for (int i = 0; i < numMsgs; i++) {
+            executor.submit(() -> {
+                try {
+                    Message msg = myConsumer.receive(1, TimeUnit.SECONDS);
+                    myConsumer.acknowledge(msg);
+                } catch (Exception e) {
+                    failed.set(false);
+                }
+                latch.countDown();
+            });
+        }
+        latch.await();
+
+        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) topic
+                .getSubscription(subscriptionName).getDispatcher();
+        // check strategically to let ack-message receive by broker
+        for (int i = 0; i < 5; i++) {
+            if (dispatcher.getConsumers().get(0).getUnackedMessages() == 0 || i == 4) {
+                break;
+            } else {
+                Thread.sleep(150);
+            }
+        }
+        assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
+
+        executor.shutdown();
+        myConsumer.close();
+        producer.close();
+    }
+    
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
 }
