@@ -90,11 +90,6 @@
     </dependency>
 
     <dependency>
-      <artifactId>slf4j-log4j12</artifactId>
-      <groupId>org.slf4j</groupId>
-    </dependency>
-
-    <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient</artifactId>
     </dependency>

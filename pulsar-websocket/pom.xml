@@ -63,7 +63,7 @@
       <artifactId>pulsar-zookeeper-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.glassfish.jersey.containers</groupId>
       <artifactId>jersey-container-servlet-core</artifactId>
@@ -83,12 +83,12 @@
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
@@ -97,12 +97,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jul-to-slf4j</artifactId>
-    </dependency>
-
-    <dependency>
-      <artifactId>log4j</artifactId>
-      <groupId>log4j</groupId>
-      <scope>test</scope>
     </dependency>
 
 		<!-- To write basic websockets against -->
@@ -123,21 +117,6 @@
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>javax-websocket-client-impl</artifactId>
       <version>${jetty.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hdrhistogram</groupId>
