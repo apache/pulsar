@@ -23,13 +23,24 @@ project (pulsar-cpp)
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
+option(DEBUG_MODE "Enable debug mode" OFF)
+MESSAGE(STATUS "DEBUG_MODE:  " ${DEBUG_MODE})
+
 set(Boost_NO_BOOST_CMAKE ON)
 
 if (NOT CXX_STANDARD)
     set(CXX_STANDARD "-std=c++11")
 endif(NOT CXX_STANDARD)
 
-set(CMAKE_CXX_FLAGS "-O3 -g -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+
+if (DEBUG_MODE)
+    set(CMAKE_CXX_FLAGS "-O0 -g3 ${CMAKE_CXX_FLAGS}")
+else ()
+    set(CMAKE_CXX_FLAGS "-O3 -g ${CMAKE_CXX_FLAGS}")
+endif (DEBUG_MODE)
+
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
