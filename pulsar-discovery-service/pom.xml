@@ -70,7 +70,7 @@
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
@@ -123,34 +123,10 @@
     </dependency>
 
     <dependency>
-      <artifactId>log4j</artifactId>
-      <groupId>log4j</groupId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.wordnik</groupId>
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
-      <scope>test</scope>
-    </dependency>
-    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>

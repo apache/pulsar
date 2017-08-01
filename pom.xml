@@ -23,8 +23,8 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
-  
-   <parent>
+
+  <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
     <version>18</version>
@@ -116,6 +116,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.0.23</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
     <rocksdb.version>5.5.5</rocksdb.version>
+    <slf4j.version>1.7.25</slf4j.version>
   </properties>
 
   <dependencyManagement>
@@ -126,7 +127,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>async-http-client</artifactId>
         <version>2.0.31</version>
         <exclusions>
-         <exclusion>
+          <exclusion>
             <groupId>io.netty</groupId>
             <artifactId>*</artifactId>
           </exclusion>
@@ -158,8 +159,8 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-    	<groupId>com.googlecode.jmockit</groupId>
-    	<artifactId>jmockit</artifactId>
+        <groupId>com.googlecode.jmockit</groupId>
+        <artifactId>jmockit</artifactId>
         <version>1.7</version>
       </dependency>
 
@@ -174,6 +175,20 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>zookeeper</artifactId>
         <classifier>tests</classifier>
         <version>${zookeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>slf4j-log4j12</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j</artifactId>
+            <groupId>log4j</groupId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.jboss.netty</groupId>
+            <artifactId>netty</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -301,13 +316,25 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>1.7.21</version>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <artifactId>slf4j-log4j12</artifactId>
+        <groupId>org.slf4j</groupId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>jul-to-slf4j</artifactId>
-        <version>1.7.21</version>
+        <version>${slf4j.version}</version>
       </dependency>
 
       <dependency>
@@ -374,12 +401,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>2.4.3</version>
-      </dependency>
-
-      <dependency>
-        <artifactId>slf4j-log4j12</artifactId>
-        <groupId>org.slf4j</groupId>
-        <version>1.7.21</version>
       </dependency>
 
       <dependency>
@@ -510,15 +531,34 @@ flexible messaging model and an intuitive client API.</description>
   </dependencyManagement>
 
   <dependencies>
+    <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <artifactId>slf4j-log4j12</artifactId>
       <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-testng</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -540,7 +580,6 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>2.4</version>
         <executions>
           <execution>
             <goals>
@@ -557,10 +596,17 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.19.1</version>
         <configuration>
           <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
-            -Dio.netty.leakDetectionLevel=advanced</argLine>
+            -Dio.netty.leakDetectionLevel=advanced
+            -Dorg.slf4j.simpleLogger.showDateTime=true
+            -Dorg.slf4j.simpleLogger.log.org.apache.zookeeper=off
+            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper=off
+            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper.mledger=info
+          </argLine>
+          <reuseForks>true</reuseForks>
+          <forkCount>1</forkCount>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
       </plugin>
 
@@ -636,7 +682,6 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
-        <version>0.12</version>
         <configuration>
           <excludes>
             <exclude>**/target/**</exclude>
@@ -715,6 +760,11 @@ flexible messaging model and an intuitive client API.</description>
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.20</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
           <version>2.10</version>
         </plugin>
@@ -741,11 +791,6 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven</groupId>
-          <artifactId>maven-jar-plugin</artifactId>
-          <version>2.3.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven</groupId>

@@ -70,6 +70,11 @@
     </dependency>
 
     <dependency>
+      <artifactId>log4j</artifactId>
+      <groupId>log4j</groupId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.bookkeeper.stats</groupId>
       <artifactId>datasketches-metrics-provider</artifactId>
       <exclusions>
