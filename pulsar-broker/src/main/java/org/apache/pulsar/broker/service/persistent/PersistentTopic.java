@@ -180,9 +180,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.topic = topic;
         this.ledger = ledger;
         this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<Producer>();
-        this.subscriptions = new ConcurrentOpenHashMap<>();
-        this.replicators = new ConcurrentOpenHashMap<>();
+        this.producers = new ConcurrentOpenHashSet<Producer>(16, 1);
+        this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         USAGE_COUNT_UPDATER.set(this, 0);
