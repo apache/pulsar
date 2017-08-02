@@ -23,6 +23,9 @@ project (pulsar-cpp)
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
+option(BUILD_DYNAMIC_LIB "Build Pulsar client dynamic library" ON)
+MESSAGE(STATUS "BUILD_DYNAMIC_LIB:  " ${BUILD_DYNAMIC_LIB})
+
 IF (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 ENDIF ()

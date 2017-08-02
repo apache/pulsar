@@ -31,18 +31,19 @@ ADD_CUSTOM_COMMAND(
          ../../pulsar-common/src/main/proto/PulsarApi.proto
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-
 set(LIBRARY_VERSION $ENV{PULSAR_LIBRARY_VERSION})
 if (NOT LIBRARY_VERSION)
     set(LIBRARY_VERSION ${PV})
 endif(NOT LIBRARY_VERSION)
 
+add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
 set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
-set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
-
 target_link_libraries(pulsarStatic ${COMMON_LIBS})
-target_link_libraries(pulsarShared ${COMMON_LIBS})
+
+if (BUILD_DYNAMIC_LIB)
+    add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+    set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
+    target_link_libraries(pulsarShared ${COMMON_LIBS})
+endif ()
 
 add_subdirectory(auth)
