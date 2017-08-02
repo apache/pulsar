@@ -340,6 +340,8 @@ public class ConsumerImpl extends ConsumerBase {
         int batchIndex = batchMessageId.getBatchIndex();
         // bitset is not thread-safe and requires external synchronization
         int batchSize = 0;
+        // only used for debug-logging
+        int outstandingAcks = 0;
         boolean isAllMsgsAcked = false;
         lock.writeLock().lock();
         try {
@@ -351,6 +353,9 @@ public class ConsumerImpl extends ConsumerBase {
                 bitSet.clear(0, batchIndex + 1);
             }
             isAllMsgsAcked = bitSet.isEmpty();
+            if (log.isDebugEnabled()) {
+                outstandingAcks = bitSet.cardinality();
+            }
         } finally {
             lock.writeLock().unlock();
         }
@@ -359,7 +364,7 @@ public class ConsumerImpl extends ConsumerBase {
         if (isAllMsgsAcked) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
-                    consumerName, batchMessageId, ackType, bitSet.cardinality(), bitSet.length());
+                    consumerName, batchMessageId, ackType, outstandingAcks, batchSize);
             }
             if (ackType == AckType.Cumulative) {
                 batchMessageAckTracker.keySet().removeIf(m -> (m.compareTo(message) <= 0));
@@ -377,7 +382,6 @@ public class ConsumerImpl extends ConsumerBase {
                 ackMessagesInEarlierBatch(batchMessageId, message);
             }
             if (log.isDebugEnabled()) {
-                int outstandingAcks = batchMessageAckTracker.get(message).cardinality();
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
                     consumerName, batchMessageId, ackType, outstandingAcks);
             }
