@@ -1035,17 +1035,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
         configRegisteredListeners.put(configKey, listener);
-        dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void onUpdate(String path, Map<String, String> data, Stat stat) {
-                if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null
-                        && data.containsKey(configKey)) {
-                    log.info("Updating configuration {}/{}", configKey, data.get(configKey));
-                    listener.accept((T) FieldParser.value(data.get(configKey), dynamicConfigurationMap.get(configKey)));
-                }
-            }
-        });
     }
 
     private void updateDynamicServiceConfiguration() {
