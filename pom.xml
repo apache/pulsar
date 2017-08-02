@@ -604,8 +604,10 @@ flexible messaging model and an intuitive client API.</description>
             -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper=off
             -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper.mledger=info
           </argLine>
-          <reuseForks>true</reuseForks>
+          <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
+          <shutdown>kill</shutdown>
+          <forkedProcessExitTimeoutInSeconds>30</forkedProcessExitTimeoutInSeconds>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
       </plugin>
