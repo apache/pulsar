@@ -603,6 +603,14 @@ flexible messaging model and an intuitive client API.</description>
             -Dorg.slf4j.simpleLogger.log.org.apache.zookeeper=off
             -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper=off
             -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper.mledger=info
+
+            -Dpulsar.executor-thread-count=1
+            -Dpulsar.cache-executor-thread-count=1
+            -Dpulsar.ordered-executor-thread-count=1
+            -Dpulsar.web-service-thread-count=2
+            -Dpulsar.bookkeeper-ml-executor-thread-count=1
+            -Dpulsar.bookkeeper-ml-workers-executor-thread-count=1
+            -Dpulsar.io-thread-count=1
           </argLine>
           <reuseForks>true</reuseForks>
           <forkCount>1</forkCount>
