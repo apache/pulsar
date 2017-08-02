@@ -79,9 +79,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final boolean isBookkeeperManaged;
     private final ZooKeeper zookeeper;
     private final ManagedLedgerFactoryConfig config;
-    protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(16,
+
+    private static final int EXECUTOR_THREAD_COUNT = Integer
+            .parseInt(System.getProperty("pulsar.bookkeeper-ml-executor-thread-count", "16"));
+    private static final int WORKERS_EXECUTOR_THREAD_COUNT = Integer
+            .parseInt(System.getProperty("pulsar.bookkeeper-ml-workers-executor-thread-count", "16"));
+
+    protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(EXECUTOR_THREAD_COUNT,
             new DefaultThreadFactory("bookkeeper-ml"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(16, "bookkeeper-ml-workers");
+    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(WORKERS_EXECUTOR_THREAD_COUNT, "bookkeeper-ml-workers");
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 

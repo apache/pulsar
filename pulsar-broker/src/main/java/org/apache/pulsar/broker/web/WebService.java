@@ -76,7 +76,8 @@ public class WebService implements AutoCloseable {
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
     public static final String HANDLER_REQUEST_LOG_TZ = "GMT";
-    public static final int NUM_ACCEPTORS = 32; // make it configurable?
+    public static final int NUM_ACCEPTORS = Integer
+            .parseInt(System.getProperty("pulsar.web-service-thread-count", "32"));
     public static final int MAX_CONCURRENT_REQUESTES = 1024; // make it configurable?
 
     private final PulsarService pulsar;
@@ -155,7 +156,7 @@ public class WebService implements AutoCloseable {
             context.addFilter(holder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
             log.info("Enabling ApiVersionFilter");
         }
-        
+
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
 

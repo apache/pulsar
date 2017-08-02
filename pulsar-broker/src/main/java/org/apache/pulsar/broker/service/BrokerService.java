@@ -124,6 +124,9 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
 
+    private static final int IO_THREAD_COUNT = Integer.parseInt(System.getProperty("pulsar.io-thread-count",
+            Integer.toString(Runtime.getRuntime().availableProcessors() * 2)));
+
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
     private final int port;
@@ -194,14 +197,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
-        this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "broker-np-topic-workers");
+        this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "pulsar-non-persistent-topic-workers");
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
-        final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
-        log.info("Using {} threads for broker service IO", numThreads);
+
+        log.info("Using {} threads for broker service IO", IO_THREAD_COUNT);
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(IO_THREAD_COUNT, workersThreadFactory);
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         if (pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -1168,7 +1171,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public OrderedSafeExecutor getTopicOrderedExecutor() {
         return topicOrderedExecutor;
     }
-    
+
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
     }

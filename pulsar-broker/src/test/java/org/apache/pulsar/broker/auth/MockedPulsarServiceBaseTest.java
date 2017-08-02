@@ -79,6 +79,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     public MockedPulsarServiceBaseTest() {
         this.conf = new ServiceConfiguration();
+        this.conf.setNumWorkerThreadsForNonPersistentTopic(1);
         this.conf.setBrokerServicePort(BROKER_PORT);
         this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);

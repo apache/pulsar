@@ -78,6 +78,16 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  * Main class for Pulsar broker service
  */
 public class PulsarService implements AutoCloseable {
+
+    private static final int EXECUTOR_THREAD_COUNT = Integer
+            .parseInt(System.getProperty("pulsar.executor-thread-count", "20"));
+
+    private static final int CACHE_EXECUTOR_THREAD_COUNT = Integer
+            .parseInt(System.getProperty("pulsar.cache-executor-thread-count", "10"));
+
+    private static final int ORDERED_EXECUTOR_THREAD_COUNT = Integer
+            .parseInt(System.getProperty("pulsar.ordered-executor-thread-count", "8"));
+
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
     private NamespaceService nsservice = null;
@@ -92,11 +102,12 @@ public class PulsarService implements AutoCloseable {
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(EXECUTOR_THREAD_COUNT,
             new DefaultThreadFactory("pulsar"));
-    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
+    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(CACHE_EXECUTOR_THREAD_COUNT,
             new DefaultThreadFactory("zk-cache-callback"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
+    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(ORDERED_EXECUTOR_THREAD_COUNT,
+            "pulsar-ordered");
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
