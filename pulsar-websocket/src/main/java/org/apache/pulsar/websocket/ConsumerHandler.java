@@ -266,7 +266,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
         checkArgument(parts.size() == 9, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent"));
+        checkArgument(parts.get(3).equals("persistent")|| parts.get(3).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return parts.get(8);

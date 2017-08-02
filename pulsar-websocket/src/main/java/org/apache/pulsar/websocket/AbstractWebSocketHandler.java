@@ -141,11 +141,13 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         // /ws/producer/persistent/my-property/my-cluster/my-ns/my-topic
         // or
         // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
+        // or
+        // /ws/reader/persistent/my-property/my-cluster/my-ns/my-topic
         checkArgument(parts.size() >= 8, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent"));
+        checkArgument(parts.get(3).equals("persistent") || parts.get(3).equals("non-persistent"));
 
-        DestinationName dn = DestinationName.get("persistent", parts.get(4), parts.get(5), parts.get(6), parts.get(7));
+        DestinationName dn = DestinationName.get(parts.get(3), parts.get(4), parts.get(5), parts.get(6), parts.get(7));
         return dn.toString();
     }
 

@@ -76,7 +76,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     public ReaderHandler(WebSocketService service, HttpServletRequest request) {
         super(service, request);
-        checkRequestURI(request);
         this.subscription = "";
         this.conf = getReaderConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
@@ -226,19 +225,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     @Override
     protected Boolean isAuthorized(String authRole) throws Exception {
         return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
-    }
-
-    private static String checkRequestURI(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        List<String> parts = Splitter.on("/").splitToList(uri);
-
-        // Format must be like :
-        // /ws/reader/persistent/my-property/my-cluster/my-ns/my-topic
-        checkArgument(parts.size() == 8, "Invalid topic name format");
-        checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent"));
-
-        return parts.get(7);
     }
 
     private MessageId getMessageId() throws IOException {
