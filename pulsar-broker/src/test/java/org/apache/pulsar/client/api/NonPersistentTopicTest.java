@@ -240,7 +240,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      */
     @Test
     public void testProducerRateLimit() throws Exception {
-
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
             final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
@@ -260,8 +259,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
                     try {
-                        producer.sendAsync(msgData).get(1, TimeUnit.SECONDS);
+                        producer.send(msgData);
                     } catch (Exception e) {
+                        log.error("Failed to send message", e);
                         failed.set(true);
                     }
                     latch.countDown();
@@ -290,12 +290,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
-
     }
 
     /**
      * verifies message delivery with multiple consumers on shared and failover subscriptions
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -633,7 +632,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     /**
      * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic
-     * 
+     *
      * @param loadManagerName
      * @throws Exception
      */
@@ -665,7 +664,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     /**
      * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic
-     * 
+     *
      * @param loadManagerName
      * @throws Exception
      */
@@ -723,7 +722,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     /**
      * Verifies msg-drop stats
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -752,7 +751,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
                     producer.sendAsync(msgData).handle((msg,e)->{
-                        latch.countDown();       
+                        latch.countDown();
                         return null;
                     });
                 });
@@ -777,7 +776,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         }
 
     }
-    
+
     class ReplicationClusterManager {
         URL url1;
         PulsarService pulsar1;
