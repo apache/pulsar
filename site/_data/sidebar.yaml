@@ -45,20 +45,14 @@ groups:
 - title: Pulsar administration
   dir: admin
   docs:
-  - title: Pulsar admin interface
-    endpoint: AdminInterface
-  - title: Clusters and brokers
-    endpoint: ClustersBrokers
-  - title: Properties and namespaces
-    endpoint: PropertiesNamespaces
   - title: ZooKeeper and BookKeeper
     endpoint: ZooKeeperBookKeeper
-  - title: Dashboard
-    endpoint: Dashboard
-  - title: Authentication and authorization
-    endpoint: Authz
   - title: Geo-replication
     endpoint: GeoReplication
+  - title: Authentication and authorization
+    endpoint: Authz
+  - title: Dashboard
+    endpoint: Dashboard
   - title: Pulsar statistics
     endpoint: Stats
   - title: Modular load manager
@@ -75,6 +69,28 @@ groups:
     endpoint: Python
   - title: WebSocket API
     endpoint: WebSocket
+
+- title: Admin API
+  dir: admin-api
+  docs:
+  - title: Overview
+    endpoint: overview
+  - title: Clusters
+    endpoint: clusters
+  - title: Properties
+    endpoint: properties
+  - title: Brokers
+    endpoint: brokers
+  - title: Namespaces
+    endpoint: namespaces
+  - title: permissions
+    endpoint: Permissions
+  - title: Persistent topics
+    endpoint: persistent-topics
+  - title: Non-Persistent topics
+    endpoint: non-persistent-topics
+  - title: Partitioned topics
+    endpoint: partitioned-topics
 
 - title: Adaptors
   dir: adaptors

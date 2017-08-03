@@ -1,8 +1,14 @@
+---
+title: Partitioned topics
+---
+
 You can use Pulsar's [admin API](../../admin/AdminInterface) to create and manage partitioned topics.
 
 In all of the instructions and commands below, the topic name structure is:
 
 {% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+
+## Partitioned topics resources
 
 ### Create
 

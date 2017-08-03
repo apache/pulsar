@@ -1,8 +1,14 @@
+---
+title: Managing persistent topics
+---
+
 Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.
 
 In all of the instructions and commands below, the topic name structure is:
 
 {% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+
+## Persistent topics resources
 
 ### List of topics
 
@@ -183,7 +189,7 @@ It shows current statistics of a given non-partitioned topic.
 
   -   **inboundConnection**: The IP and port of the broker in the remote cluster's publisher connection to this broker
 
-  -   **inboundConnectedSince**: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute. 
+  -   **inboundConnectedSince**: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.
 
 ```json
 {
@@ -289,7 +295,7 @@ It shows detailed statistics of a topic.
   -   **lastLedgerSwitchTimestamp**: The last time the cursor ledger was rolled over
 
   -   **state**: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.
-  
+
 ```json
 {
     "entriesAddedCounter": 20449518,
@@ -475,7 +481,7 @@ It locates broker url which is serving the given topic.
 ```shell
 $ pulsar-admin persistent lookup \
   persistent://test-property/cl1/ns1/tp1 \
-  
+
  "pulsar://broker1.org.com:4480"
 ```
 
@@ -499,7 +505,7 @@ It shows all subscription names for a given topic.
 ```shell
 $ pulsar-admin persistent subscriptions \
   persistent://test-property/cl1/ns1/tp1 \
- 
+
  my-subscription
 ```
 
