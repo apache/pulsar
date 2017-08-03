@@ -34,6 +34,8 @@ import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
+
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
@@ -71,6 +73,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
+        
+        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscriber name prefix")
+        public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
@@ -182,6 +187,7 @@ public class PerformanceConsumer {
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
         consumerConfig.setMessageListener(listener);
         consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
+        consumerConfig.setSubscriptionType(arguments.subscriptionType);
 
         for (int i = 0; i < arguments.numDestinations; i++) {
             final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName
