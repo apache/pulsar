@@ -338,18 +338,33 @@ public class ConsumerImpl extends ConsumerBase {
             return true;
         }
         int batchIndex = batchMessageId.getBatchIndex();
-        int batchSize = bitSet.length();
-        if (ackType == AckType.Individual) {
-            bitSet.clear(batchIndex);
-        } else {
-            // +1 since to argument is exclusive
-            bitSet.clear(0, batchIndex + 1);
+        // bitset is not thread-safe and requires external synchronization
+        int batchSize = 0;
+        // only used for debug-logging
+        int outstandingAcks = 0;
+        boolean isAllMsgsAcked = false;
+        lock.writeLock().lock();
+        try {
+            batchSize = bitSet.length();
+            if (ackType == AckType.Individual) {
+                bitSet.clear(batchIndex);
+            } else {
+                // +1 since to argument is exclusive
+                bitSet.clear(0, batchIndex + 1);
+            }
+            isAllMsgsAcked = bitSet.isEmpty();
+            if (log.isDebugEnabled()) {
+                outstandingAcks = bitSet.cardinality();
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
+        
         // all messages in this batch have been acked
-        if (bitSet.isEmpty()) {
+        if (isAllMsgsAcked) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
-                    consumerName, batchMessageId, ackType, bitSet.cardinality(), bitSet.length());
+                    consumerName, batchMessageId, ackType, outstandingAcks, batchSize);
             }
             if (ackType == AckType.Cumulative) {
                 batchMessageAckTracker.keySet().removeIf(m -> (m.compareTo(message) <= 0));
@@ -367,7 +382,6 @@ public class ConsumerImpl extends ConsumerBase {
                 ackMessagesInEarlierBatch(batchMessageId, message);
             }
             if (log.isDebugEnabled()) {
-                int outstandingAcks = batchMessageAckTracker.get(message).cardinality();
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
                     consumerName, batchMessageId, ackType, outstandingAcks);
             }
