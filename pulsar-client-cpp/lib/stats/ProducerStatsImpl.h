@@ -23,6 +23,8 @@
 #include <pulsar/Message.h>
 #include <map>
 #include <lib/ExecutorService.h>
+
+#include <boost/serialization/array_wrapper.hpp>
 #include <boost/accumulators/framework/features.hpp>
 
 #include <boost/accumulators/accumulators.hpp>

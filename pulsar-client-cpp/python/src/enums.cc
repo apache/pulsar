@@ -29,7 +29,7 @@ void export_enums() {
             ;
 
     enum_<CompressionType>("CompressionType")
-            .value("None", CompressionNone)
+            .value("NONE", CompressionNone) // Don't use 'None' since it's a keyword in py3
             .value("LZ4", CompressionLZ4)
             .value("ZLib", CompressionZLib)
             ;
