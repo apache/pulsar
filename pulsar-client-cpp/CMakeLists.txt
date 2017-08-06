@@ -70,6 +70,7 @@ if (LINK_STATIC)
 else()
     # Link to shared libraries
     find_package(ZLIB REQUIRED)
+    set(ZLIB_LIBRARY_PATH ${ZLIB_LIBRARIES})
     if (NOT PROTOBUF_LIBRARIES)
       find_package(ProtoBuf QUIET)
       if (NOT ProtoBuf_FOUND)
