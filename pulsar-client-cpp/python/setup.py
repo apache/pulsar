@@ -34,7 +34,7 @@ def get_version():
     if error:
         raise 'Failed to get version: ' + error
 
-    return str(output.strip())
+    return output.strip().decode('utf-8', 'strict')
 
 
 VERSION = get_version()
