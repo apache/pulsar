@@ -760,7 +760,6 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
     }
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
     callback(ResultNotConnected, BrokerConsumerStats());
-    return;
 }
 
 void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsImpl brokerConsumerStats
