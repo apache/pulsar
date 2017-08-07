@@ -51,3 +51,13 @@ Directory | Contains
 `logs` | Logs created by the installation.
 
 The source package contains all of the assets, specific to version {{ site.current_version}}, from the [Pulsar repository]({{ site.pulsar_repo }}).
+
+## Compiling from source
+
+If you've downloaded a source release and would like to compile it, you'll need to have [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) installed. To run the scripts in the `bin` directory, you'll need to have the [Java SE Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html) installed (JDK 8 already includes this).
+
+To compile, skipping the tests:
+
+```shell
+$ mvn install -DskipTests
+```
