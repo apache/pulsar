@@ -20,7 +20,7 @@
 
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-DOXYGEN=$ROOT_DIR/site/scripts/doxygen/build/bin/doxygen
+DOXYGEN=doxygen
 TMP_DIR=$(mktemp -d)
 
 (
