@@ -192,8 +192,9 @@ Result Consumer::getBrokerConsumerStats(BrokerConsumerStats& brokerConsumerStats
 
 void Consumer::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
     if (!impl_) {
-        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        return;
     }
-    return impl_->getBrokerConsumerStatsAsync(callback);
+    impl_->getBrokerConsumerStatsAsync(callback);
 }
 }
