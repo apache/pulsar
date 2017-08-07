@@ -1,0 +1,7 @@
+DirectoryPath: ../generated-site/content
+IgnoreDirs: [api]
+IgnoreAltMissing: true
+IgnoreDirectoryMissingTrailingSlash: true
+IgnoreInternalEmptyHash: true
+IgnoreURLs:
+- http://unlicense.org

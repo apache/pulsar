@@ -34,11 +34,14 @@ python_setup:
 	sudo pip install pdoc pygments
 
 setup: ruby_setup
+	scripts/html-setup.sh osx
+
+linkcheck_macos:
+	~/bin/htmltest-osx
 
 travis_setup: ruby_setup python_setup
 
 travis_build: javadoc
-	scripts/build-all-versions.sh
 
 travis_publish:
 	scripts/publish-website.sh
