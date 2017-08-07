@@ -84,9 +84,24 @@ else()
     find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
-                                        thread system python)
+
 find_package(PythonLibs REQUIRED)
+
+
+MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
+
+if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
+    MESSAGE(STATUS "DETECTED Python 3")
+    # For python3 the lib name is boost_python3
+    set(BOOST_PYTHON_NAME python3)
+else ()
+    # Regular boost_python
+    set(BOOST_PYTHON_NAME python)
+endif ()
+
+find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
+                    thread system ${BOOST_PYTHON_NAME})
+
 
 
 find_package(OpenSSL REQUIRED)
