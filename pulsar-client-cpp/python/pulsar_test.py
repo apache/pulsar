@@ -33,7 +33,7 @@ class PulsarTest(TestCase):
         conf.send_timeout_millis(12)
         self.assertEqual(conf.send_timeout_millis(), 12)
 
-        self.assertEqual(conf.compression_type(), CompressionType.None)
+        self.assertEqual(conf.compression_type(), CompressionType.NONE)
         conf.compression_type(CompressionType.LZ4)
         self.assertEqual(conf.compression_type(), CompressionType.LZ4)
 
@@ -100,7 +100,7 @@ class PulsarTest(TestCase):
         received_messages = []
 
         def listener(consumer, msg):
-            print "Got message", msg
+            print("Got message: %s" % msg)
             received_messages.append(msg)
             consumer.acknowledge(msg)
 

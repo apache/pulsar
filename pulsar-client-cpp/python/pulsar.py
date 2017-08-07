@@ -234,7 +234,7 @@ class Client:
 
     def create_producer(self, topic,
                         send_timeout_millis=30000,
-                        compression_type=CompressionType.None,
+                        compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
                         block_if_queue_full=False,
                         batching_enabled=False,
@@ -414,7 +414,7 @@ class Producer:
 
             #!python
             def callback(res, msg):
-                print 'Message published:', res
+                print('Message published: %s' % res)
 
             producer.send_async(msg, callback)
 
