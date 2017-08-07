@@ -728,14 +728,16 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
     if (state_ != Ready) {
         LOG_ERROR(getName() << "Client connection is not open, please try again later.")
         lock.unlock();
-        return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+        return;
     }
 
     if (brokerConsumerStats_.isValid()) {
         LOG_DEBUG(getName() << "Serving data from cache");
         BrokerConsumerStatsImpl brokerConsumerStats = brokerConsumerStats_;
         lock.unlock();
-        return callback(ResultOk, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats_)));
+        callback(ResultOk, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats_)));
+        return;
     }
     lock.unlock();
 
@@ -752,11 +754,12 @@ void ConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callb
             return;
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version " << cnx->getServerProtocolVersion() << " is older than proto::v7");
-            return callback(ResultUnsupportedVersionError, BrokerConsumerStats());
+            callback(ResultUnsupportedVersionError, BrokerConsumerStats());
+            return;
         }
     }
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    return callback(ResultNotConnected, BrokerConsumerStats());
+    callback(ResultNotConnected, BrokerConsumerStats());
 }
 
 void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsImpl brokerConsumerStats

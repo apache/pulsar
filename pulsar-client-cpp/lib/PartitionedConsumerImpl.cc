@@ -382,7 +382,8 @@ namespace pulsar {
         Lock lock(mutex_);
         if (state_ != Ready) {
             lock.unlock();
-            return callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+            callback(ResultConsumerNotInitialized, BrokerConsumerStats());
+            return;
         }
         PartitionedBrokerConsumerStatsPtr statsPtr = boost::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions_);
         LatchPtr latchPtr = boost::make_shared<Latch>(numPartitions_);
@@ -404,7 +405,8 @@ namespace pulsar {
             statsPtr->add(brokerConsumerStats, index);
         } else {
             lock.unlock();
-            return callback(res, BrokerConsumerStats());
+            callback(res, BrokerConsumerStats());
+            return;
         }
         if (latchPtr->getCount() == 0) {
             lock.unlock();
