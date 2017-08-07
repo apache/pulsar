@@ -561,10 +561,11 @@ const std::string& ProducerImpl::getName() const{
 void ProducerImpl::start() {
     HandlerBase::start();
 }
+
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
     state_ = Closed;
-    sendTimer_.reset();
+    sendTimer_->cancel();
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
 
