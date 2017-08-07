@@ -1734,6 +1734,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (1) update partitions
         admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, newPartitions);
+        // invalidate global-cache to make sure that mock-zk-cache reds fresh data
+        pulsar.getGlobalZkCache().invalidateAll();
         // verify new partitions have been created
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 newPartitions);
@@ -1755,6 +1757,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // newly created partition topics
         consumer2.close();
         consumer2 = client.subscribe(partitionedTopicName, subName2, conf);
+        // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
+        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
