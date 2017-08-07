@@ -36,9 +36,9 @@
       <div class="sidebar-group collapse" id="collapse-{{ slug }}" role="tabpanel" aria-labelledby="heading-{{ slug }}">
         <ul>
           {% for doc in group.docs %}
-          {% capture doc_url %}/docs/latest/{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
+          {% capture doc_url %}../../{{ group.dir }}/{{ doc.endpoint }}/{% endcapture %}
           <li{% if page_url == doc_url %} class="active"{% endif %}>
-            <a href="/docs/latest/{{ group.dir }}/{{ doc.endpoint }}">
+            <a href="../../{{ group.dir }}/{{ doc.endpoint }}">
               {{ doc.title }}
             </a>
           </li>

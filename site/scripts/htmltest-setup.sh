@@ -20,9 +20,7 @@
 
 PLATFORM=$1
 HTMLTEST_VERSION=0.4.1
+EXECUTABLE=htmltest-${PLATFORM}
 
-(
-    cd ~/bin
-    wget https://github.com/wjdp/htmltest/releases/download/v${HTMLTEST_VERSION}/htmltest-${PLATFORM}
-    chmod +x htmltest-${PLATFORM}
-)
+wget -O scripts/htmltest-${PLATFORM} https://github.com/wjdp/htmltest/releases/download/v${HTMLTEST_VERSION}/${EXECUTABLE}
+chmod +x scripts/${EXECUTABLE}

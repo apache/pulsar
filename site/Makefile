@@ -34,10 +34,10 @@ python_setup:
 	sudo pip install pdoc pygments
 
 setup: ruby_setup
-	scripts/html-setup.sh osx
+	scripts/htmltest-setup.sh osx
 
 linkcheck_macos:
-	~/bin/htmltest-osx
+	scripts/htmltest-osx
 
 travis_setup: ruby_setup python_setup
 
