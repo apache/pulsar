@@ -255,7 +255,7 @@ As you can see, the property is the most basic unit of categorization for topics
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](https://github.com/apache/incubator-pulsar/blob/master/docs/Authentication.md) mechanism which can be configured at broker and it also supports [authorization](https://github.com/apache/incubator-pulsar/blob/master/docs/Authorization.md) to identify client and its access rights on topics and properties.
+Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and properties.
 
 ## Client interface
 

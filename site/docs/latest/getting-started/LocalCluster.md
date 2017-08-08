@@ -12,7 +12,7 @@ For the purposes of local development and testing, you can run Pulsar in {% popo
 Standalone mode includes a Pulsar {% popover broker %} as well as the necessary {% popover ZooKeeper %} and {% popover BookKeeper %} components running inside of a single Java Virtual Machine (JVM) process.
 
 {% include admonition.html type="info" title='Pulsar in production?' content="
-If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](../../deployment/ClusterSetup) guide." %}
+If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](../../deployment/InstanceSetup) guide." %}
 
 {% include explanations/install-package.md %}
 
