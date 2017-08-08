@@ -34,33 +34,20 @@ Both of these parameters are in the [`broker.conf`](../../reference/Configuratio
 
 ### Set retention policy
 
-You can a retention policy for a namespace by specifying the namespace and either a size limit or a time limit *or both a size and time limit*.
+You can a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit.
 
 #### pulsar-admin
 
-Use the [`set-retention`](../../reference/CliTools#pulsar-admin-namespaces-set-retention) subcommand and specify a namespace and either a size limit using the `-s`/`--size` flag *or* a time limit using the `-t`/`--time` flag.
+Use the [`set-retention`](../../reference/CliTools#pulsar-admin-namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag.
 
 ##### Examples
 
-To set a size limit of 10 gigabytes for the `my-prop/my-cluster/my-ns` namespace:
+To set a size limit of 10 gigabytes and a time limit of 3 hours for the `my-prop/my-cluster/my-ns` namespace:
 
 ```shell
 $ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
-  --size 10G
-```
-
-To set a time limit of 3 hours for the `my-prop/my-cluster/my-ns` namespace:
-
-```shell
-$ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
+  --size 10G \
   --time 3h
-```
-
-To set a size *and* time limit:
-
-```shell
-$ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
-  --time 3h \
 ```
 
 #### REST API
