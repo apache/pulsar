@@ -1,3 +1,7 @@
+---
+title: Managing Clusters
+---
+
 Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more {% popover BookKeeper %} servers (aka {% popover bookies %}), and a {% popover ZooKeeper %} cluster that provides configuration and coordination management.
 
 Clusters can be managed via:
@@ -5,6 +9,8 @@ Clusters can be managed via:
 * The [`clusters`](../../reference/CliTools#pulsar-admin-clusters) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 * The `/admin/clusters` endpoint of the admin [REST API](../../reference/RestApi)
 * The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../applications/JavaClient)
+
+## Clusters resources
 
 ### Provision
 

@@ -1,7 +1,14 @@
+---
+title: Managing properties
+---
+
 Properties, like namespaces, can be managed using the [admin API](../../admin/AdminInterface). There are currently two configurable aspects of properties:
 
 * Admin roles
 * Allowed clusters
+
+
+## Properties resources
 
 ### List
 
