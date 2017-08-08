@@ -1,11 +1,16 @@
-Non-persistent can be used in applications that only want to consume real time published messages and 
-do not need persistent guarantee that can also reduce message-publish latency by removing overhead of 
+---
+title: Managing non-persistent topics
+---
+
+Non-persistent can be used in applications that only want to consume real time published messages and
+do not need persistent guarantee that can also reduce message-publish latency by removing overhead of
 persisting messages.
 
 In all of the instructions and commands below, the topic name structure is:
 
 `non-persistent://property/cluster/namespace/topic`
 
+## Non-persistent topics resources
 
 ### Get stats
 
@@ -52,9 +57,9 @@ It shows current statistics of a given non-partitioned topic.
   -   **inboundConnection**: The IP and port of the broker in the remote cluster's publisher connection to this broker
 
   -   **inboundConnectedSince**: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.
-  
+
   -   **msgDropRate**: for publisher: publish: broker only allows configured number of in flight per connection, and drops all other published messages above the threshold. Broker also drops messages for subscriptions in case of unavailable limit and connection is not writable.
-  	
+
 
 ```json
 {
@@ -136,7 +141,7 @@ Topic internal-stats can be fetched using [`stats-internal`](../../reference/Cli
 ```shell
 $ pulsar-admin non-persistent stats-internal \
   non-persistent://test-property/cl1/ns1/tp1 \
-  
+
 {
   "entriesAddedCounter" : 48834,
   "numberOfEntries" : 0,

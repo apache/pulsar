@@ -4,7 +4,7 @@ lead: Expand message throughput by distributing load within topics
 tags:
 - topics
 - partitioning
-- admin 
+- admin
 - clients
 ---
 
@@ -14,7 +14,7 @@ You can [publish](#publishing-to-partitioned-topics) to partitioned topics using
 
 ## Publishing to partitioned topics
 
-When publising to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](../../getting-started/ConceptsAndArchitecture#routing-modes) when you create a new {% popover producer %}. Examples for [Java](#java) are below.
+When publishing to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](../../getting-started/ConceptsAndArchitecture#routing-modes) when you create a new {% popover producer %}. Examples for [Java](#java) are below.
 
 ### Java
 

@@ -1,3 +1,7 @@
+---
+title: Managing brokers
+---
+
 Pulsar brokers consist of two components:
 
 1. An HTTP server exposing a [REST interface](../../reference/RestApi) administration and {% popover topic %} lookup.
@@ -14,6 +18,8 @@ In addition to being configurable when you start them up, brokers can also be [d
 {% include admonition.html type="info" content="
 See the [Configuration](../../reference/Configuration#broker) page for a full listing of broker-specific configuration parameters.
 " %}
+
+## Brokers resources
 
 ### List active brokers
 
