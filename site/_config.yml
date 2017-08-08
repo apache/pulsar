@@ -61,3 +61,4 @@ exclude:
 - package-lock.json
 - Rakefile
 - VERSIONS
+- README.md

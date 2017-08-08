@@ -72,10 +72,6 @@ flexible messaging model and an intuitive client API.</description>
     <url>https://travis-ci.org/apache/incubator-pulsar</url>
   </ciManagement>
 
-  <prerequisites>
-    <maven>3.3</maven>
-  </prerequisites>
-
   <modules>
     <module>managed-ledger</module>
     <module>pulsar-common</module>

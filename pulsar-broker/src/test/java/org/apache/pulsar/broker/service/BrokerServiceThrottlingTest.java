@@ -68,7 +68,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     /**
      * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -83,7 +83,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     /**
      * Broker has maxConcurrentLookupRequest = 0 so, it rejects incoming lookup request and it cause consumer creation
      * failure.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -122,12 +122,12 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     /**
      * Verifies: Broker side throttling:
-     * 
+     *
      * <pre>
-     * 1. concurrent_consumer_creation > maxConcurrentLookupRequest at broker 
+     * 1. concurrent_consumer_creation > maxConcurrentLookupRequest at broker
      * 2. few of the consumer creation must fail with TooManyLookupRequestException.
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -173,8 +173,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         latch.await();
 
-        for (int i = 0; i < successfulConsumers.size(); i++) {
-            successfulConsumers.get(i).close();
+        for (Consumer c : successfulConsumers) {
+            if (c != null) {
+                c.close();
+            }
         }
         pulsarClient.close();
         assertNotEquals(successfulConsumers.size(), totalConsumers);
@@ -183,14 +185,14 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     /**
      * This testcase make sure that once consumer lost connection with broker, it always reconnects with broker by
      * retrying on throttling-error exception also.
-     * 
+     *
      * <pre>
-     * 1. all consumers get connected 
-     * 2. broker restarts with maxConcurrentLookupRequest = 1 
+     * 1. all consumers get connected
+     * 2. broker restarts with maxConcurrentLookupRequest = 1
      * 3. consumers reconnect and some get TooManyRequestException and again retries
      * 4. eventually all consumers will successfully connect to broker
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test

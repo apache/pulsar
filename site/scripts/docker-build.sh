@@ -18,12 +18,23 @@
 # under the License.
 #
 
+# Build Pulsar website within a Docker container
 
-(
-  cd scripts
-  git clone https://github.com/doxygen/doxygen.git
-  cd doxygen && mkdir build && cd build
-  cmake -G "Unix Makefiles" ..
-  make
-  make install
-)
+# Fail script in case of errors
+set -e
+
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR/pulsar-client-cpp
+
+BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
+
+IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
+
+echo "---- Build Pulsar website using image $IMAGE"
+
+docker pull $IMAGE
+
+DOCKER_CMD="docker run --user $USER -i -v $ROOT_DIR:/pulsar $IMAGE"
+
+$DOCKER_CMD bash -l -c 'cd /pulsar/site && rvm use . && make setup && make protobuf_doc_gen && make build'

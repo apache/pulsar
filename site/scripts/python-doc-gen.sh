@@ -20,6 +20,11 @@
 
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
+
+# Make sure the Python client lib is installed
+# so that Pdoc can import the module
+pip install pulsar-client
+
 INPUT=$ROOT_DIR/pulsar-client-cpp/python/pulsar.py
 DESTINATION=$ROOT_DIR/site/api/python
 
