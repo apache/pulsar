@@ -26,6 +26,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -79,7 +80,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
@@ -87,6 +87,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -1175,56 +1177,92 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public void checkGC(int gcIntervalInSeconds) {
         if (isActive()) {
             lastActive = System.nanoTime();
+        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
+            // Gc interval did not expire yet
+            return;
+        } else if (shouldTopicBeRetained()) {
+            // Topic activity is still within the retention period
+            return;
         } else {
-            if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
-                CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
+            CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
 
-                if (DestinationName.get(topic).isGlobal()) {
-                    // For global namespace, close repl producers first.
-                    // Once all repl producers are closed, we can delete the topic,
-                    // provided no remote producers connected to the broker.
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                                gcIntervalInSeconds);
-                    }
-                    closeReplProducersIfNoBacklog().thenRun(() -> {
-                        if (hasRemoteProducers()) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
-                                        topic);
-                            }
-                            replCloseFuture.completeExceptionally(
-                                    new TopicBusyException("Topic has connected remote producers"));
-                        } else {
-                            log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
-                                    gcIntervalInSeconds);
-                            replCloseFuture.complete(null);
-                        }
-                    }).exceptionally(e -> {
+            if (DestinationName.get(topic).isGlobal()) {
+                // For global namespace, close repl producers first.
+                // Once all repl producers are closed, we can delete the topic,
+                // provided no remote producers connected to the broker.
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
+                            gcIntervalInSeconds);
+                }
+                closeReplProducersIfNoBacklog().thenRun(() -> {
+                    if (hasRemoteProducers()) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
+                            log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
+                                    topic);
                         }
-                        replCloseFuture.completeExceptionally(e.getCause());
+                        replCloseFuture
+                                .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
+                    } else {
+                        log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
+                                gcIntervalInSeconds);
+                        replCloseFuture.complete(null);
+                    }
+                }).exceptionally(e -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
+                    }
+                    replCloseFuture.completeExceptionally(e.getCause());
+                    return null;
+                });
+            } else {
+                replCloseFuture.complete(null);
+            }
+
+            replCloseFuture.thenCompose(v -> delete(true))
+                    .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
+                    .exceptionally(e -> {
+                        if (e.getCause() instanceof TopicBusyException) {
+                            // topic became active again
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Did not delete busy topic: {}", topic, e.getCause().getMessage());
+                            }
+                        } else {
+                            log.warn("[{}] Inactive topic deletion failed", topic, e);
+                        }
                         return null;
                     });
-                } else {
-                    replCloseFuture.complete(null);
-                }
 
-                replCloseFuture.thenCompose(v -> delete(true))
-                        .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
-                        .exceptionally(e -> {
-                            if (e.getCause() instanceof TopicBusyException) {
-                                // topic became active again
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Did not delete busy topic: {}", topic, e.getCause().getMessage());
-                                }
-                            } else {
-                                log.warn("[{}] Inactive topic deletion failed", topic, e);
-                            }
-                            return null;
-                        });
+        }
+    }
+
+    /**
+     * Check whether the topic should be retained (based on time), even tough there are no producers/consumers and it's
+     * marked as inactive.
+     */
+    private boolean shouldTopicBeRetained() {
+        DestinationName name = DestinationName.get(topic);
+        try {
+            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path("policies", name.getNamespace()));
+            if (!policies.isPresent()) {
+                // If no policies, the default is to have no retention and delete the inactive topic
+                return false;
             }
+
+            RetentionPolicies retention = policies.get().retention_policies;
+            if (retention == null) {
+                // Same as above, apply default to gc inactive topic
+                return false;
+            }
+
+            return (System.nanoTime() - lastActive < TimeUnit.MINUTES.toNanos(retention.getRetentionTimeInMinutes()));
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies", topic);
+            }
+
+            // Don't delete in case we cannot get the policies
+            return true;
         }
     }
 

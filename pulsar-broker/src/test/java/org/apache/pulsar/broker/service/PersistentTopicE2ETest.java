@@ -64,6 +64,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -571,6 +572,53 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
         runGC();
         assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 2. Topic is not GCed with live connection
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        String subName = "sub1";
+        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+
+        runGC();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 3. Topic with subscription is not GCed even with no connections
+        consumer.close();
+
+        runGC();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 4. Topic can be GCed after unsubscribe
+        admin.persistentTopics().deleteSubscription(topicName, subName);
+
+        runGC();
+        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+    }
+
+    /**
+     * A topic that has retention policy set to non-0, should not be GCed
+     * until it has been inactive for at least the retention time.
+     */
+    @Test
+    public void testGcAndRetentionPolicy() throws Exception {
+
+        // Retain data for at-least 10min
+        admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(10, 10));
+
+        // 1. Simple successful GC
+        String topicName = "persistent://prop/use/ns-abc/topic-10";
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        runGC();
+        // Should not have been deleted, since we have retention
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+
+        // Remove retention
+        admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(0, 10));
+        Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
         ConsumerConfiguration conf = new ConsumerConfiguration();
@@ -1135,11 +1183,11 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * Verify: 
-     * 1. Broker should not replay already acknowledged messages 
-     * 2. Dispatcher should not stuck while dispatching new messages due to previous-replay 
+     * Verify:
+     * 1. Broker should not replay already acknowledged messages
+     * 2. Dispatcher should not stuck while dispatching new messages due to previous-replay
      * of invalid/already-acked messages
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1214,5 +1262,5 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         producer.close();
     }
-    
+
 }
