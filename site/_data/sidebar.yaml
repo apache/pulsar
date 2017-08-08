@@ -83,8 +83,8 @@ groups:
     endpoint: brokers
   - title: Namespaces
     endpoint: namespaces
-  - title: permissions
-    endpoint: Permissions
+  - title: Permissions
+    endpoint: permissions
   - title: Persistent topics
     endpoint: persistent-topics
   - title: Non-Persistent topics
