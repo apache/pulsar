@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>The Pulsar codebase</title>
+<title>Managing properties</title>
 
 <meta charset="utf-8">
 
@@ -645,8 +645,8 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">The Pulsar codebase</h1>
-        <span class="docs-lead">If you want to contribute to Pulsar, here's an overview of what lives where in the repo</span><br />
+        <h1 class="docs-title">Managing properties</h1>
+        
         <section class="tags">
           
         </section>
@@ -655,219 +655,87 @@
       </section>
 
       <section class="content">
-        <p>The panels below describe some of the core directories in the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar codebase</a>.</p>
+        <p>Properties, like namespaces, can be managed using the <a href="../../admin/AdminInterface">admin API</a>. There are currently two configurable aspects of properties:</p>
 
-<!--
+<ul>
+  <li>Admin roles</li>
+  <li>Allowed clusters</li>
+</ul>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+<h2 id="properties-resources">Properties resources</h2>
 
-      http://www.apache.org/licenses/LICENSE-2.0
+<h3 id="list">List</h3>
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+<h4 id="pulsar-admin">pulsar-admin</h4>
 
--->
+<p>You can list all of the properties associated with an <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using the <a href="../../reference/CliTools#pulsar-admin-properties-list"><code class="highlighter-rouge">list</code></a> subcommand:</p>
 
-<section class="codebase">
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Code related to the Pulsar <a href="../../getting-started/ConceptsAndArchitecture#brokers">broker</a>.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties list
+</code></pre>
+</div>
 
-      <span>Languages: Java</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-common <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-common"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets related to Pulsar’s message protocol.</p>
+<p>That will return a simple list, like this:</p>
 
-      <span>Languages: Java, Protocol Buffers</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">dashboard <a href="https://github.com/apache/incubator-pulsar/tree/master/dashboard"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>The web client powering Pulsar’s <a href="../../admin/Dashboard">dashboard</a>.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>my-property-1
+my-property-2
+</code></pre>
+</div>
 
-      <span>Languages: python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">kubernetes <a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p><a href="../../deployment/Kubernetes">Kubernetes</a> configuration for Pulsar.</p>
+<h3 id="create">Create</h3>
 
-      <span>Languages: YAML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">docker <a href="https://github.com/apache/incubator-pulsar/tree/master/docker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to build Pulsar’s <a href="https://hub.docker.com">Docker image</a></p>
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
 
-      <span>Languages: Dockerfile, shell, Python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">managed-ledger <a href="https://github.com/apache/incubator-pulsar/tree/master/managed-ledger"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">create</code></a> subcommand:</p>
 
-      <span>Languages: Java</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker-auth-athenz <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker-auth-athenz"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property
+</code></pre>
+</div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-client <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-client"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>When creating a property, you can assign admin roles using the <code class="highlighter-rouge">-r</code>/<code class="highlighter-rouge">--admin-roles</code> flag. You can specify multiple roles as a comma-separated list. Here are some examples:</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-spark <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-spark"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  --admin-roles role1,role2,role3
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-storm <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  -r role1
+</code></pre>
+</div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-testclient <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-testclient"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<h3 id="get-configuration">Get configuration</h3>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">src <a href="https://github.com/apache/incubator-pulsar/tree/master/src"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
 
-      <span>Languages: XML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">protobuf <a href="https://github.com/apache/incubator-pulsar/tree/master/protobuf"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Some helpers for generating code from Protocol Buffer definitions.</p>
+<p>You can see a property’s configuration as a JSON object using the <a href="../../reference/CliTools#pulsar-admin-properties-get"><code class="highlighter-rouge">get</code></a> subcommand and specifying the name of the property:</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">all <a href="https://github.com/apache/incubator-pulsar/tree/master/all"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Configuration for Maven’s assembly plugin.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties get my-property
+<span class="o">{</span>
+  <span class="s2">"adminRoles"</span>: <span class="o">[</span>
+    <span class="s2">"admin1"</span>,
+    <span class="s2">"admin2"</span>
+  <span class="o">]</span>,
+  <span class="s2">"allowedClusters"</span>: <span class="o">[</span>
+    <span class="s2">"cl1"</span>,
+    <span class="s2">"cl2"</span>
+  <span class="o">]</span>
+<span class="o">}</span>
+</code></pre>
+</div>
 
-      <span>Languages: xml</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">bin <a href="https://github.com/apache/incubator-pulsar/tree/master/bin"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Executable scripts used for Pulsar administration</p>
+<h3 id="delete">Delete</h3>
 
-      <span>Languages: Bash</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">site <a href="https://github.com/apache/incubator-pulsar/tree/master/site"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to generate this website</p>
+<h4 id="pulsar-adnin">pulsar-adnin</h4>
 
-      <span>Languages: Markdown, Sass, HTML, JavaScript</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">.travis <a href="https://github.com/apache/incubator-pulsar/tree/master/.travis"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Settings for <a href="https://travis-ci.org">Travis CI</a>, the continuous integration system used by Pulsar</p>
+<p>You can delete a property using the <a href="../../reference/CliTools#pulsar-admin-properties-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specifying the property name:</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-</section>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties delete my-property
+</code></pre>
+</div>
+
+<h3 id="updating">Updating</h3>
+
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
+
+<p>You can update a property’s configuration using the <a href="../../reference/CliTools#pulsar-admin-properties-update"><code class="highlighter-rouge">update</code></a> subcommand</p>
 
       </section>
     </article>
@@ -875,7 +743,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>The Pulsar codebase</h4>
+        <h4>Managing properties</h4>
       </div>
       
     </nav>

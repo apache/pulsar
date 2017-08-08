@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>The Pulsar codebase</title>
+<title>Managing permissions</title>
 
 <meta charset="utf-8">
 
@@ -645,8 +645,8 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">The Pulsar codebase</h1>
-        <span class="docs-lead">If you want to contribute to Pulsar, here's an overview of what lives where in the repo</span><br />
+        <h1 class="docs-title">Managing permissions</h1>
+        
         <section class="tags">
           
         </section>
@@ -655,219 +655,122 @@
       </section>
 
       <section class="content">
-        <p>The panels below describe some of the core directories in the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar codebase</a>.</p>
+        <h2 id="permissions-resources">Permissions resources</h2>
 
-<!--
+<p>Permissions in Pulsar are managed at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level (that is, within <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span> and <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>).</p>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+<h3 id="grant-permissions">Grant permissions</h3>
 
-      http://www.apache.org/licenses/LICENSE-2.0
+<p>You can grant permissions to specific roles for lists of operations such as <code class="highlighter-rouge">produce</code> and <code class="highlighter-rouge">consume</code>.</p>
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+<h4 id="pulsar-admin">pulsar-admin</h4>
 
--->
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a> subcommand and specify a namespace, actions using the <code class="highlighter-rouge">--actions</code> flag, and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
 
-<section class="codebase">
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Code related to the Pulsar <a href="../../getting-started/ConceptsAndArchitecture#brokers">broker</a>.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+  --actions produce,consume <span class="se">\</span>
+  --role admin10
+</code></pre>
+</div>
 
-      <span>Languages: Java</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-common <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-common"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets related to Pulsar’s message protocol.</p>
+<p>Wildcard authorization can be performed when <code class="highlighter-rouge">authorizationAllowWildcardsMatching</code> is set to <code class="highlighter-rouge">true</code> in <code class="highlighter-rouge">broker.conf</code>.</p>
 
-      <span>Languages: Java, Protocol Buffers</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">dashboard <a href="https://github.com/apache/incubator-pulsar/tree/master/dashboard"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>The web client powering Pulsar’s <a href="../../admin/Dashboard">dashboard</a>.</p>
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.role.*'</span>
+</code></pre>
+</div>
 
-      <span>Languages: python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">kubernetes <a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p><a href="../../deployment/Kubernetes">Kubernetes</a> configuration for Pulsar.</p>
+<p>Then, roles <code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>, etc. can produce and consume.</p>
 
-      <span>Languages: YAML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">docker <a href="https://github.com/apache/incubator-pulsar/tree/master/docker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to build Pulsar’s <a href="https://hub.docker.com">Docker image</a></p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'*.role.my'</span>
+</code></pre>
+</div>
 
-      <span>Languages: Dockerfile, shell, Python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">managed-ledger <a href="https://github.com/apache/incubator-pulsar/tree/master/managed-ledger"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>Then, roles <code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>, etc. can produce and consume.</p>
 
-      <span>Languages: Java</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker-auth-athenz <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker-auth-athenz"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p><strong>Note</strong>: A wildcard matching works at <strong>the beginning or end of the role name only</strong>.</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-client <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-client"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>e.g.</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+                        --actions produce,consume <span class="se">\</span>
+                        --role <span class="s1">'my.*.role'</span>
+</code></pre>
+</div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-spark <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-spark"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
+Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-storm <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<h4 id="rest-api">REST API</h4>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-testclient <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-testclient"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">src <a href="https://github.com/apache/incubator-pulsar/tree/master/src"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
 
-      <span>Languages: XML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">protobuf <a href="https://github.com/apache/incubator-pulsar/tree/master/protobuf"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Some helpers for generating code from Protocol Buffer definitions.</p>
+<h4 id="java">Java</h4>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">all <a href="https://github.com/apache/incubator-pulsar/tree/master/all"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Configuration for Maven’s assembly plugin.</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
+</code></pre>
+</div>
 
-      <span>Languages: xml</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">bin <a href="https://github.com/apache/incubator-pulsar/tree/master/bin"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Executable scripts used for Pulsar administration</p>
+<h3 id="get-permission">Get permission</h3>
 
-      <span>Languages: Bash</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">site <a href="https://github.com/apache/incubator-pulsar/tree/master/site"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to generate this website</p>
+<p>You can see which permissions have been granted to which roles in a namespace.</p>
 
-      <span>Languages: Markdown, Sass, HTML, JavaScript</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">.travis <a href="https://github.com/apache/incubator-pulsar/tree/master/.travis"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Settings for <a href="https://travis-ci.org">Travis CI</a>, the continuous integration system used by Pulsar</p>
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
 
-      
-      </section>
-    </div>
-  </div>
-  
-</section>
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a> subcommand and specify a namespace:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces permissions <span class="nb">test</span>-property/cl1/ns1
+<span class="o">{</span>
+  <span class="s2">"admin10"</span>: <span class="o">[</span>
+    <span class="s2">"produce"</span>,
+    <span class="s2">"consume"</span>
+  <span class="o">]</span>
+<span class="o">}</span>   
+</code></pre>
+</div>
+
+<h4 id="rest-api-1">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
+
+<h4 id="java-1">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="revoke-permissions">Revoke permissions</h3>
+
+<p>You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.</p>
+
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> subcommand and specify a namespace and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces revoke-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
+  --role admin10
+</code></pre>
+</div>
+
+<h4 id="rest-api-2">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+
+<h4 id="java-2">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre>
+</div>
+
 
       </section>
     </article>
@@ -875,7 +778,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>The Pulsar codebase</h4>
+        <h4>Managing permissions</h4>
       </div>
       
     </nav>

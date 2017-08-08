@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>Managing properties and namespaces</title>
+<title>Managing namespaces</title>
 
 <meta charset="utf-8">
 
@@ -330,27 +330,6 @@
           
           
           <li>
-            <a href="../../admin/AdminInterface">
-              Pulsar admin interface
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/ClustersBrokers">
-              Clusters and brokers
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/PropertiesNamespaces">
-              Properties and namespaces
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/ZooKeeperBookKeeper">
               ZooKeeper and BookKeeper
             </a>
@@ -358,8 +337,8 @@
           
           
           <li>
-            <a href="../../admin/Dashboard">
-              Dashboard
+            <a href="../../admin/GeoReplication">
+              Geo-replication
             </a>
           </li>
           
@@ -372,8 +351,8 @@
           
           
           <li>
-            <a href="../../admin/GeoReplication">
-              Geo-replication
+            <a href="../../admin/Dashboard">
+              Dashboard
             </a>
           </li>
           
@@ -433,6 +412,86 @@
           <li>
             <a href="../../clients/WebSocket">
               WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
             </a>
           </li>
           
@@ -586,425 +645,9 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Managing properties and namespaces</h1>
+        <h1 class="docs-title">Managing namespaces</h1>
         
         <section class="tags">
-          
-          <!-- <span class="badge badge-pill badge-primary">properties</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-properties">properties</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-properties">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>properties</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/PropertiesNamespaces/">Managing properties and namespaces</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">namespaces</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-namespaces">namespaces</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-namespaces">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>namespaces</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/PropertiesNamespaces/">Managing properties and namespaces</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-admin">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          <li><a href="/docs/latest/admin/AdminInterface/">The Pulsar admin interface</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/ClustersBrokers/">Pulsar cluster and broker administration</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
-          
-          
-          
-          <li><a href="/docs/latest/admin/PropertiesNamespaces/">Managing properties and namespaces</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
           
         </section>
 
@@ -1012,207 +655,7 @@
       </section>
 
       <section class="content">
-        <p>Within a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, <a href="#properties">properties</a> are the highest administrative unit. Each property can consist of any number of <a href="#namespaces">namespaces</a>.</p>
-
-<p>Each of Pulsar’s three admin interfaces—the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, the <a href="/api/admin">Java admin API</a>, and the <a href="../../reference/RestApi">REST API</a>—requires some special setup if you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
-
-<h3 id="pulsar-admin">pulsar-admin</h3>
-
-<p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<table class="config">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Description</th>
-      <th>Default</th>
-    </tr>
-  </thead>
-  <tbody>
-    
-    <tr id="client-webServiceUrl">
-      <td>webServiceUrl</td>
-      <td>The web URL for the cluster.
-</td>
-      <td>http://localhost:8080/</td>
-    </tr>
-    
-    <tr id="client-brokerServiceUrl">
-      <td>brokerServiceUrl</td>
-      <td>The Pulsar protocol URL for the cluster.
-</td>
-      <td>pulsar://localhost:6650/</td>
-    </tr>
-    
-    <tr id="client-authPlugin">
-      <td>authPlugin</td>
-      <td>The authentication plugin.
-</td>
-      <td></td>
-    </tr>
-    
-    <tr id="client-authParams">
-      <td>authParams</td>
-      <td>The authentication parameters for the cluster, as a comma-separated string.
-</td>
-      <td></td>
-    </tr>
-    
-    <tr id="client-useTls">
-      <td>useTls</td>
-      <td>Whether or not TLS authentication will be enforced in the cluster.
-</td>
-      <td>false</td>
-    </tr>
-    
-    <tr id="client-tlsAllowInsecureConnection">
-      <td>tlsAllowInsecureConnection</td>
-      <td>
-</td>
-      <td></td>
-    </tr>
-    
-    <tr id="client-tlsTrustCertsFilePath">
-      <td>tlsTrustCertsFilePath</td>
-      <td>
-</td>
-      <td></td>
-    </tr>
-    
-  </tbody>
-</table>
-
-<h3 id="rest-api">REST API</h3>
-
-<p>You can find documentation for the REST API exposed by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in <a href="../../reference/RestApi">this reference document</a>.</p>
-
-<h3 id="java-admin-client">Java admin client</h3>
-
-<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
-<span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
-<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span><span class="c1">//Pass auth-param if auth-plugin class requires it</span>
-<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
-<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
-
-<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
-
-<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h2 id="managing-properties">Managing properties</h2>
-
-<p>Properties, like namespaces, can be managed using the <a href="../../admin/AdminInterface">admin API</a>. There are currently two configurable aspects of properties:</p>
-
-<ul>
-  <li>Admin roles</li>
-  <li>Allowed clusters</li>
-</ul>
-
-<h3 id="list">List</h3>
-
-<h4 id="pulsar-admin-1">pulsar-admin</h4>
-
-<p>You can list all of the properties associated with an <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using the <a href="../../reference/CliTools#pulsar-admin-properties-list"><code class="highlighter-rouge">list</code></a> subcommand:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties list
-</code></pre>
-</div>
-
-<p>That will return a simple list, like this:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>my-property-1
-my-property-2
-</code></pre>
-</div>
-
-<h3 id="create">Create</h3>
-
-<h4 id="pulsar-admin-2">pulsar-admin</h4>
-
-<p>You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">create</code></a> subcommand:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property
-</code></pre>
-</div>
-
-<p>When creating a property, you can assign admin roles using the <code class="highlighter-rouge">-r</code>/<code class="highlighter-rouge">--admin-roles</code> flag. You can specify multiple roles as a comma-separated list. Here are some examples:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
-  --admin-roles role1,role2,role3
-
-<span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
-  -r role1
-</code></pre>
-</div>
-
-<h3 id="get-configuration">Get configuration</h3>
-
-<h4 id="pulsar-admin-3">pulsar-admin</h4>
-
-<p>You can see a property’s configuration as a JSON object using the <a href="../../reference/CliTools#pulsar-admin-properties-get"><code class="highlighter-rouge">get</code></a> subcommand and specifying the name of the property:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties get my-property
-<span class="o">{</span>
-  <span class="s2">"adminRoles"</span>: <span class="o">[</span>
-    <span class="s2">"admin1"</span>,
-    <span class="s2">"admin2"</span>
-  <span class="o">]</span>,
-  <span class="s2">"allowedClusters"</span>: <span class="o">[</span>
-    <span class="s2">"cl1"</span>,
-    <span class="s2">"cl2"</span>
-  <span class="o">]</span>
-<span class="o">}</span>
-</code></pre>
-</div>
-
-<h3 id="delete">Delete</h3>
-
-<h4 id="pulsar-adnin">pulsar-adnin</h4>
-
-<p>You can delete a property using the <a href="../../reference/CliTools#pulsar-admin-properties-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specifying the property name:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties delete my-property
-</code></pre>
-</div>
-
-<h3 id="updating">Updating</h3>
-
-<h4 id="pulsar-admin-4">pulsar-admin</h4>
-
-<p>You can update a property’s configuration using the <a href="../../reference/CliTools#pulsar-admin-properties-update"><code class="highlighter-rouge">update</code></a> subcommand</p>
-
-<h2 id="managing-namespaces">Managing namespaces</h2>
-
-<p>Pulsar <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> are logical groupings of <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
+        <p>Pulsar <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> are logical groupings of <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
 
 <p>Namespaces can be managed via:</p>
 
@@ -1222,11 +665,13 @@ my-property-2
   <li>The <code class="highlighter-rouge">namespaces</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
-<h3 id="create-1">Create</h3>
+<h2 id="namespaces-resources">Namespaces resources</h2>
+
+<h3 id="create">Create</h3>
 
 <p>You can create new namespaces under a given <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and within a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
 
-<h4 id="pulsar-admin-5">pulsar-admin</h4>
+<h4 id="pulsar-admin">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-create"><code class="highlighter-rouge">create</code></a> subcommand and specify the namespace by name:</p>
 
@@ -1234,7 +679,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-1">REST API</h4>
+<h4 id="rest-api">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
@@ -1250,7 +695,7 @@ my-property-2
 
 <p>You can fetch the current policies associated with a namespace at any time.</p>
 
-<h4 id="pulsar-admin-6">pulsar-admin</h4>
+<h4 id="pulsar-admin-1">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-policies"><code class="highlighter-rouge">policies</code></a> subcommand and specify the namespace:</p>
 
@@ -1279,7 +724,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-2">REST API</h4>
+<h4 id="rest-api-1">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
@@ -1295,7 +740,7 @@ my-property-2
 
 <p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>.</p>
 
-<h4 id="pulsar-admin-7">pulsar-admin</h4>
+<h4 id="pulsar-admin-2">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a> subcommand and specify the property:</p>
 
@@ -1305,7 +750,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-3">REST API</h4>
+<h4 id="rest-api-2">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span></code></pre></div>
 
@@ -1321,7 +766,7 @@ my-property-2
 
 <p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
 
-<h4 id="pulsar-admin-8">pulsar-admin</h4>
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a> subcommand and specify the cluster:</p>
 
@@ -1331,7 +776,7 @@ my-property-2
 </code></pre>
 </div>
 
-<h4 id="rest-api-4">REST API</h4>
+<h4 id="rest-api-3">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span></code></pre></div>
 
@@ -1343,11 +788,11 @@ my-property-2
 </code></pre>
 </div>
 
-<h3 id="delete-1">Delete</h3>
+<h3 id="delete">Delete</h3>
 
 <p>You can delete existing namespaces from a property/cluster.</p>
 
-<h4 id="pulsar-admin-9">pulsar-admin</h4>
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the namespace:</p>
 
@@ -1364,122 +809,6 @@ my-property-2
 <h4 id="java-4">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h2 id="managing-permissions">Managing permissions</h2>
-
-<p>Permissions in Pulsar are managed at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level (that is, within <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span> and <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>).</p>
-
-<h3 id="grant-permissions">Grant permissions</h3>
-
-<p>You can grant permissions to specific roles for lists of operations such as <code class="highlighter-rouge">produce</code> and <code class="highlighter-rouge">consume</code>.</p>
-
-<h4 id="pulsar-admin-10">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a> subcommand and specify a namespace, actions using the <code class="highlighter-rouge">--actions</code> flag, and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --actions produce,consume <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
-
-<p>Wildcard authorization can be performed when <code class="highlighter-rouge">authorizationAllowWildcardsMatching</code> is set to <code class="highlighter-rouge">true</code> in <code class="highlighter-rouge">broker.conf</code>.</p>
-
-<p>e.g.</p>
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.role.*'</span>
-</code></pre>
-</div>
-
-<p>Then, roles <code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>, etc. can produce and consume.</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'*.role.my'</span>
-</code></pre>
-</div>
-
-<p>Then, roles <code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>, etc. can produce and consume.</p>
-
-<p><strong>Note</strong>: A wildcard matching works at <strong>the beginning or end of the role name only</strong>.</p>
-
-<p>e.g.</p>
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.*.role'</span>
-</code></pre>
-</div>
-
-<p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
-Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
-
-<h4 id="rest-api-5">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
-
-<h4 id="java-5">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
-</code></pre>
-</div>
-
-<h3 id="get-permission">Get permission</h3>
-
-<p>You can see which permissions have been granted to which roles in a namespace.</p>
-
-<h4 id="pulsar-admin-11">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a> subcommand and specify a namespace:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces permissions <span class="nb">test</span>-property/cl1/ns1
-<span class="o">{</span>
-  <span class="s2">"admin10"</span>: <span class="o">[</span>
-    <span class="s2">"produce"</span>,
-    <span class="s2">"consume"</span>
-  <span class="o">]</span>
-<span class="o">}</span>   
-</code></pre>
-</div>
-
-<h4 id="rest-api-6">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
-
-<h4 id="java-6">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="revoke-permissions">Revoke permissions</h3>
-
-<p>You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.</p>
-
-<h4 id="pulsar-admin-12">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> subcommand and specify a namespace and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces revoke-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
-
-<h4 id="rest-api-7">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
-
-<h4 id="java-7">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
 </code></pre>
 </div>
 
@@ -1500,7 +829,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-8">Java</h6>
+<h6 id="java-5">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
 </code></pre>
@@ -1526,7 +855,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-9">Java</h6>
+<h6 id="java-6">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -1566,7 +895,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-10">Java</h6>
+<h6 id="java-7">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
 </code></pre>
@@ -1597,7 +926,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-11">Java</h6>
+<h6 id="java-8">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -1623,7 +952,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-12">Java</h6>
+<h6 id="java-9">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
 </code></pre>
@@ -1664,7 +993,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-13">Java</h6>
+<h6 id="java-10">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
 </code></pre>
@@ -1695,7 +1024,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-14">Java</h6>
+<h6 id="java-11">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -1721,7 +1050,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-15">Java</h6>
+<h6 id="java-12">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre>
@@ -1747,7 +1076,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-16">Java</h6>
+<h6 id="java-13">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
 </code></pre>
@@ -1773,7 +1102,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-17">Java</h6>
+<h6 id="java-14">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -1799,7 +1128,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-18">Java</h6>
+<h6 id="java-15">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre>
@@ -1825,7 +1154,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-19">Java</h6>
+<h6 id="java-16">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre>
@@ -1851,7 +1180,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-20">Java</h6>
+<h6 id="java-17">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre>
@@ -1877,7 +1206,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-21">Java</h6>
+<h6 id="java-18">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
 </code></pre>
@@ -1906,7 +1235,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h6 id="java-22">Java</h6>
+<h6 id="java-19">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre>
@@ -1920,7 +1249,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>You can unload a namespace, or a <span class="popover-term" tabindex="0" title="What is a namespace bundle?" data-placement="top" data-content="A virtual group of topics that belong to the same namespace. A namespace bundle is defined as a range between two 32-bit hashes, such as 0x00000000 and 0xffffffff." data-toggle="popover" data-trigger="focus">namespace bundle</span>, from the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> that is currently responsible for it.</p>
 
-<h4 id="pulsar-admin-13">pulsar-admin</h4>
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-unload"><code class="highlighter-rouge">unload</code></a> subcommand of the <a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a> command.</p>
 
@@ -1930,106 +1259,9 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 </code></pre>
 </div>
 
-<h4 id="rest-api-8">REST API</h4>
+<h4 id="rest-api-4">REST API</h4>
 
-<h4 id="java-23">Java</h4>
-
-<h2 id="concepts">Concepts</h2>
-
-<p>Pulsar was designed from the ground up to be a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. In Pulsar, <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenants</span> are identified by <a href="#properties">properties</a>. Properties are the highest administrative unit within a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>. Within properties</p>
-
-<h3 id="properties">Properties</h3>
-
-<p>To each property in a Pulsar instance you can assign:</p>
-
-<ul>
-  <li>An <a href="../../admin/Authz#authorization">authorization</a> scheme</li>
-  <li>The set of <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> to which the property applies</li>
-</ul>
-
-<h3 id="namespaces">Namespaces</h3>
-
-<p><span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">Properties</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> are two key concepts of Pulsar to support <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenancy</span>.</p>
-
-<ul>
-  <li>A <strong>property</strong> identifies a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>. Pulsar is provisioned for a specified property with appropriate capacity allocated to the property.</li>
-  <li>A <strong>namespace</strong> is the administrative unit nomenclature within a property. The configuration policies set on a namespace apply to all the topics created in such namespace. A property may create multiple namespaces via self-administration using REST API and CLI tools. For instance, a property with different applications can create a separate namespace for each application.</li>
-</ul>
-
-<p>Names for topics in the same namespace will look like this:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
-</section>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
-</section>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
-</section>
-
+<h4 id="java-20">Java</h4>
 
       </section>
     </article>
@@ -2037,7 +1269,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Managing properties and namespaces</h4>
+        <h4>Managing namespaces</h4>
       </div>
       
     </nav>
