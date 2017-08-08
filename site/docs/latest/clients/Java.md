@@ -77,7 +77,7 @@ PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ```
 
 {% include admonition.html type='info' title='Default broker URLs for standalone clusters' content="
-If you're running a cluster in [standalone mode](../getting-started/LocalCluster), the broker will be available at the `pulsar://localhost:6650` URL by default." %}
+If you're running a cluster in [standalone mode](../../getting-started/LocalCluster), the broker will be available at the `pulsar://localhost:6650` URL by default." %}
 
 Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a {% popover topic %}.
 
@@ -196,11 +196,11 @@ Async send operations return a {% javadoc Message client org.apache.pulsar.clien
 
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-authentication) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](../../admin/Authz#tls-authentication), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](../../admin/Authz#tls-client-auth), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 
