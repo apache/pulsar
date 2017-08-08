@@ -35,6 +35,9 @@ echo "---- Build Pulsar website using image $IMAGE"
 
 docker pull $IMAGE
 
-DOCKER_CMD="docker run --user $USER -i -v $ROOT_DIR:/pulsar $IMAGE"
+CI_USER=$(id -u)
+CI_GROUP=$(id -g)
 
-$DOCKER_CMD bash -l -c 'cd /pulsar/site && rvm use . && make setup && make protobuf_doc_gen && make build'
+DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -v $ROOT_DIR:/pulsar $IMAGE"
+
+$DOCKER_CMD bash -l -c 'cd /pulsar/site && rvm use . && make setup && make protobuf_doc_gen && make build && chown -R $CI_USER:$CI_GROUP /pulsar/generated-site'
