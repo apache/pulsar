@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
@@ -132,6 +133,14 @@ public class PerformanceProducer {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
         public long testTime = 0;
+
+        @Parameter(names = {
+                "--use-tls" }, description = "Use TLS encryption on the connection")
+        public boolean useTls;
+
+        @Parameter(names = {
+                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
+        public String tlsTrustCertsFilePath = "";
     }
 
     public static void main(String[] args) throws Exception {
@@ -182,6 +191,14 @@ public class PerformanceProducer {
             if (arguments.authParams == null) {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
+
+            if (arguments.useTls == false) {
+               arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
+            }
+
+            if (isBlank(arguments.tlsTrustCertsFilePath)) {
+               arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
+            }
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
@@ -210,6 +227,8 @@ public class PerformanceProducer {
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
+        clientConf.setUseTls(arguments.useTls);
+        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
