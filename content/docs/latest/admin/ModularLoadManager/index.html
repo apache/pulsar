@@ -105,8 +105,19 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+            <div class="dropdown-divider"></div>
+            <h3 class="dropdown-header">Stable release</h3>
+            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+            
+        </div>
       </li>
 
       <li class="nav-item">

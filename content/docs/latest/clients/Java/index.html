@@ -105,8 +105,19 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+            <div class="dropdown-divider"></div>
+            <h3 class="dropdown-header">Stable release</h3>
+            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+            
+        </div>
       </li>
 
       <li class="nav-item">
@@ -963,7 +974,7 @@
       <section class="content">
         <p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> of messages but also to perform <a href="../../admin/AdminInterface">administrative tasks</a>.</p>
 
-<p>The current version of the Java client is <strong>latest</strong>.</p>
+<p>The current version of the Java client is <strong>1.19.0-incubating</strong>.</p>
 
 <p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
 
@@ -990,14 +1001,14 @@
 
 <h2 id="installation">Installation</h2>
 
-<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7Clatest%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.19.0-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
 
 <h3 id="maven">Maven</h3>
 
 <p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
 
 <div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>latest<span class="nt">&lt;/pulsar.version&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>1.19.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
@@ -1012,7 +1023,7 @@
 
 <p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'latest'</span>
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.19.0-incubating'</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>

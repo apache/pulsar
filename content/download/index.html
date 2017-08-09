@@ -105,8 +105,19 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+            <div class="dropdown-divider"></div>
+            <h3 class="dropdown-header">Stable release</h3>
+            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+            
+        </div>
       </li>
 
       <li class="nav-item">
@@ -199,451 +210,8 @@
 
 <div class="docs-container container-fluid">
   <div class="row">
-    <nav class="sidebar-nav hidden-md-down col-lg-3">
-      <!--
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-
-<aside class="sidebar-nav">
-  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-getting-started">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
-            Getting started
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
-        <ul>
-          
-          
-          <li>
-            <a href="../../getting-started/LocalCluster">
-              Run Pulsar locally
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../getting-started/Clients">
-              Client libraries
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../getting-started/ConceptsAndArchitecture">
-              Concepts and architecture
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-deployment">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
-            Deployment
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
-        <ul>
-          
-          
-          <li>
-            <a href="../../deployment/InstanceSetup">
-              Deploying on bare metal
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../deployment/Kubernetes">
-              Pulsar on Kubernetes
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../deployment/Kubernetes/#pulsar-on-google-container-engine">
-              Pulsar on Google Container Engine
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
-              Pulsar on AWS
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../deployment/Monitoring">
-              Monitoring
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-pulsar-administration">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
-            Pulsar administration
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
-        <ul>
-          
-          
-          <li>
-            <a href="../../admin/ZooKeeperBookKeeper">
-              ZooKeeper and BookKeeper
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/GeoReplication">
-              Geo-replication
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/Dashboard">
-              Dashboard
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/Stats">
-              Pulsar statistics
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-client-libraries">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
-            Client libraries
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
-        <ul>
-          
-          
-          <li>
-            <a href="../../clients/Java">
-              Java client
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../clients/Cpp">
-              C++ client
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../clients/Python">
-              Python client
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../clients/WebSocket">
-              WebSocket API
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-admin-api">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
-            Admin API
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
-        <ul>
-          
-          
-          <li>
-            <a href="../../admin-api/overview">
-              Overview
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/clusters">
-              Clusters
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/properties">
-              Properties
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/brokers">
-              Brokers
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/namespaces">
-              Namespaces
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/permissions">
-              Permissions
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/persistent-topics">
-              Persistent topics
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/non-persistent-topics">
-              Non-Persistent topics
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../admin-api/partitioned-topics">
-              Partitioned topics
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-adaptors">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
-            Adaptors
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
-        <ul>
-          
-          
-          <li>
-            <a href="../../adaptors/PulsarSpark">
-              Spark Streaming
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../adaptors/PulsarStorm">
-              Apache Storm
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-advanced">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
-            Advanced
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
-        <ul>
-          
-          
-          <li>
-            <a href="../../advanced/PartitionedTopics">
-              Partitioned topics
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../advanced/RetentionExpiry">
-              Retention and expiry
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-developing-pulsar">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
-            Developing Pulsar
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
-        <ul>
-          
-          
-          <li>
-            <a href="../../project/SimulationTools">
-              Simulation tools
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../project/BinaryProtocol">
-              Pulsar binary protocol
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../project/Codebase">
-              Codebase
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-    
-    <div class="card">
-      <div class="card-header" role="tab" id="heading-reference">
-        <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
-            Reference
-          </a>
-        </h5>
-      </div>
-
-      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
-        <ul>
-          
-          
-          <li>
-            <a href="../../reference/RestApi">
-              Pulsar REST API
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../reference/CliTools">
-              Command-line tools
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../reference/Configuration">
-              Pulsar configuration
-            </a>
-          </li>
-          
-        </ul>
-      </div>
-    </div>
-    
-  </div>
-</aside>
-
-
-    </nav>
-
-    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+    <article class="content col-xs-12 col-sm-12 col-md-7 col-lg-7">
       <section class="docs-header">
         <h1 class="docs-title">Apache Pulsar downloads</h1>
         
@@ -655,40 +223,9 @@
       </section>
 
       <section class="content">
-        <!--
+        <p>Download Pulsar from the <a href="https://github.com/apache/incubator-pulsar/releases">releases page</a> on GitHub or here:</p>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Notice</p>
-</span>
-    
-<p>The current release was done prior to entering the Apache Incubator, so
-it’s still relative to ‘Yahoo Pulsar’ rather than ‘Apache Pulsar’</p>
-
-  </div>
-</div>
-
-<p>Download Pulsar from the <a href="https://github.com/apache/incubator-pulsar/releases">releases page</a> on GitHub or here:</p>
-
-<h3 id="version-118">Version 1.18</h3>
+<h3 id="version-1190-incubating">Version 1.19.0-incubating</h3>
 
 <table>
   <thead>
@@ -700,24 +237,22 @@ it’s still relative to ‘Yahoo Pulsar’ rather than ‘Apache Pulsar’</p>
   <tbody>
     <tr>
       <td style="text-align: left">Source</td>
-      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/releases/download/v1.18/pulsar-1.18-src.tar.gz">pulsar-1.18-src.tar.gz</a></td>
+      <td style="text-align: left"><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-src.tar.gz">apache-pulsar-1.19.0-incubating-src.tar.gz</a></td>
     </tr>
     <tr>
       <td style="text-align: left">Binary</td>
-      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/releases/download/v1.18/pulsar-1.18-bin.tar.gz">pulsar-1.18-bin.tar.gz</a></td>
+      <td style="text-align: left"><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-bin.tar.gz">apache-pulsar-1.19.0-incubating-bin.tar.gz</a></td>
     </tr>
   </tbody>
 </table>
 
 <h3 id="release-notes">Release notes</h3>
 
-<ul>
-  <li><a href="https://github.com/apache/incubator-pulsar/releases/tag/v1.18">Pulsar version 1.18</a></li>
-</ul>
+<p><a href="https://github.com/apache/incubator-pulsar/releases/tag/v1.19.0-incubating">https://github.com/apache/incubator-pulsar/releases/tag/v1.19.0-incubating</a></p>
 
 <h3 id="getting-started">Getting started</h3>
 
-<p>Once you’ve downloaded a Pulsar release, instructions on getting up and running with a <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster that you can run your laptop can be found in <a href="../docs/latest/getting-started/LocalCluster">Run Pulsar locally</a>.</p>
+<p>Once you’ve downloaded a Pulsar release, instructions on getting up and running with a <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster that you can run your laptop can be found in <a href="/docs/latest/getting-started/LocalCluster">Run Pulsar locally</a>.</p>
 
 <p>If you need to connect to an existing Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> or <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using an officially supported client, see client docs for these languages:</p>
 
@@ -744,12 +279,10 @@ it’s still relative to ‘Yahoo Pulsar’ rather than ‘Apache Pulsar’</p>
   </tbody>
 </table>
 
+
       </section>
     </article>
 
-    <nav class="toc-bar hidden-md-down col-lg-2">
-      
-    </nav>
   </div>
 </div>
 

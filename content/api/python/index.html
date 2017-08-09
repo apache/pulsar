@@ -1360,7 +1360,7 @@ class Client:
 
     def create_producer(self, topic,
                         send_timeout_millis=30000,
-                        compression_type=CompressionType.None,
+                        compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
                         block_if_queue_full=False,
                         batching_enabled=False,
@@ -1879,7 +1879,7 @@ producers and consumers.</p></div>
 
     def create_producer(self, topic,
                         send_timeout_millis=30000,
-                        compression_type=CompressionType.None,
+                        compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
                         block_if_queue_full=False,
                         batching_enabled=False,
@@ -2149,7 +2149,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.None, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
     </div>
     
 
@@ -2183,7 +2183,7 @@ producers and consumers.</p></div>
   <div id="source-pulsar.Client.create_producer" class="source">
     <pre><code>def create_producer(self, topic,
                     send_timeout_millis=30000,
-                    compression_type=CompressionType.None,
+                    compression_type=CompressionType.NONE,
                     max_pending_messages=1000,
                     block_if_queue_full=False,
                     batching_enabled=False,

@@ -105,8 +105,19 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+            <div class="dropdown-divider"></div>
+            <h3 class="dropdown-header">Stable release</h3>
+            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+
+            
+        </div>
       </li>
 
       <li class="nav-item">
@@ -993,8 +1004,8 @@
   <li>
     <p>by clicking one of these friendly buttons:</p>
 
-    <p><a href="https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-src.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar latest source release</a>
-<a href="https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-bin.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar latest binary release</a></p>
+    <p><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-src.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.19.0-incubating source release</a>
+<a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-bin.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.19.0-incubating binary release</a></p>
   </li>
   <li>from the Pulsar <a href="/download">downloads page</a></li>
   <li>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></li>
@@ -1002,10 +1013,10 @@
     <p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
 
     <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>wget https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-src.tar.gz
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-src.tar.gz
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>wget https://github.com/apache/incubator-pulsar/releases/download/vlatest/pulsar-latest-bin.tar.gz
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.19.0-incubating/apache-pulsar-1.19.0-incubating-bin.tar.gz
 </code></pre>
     </div>
   </li>
@@ -1014,12 +1025,12 @@
 <p>Once the tarball is downloaded, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>tar xvf pulsar-1.18-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>pulsar-1.18
+<span class="gp">$ </span>tar xvfz pulsar-1.19.0-incubating-src.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>pulsar-1.19.0-incubating
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>tar xvf pulsar-1.18-src.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>pulsar-1.18
+<span class="gp">$ </span>tar xvfz apache-pulsar-1.19.0-incubating-bin.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>pulsar-1.19.0-incubating
 </code></pre>
 </div>
 
@@ -1058,7 +1069,7 @@
   </tbody>
 </table>
 
-<p>The source package contains all of the assets, specific to version latest, from the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar repository</a>.</p>
+<p>The source package contains all of the assets, specific to version 1.19.0-incubating, from the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar repository</a>.</p>
 
 <h2 id="compiling-from-source">Compiling from source</h2>
 
