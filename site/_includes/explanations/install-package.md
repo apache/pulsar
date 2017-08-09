@@ -1,5 +1,6 @@
-{% capture binary_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-{% capture source_release_url %}https://github.com/apache/incubator-pulsar/releases/download/v{{ site.current_version }}/pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
+
+{% capture binary_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
+{% capture source_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
 
 ## System requirements
 
@@ -20,22 +21,22 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
   ```shell
   # Source release
-  $ wget {{ source_release_url }}
+  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{site.current_version}}/apache-pulsar-{{site.current_version}}-src.tar.gz
 
   # Binary release
-  $ wget {{ binary_release_url }}
+  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{site.current_version}}/apache-pulsar-{{site.current_version}}-bin.tar.gz
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
 # Source release
-$ tar xvf pulsar-{{ site.latest }}-bin.tar.gz
-$ cd pulsar-{{ site.latest }}
+$ tar xvfz pulsar-{{ site.current_version }}-src.tar.gz
+$ cd pulsar-{{ site.current_version }}
 
 # Binary release
-$ tar xvf pulsar-{{ site.latest }}-src.tar.gz
-$ cd pulsar-{{ site.latest }}
+$ tar xvfz apache-pulsar-{{ site.current_version }}-bin.tar.gz
+$ cd pulsar-{{ site.current_version }}
 ```
 
 ## What your package contains
