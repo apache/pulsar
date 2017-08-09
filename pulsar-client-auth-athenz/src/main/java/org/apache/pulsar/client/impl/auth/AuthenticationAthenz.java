@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -43,6 +45,7 @@ public class AuthenticationAthenz implements Authentication {
     private String tenantService;
     private String providerDomain;
     private String privateKeyPath;
+    private String privateKeyContent;
     private String keyId = "0";
     private long cachedRoleTokenTimestamp;
     private String roleToken;
@@ -89,6 +92,7 @@ public class AuthenticationAthenz implements Authentication {
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
         this.privateKeyPath = authParams.get("privateKeyPath");
+        this.privateKeyContent = authParams.get("privateKeyContent");
         this.keyId = authParams.getOrDefault("keyId", "0");
         if (authParams.containsKey("athenzConfPath")) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -108,7 +112,12 @@ public class AuthenticationAthenz implements Authentication {
 
     ZTSClient getZtsClient() {
         if (ztsClient == null) {
-            PrivateKey privateKey = Crypto.loadPrivateKey(new File(privateKeyPath));
+            PrivateKey privateKey;
+            if (isNotBlank(privateKeyContent)) {
+                privateKey = Crypto.loadPrivateKey(privateKeyContent);
+            } else {
+                privateKey = Crypto.loadPrivateKey(new File(privateKeyPath));
+            }
             ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                     privateKey, keyId);
             ztsClient = new ZTSClient(null, tenantDomain, tenantService, siaProvider);
