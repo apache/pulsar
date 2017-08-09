@@ -42,11 +42,15 @@ public class PrintSinkConnector extends SinkConnector {
     }
 
     @Override
-    public boolean processMessage(Message message) throws IOException {
+    public void processMessage(Message message) throws IOException {
         final String output = String.format(OUTPUT_FORMAT,
                 message.getMessageId().toString(),
                 new String(message.getData()));
         stream.println(output);
-        return true;
+    }
+
+    @Override
+    public void commit() throws Exception {
+        // do nothing
     }
 }

@@ -33,7 +33,7 @@ import java.util.Date;
 import java.util.Properties;
 
 /**
- * /base/path/{date}/output-{time}
+ * Write files in the following format /base-path/{date}/output-{time}
  */
 public class FileSinkConnector extends SinkConnector {
 
