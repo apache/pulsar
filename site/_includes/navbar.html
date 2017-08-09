@@ -31,8 +31,26 @@
 
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+            <div class="dropdown-divider"></div>
+            <h3 class="dropdown-header">Stable release</h3>
+            <a class="dropdown-item" href="/docs/v{{site.current_version}}/getting-started/LocalCluster">{{site.current_version}}</a>
+
+            {% if site.archived_releases %}
+                <div class="dropdown-divider"></div>
+                <h3 class="dropdown-header">Other releases</h3>
+
+                {% for version in site.archived_releases %}
+                    <a class="dropdown-item" href="/docs/v{{version}}/getting-started/LocalCluster">{{version}}</a>
+                {% endfor %}
+            {% endif %}
+        </div>
       </li>
 
       <li class="nav-item">
