@@ -56,4 +56,4 @@
   content: |
         REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal
         or [Kubernetes](https://kubernetes.io).
-  endpoint: admin/AdminInterface
+  endpoint: admin-api/overview

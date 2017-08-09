@@ -3,7 +3,7 @@ title: The Pulsar Java client
 tags: [client, java]
 ---
 
-The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin/AdminInterface).
+The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin-api/overview).
 
 The current version of the Java client is **{{ site.current_version }}**.
 
@@ -12,9 +12,9 @@ Javadoc for the Pulsar client is divided up into two domains, by package:
 Package | Description
 :-------|:-----------
 [`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin/AdminInterface)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin-api/overview)
 
-This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin/AdminInterface).
+This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin-api/overview).
 
 ## Installation
 

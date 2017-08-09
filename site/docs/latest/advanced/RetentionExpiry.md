@@ -14,7 +14,7 @@ In Pulsar, you can override both of these default behaviors, at the {% popover n
 * You can persistently store messages that have already been {% popover acknowledged %} by a {% popover consumer %} by setting [retention policies](#retention-policies).
 * You can delete messages that have not been acknowledged within a specified timeframe using [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](../../admin/AdminInterface) enables you to manage both retention policies and TTL at the {% popover namespace %} level (and thus within a specific {% popover property %} and either on a specific {% popover cluster %} or in the [`global`](../../getting-started/ConceptsAndArchitecture#global-cluster) cluster).
+Pulsar's [admin interface](../../admin-api/overview) enables you to manage both retention policies and TTL at the {% popover namespace %} level (and thus within a specific {% popover property %} and either on a specific {% popover cluster %} or in the [`global`](../../getting-started/ConceptsAndArchitecture#global-cluster) cluster).
 
 {% include admonition.html type="warning" title="Don't use retention and TTL at the same time" content="
 Message retention policies and TTL fulfill similar purposes and should not be used in conjunction. For any given namespace, use one or the other.
