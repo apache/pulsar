@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
@@ -95,6 +96,14 @@ public class PerformanceReader {
         @Parameter(names = {
                 "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
         public String authParams;
+
+        @Parameter(names = {
+                "--use-tls" }, description = "Use TLS encryption on the connection")
+        public boolean useTls;
+
+        @Parameter(names = {
+                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
+        public String tlsTrustCertsFilePath = "";
     }
 
     public static void main(String[] args) throws Exception {
@@ -145,6 +154,14 @@ public class PerformanceReader {
             if (arguments.authParams == null) {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
+
+            if (arguments.useTls == false) {
+                arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
+            }
+
+            if (isBlank(arguments.tlsTrustCertsFilePath)) {
+                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
+            }
         }
 
         // Dump config variables
@@ -172,6 +189,8 @@ public class PerformanceReader {
         if (isNotBlank(arguments.authPluginClassName)) {
             clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
         }
+        clientConf.setUseTls(arguments.useTls);
+        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
         List<CompletableFuture<Reader>> futures = Lists.newArrayList();
