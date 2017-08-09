@@ -1076,7 +1076,7 @@
 
 <p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and processed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>.</p>
 
-<p>Partitioned topics need to be explicitly created via the <a href="../../admin/AdminInterface">admin API</a>. The number of partitions can be specified when creating the topic.</p>
+<p>Partitioned topics need to be explicitly created via the <a href="../../admin-api/overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
 
 <h4 id="routing-modes">Routing modes</h4>
 

@@ -1262,7 +1262,7 @@
       <section class="content">
         <p>By default, Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> are served by a single <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>. Using only a single broker, however, limits a topic’s maximum throughput. <em>Partitioned topics</em> are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the <a href="#concepts">Concepts</a> section below.</p>
 
-<p>You can <a href="#publishing-to-partitioned-topics">publish</a> to partitioned topics using Pulsar’s client libraries and you can <a href="#managing-partitioned-topics">create and manage</a> partitioned topics using Pulsar’s <a href="../../admin/AdminInterface">admin API</a>.</p>
+<p>You can <a href="#publishing-to-partitioned-topics">publish</a> to partitioned topics using Pulsar’s client libraries and you can <a href="#managing-partitioned-topics">create and manage</a> partitioned topics using Pulsar’s <a href="../../admin-api/overview">admin API</a>.</p>
 
 <h2 id="publishing-to-partitioned-topics">Publishing to partitioned topics</h2>
 
@@ -1446,7 +1446,7 @@
 
 <h2 id="managing-partitioned-topics">Managing partitioned topics</h2>
 
-<p>You can use Pulsar’s <a href="../../admin/AdminInterface">admin API</a> to create and manage partitioned topics.</p>
+<p>You can use Pulsar’s <a href="../../admin-api/overview">admin API</a> to create and manage partitioned topics.</p>
 
 <p>In all of the instructions and commands below, the topic name structure is:</p>
 
@@ -2140,7 +2140,7 @@ persistent://property/cluster/namespace/topic
 
 <p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and processed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>.</p>
 
-<p>Partitioned topics need to be explicitly created via the <a href="../../admin/AdminInterface">admin API</a>. The number of partitions can be specified when creating the topic.</p>
+<p>Partitioned topics need to be explicitly created via the <a href="../../admin-api/overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
 
 <h4 id="routing-modes">Routing modes</h4>
 
