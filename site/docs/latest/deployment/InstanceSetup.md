@@ -108,7 +108,7 @@ $ bin/pulsar broker
 
 ## Admin client and verification
 
-At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](../../admin/AdminInterface) for each cluster. You can use the [`conf/client.conf`](../../reference/Configuration#client) configuration file to configure admin clients.
+At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](../../admin-api/overview) for each cluster. You can use the [`conf/client.conf`](../../reference/Configuration#client) configuration file to configure admin clients.
 
 The most important thing is that you point the [`serviceUrl`](../../reference/Configuration#client-serviceUrl) parameter to the correct service URL for the cluster:
 
