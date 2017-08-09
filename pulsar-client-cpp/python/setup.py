@@ -34,7 +34,9 @@ def get_version():
     if error:
         raise 'Failed to get version: ' + error
 
-    return output.strip().decode('utf-8', 'strict')
+    # Strip the '-incubating' suffix, since it prevents the packages
+    # from being uploaded into PyPI
+    return output.strip().decode('utf-8', 'strict').split('-')[0]
 
 
 VERSION = get_version()
