@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar binary protocol specification</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+ 
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/docs/latest/getting-started/LocalCluster">Documentation</a>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="http://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="http://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="http://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="http://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/InstanceSetup">
+              Deploying on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-container-engine">
+              Pulsar on Google Container Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar binary protocol specification</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">protobuf</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-protobuf">protobuf</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-protobuf">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>protobuf</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">binary protocol</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-binary-protocol">binary protocol</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-binary-protocol">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>binary protocol</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <p>Pulsar uses a custom binary protocol for communications between <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>/<span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> and <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>. This protocol is designed to support required features, such as <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledgements</span> and flow control, while ensuring maximum transport and implementation efficiency.</p>
+
+<p>Clients and brokers exchange <em>commands</em> with each other. Commands are formatted as binary <a href="https://developers.google.com/protocol-buffers/">protocol buffer</a> (aka <em>protobuf</em>) messages. The format of protobuf commands is specified in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto"><code class="highlighter-rouge">PulsarApi.proto</code></a> file and also documented in the <a href="#protobuf-interface">Protobuf interface</a> section below.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Connection sharing</p>
+</span>
+    <p>Commands for different producers and consumers can be interleaved and sent through the same connection without restriction.</p>
+
+  </div>
+</div>
+
+<p>All commands associated with Pulsar’s protocol are contained in a
+<a href="#pulsar.proto.BaseCommand"><code class="highlighter-rouge">BaseCommand</code></a> protobuf message that includes a <a href="#pulsar.proto.Type"><code class="highlighter-rouge">Type</code></a> <a href="https://developers.google.com/protocol-buffers/docs/proto#enum">enum</a> with all possible subcommands as optional fields. <code class="highlighter-rouge">BaseCommand</code> messages can specify only one subcommand.</p>
+
+<h2 id="framing">Framing</h2>
+
+<p>Since protobuf doesn’t provide any sort of message frame, all messages in the Pulsar protocol are prepended with a 4-byte field that specifies the size of the frame. The maximum allowable size of a single frame is 5 MB.</p>
+
+<p>The Pulsar protocol allows for two types of commands:</p>
+
+<ol>
+  <li><em>Simple commands</em> that do not carry a message payload.</li>
+  <li><em>Payload commands</em> that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf <a href="#metadata-messages">metadata</a> and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.</li>
+</ol>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Message payloads are passed in raw format rather than protobuf format for efficiency reasons.</p>
+
+  </div>
+</div>
+
+<h4 id="simple-commands">Simple commands</h4>
+
+<p>Simple (payload-free) commands have this basic structure:</p>
+
+<script type="math/tex; mode=display">[totalSize][commandSize][message]</script>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Component</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Size (in bytes)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">totalSize</td>
+      <td style="text-align: left">The size of the frame, counting everything that comes after it (in bytes)</td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">commandSize</td>
+      <td style="text-align: left">The size of the protobuf-serialized command</td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">message</td>
+      <td style="text-align: left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td>
+      <td style="text-align: left"> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="payload-commands">Payload commands</h4>
+
+<p>Payload commands have this basic structure:</p>
+
+<script type="math/tex; mode=display">[totalSize][commandSize][message][magicNumber][checksum][metadataSize][metadata][payload]</script>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Component</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Size (in bytes)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">totalSize</td>
+      <td style="text-align: left">The size of the frame, counting everything that comes after it (in bytes)</td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">commandSize</td>
+      <td style="text-align: left">The size of the protobuf-serialized command</td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">message</td>
+      <td style="text-align: left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td>
+      <td style="text-align: left"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">magicNumber</td>
+      <td style="text-align: left">A 2-byte byte array (<code class="highlighter-rouge">0x0e01</code>) identifying the current format</td>
+      <td style="text-align: left">2</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">checksum</td>
+      <td style="text-align: left">A <a href="http://www.evanjones.ca/crc32c.html">CRC32-C checksum</a> of everything that comes after it</td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">metadataSize</td>
+      <td style="text-align: left">The size of the message <a href="#message-metadata">metadata</a></td>
+      <td style="text-align: left">4</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">metadata</td>
+      <td style="text-align: left">The message <a href="#message-metadata">metadata</a> stored as a binary protobuf message</td>
+      <td style="text-align: left"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">payload</td>
+      <td style="text-align: left">Anything left in the frame is considered the payload and can include any sequence of bytes</td>
+      <td style="text-align: left"> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="message-metadata">Message metadata</h2>
+
+<p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and passed on unchanged to the <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Field</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">producer_name</code></td>
+      <td style="text-align: left">The name of the <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that published the message</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">sequence_id</code></td>
+      <td style="text-align: left">The sequence ID of the message, assigned by <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publish_time</code></td>
+      <td style="text-align: left">The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: left">A sequence of key/value pairs (using the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code class="highlighter-rouge">KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">replicated_from</code> <em>(optional)</em></td>
+      <td style="text-align: left">Indicates that the message has been replicated and specifies the name of the <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> where the message was originally published</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">partition_key</code> <em>(optional)</em></td>
+      <td style="text-align: left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">compression</code> <em>(optional)</em></td>
+      <td style="text-align: left">Signals that payload has been compressed and with which compression library</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">uncompressed_size</code> <em>(optional)</em></td>
+      <td style="text-align: left">If compression is used, the producer must fill the uncompressed size field with the original payload size</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">num_messages_in_batch</code> <em>(optional)</em></td>
+      <td style="text-align: left">If this message is really a <a href="#batch-messages">batch</a> of multiple entries, this field must be set to the number of messages in the batch</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="batch-messages">Batch messages</h3>
+
+<p>When using batch messages, the payload will be containing a list of entries,
+each of them with its individual metadata, defined by the <code class="highlighter-rouge">SingleMessageMetadata</code>
+object.</p>
+
+<p>For a single batch, the payload format will look like this:</p>
+
+<script type="math/tex; mode=display">[metadataSize1][metadata1][payload1] [metadataSize2][metadata2][payload2] \dots</script>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Field</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">metadataSizeN</td>
+      <td style="text-align: left">The size of the single message metadata serialized Protobuf</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">metadataN</td>
+      <td style="text-align: left">Single message metadata</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">payloadN</td>
+      <td style="text-align: left">Message payload passed by application</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Each metadata field looks like this;</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Field</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">properties</td>
+      <td style="text-align: left">Application-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">partition key <em>(optional)</em></td>
+      <td style="text-align: left">Key to indicate the hashing to a particular partition</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">payload_size</td>
+      <td style="text-align: left">Size of the payload for the single message in the batch</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>When compression is enabled, the whole batch will be compressed at once.</p>
+
+<h2 id="interactions">Interactions</h2>
+
+<h3 id="connection-establishment">Connection establishment</h3>
+
+<p>After opening a TCP connection to a broker, typically on port 6650, the client
+is responsible to initiate the session.</p>
+
+<p><img src="/img/Binary%20Protocol%20-%20Connect.png" alt="Connect interaction" /></p>
+
+<p>After receiving a <code class="highlighter-rouge">Connected</code> response from the broker, the client can
+consider the connection ready to use. Alternatively, if the broker doesn’t
+validate the client authentication, it will reply with an <code class="highlighter-rouge">Error</code> command and
+close the TCP connection.</p>
+
+<p>Example:</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnect</span> <span class="p">{</span>
+  <span class="s">"client_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Client-Java-v1.15.2"</span><span class="p">,</span>
+  <span class="s">"auth_method_name"</span> <span class="o">:</span> <span class="s">"my-authentication-plugin"</span><span class="p">,</span>
+  <span class="s">"auth_data"</span> <span class="o">:</span> <span class="s">"my-auth-data"</span><span class="p">,</span>
+  <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Fields:</p>
+<ul>
+  <li><code class="highlighter-rouge">client_version</code> → String based identifier. Format is not enforced</li>
+  <li><code class="highlighter-rouge">auth_method_name</code> → <em>(optional)</em> Name of the authentication plugin if auth
+enabled</li>
+  <li><code class="highlighter-rouge">auth_data</code> → <em>(optional)</em> Plugin specific authentication data</li>
+  <li><code class="highlighter-rouge">protocol_version</code> → Indicates the protocol version supported by the
+client. Broker will not send commands introduced in newer revisions of the
+protocol. Broker might be enforcing a minimum version</li>
+</ul>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnected</span> <span class="p">{</span>
+  <span class="s">"server_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Broker-v1.15.2"</span><span class="p">,</span>
+  <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Fields:</p>
+<ul>
+  <li><code class="highlighter-rouge">server_version</code> → String identifier of broker version</li>
+  <li><code class="highlighter-rouge">protocol_version</code> → Protocol version supported by the broker. Client
+must not attempt to send commands introduced in newer revisions of the
+protocol</li>
+</ul>
+
+<h3 id="keep-alive">Keep Alive</h3>
+
+<p>To identify prolonged network partitions between clients and brokers or cases
+in which a machine crashes without interrupting the TCP connection on the remote
+end (eg: power outage, kernel panic, hard reboot…), we have introduced a
+mechanism to probe for the availability status of the remote peer.</p>
+
+<p>Both clients and brokers are sending <code class="highlighter-rouge">Ping</code> commands periodically and they will
+close the socket if a <code class="highlighter-rouge">Pong</code> response is not received within a timeout (default
+used by broker is 60s).</p>
+
+<p>A valid implementation of a Pulsar client is not required to send the <code class="highlighter-rouge">Ping</code>
+probe, though it is required to promptly reply after receiving one from the
+broker, in order to prevent the remote side to forcibly close the TCP connection.</p>
+
+<h3 id="producer">Producer</h3>
+
+<p>In order to send messages, a client needs to establish a producer. When creating
+a producer, the broker will first verify that this particular client is
+authorized to publish on the topic.</p>
+
+<p>Once the client gets confirmation of the producer creation, it can publish
+messages to the broker, referring to the producer id negotiated before.</p>
+
+<p><img src="/img/Binary%20Protocol%20-%20Producer.png" alt="Producer interaction" /></p>
+
+<h5 id="command-producer">Command Producer</h5>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducer</span> <span class="p">{</span>
+  <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
+  <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → Complete topic name to where you want to create the producer on</li>
+  <li><code class="highlighter-rouge">producer_id</code> → Client generated producer identifier. Needs to be unique
+ within the same connection</li>
+  <li><code class="highlighter-rouge">request_id</code> → Identifier for this request. Used to match the response with
+ the originating request. Needs to be unique within the same connection</li>
+  <li><code class="highlighter-rouge">producer_name</code> → <em>(optional)</em> If a producer name is specified, the name will
+ be used, otherwise the broker will generate a unique name. Generated
+ producer name is guaranteed to be globally unique. Implementations are
+ expected to let the broker generate a new producer name when the producer
+ is initially created, then reuse it when recreating the producer after
+ reconnections.</li>
+</ul>
+
+<p>The broker will reply with either <code class="highlighter-rouge">ProducerSuccess</code> or <code class="highlighter-rouge">Error</code> commands.</p>
+
+<h5 id="command-producersuccess">Command ProducerSuccess</h5>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducerSuccess</span> <span class="p">{</span>
+  <span class="s">"request_id"</span> <span class="o">:</span>  <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"producer_name"</span> <span class="o">:</span> <span class="s">"generated-unique-producer-name"</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">request_id</code> → Original id of the <code class="highlighter-rouge">CreateProducer</code> request</li>
+  <li><code class="highlighter-rouge">producer_name</code> → Generated globally unique producer name or the name
+ specified by the client, if any.</li>
+</ul>
+
+<h5 id="command-send">Command Send</h5>
+
+<p>Command <code class="highlighter-rouge">Send</code> is used to publish a new message within the context of an
+already existing producer. This command is used in a frame that includes command
+as well as message payload, for which the complete format is specified in the
+<a href="#payload-commands">payload commands</a> section.</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSend</span> <span class="p">{</span>
+  <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+  <span class="s">"num_messages"</span> <span class="o">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">producer_id</code> → id of an existing producer</li>
+  <li><code class="highlighter-rouge">sequence_id</code> → each message has an associated sequence id which is expected
+to be implemented with a counter starting at 0. The <code class="highlighter-rouge">SendReceipt</code> that
+acknowledges the effective publishing of a messages will refer to it by
+its sequence id.</li>
+  <li><code class="highlighter-rouge">num_messages</code> → <em>(optional)</em> Used when publishing a batch of messages at
+once.</li>
+</ul>
+
+<h5 id="command-sendreceipt">Command SendReceipt</h5>
+
+<p>After a message has been persisted on the configured number of replicas, the
+broker will send the acknowledgment receipt to the producer.</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSendReceipt</span> <span class="p">{</span>
+  <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+  <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
+    <span class="s">"ledgerId"</span> <span class="o">:</span> <span class="mi">123</span><span class="p">,</span>
+    <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">producer_id</code> → id of producer originating the send request</li>
+  <li><code class="highlighter-rouge">sequence_id</code> → sequence id of the published message</li>
+  <li><code class="highlighter-rouge">message_id</code> → message id assigned by the system to the published message
+Unique within a single cluster. Message id is composed of 2 longs, <code class="highlighter-rouge">ledgerId</code>
+  and <code class="highlighter-rouge">entryId</code>, that reflect that this unique id is assigned when appending
+  to a BookKeeper ledger</li>
+</ul>
+
+<h5 id="command-closeproducer">Command CloseProducer</h5>
+
+<p><strong>Note</strong>: <em>This command can be sent by either producer or broker</em>.</p>
+
+<p>When receiving a <code class="highlighter-rouge">CloseProducer</code> command, the broker will stop accepting any
+more messages for the producer, wait until all pending messages are persisted
+and then reply <code class="highlighter-rouge">Success</code> to the client.</p>
+
+<p>The broker can send a <code class="highlighter-rouge">CloseProducer</code> command to client when it’s performing
+a graceful failover (eg: broker is being restarted, or the topic is being unloaded
+by load balancer to be transferred to a different broker).</p>
+
+<p>When receiving the <code class="highlighter-rouge">CloseProducer</code>, the client is expected to go through the
+service discovery lookup again and recreate the producer again. The TCP
+connection is not being affected.</p>
+
+<h3 id="consumer">Consumer</h3>
+
+<p>A consumer is used to attach to a subscription and consume messages from it.
+After every reconnection, a client needs to subscribe to the topic. If a
+subscription is not already there, a new one will be created.</p>
+
+<p><img src="/img/Binary%20Protocol%20-%20Consumer.png" alt="Consumer" /></p>
+
+<h4 id="flow-control">Flow control</h4>
+
+<p>After the consumer is ready, the client needs to <em>give permission</em> to the
+broker to push messages. This is done with the <code class="highlighter-rouge">Flow</code> command.</p>
+
+<p>A <code class="highlighter-rouge">Flow</code> command gives additional <em>permits</em> to send messages to the consumer.
+A typical consumer implementation will use a queue to accumulate these messages
+before the application is ready to consume them.</p>
+
+<p>After the application has dequeued a number of message, the consumer will
+send additional number of permits to allow the broker to push more messages.</p>
+
+<h5 id="command-subscribe">Command Subscribe</h5>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSubscribe</span> <span class="p">{</span>
+  <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
+  <span class="s">"subscription"</span> <span class="o">:</span> <span class="s">"my-subscription-name"</span><span class="p">,</span>
+  <span class="s">"subType"</span> <span class="o">:</span> <span class="s">"Exclusive"</span><span class="p">,</span>
+  <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → Complete topic name to where you want to create the consumer on</li>
+  <li><code class="highlighter-rouge">subscription</code> → Subscription name</li>
+  <li><code class="highlighter-rouge">subType</code> → Subscription type: Exclusive, Shared, Failover</li>
+  <li><code class="highlighter-rouge">consumer_id</code> → Client generated consumer identifier. Needs to be unique
+ within the same connection</li>
+  <li><code class="highlighter-rouge">request_id</code> → Identifier for this request. Used to match the response with
+ the originating request. Needs to be unique within the same connection</li>
+  <li><code class="highlighter-rouge">consumer_name</code> → <em>(optional)</em> Clients can specify a consumer name. This
+ name can be used to track a particular consumer in the stats. Also, in
+ Failover subscription type, the name is used to decide which consumer is
+ elected as <em>master</em> (the one receiving messages): consumers are sorted by
+ their consumer name and the first one is elected master.</li>
+</ul>
+
+<h5 id="command-flow">Command Flow</h5>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandFlow</span> <span class="p">{</span>
+  <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"messagePermits"</span> <span class="o">:</span> <span class="mi">1000</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">consumer_id</code> → Id of an already established consumer</li>
+  <li><code class="highlighter-rouge">messagePermits</code> → Number of additional permits to grant to the broker for
+  pushing more messages</li>
+</ul>
+
+<h5 id="command-message">Command Message</h5>
+
+<p>Command <code class="highlighter-rouge">Message</code> is used by the broker to push messages to an existing consumer,
+within the limits of the given permits.</p>
+
+<p>This command is used in a frame that includes the message payload as well, for
+which the complete format is specified in the <a href="#payload-commands">payload commands</a>
+section.</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandMessage</span> <span class="p">{</span>
+  <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
+    <span class="s">"ledgerId"</span> <span class="o">:</span> <span class="mi">123</span><span class="p">,</span>
+    <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h4 id="command-ack">Command Ack</h4>
+
+<p>An <code class="highlighter-rouge">Ack</code> is used to signal to the broker that a given message has been
+successfully processed by the application and can be discarded by the broker.</p>
+
+<p>In addition, the broker will also maintain the consumer position based on the
+acknowledged messages.</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandAck</span> <span class="p">{</span>
+  <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"ack_type"</span> <span class="o">:</span> <span class="s">"Individual"</span><span class="p">,</span>
+  <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
+    <span class="s">"ledgerId"</span> <span class="o">:</span> <span class="mi">123</span><span class="p">,</span>
+    <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Parameters:</p>
+<ul>
+  <li><code class="highlighter-rouge">consumer_id</code> → Id of an already established consumer</li>
+  <li><code class="highlighter-rouge">ack_type</code> → Type of acknowledgment: <code class="highlighter-rouge">Individual</code> or <code class="highlighter-rouge">Cumulative</code></li>
+  <li><code class="highlighter-rouge">message_id</code> → Id of the message to acknowledge</li>
+  <li><code class="highlighter-rouge">validation_error</code> → <em>(optional)</em> Indicates that the consumer has discarded
+the messages due to: <code class="highlighter-rouge">UncompressedSizeCorruption</code>,
+<code class="highlighter-rouge">DecompressionError</code>, <code class="highlighter-rouge">ChecksumMismatch</code>, <code class="highlighter-rouge">BatchDeSerializeError</code></li>
+</ul>
+
+<h5 id="command-closeconsumer">Command CloseConsumer</h5>
+
+<p><strong><em>Note</em></strong>: <em>This command can be sent by either producer or broker</em>.</p>
+
+<p>This command behaves the same as <a href="#command-closeproducer"><code class="highlighter-rouge">CloseProducer</code></a></p>
+
+<h5 id="command-redeliverunacknowledgedmessages">Command RedeliverUnacknowledgedMessages</h5>
+
+<p>A consumer can ask the broker to redeliver some or all of the pending messages
+that were pushed to that particular consumer and not yet acknowledged.</p>
+
+<p>The protobuf object accepts a list of message ids that the consumer wants to
+be redelivered. If the list is empty, the broker will redeliver all the
+pending messages.</p>
+
+<p>On redelivery, messages an be sent to the same consumer or, in the case of a
+shared subscription, spread across all available consumers.</p>
+
+<h5 id="command-reachedendoftopic">Command ReachedEndOfTopic</h5>
+
+<p>This is sent by a broker to a particular consumer, whenever the topic
+has been “terminated” and all the messages on the subscription were
+acknowledged.</p>
+
+<p>The client should use this command to notify the application that no more
+messages are coming from the consumer.</p>
+
+<h2 id="service-discovery">Service discovery</h2>
+
+<h3 id="topic-lookup">Topic lookup</h3>
+
+<p>Topic lookup needs to be performed each time a client needs to create or
+reconnect a producer or a consumer. Lookup is used to discover which particular
+broker is serving the topic we are about to use.</p>
+
+<p>Lookup can be done with a REST call as described in the
+<a href="https://github.com/apache/incubator-pulsar/blob/master/docs/AdminInterface.md#lookup-of-topic">admin API</a>
+docs.</p>
+
+<p>Since Pulsar-1.16 it is also possible to perform the lookup within the binary
+protocol.</p>
+
+<p>For the sake of example, let’s assume we have a service discovery component
+running at <code class="highlighter-rouge">pulsar://broker.example.com:6650</code></p>
+
+<p>Individual brokers will be running at <code class="highlighter-rouge">pulsar://broker-1.example.com:6650</code>,
+<code class="highlighter-rouge">pulsar://broker-2.example.com:6650</code>, …</p>
+
+<p>A client can use a connection to the discovery service host to issue a
+<code class="highlighter-rouge">LookupTopic</code> command. The response can either be a broker hostname to
+connect to, or a broker hostname to which retry the lookup.</p>
+
+<p>The <code class="highlighter-rouge">LookupTopic</code> command has to be used in a connection that has already
+gone through the <code class="highlighter-rouge">Connect</code> / <code class="highlighter-rouge">Connected</code> initial handshake.</p>
+
+<p><img src="/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
+  <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">false</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Fields:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → Topic name to lookup</li>
+  <li><code class="highlighter-rouge">request_id</code> → Id of the request that will be passed with its response</li>
+  <li><code class="highlighter-rouge">authoritative</code> → Initial lookup request should use false. When following a
+redirect response, client should pass the same value contained in the
+  response</li>
+</ul>
+
+<h5 id="lookuptopicresponse">LookupTopicResponse</h5>
+
+<p>Example of response with successful lookup:</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Connect"</span><span class="p">,</span>
+  <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-1.example.com:6650"</span><span class="p">,</span>
+  <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-1.example.com:6651"</span><span class="p">,</span>
+  <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Example of lookup response with redirection:</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Redirect"</span><span class="p">,</span>
+  <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-2.example.com:6650"</span><span class="p">,</span>
+  <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-2.example.com:6651"</span><span class="p">,</span>
+  <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>In this second case, we need to reissue the <code class="highlighter-rouge">LookupTopic</code> command request
+to <code class="highlighter-rouge">broker-2.example.com</code> and this broker will be able to give a definitive
+answer to the lookup request.</p>
+
+<h3 id="partitioned-topics-discovery">Partitioned topics discovery</h3>
+
+<p>Partitioned topics metadata discovery is used to find out if a topic is a
+“partitioned topic” and how many partitions were set up.</p>
+
+<p>If the topic is marked as “partitioned”, the client is expected to create
+multiple producers or consumers, one for each partition, using the <code class="highlighter-rouge">partition-X</code>
+suffix.</p>
+
+<p>This information only needs to be retrieved the first time a producer or
+consumer is created. There is no need to do this after reconnections.</p>
+
+<p>The discovery of partitioned topics metadata works very similar to the topic
+lookup. The client send a request to the service discovery address and the
+response will contain actual metadata.</p>
+
+<h5 id="command-partitionedtopicmetadata">Command PartitionedTopicMetadata</h5>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadata</span> <span class="p">{</span>
+  <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Fields:</p>
+<ul>
+  <li><code class="highlighter-rouge">topic</code> → the topic for which to check the partitions metadata</li>
+  <li><code class="highlighter-rouge">request_id</code> → Id of the request that will be passed with its response</li>
+</ul>
+
+<h5 id="command-partitionedtopicmetadataresponse">Command PartitionedTopicMetadataResponse</h5>
+
+<p>Example of response with metadata:</p>
+
+<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadataResponse</span> <span class="p">{</span>
+  <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Success"</span><span class="p">,</span>
+  <span class="s">"partitions"</span> <span class="o">:</span> <span class="mi">32</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h2 id="protobuf-interface">Protobuf interface</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="protobuf">
+  <div class="container">
+    <div class="row">
+      <div class="col col-sm-6 padding-0">
+        <p class="lead protobuf-title">Messages</p>
+        <ul>
+           <!-- for message in messages -->
+        </ul>
+      </div>
+      <div class="col col-sm-6 padding-0">
+        <p class="lead protobuf-title">Enums</p>
+        <ul>
+           <!-- for enum in enums -->
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>Protobuf messages</h3>
+
+  <div class="card messages">
+     <!-- for message in messages -->
+  </div>
+
+  <h3>Protobuf enums</h3>
+
+  <div class="card enums">
+     <!-- for enum in enums -->
+  </div>
+</div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar binary protocol specification</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2017 The Apache Software Foundation. All Rights Reserved.</p>
+  </div>
+</footer>
+
+
+    
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+        },
+        "HTML-CSS": { scale: 125 }
+      });
+
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i = 0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>
