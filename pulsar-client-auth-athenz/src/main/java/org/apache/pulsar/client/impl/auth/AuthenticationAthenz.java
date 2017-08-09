@@ -90,6 +90,12 @@ public class AuthenticationAthenz implements Authentication {
         this.providerDomain = authParams.get("providerDomain");
         this.privateKeyPath = authParams.get("privateKeyPath");
         this.keyId = authParams.getOrDefault("keyId", "0");
+        if (authParams.containsKey("athenzConfPath")) {
+            System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
+        }
+        if (authParams.containsKey("principalHeader")) {
+            System.setProperty("athenz.auth.principal.header", authParams.get("principalHeader"));
+        }
     }
 
     @Override
