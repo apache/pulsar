@@ -145,7 +145,7 @@ spec:
         spec:
             containers:
               - name: grafana
-                image: streamlio/pulsar-grafana:latest
+                image: apachepulsar/pulsar-grafana:latest
                 ports:
                   - containerPort: 9090
                 env:
@@ -189,7 +189,7 @@ spec:
         spec:
             containers:
               - name: grafana
-                image: streamlio/pulsar-dashboard:latest
+                image: apachepulsar/pulsar-dashboard:latest
                 ports:
                   - containerPort: 80
                 env:
