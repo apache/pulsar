@@ -23,6 +23,8 @@ groups:
   docs:
   - title: Run Pulsar locally
     endpoint: LocalCluster
+  - title: Pulsar in Docker
+    endpoint: docker
   - title: Client libraries
     endpoint: Clients
   - title: Concepts and architecture
