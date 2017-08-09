@@ -49,7 +49,7 @@ spec:
         spec:
             containers:
               - name: broker
-                image: streamlio/pulsar:latest
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
@@ -104,7 +104,7 @@ metadata:
 spec:
     containers:
       - name: pulsar-admin
-        image: streamlio/pulsar:latest
+        image: apachepulsar/pulsar:latest
         command: ["sh", "-c"]
         args:
           - >

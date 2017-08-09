@@ -92,5 +92,5 @@ To use the dashboard manually:
 ```shell
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
-        streamlio/pulsar-grafana:latest
+        apachepulsar/pulsar-grafana:latest
 ```

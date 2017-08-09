@@ -57,7 +57,7 @@ spec:
         spec:
             containers:
               - name: bookie
-                image: streamlio/pulsar:latest
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
@@ -82,7 +82,7 @@ spec:
                 # The first time, initialize BK metadata in zookeeper
                  # Otherwise ignore error if it's already there
               - name: bookie-metaformat
-                image: streamlio/pulsar:latest
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
@@ -144,7 +144,7 @@ spec:
         spec:
             containers:
               - name: replication-worker
-                image: streamlio/pulsar:latest
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
