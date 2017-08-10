@@ -54,6 +54,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/clusters")
 @Api(value = "/clusters", description = "Cluster admin apis", tags = "clusters")
@@ -158,12 +159,12 @@ public class Clusters extends AdminResource {
         // Check that the cluster is not used by any property (eg: no namespaces provisioned there)
         boolean isClusterUsed = false;
         try {
-            for (String property : globalZk().getChildren(path("policies"), false)) {
-                if (globalZk().exists(path("policies", property, cluster), false) == null) {
+            for (String property : globalZk().getChildren(path(POLICIES), false)) {
+                if (globalZk().exists(path(POLICIES, property, cluster), false) == null) {
                     continue;
                 }
 
-                if (!globalZk().getChildren(path("policies", property, cluster), false).isEmpty()) {
+                if (!globalZk().getChildren(path(POLICIES, property, cluster), false).isEmpty()) {
                     // We found a property that has at least a namespace in this cluster
                     isClusterUsed = true;
                     break;

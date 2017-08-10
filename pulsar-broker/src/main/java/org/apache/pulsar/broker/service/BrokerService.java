@@ -120,6 +120,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
@@ -618,7 +619,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             Policies policies;
             try {
                 policies = pulsar
-                        .getConfigurationCache().policiesCache().get(AdminResource.path("policies",
+                        .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
                                 namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()))
                         .orElse(null);
             } catch (Throwable t) {

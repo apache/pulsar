@@ -45,6 +45,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/properties")
 @Produces(MediaType.APPLICATION_JSON)
@@ -60,7 +61,7 @@ public class Properties extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            List<String> properties = globalZk().getChildren(path("policies"), false);
+            List<String> properties = globalZk().getChildren(path(POLICIES), false);
             properties.sort(null);
             return properties;
         } catch (Exception e) {
@@ -78,7 +79,7 @@ public class Properties extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            return propertiesCache().get(path("policies", property))
+            return propertiesCache().get(path(POLICIES, property))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get property {}", clientAppId(), property, e);
@@ -98,7 +99,7 @@ public class Properties extends AdminResource {
 
         try {
             NamedEntity.checkName(property);
-            zkCreate(path("policies", property), jsonMapper().writeValueAsBytes(config));
+            zkCreate(path(POLICIES, property), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created property {}", clientAppId(), property);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing property {}", clientAppId(), property);
@@ -124,7 +125,7 @@ public class Properties extends AdminResource {
 
         Stat nodeStat = new Stat();
         try {
-            byte[] content = globalZk().getData(path("policies", property), null, nodeStat);
+            byte[] content = globalZk().getData(path(POLICIES, property), null, nodeStat);
             PropertyAdmin oldPropertyAdmin = jsonMapper().readValue(content, PropertyAdmin.class);
             List<String> clustersWithActiveNamespaces = Lists.newArrayList();
             if (oldPropertyAdmin.getAllowedClusters().size() > newPropertyAdmin.getAllowedClusters().size()) {
@@ -134,7 +135,7 @@ public class Properties extends AdminResource {
                 for (String cluster : oldPropertyAdmin.getAllowedClusters()) {
                     List<String> activeNamespaces = Lists.newArrayList();
                     try {
-                        activeNamespaces = globalZk().getChildren(path("policies", property, cluster), false);
+                        activeNamespaces = globalZk().getChildren(path(POLICIES, property, cluster), false);
                         if (activeNamespaces.size() != 0) {
                             // There are active namespaces in this cluster
                             clustersWithActiveNamespaces.add(cluster);
@@ -151,7 +152,7 @@ public class Properties extends AdminResource {
                     throw new RestException(Status.CONFLICT, msg);
                 }
             }
-            String propertyPath = path("policies", property);
+            String propertyPath = path(POLICIES, property);
             globalZk().setData(propertyPath, jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
             globalZkCache().invalidate(propertyPath);
             log.info("[{}] updated property {}", clientAppId(), property);
@@ -194,11 +195,11 @@ public class Properties extends AdminResource {
 
         try {
             // First try to delete every cluster z-node
-            for (String cluster : globalZk().getChildren(path("policies", property), false)) {
-                globalZk().delete(path("policies", property, cluster), -1);
+            for (String cluster : globalZk().getChildren(path(POLICIES, property), false)) {
+                globalZk().delete(path(POLICIES, property, cluster), -1);
             }
 
-            globalZk().delete(path("policies", property), -1);
+            globalZk().delete(path(POLICIES, property), -1);
             log.info("[{}] Deleted property {}", clientAppId(), property);
         } catch (Exception e) {
             log.error("[{}] Failed to delete property {}", clientAppId(), property, e);

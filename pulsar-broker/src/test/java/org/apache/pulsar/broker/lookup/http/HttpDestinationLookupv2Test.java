@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.lookup.http;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -31,7 +32,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -55,7 +55,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -179,11 +178,11 @@ public class HttpDestinationLookupv2Test {
         final String ns2 = "ns2";
         Policies policies1 = new Policies();
         doReturn(Optional.of(policies1)).when(policiesCache)
-                .get(AdminResource.path("policies", property, cluster, ns1));
+                .get(AdminResource.path(POLICIES, property, cluster, ns1));
         Policies policies2 = new Policies();
         policies2.replication_clusters = Lists.newArrayList("invalid-localCluster");
         doReturn(Optional.of(policies2)).when(policiesCache)
-                .get(AdminResource.path("policies", property, cluster, ns2));
+                .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
         DestinationLookup destLookup = spy(new DestinationLookup());
         doReturn(false).when(destLookup).isRequestHttps();

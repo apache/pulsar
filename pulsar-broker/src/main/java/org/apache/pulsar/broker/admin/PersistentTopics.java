@@ -111,6 +111,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  */
@@ -136,7 +137,7 @@ public class PersistentTopics extends AdminResource {
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            policiesCache().get(path("policies", property, cluster, namespace));
+            policiesCache().get(path(POLICIES, property, cluster, namespace));
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to get topic list {}/{}/{}: Namespace does not exist", clientAppId(), property,
                     cluster, namespace);
@@ -179,7 +180,7 @@ public class PersistentTopics extends AdminResource {
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            policiesCache().get(path("policies", property, cluster, namespace));
+            policiesCache().get(path(POLICIES, property, cluster, namespace));
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to get partitioned topic list {}/{}/{}: Namespace does not exist", clientAppId(), property,
                     cluster, namespace);
@@ -224,7 +225,7 @@ public class PersistentTopics extends AdminResource {
         String destinationUri = DestinationName.get(domain(), property, cluster, namespace, destination).toString();
 
         try {
-            Policies policies = policiesCache().get(path("policies", property, cluster, namespace))
+            Policies policies = policiesCache().get(path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
             Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
@@ -298,7 +299,7 @@ public class PersistentTopics extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path("policies", property, cluster, namespace), null, nodeStat);
+            byte[] content = globalZk().getData(path(POLICIES, property, cluster, namespace), null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
 
             if (!policies.auth_policies.destination_auth.containsKey(destinationUri)) {
@@ -308,11 +309,11 @@ public class PersistentTopics extends AdminResource {
             policies.auth_policies.destination_auth.get(destinationUri).put(role, actions);
 
             // Write the new policies to zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
+            globalZk().setData(path(POLICIES, property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
                     nodeStat.getVersion());
 
             // invalidate the local cache to force update
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
 
             log.info("[{}] Successfully granted access for role {}: {} - destination {}", clientAppId(), role, actions,
                     destinationUri);
@@ -347,7 +348,7 @@ public class PersistentTopics extends AdminResource {
         Policies policies;
 
         try {
-            byte[] content = globalZk().getData(path("policies", property, cluster, namespace), null, nodeStat);
+            byte[] content = globalZk().getData(path(POLICIES, property, cluster, namespace), null, nodeStat);
             policies = jsonMapper().readValue(content, Policies.class);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to revoke permissions on destination {}: Namespace does not exist", clientAppId(),
@@ -369,7 +370,7 @@ public class PersistentTopics extends AdminResource {
 
         try {
             // Write the new policies to zookeeper
-            String namespacePath = path("policies", property, cluster, namespace);
+            String namespacePath = path(POLICIES, property, cluster, namespace);
             globalZk().setData(namespacePath, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
 
             // invalidate the local cache to force update
@@ -1063,7 +1064,7 @@ public class PersistentTopics extends AdminResource {
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip validateAdminOperationOnDestination()
         try {
-            policiesCache().get(path("policies", property, cluster, namespace));
+            policiesCache().get(path(POLICIES, property, cluster, namespace));
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to get topic backlog {}/{}/{}: Namespace does not exist", clientAppId(), property,
                     cluster, namespace);
