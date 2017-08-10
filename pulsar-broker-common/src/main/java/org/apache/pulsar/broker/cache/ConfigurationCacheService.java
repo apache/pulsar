@@ -55,6 +55,7 @@ public class ConfigurationCacheService {
     private ZooKeeperChildrenCache clustersListCache;
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
 
+    public static final String POLICIES = "policies";
     protected static final String POLICIES_ROOT = "/admin/policies";
     private static final String CLUSTERS_ROOT = "/admin/clusters";
 

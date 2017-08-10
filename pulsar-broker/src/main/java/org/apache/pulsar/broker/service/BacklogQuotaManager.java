@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class BacklogQuotaManager {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
@@ -74,7 +75,7 @@ public class BacklogQuotaManager {
     }
 
     public long getBacklogQuotaLimit(String namespace) {
-        String policyPath = AdminResource.path("policies", namespace);
+        String policyPath = AdminResource.path(POLICIES, namespace);
         return getBacklogQuota(namespace, policyPath).getLimit();
     }
 
@@ -87,7 +88,7 @@ public class BacklogQuotaManager {
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
         DestinationName destination = DestinationName.get(persistentTopic.getName());
         String namespace = destination.getNamespace();
-        String policyPath = AdminResource.path("policies", namespace);
+        String policyPath = AdminResource.path(POLICIES, namespace);
 
         BacklogQuota quota = getBacklogQuota(namespace, policyPath);
         log.info("Backlog quota exceeded for topic [{}]. Applying [{}] policy", persistentTopic.getName(),

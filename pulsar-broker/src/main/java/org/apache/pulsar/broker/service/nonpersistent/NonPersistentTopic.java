@@ -85,6 +85,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class NonPersistentTopic implements Topic {
     private final String topic;
@@ -472,7 +473,7 @@ public class NonPersistentTopic implements Topic {
         Policies policies = null;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()))
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
         } catch (Exception e) {
             CompletableFuture<Void> future = new CompletableFuture<>();

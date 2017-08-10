@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
@@ -187,13 +188,13 @@ public abstract class AdminResource extends PulsarWebResource {
     protected List<String> getListOfNamespaces(String property) throws Exception {
         List<String> namespaces = Lists.newArrayList();
         // First get the list of cluster nodes
-        log.info("Children of {} : {}", path("policies", property),
-                globalZk().getChildren(path("policies", property), null));
+        log.info("Children of {} : {}", path(POLICIES, property),
+                globalZk().getChildren(path(POLICIES, property), null));
 
-        for (String cluster : globalZk().getChildren(path("policies", property), false)) {
+        for (String cluster : globalZk().getChildren(path(POLICIES, property), false)) {
             // Then get the list of namespaces
             try {
-                for (String namespace : globalZk().getChildren(path("policies", property, cluster), false)) {
+                for (String namespace : globalZk().getChildren(path(POLICIES, property, cluster), false)) {
                     namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
                 }
             } catch (KeeperException.NoNodeException e) {
@@ -229,7 +230,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(String property, String cluster, String namespace) {
         try {
-            Policies policies = policiesCache().get(AdminResource.path("policies", property, cluster, namespace))
+            Policies policies = policiesCache().get(AdminResource.path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()

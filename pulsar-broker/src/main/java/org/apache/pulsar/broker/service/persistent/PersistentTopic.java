@@ -106,6 +106,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class PersistentTopic implements Topic, AddEntryCallback {
     private final String topic;
@@ -303,7 +304,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.replication_clusters != null) {
                 Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
@@ -700,7 +701,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         Policies policies = null;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()))
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
         } catch (Exception e) {
             CompletableFuture<Void> future = new CompletableFuture<>();
@@ -753,7 +754,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         Policies policies;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()))
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.message_ttl_in_seconds != 0) {
                 subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
@@ -1243,7 +1244,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         DestinationName name = DestinationName.get(topic);
         try {
             Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path("policies", name.getNamespace()));
+                    .get(AdminResource.path(POLICIES, name.getNamespace()));
             if (!policies.isPresent()) {
                 // If no policies, the default is to have no retention and delete the inactive topic
                 return false;
@@ -1282,7 +1283,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public BacklogQuota getBacklogQuota() {
         DestinationName destination = DestinationName.get(this.getName());
         String namespace = destination.getNamespace();
-        String policyPath = AdminResource.path("policies", namespace);
+        String policyPath = AdminResource.path(POLICIES, namespace);
 
         BacklogQuota backlogQuota = brokerService.getBacklogQuotaManager().getBacklogQuota(namespace, policyPath);
         return backlogQuota;

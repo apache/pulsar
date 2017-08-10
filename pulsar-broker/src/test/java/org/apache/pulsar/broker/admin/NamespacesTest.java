@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -35,7 +36,6 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -47,9 +47,6 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.Namespaces;
-import org.apache.pulsar.broker.admin.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -425,7 +422,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Sometimes watcher event consumes scheduled exception, so set to always fail to ensure exception is
         // thrown for api call.
         mockZookKeeper.setAlwaysFail(Code.SESSIONEXPIRED);
-        pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path("policies", this.testProperty,
+        pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, this.testProperty,
                 "global", this.testGlobalNamespaces.get(0).getLocalName()));
         try {
             namespaces.setNamespaceReplicationClusters(this.testProperty, "global",
@@ -966,7 +963,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final String property = "prop";
             pulsar.getConfiguration().setAuthenticationEnabled(true);
             pulsar.getConfiguration().setAuthorizationEnabled(true);
-            final String path = PulsarWebResource.path("policies", property);
+            final String path = PulsarWebResource.path(POLICIES, property);
             final String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(
                     new PropertyAdmin(Lists.newArrayList(namespaces.clientAppId()), Sets.newHashSet("use")));
             ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
