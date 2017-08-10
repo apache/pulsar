@@ -20,14 +20,13 @@ package org.apache.pulsar.broker.web;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.common.api.Commands.newLookupResponse;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -43,7 +42,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.Namespaces;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -185,7 +183,7 @@ public abstract class PulsarWebResource {
                 PropertyAdmin propertyAdmin;
 
                 try {
-                    propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path("policies", property))
+                    propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
                             .orElseThrow(() -> new RestException(Status.UNAUTHORIZED, "Property does not exist"));
                 } catch (KeeperException.NoNodeException e) {
                     log.warn("Failed to get property admin data for non existing property {}", property);
@@ -205,7 +203,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForProperty(String property, String cluster) {
         PropertyAdmin propertyAdmin;
         try {
-            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path("policies", property))
+            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, property))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
             log.error("Failed to get property admin data for property");
@@ -525,7 +523,7 @@ public abstract class PulsarWebResource {
         if (namespace.isGlobal()) {
             String localCluster = pulsarService.getConfiguration().getClusterName();
 
-            String path = AdminResource.path("policies", namespace.getProperty(), namespace.getCluster(),
+            String path = AdminResource.path(POLICIES, namespace.getProperty(), namespace.getCluster(),
                     namespace.getLocalName());
 
             pulsarService.getConfigurationCache().policiesCache().getAsync(path).thenAccept(policiesResult -> {

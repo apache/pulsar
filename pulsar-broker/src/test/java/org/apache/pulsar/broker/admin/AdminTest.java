@@ -82,6 +82,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Test
 public class AdminTest extends MockedPulsarServiceBaseTest {
@@ -535,7 +536,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // create policies
         PropertyAdmin admin = new PropertyAdmin();
         admin.getAllowedClusters().add(cluster);
-        mockZookKeeper.create(PulsarWebResource.path("policies", property),
+        mockZookKeeper.create(PulsarWebResource.path(POLICIES, property),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(admin), Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
@@ -592,7 +593,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         PropertyAdmin admin = new PropertyAdmin();
         admin.getAllowedClusters().add(cluster);
         ZkUtils.createFullPathOptimistic(mockZookKeeper,
-                PulsarWebResource.path("policies", property, cluster, namespace),
+                PulsarWebResource.path(POLICIES, property, cluster, namespace),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 

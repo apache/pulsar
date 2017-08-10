@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
@@ -139,7 +140,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             PropertyAdmin propertyAdmin;
             try {
                 propertyAdmin = service.getConfigurationCacheService().propertiesCache()
-                        .get(path("policies", destination.getProperty()))
+                        .get(path(POLICIES, destination.getProperty()))
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
             } catch (KeeperException.NoNodeException e) {
                 LOG.warn("Failed to get property admin data for non existing property {}", destination.getProperty());

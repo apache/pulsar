@@ -82,6 +82,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
@@ -127,7 +128,7 @@ public class Namespaces extends AdminResource {
         }
 
         try {
-            for (String namespace : globalZk().getChildren(path("policies", property, cluster), false)) {
+            for (String namespace : globalZk().getChildren(path(POLICIES, property, cluster), false)) {
                 namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
             }
         } catch (KeeperException.NoNodeException e) {
@@ -194,7 +195,7 @@ public class Namespaces extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
         try {
-            checkNotNull(propertiesCache().get(path("policies", property)));
+            checkNotNull(propertiesCache().get(path(POLICIES, property)));
         } catch (NoNodeException nne) {
             log.warn("[{}] Failed to create namespace. Property {} does not exist", clientAppId(), property);
             throw new RestException(Status.NOT_FOUND, "Property does not exist");
@@ -205,7 +206,7 @@ public class Namespaces extends AdminResource {
         }
         try {
             NamedEntity.checkName(namespace);
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             Policies policies = new Policies();
             if (initialBundles != null && initialBundles.getNumBundles() > 0) {
                 if (initialBundles.getBoundaries() == null || initialBundles.getBoundaries().size() == 0) {
@@ -215,7 +216,7 @@ public class Namespaces extends AdminResource {
                 }
             }
 
-            zkCreateOptimistic(path("policies", property, cluster, namespace),
+            zkCreateOptimistic(path(POLICIES, property, cluster, namespace),
                     jsonMapper().writeValueAsBytes(policies));
             log.info("[{}] Created namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
         } catch (KeeperException.NodeExistsException e) {
@@ -254,7 +255,7 @@ public class Namespaces extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+            policiesNode = policiesCache().getWithStat(path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist."));
 
             policies = policiesNode.getKey();
@@ -301,9 +302,9 @@ public class Namespaces extends AdminResource {
         // set the policies to deleted so that somebody else cannot acquire this namespace
         try {
             policies.deleted = true;
-            globalZk().setData(path("policies", property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
+            globalZk().setData(path(POLICIES, property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
                     policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
         } catch (Exception e) {
             log.error("[{}] Failed to delete namespace on global ZK {}/{}/{}", clientAppId(), property, cluster,
                     namespace, e);
@@ -322,7 +323,7 @@ public class Namespaces extends AdminResource {
             }
 
             // we have successfully removed all the ownership for the namespace, the policies znode can be deleted now
-            final String globalZkPolicyPath = path("policies", property, cluster, namespace);
+            final String globalZkPolicyPath = path(POLICIES, property, cluster, namespace);
             final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, property, cluster, namespace);
             globalZk().delete(globalZkPolicyPath, -1);
             localZk().delete(lcaolZkPolicyPath, -1);
@@ -440,15 +441,15 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path("policies", property, cluster, namespace), null, nodeStat);
+            byte[] content = globalZk().getData(path(POLICIES, property, cluster, namespace), null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             policies.auth_policies.namespace_auth.put(role, actions);
 
             // Write back the new policies into zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
+            globalZk().setData(path(POLICIES, property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
                     nodeStat.getVersion());
 
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
 
             log.info("[{}] Successfully granted access for role {}: {} - namespace {}/{}/{}", clientAppId(), role,
                     actions, property, cluster, namespace);
@@ -480,15 +481,15 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path("policies", property, cluster, namespace), null, nodeStat);
+            byte[] content = globalZk().getData(path(POLICIES, property, cluster, namespace), null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             policies.auth_policies.namespace_auth.remove(role);
 
             // Write back the new policies into zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
+            globalZk().setData(path(POLICIES, property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
                     nodeStat.getVersion());
 
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             log.info("[{}] Successfully revoked access for role {} - namespace {}/{}/{}", clientAppId(), role, property,
                     cluster, namespace);
         } catch (KeeperException.NoNodeException e) {
@@ -561,14 +562,14 @@ public class Namespaces extends AdminResource {
 
         try {
             // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+            policiesNode = policiesCache().getWithStat(path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
             policiesNode.getKey().replication_clusters = clusterIds;
 
             // Write back the new policies into zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace),
+            globalZk().setData(path(POLICIES, property, cluster, namespace),
                     jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
 
             log.info("[{}] Successfully updated the replication clusters on namespace {}/{}/{}", clientAppId(),
                     property, cluster, namespace);
@@ -623,14 +624,14 @@ public class Namespaces extends AdminResource {
 
         try {
             // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+            policiesNode = policiesCache().getWithStat(path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
             policiesNode.getKey().message_ttl_in_seconds = messageTTL;
 
             // Write back the new policies into zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace),
+            globalZk().setData(path(POLICIES, property, cluster, namespace),
                     jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
 
             log.info("[{}] Successfully updated the message TTL on namespace {}/{}/{}", clientAppId(), property,
                     cluster, namespace);
@@ -842,7 +843,7 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            final String path = path("policies", property, cluster, namespace);
+            final String path = path(POLICIES, property, cluster, namespace);
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             RetentionPolicies r = policies.retention_policies;
@@ -859,7 +860,7 @@ public class Namespaces extends AdminResource {
             }
             policies.backlog_quota_map.put(backlogQuotaType, backlogQuota);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             log.info("[{}] Successfully updated backlog quota map: namespace={}/{}/{}, map={}", clientAppId(), property,
                     cluster, namespace, jsonMapper().writeValueAsString(policies.backlog_quota_map));
 
@@ -898,12 +899,12 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            final String path = path("policies", property, cluster, namespace);
+            final String path = path(POLICIES, property, cluster, namespace);
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             policies.backlog_quota_map.remove(backlogQuotaType);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             log.info("[{}] Successfully removed backlog namespace={}/{}/{}, quota={}", clientAppId(), property, cluster,
                     namespace, backlogQuotaType);
 
@@ -954,7 +955,7 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            final String path = path("policies", property, cluster, namespace);
+            final String path = path(POLICIES, property, cluster, namespace);
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (!checkQuotas(policies, retention)) {
@@ -966,7 +967,7 @@ public class Namespaces extends AdminResource {
             }
             policies.retention_policies = retention;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             log.info("[{}] Successfully updated retention configuration: namespace={}/{}/{}, map={}", clientAppId(),
                     property, cluster, namespace, jsonMapper().writeValueAsString(policies.retention_policies));
 
@@ -1015,12 +1016,12 @@ public class Namespaces extends AdminResource {
 
         try {
             Stat nodeStat = new Stat();
-            final String path = path("policies", property, cluster, namespace);
+            final String path = path(POLICIES, property, cluster, namespace);
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             policies.persistence = persistence;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
             log.info("[{}] Successfully updated persistence configuration: namespace={}/{}/{}, map={}", clientAppId(),
                     property, cluster, namespace, jsonMapper().writeValueAsString(policies.persistence));
 
