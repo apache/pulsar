@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>The Pulsar codebase</title>
+<title>Start a standalone cluster with Docker</title>
 
 <meta charset="utf-8">
 
@@ -663,9 +663,457 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">The Pulsar codebase</h1>
-        <span class="docs-lead">If you want to contribute to Pulsar, here's an overview of what lives where in the repo</span><br />
+        <h1 class="docs-title">Start a standalone cluster with Docker</h1>
+        <span class="docs-lead">Quickly start a Pulsar service in a single Docker container</span><br />
         <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">standalone</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-standalone">standalone</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-standalone">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>standalone</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/docker/">Start a standalone cluster with Docker</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">local</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-local">local</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-local">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>local</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/docker/">Start a standalone cluster with Docker</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">docker</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-docker">docker</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-docker">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>docker</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/docker/">Start a standalone cluster with Docker</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
           
         </section>
 
@@ -673,7 +1121,40 @@
       </section>
 
       <section class="content">
-        <p>The panels below describe some of the core directories in the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar codebase</a>.</p>
+        <p>For the purposes of local development and testing, you can run Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span>
+mode on your own machine within a Docker container.</p>
+
+<p>If you don’t have Docker installed, you can download the <a href="https://www.docker.com/community-edition">Community edition</a>
+and follow the instructions for your OS.</p>
+
+<h2 id="starting-pulsar-inside-docker">Starting Pulsar inside Docker</h2>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run -it <span class="se">\</span>
+    -p 6650:6650 <span class="se">\</span>
+    -p 8080:8080 <span class="se">\</span>
+    -v <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
+    apachepulsar/pulsar:1.19.0-incubating <span class="se">\</span>
+    bin/pulsar standalone --advertised-address 127.0.0.1
+</code></pre>
+</div>
+
+<p>A few things to note about this command:</p>
+<ul>
+  <li><code class="highlighter-rouge">-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the
+data and metadata in the filesystem outside the container, in order to not start “fresh” every
+time the container is restarted.</li>
+  <li><code class="highlighter-rouge">--advertised-address 127.0.0.1</code>: This is needed so that the Pulsar broker can advertise an IP
+address that is reachable from outside the Docker container. You can also use the host machine IP,
+if you want to make Pulsar standalone accessible from other machines.</li>
+</ul>
+
+<p>If Pulsar has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
+2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
+...
+</code></pre>
+</div>
 
 <!--
 
@@ -695,197 +1176,131 @@
     under the License.
 
 -->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Automatically created namespace</p>
+</span>
+    
+<p>When you start a local standalone cluster, Pulsar will automatically create a <code class="highlighter-rouge">sample/standalone/ns1</code>
+namespace that you can use for development purposes. All Pulsar topics are managed within namespaces.
+For more info, see <a href="../ConceptsAndArchitecture#Topics">Topics</a>.</p>
 
-<section class="codebase">
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Code related to the Pulsar <a href="../../getting-started/ConceptsAndArchitecture#brokers">broker</a>.</p>
-
-      <span>Languages: Java</span>
-      </section>
-    </div>
   </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-common <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-common"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets related to Pulsar’s message protocol.</p>
+</div>
 
-      <span>Languages: Java, Protocol Buffers</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">dashboard <a href="https://github.com/apache/incubator-pulsar/tree/master/dashboard"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>The web client powering Pulsar’s <a href="../../admin/Dashboard">dashboard</a>.</p>
+<h2 id="start-publishing-and-consuming-messages">Start publishing and consuming messages</h2>
 
-      <span>Languages: python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">kubernetes <a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p><a href="../../deployment/Kubernetes">Kubernetes</a> configuration for Pulsar.</p>
+<p>Pulsar currently offers client libraries for <a href="../../clients/Java">Java</a>, <a href="../../clients/Python">Python</a>,
+and <a href="../../clients/Cpp">C++</a>. If you’re running a local <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster, you can
+use one of these root URLs for interacting with your cluster:</p>
 
-      <span>Languages: YAML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">docker <a href="https://github.com/apache/incubator-pulsar/tree/master/docker"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to build Pulsar’s <a href="https://hub.docker.com">Docker image</a></p>
+<ul>
+  <li><code class="highlighter-rouge">pulsar://localhost:6650</code></li>
+  <li><code class="highlighter-rouge">http://localhost:8080</code></li>
+</ul>
 
-      <span>Languages: Dockerfile, shell, Python</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">managed-ledger <a href="https://github.com/apache/incubator-pulsar/tree/master/managed-ledger"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>Here’s an example that lets you quickly get started with Pulsar by using the <a href="../../clients/Python">Python</a>
+client API.</p>
 
-      <span>Languages: Java</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-broker-auth-athenz <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-broker-auth-athenz"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>You can install the Pulsar Python client library directly from <a href="https://pypi.org/project/pulsar-client/">PyPI</a>:</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-client <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-client"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install pulsar-client
+</code></pre>
+</div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-spark <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-spark"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<p>First create a consumer and subscribe to the topic:</p>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-storm <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">pulsar-testclient <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-testclient"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
+<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">,</span>
+                            <span class="n">subscription_name</span><span class="o">=</span><span class="s">'my-sub'</span><span class="p">)</span>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">src <a href="https://github.com/apache/incubator-pulsar/tree/master/src"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Received message: '</span><span class="si">%</span><span class="s">s'"</span> <span class="o">%</span> <span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">())</span>
+    <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
-      <span>Languages: XML</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">protobuf <a href="https://github.com/apache/incubator-pulsar/tree/master/protobuf"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Some helpers for generating code from Protocol Buffer definitions.</p>
+<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
 
-      
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">all <a href="https://github.com/apache/incubator-pulsar/tree/master/all"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Configuration for Maven’s assembly plugin.</p>
+<p>Now we can start a producer to send some test messages:</p>
 
-      <span>Languages: xml</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">bin <a href="https://github.com/apache/incubator-pulsar/tree/master/bin"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Executable scripts used for Pulsar administration</p>
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
-      <span>Languages: Bash</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">site <a href="https://github.com/apache/incubator-pulsar/tree/master/site"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Assets used to generate this website</p>
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">)</span>
 
-      <span>Languages: Markdown, Sass, HTML, JavaScript</span>
-      </section>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-block">
-      <h2 class="card-title">.travis <a href="https://github.com/apache/incubator-pulsar/tree/master/.travis"><i class="fa fa-github"></i></a></h2>
-      <section class="card-text">
-      <p>Settings for <a href="https://travis-ci.org">Travis CI</a>, the continuous integration system used by Pulsar</p>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'hello-pulsar-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
 
-      
-      </section>
-    </div>
-  </div>
-  
-</section>
+<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<h2 id="get-the-topic-statistics">Get the topic statistics</h2>
+
+<p>In Pulsar you can use REST, Java, or command-line tools to control every aspect of the system.
+You can find detailed documentation of all the APIs in the <a href="../../admin-api/overview">Admin API Overview</a>.</p>
+
+<p>In the simplest example, you can use curl to probe the stats for a particular topic:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl http://localhost:8080/admin/persistent/sample/standalone/ns1/my-topic/stats | python -m json.tool
+</code></pre>
+</div>
+
+<p>The output will be something like this:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35048"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 20:59:34.621+0000"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone-0-1"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">],</span><span class="w">
+    </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+    </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w">
+    </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nt">"my-sub"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="nt">"blockedSubscriptionOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+                </span><span class="p">{</span><span class="w">
+                    </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35064"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">996</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"blockedConsumerOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 21:05:39.222+0000"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"166111"</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+                    </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+                </span><span class="p">}</span><span class="w">
+            </span><span class="p">],</span><span class="w">
+            </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
+            </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
 
       </section>
     </article>
@@ -893,7 +1308,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>The Pulsar codebase</h4>
+        <h4>Start a standalone cluster with Docker</h4>
       </div>
       
     </nav>
