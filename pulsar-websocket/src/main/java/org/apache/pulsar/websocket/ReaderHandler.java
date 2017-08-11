@@ -138,11 +138,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                                             subscription, getRemote().getInetSocketAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
-                                int pending = pendingMessages.getAndDecrement();
-                                if (pending >= maxPendingMessages) {
-                                    // Resume delivery
-                                    receiveMessage();
-                                } 
+                                pendingMessages.getAndDecrement();
                             }
                         });
             } catch (JsonProcessingException e) {
@@ -153,6 +149,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             if (pending < maxPendingMessages) {
                 // Start next read in a separate thread to avoid recursion
                 service.getExecutor().execute(() -> receiveMessage());
+            } else {
+                // Resume delivery
+                receiveMessage();
             }
         }).exceptionally(exception -> {
             log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(),
