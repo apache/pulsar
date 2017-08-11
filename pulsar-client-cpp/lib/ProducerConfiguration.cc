@@ -55,7 +55,9 @@ CompressionType ProducerConfiguration::getCompressionType() const {
 }
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendingMessages) {
-    assert(maxPendingMessages > 0);
+    if (maxPendingMessages <= 0) {
+        throw "maxPendingMessages needs to be greater than 0";
+    }
     impl_->maxPendingMessages = maxPendingMessages;
     return *this;
 }
@@ -104,7 +106,9 @@ const bool& ProducerConfiguration::getBatchingEnabled() const {
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxMessages(
         const unsigned int& batchingMaxMessages) {
-    assert(batchingMaxMessages > 1);
+    if (batchingMaxMessages <= 1) {
+        throw "batchingMaxMessages needs to be greater than 1";
+    }
     impl_->batchingMaxMessages = batchingMaxMessages;
     return *this;
 }

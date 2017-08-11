@@ -72,7 +72,12 @@ static void sendCallBackExpectingErrors(Result r, const Message& msg) {
 
 TEST(BatchMessageTest, testProducerConfig) {
     ProducerConfiguration conf;
-    ASSERT_DEATH(conf.setBatchingMaxMessages(1), "");
+    try {
+        conf.setBatchingMaxMessages(1);
+        FAIL();
+    } catch (const char* ex) {
+        // Ok
+    }
 }
 
 TEST(BatchMessageTest, testProducerTimeout) {
@@ -301,7 +306,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
         LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
-        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));   
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
 
     ConsumerStatsImplPtr consumerStatsImplPtr = PulsarFriend::getConsumerStatsPtr(consumer);
