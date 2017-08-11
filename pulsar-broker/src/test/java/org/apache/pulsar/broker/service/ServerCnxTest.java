@@ -197,6 +197,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
+        @SuppressWarnings("deprecation") // We're actually testing that the deprecated method still works
         ByteBuf clientCommand = Commands.newConnect(AuthMethod.AuthMethodNone, "");
         channel.writeInbound(clientCommand);
 

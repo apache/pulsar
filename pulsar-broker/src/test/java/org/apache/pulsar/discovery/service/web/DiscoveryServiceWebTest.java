@@ -39,23 +39,22 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
-import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.zookeeper.ZooKeeper;
 import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.filter.LoggingFilter;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonObject;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
-    private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
+    private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
 
     @BeforeMethod
     @Override

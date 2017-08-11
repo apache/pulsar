@@ -94,6 +94,7 @@ public class ZooKeeperUtil {
         zkc.create("/ledgers/available", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
+    @SuppressWarnings("deprecation")
     public void sleepServer(final int seconds, final CountDownLatch l) throws InterruptedException, IOException {
         Thread[] allthreads = new Thread[Thread.activeCount()];
         Thread.enumerate(allthreads);
