@@ -155,6 +155,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 service.getExecutor().execute(() -> receiveMessage());
             }
         }).exceptionally(exception -> {
+            log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(),
+                    subscription, getRemote().getInetSocketAddress().toString(), exception);
             return null;
         });
     }
