@@ -113,6 +113,7 @@ flexible messaging model and an intuitive client API.</description>
     <aspectj.version>1.8.9</aspectj.version>
     <rocksdb.version>5.5.5</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
+    <log4j2.version>2.6.1</log4j2.version>
   </properties>
 
   <dependencyManagement>
@@ -164,6 +165,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>slf4j-log4j12</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -217,6 +224,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>datasketches-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>slf4j-log4j12</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -316,12 +329,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <artifactId>slf4j-log4j12</artifactId>
-        <groupId>org.slf4j</groupId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
         <version>${slf4j.version}</version>
@@ -331,6 +338,24 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.slf4j</groupId>
         <artifactId>jul-to-slf4j</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-slf4j-impl</artifactId>
+        <version>${log4j2.version}</version>
       </dependency>
 
       <dependency>
