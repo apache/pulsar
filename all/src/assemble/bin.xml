@@ -63,7 +63,7 @@
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
+      <source>${basedir}/../NOTICE</source>
       <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
