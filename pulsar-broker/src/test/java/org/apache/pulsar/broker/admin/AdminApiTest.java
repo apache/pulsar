@@ -1707,8 +1707,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * @param topicName
      * @throws Exception
      */
-    @Test(dataProvider = "topicName")
-    public void testIncrementPartitionsOfTopic(String topicName) throws Exception {
+    @Test
+    public void testIncrementPartitionsOfTopic() throws Exception {
+        final String topicName = "increment-partitionedTopic";
         final String subName1 = topicName + "-my-sub 1";
         final String subName2 = topicName + "-my-sub 2";
         final int startPartitions = 4;
