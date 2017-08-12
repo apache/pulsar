@@ -31,7 +31,6 @@
       <excludes>
         <exclude>org.slf4j:slf4j-api</exclude>
         <exclude>io.netty</exclude>
-        <exclude>com.scurrilous</exclude>
         <exclude>*:nar:*</exclude>
       </excludes>
     </dependencySet>
