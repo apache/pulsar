@@ -822,11 +822,6 @@ public class Namespaces extends AdminResource {
                 dispatchRate);
         validateSuperUserAccess();
 
-        if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateClusterOwnership(cluster);
-            validateClusterForProperty(property, cluster);
-        }
-
         Entry<Policies, Stat> policiesNode = null;
         NamespaceName nsName = new NamespaceName(property, cluster, namespace);
 

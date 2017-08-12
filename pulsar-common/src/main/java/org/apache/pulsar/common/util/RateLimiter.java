@@ -53,7 +53,7 @@ import com.google.common.base.Objects;
  * 
  *
  */
-public class RateLimiter {
+public class RateLimiter implements AutoCloseable{
 
     private final ScheduledExecutorService executorService;
     private long rateTime;
@@ -62,7 +62,7 @@ public class RateLimiter {
     private ScheduledFuture<?> renewTask;
     private long permits;
     private long acquiredPermits;
-    private boolean isShutdown;
+    private boolean isClosed;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
         this(null, permits, rateTime, timeUnit);
@@ -90,20 +90,21 @@ public class RateLimiter {
 
     }
 
-    public synchronized void shutdown() {
-        if (!isShutdown) {
+    @Override
+    public synchronized void close() {
+        if (!isClosed) {
             if (!externalExecutor) {
                 executorService.shutdownNow();
             }
             if (renewTask != null) {
                 renewTask.cancel(false);
             }
-            isShutdown = true;
+            isClosed = true;
         }
     }
 
-    public synchronized boolean isShutdown() {
-        return isShutdown;
+    public synchronized boolean isClosed() {
+        return isClosed;
     }
 
     /**
@@ -125,7 +126,7 @@ public class RateLimiter {
      *            the number of permits to acquire
      */
     public synchronized void acquire(long acquirePermit) throws InterruptedException {
-        checkArgument(!isShutdown(), "Rate limiter is already shutdown");
+        checkArgument(!isClosed(), "Rate limiter is already shutdown");
         checkArgument(acquirePermit <= this.permits,
                 "acquiring permits must be less or equal than initialized rate =" + this.permits);
 
@@ -167,7 +168,7 @@ public class RateLimiter {
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
     public synchronized boolean tryAcquire(long acquirePermit) {
-        checkArgument(!isShutdown(), "Rate limiter is already shutdown");
+        checkArgument(!isClosed(), "Rate limiter is already shutdown");
         // lazy init and start task only once application start using it
         if (renewTask == null) {
             renewTask = createTask();

@@ -150,7 +150,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * Update dispatch rate by updating msg and byte rate-limiter. If dispatch-rate is configured < 0 then it shutdowns
+     * Update dispatch rate by updating msg and byte rate-limiter. If dispatch-rate is configured < 0 then it closes
      * the rate-limiter and disables appropriate rate-limiter.
      * 
      * @param dispatchRate
@@ -175,7 +175,7 @@ public class DispatchRateLimiter {
         } else {
             // message-rate should be disable and close
             if (this.dispatchRateLimiterOnMessage != null) {
-                this.dispatchRateLimiterOnMessage.shutdown();
+                this.dispatchRateLimiterOnMessage.close();
                 this.dispatchRateLimiterOnMessage = null;
             }
         }
@@ -192,7 +192,7 @@ public class DispatchRateLimiter {
         } else {
             // message-rate should be disable and close
             if (this.dispatchRateLimiterOnByte != null) {
-                this.dispatchRateLimiterOnByte.shutdown();
+                this.dispatchRateLimiterOnByte.close();
                 this.dispatchRateLimiterOnByte = null;
             }
         }
@@ -217,13 +217,13 @@ public class DispatchRateLimiter {
     }
 
     public void close() {
-        // shutdown rate-limiter
+        // close rate-limiter
         if (dispatchRateLimiterOnMessage != null) {
-            dispatchRateLimiterOnMessage.shutdown();
+            dispatchRateLimiterOnMessage.close();
             dispatchRateLimiterOnMessage = null;
         }
         if (dispatchRateLimiterOnByte != null) {
-            dispatchRateLimiterOnByte.shutdown();
+            dispatchRateLimiterOnByte.close();
             dispatchRateLimiterOnByte = null;
         }
     }

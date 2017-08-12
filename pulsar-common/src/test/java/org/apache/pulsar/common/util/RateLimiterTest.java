@@ -47,11 +47,11 @@ public class RateLimiterTest {
     }
 
     @Test
-    public void testShutDown() throws Exception {
+    public void testclose() throws Exception {
         RateLimiter rate = new RateLimiter(1, 1000, TimeUnit.MILLISECONDS);
-        assertFalse(rate.isShutdown());
-        rate.shutdown();
-        assertTrue(rate.isShutdown());
+        assertFalse(rate.isClosed());
+        rate.close();
+        assertTrue(rate.isClosed());
         try {
             rate.acquire();
             fail("should have failed, executor is already closed");
@@ -71,7 +71,7 @@ public class RateLimiterTest {
         long end = System.currentTimeMillis();
         // no permits are available: need to wait on acquire
         assertTrue((end - start) > rateTimeMSec / 2);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -86,7 +86,7 @@ public class RateLimiterTest {
         long end = System.currentTimeMillis();
         assertTrue((end - start) < rateTimeMSec);
         assertTrue(rate.getAvailablePermits() == 0);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -102,7 +102,7 @@ public class RateLimiterTest {
         long end = System.currentTimeMillis();
         assertTrue((end - start) < rateTimeMSec);
         assertTrue(rate.getAvailablePermits() == 0);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -112,7 +112,7 @@ public class RateLimiterTest {
         assertTrue(rate.tryAcquire());
         assertFalse(rate.tryAcquire());
         assertTrue(rate.getAvailablePermits() == 0);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -124,7 +124,7 @@ public class RateLimiterTest {
             rate.tryAcquire();
         }
         assertTrue(rate.getAvailablePermits() == 0);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -137,7 +137,7 @@ public class RateLimiterTest {
             rate.tryAcquire(acquirePermist);
         }
         assertTrue(rate.getAvailablePermits() == 0);
-        rate.shutdown();
+        rate.close();
     }
 
     @Test
@@ -159,7 +159,7 @@ public class RateLimiterTest {
         Thread.sleep(rateTimeMSec);
         assertEquals(rate.getAvailablePermits(), 0);
 
-        rate.shutdown();
+        rate.close();
     }
 
 }
