@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
  */
 // This is a sample file which can be used by log4j2 to: only log debug-statement which has text: pulsar-topic-name
 var result = false;
+var topicName = "pulsar-topic-name";
 /*
  * Find more logEvent attributes at : 
  * https://github.com/apache/logging-log4j2/blob/dbd2d252a1b4139a9bd9eb213c89f28498db6dcf/log4j-core/src/main/java/org/apache/logging/log4j/core/LogEvent.java
  */
 if (logEvent.getLevel() == "DEBUG"){
-        if(logEvent.getMessage().getFormattedMessage().indexOf("pulsar-topic-name")!=-1) {
+        if(logEvent.getMessage().getFormattedMessage().indexOf(topicName)!=-1) {
                 result = true;  
         }
 } else {
