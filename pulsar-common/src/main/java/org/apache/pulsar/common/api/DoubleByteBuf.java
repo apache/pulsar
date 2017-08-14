@@ -41,6 +41,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
@@ -307,6 +308,56 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     @Override
     public int setBytes(int index, ScatteringByteChannel in, int length) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected short _getShortLE(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected int _getUnsignedMediumLE(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected int _getIntLE(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected long _getLongLE(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void _setShortLE(int index, int value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void _setMediumLE(int index, int value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void _setIntLE(int index, int value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void _setLongLE(int index, long value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getBytes(int index, FileChannel out, long position, int length) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int setBytes(int index, FileChannel in, long position, int length) throws IOException {
         throw new UnsupportedOperationException();
     }
 

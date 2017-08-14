@@ -21,18 +21,18 @@ package org.apache.pulsar.discovery.service;
 import java.io.File;
 
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.PulsarLengthFieldFrameDecoder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 /**
- * Initialize service channel handlers. 
+ * Initialize service channel handlers.
  *
  */
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -69,8 +69,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
-        ch.pipeline().addLast("frameDecoder",
-                new PulsarLengthFieldFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerConnection(discoveryService));
     }
 }

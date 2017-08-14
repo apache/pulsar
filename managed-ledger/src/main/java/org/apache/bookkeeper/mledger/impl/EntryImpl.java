@@ -24,7 +24,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
@@ -89,7 +88,7 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         EntryImpl entry = RECYCLER.get();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
-        entry.data = RecyclableDuplicateByteBuf.create(other.data);
+        entry.data = other.data.retainedDuplicate();
         entry.setRefCnt(1);
         return entry;
     }
@@ -137,10 +136,15 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
     public long getEntryId() {
         return entryId;
     }
-    
+
     @Override
     public int compareTo(EntryImpl other) {
         return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
+    }
+
+    @Override
+    public ReferenceCounted touch(Object hint) {
+        return this;
     }
 
     @Override

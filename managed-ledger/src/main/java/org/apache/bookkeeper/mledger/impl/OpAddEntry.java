@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
@@ -86,7 +85,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     public void initiate() {
-        ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+        ByteBuf duplicateBuffer = data.retainedDuplicate();
         // duplicatedBuffer has refCnt=1 at this point
 
         ledger.asyncAddEntry(duplicateBuffer, this, ctx);
