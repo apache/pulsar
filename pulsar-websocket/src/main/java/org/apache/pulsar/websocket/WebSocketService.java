@@ -52,7 +52,7 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
