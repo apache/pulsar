@@ -86,7 +86,8 @@ public class EntryCacheImpl implements EntryCache {
             11, // maxOrder
             64, // tinyCacheSize
             32, // smallCacheSize
-            8 // normalCacheSize
+            8, // normalCacheSize,
+            true // Use cache for all threads
     );
 
     @Override

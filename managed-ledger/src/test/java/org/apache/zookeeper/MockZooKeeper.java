@@ -49,7 +49,6 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import sun.reflect.ReflectionFactory;
 
 @SuppressWarnings({ "deprecation", "restriction", "rawtypes" })
 public class MockZooKeeper extends ZooKeeper {
@@ -78,7 +77,8 @@ public class MockZooKeeper extends ZooKeeper {
 
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
-            ReflectionFactory rf = ReflectionFactory.getReflectionFactory();
+
+            sun.reflect.ReflectionFactory rf = sun.reflect.ReflectionFactory.getReflectionFactory();
             Constructor objDef = Object.class.getDeclaredConstructor(new Class[0]);
             Constructor intConstr = rf.newConstructorForSerialization(MockZooKeeper.class, objDef);
             MockZooKeeper zk = MockZooKeeper.class.cast(intConstr.newInstance());

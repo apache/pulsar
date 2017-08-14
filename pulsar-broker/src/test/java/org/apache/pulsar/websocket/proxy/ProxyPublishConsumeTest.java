@@ -52,7 +52,7 @@ import org.eclipse.jetty.websocket.api.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.filter.LoggingFilter;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -210,7 +210,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     /**
      * It verifies proxy topic-stats and proxy-metrics api
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 10000)
@@ -253,7 +253,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 }
             }
 
-            Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
+            Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
                     + "/admin/proxy-stats/";
