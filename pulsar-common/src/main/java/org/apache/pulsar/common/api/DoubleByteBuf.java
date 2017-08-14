@@ -67,16 +67,16 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     private ByteBuf b1;
     private ByteBuf b2;
-    private final Handle recyclerHandle;
+    private final Handle<DoubleByteBuf> recyclerHandle;
 
     private static final Recycler<DoubleByteBuf> RECYCLER = new Recycler<DoubleByteBuf>() {
         @Override
-        protected DoubleByteBuf newObject(Recycler.Handle handle) {
+        protected DoubleByteBuf newObject(Recycler.Handle<DoubleByteBuf> handle) {
             return new DoubleByteBuf(handle);
         }
     };
 
-    private DoubleByteBuf(Handle recyclerHandle) {
+    private DoubleByteBuf(Handle<DoubleByteBuf> recyclerHandle) {
         super(Integer.MAX_VALUE);
         this.recyclerHandle = recyclerHandle;
     }
@@ -414,7 +414,7 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
         b1.release(2);
         b2.release(2);
         b1 = b2 = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
     @Override

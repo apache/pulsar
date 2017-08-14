@@ -239,19 +239,19 @@ public class MessageImpl implements Message {
         properties = null;
 
         if (recyclerHandle != null) {
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
     }
 
-    private MessageImpl(Handle recyclerHandle) {
+    private MessageImpl(Handle<MessageImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    private Handle recyclerHandle;
+    private Handle<MessageImpl> recyclerHandle;
 
     private final static Recycler<MessageImpl> RECYCLER = new Recycler<MessageImpl>() {
         @Override
-        protected MessageImpl newObject(Handle handle) {
+        protected MessageImpl newObject(Handle<MessageImpl> handle) {
             return new MessageImpl(handle);
         }
     };

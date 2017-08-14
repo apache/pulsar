@@ -74,7 +74,7 @@ public class ByteBufCodedInputStream {
     private ByteBuf buf;
     private int lastTag;
 
-    private final Handle recyclerHandle;
+    private final Handle<ByteBufCodedInputStream> recyclerHandle;
 
     public static ByteBufCodedInputStream get(ByteBuf buf) {
         ByteBufCodedInputStream stream = RECYCLER.get();
@@ -83,12 +83,12 @@ public class ByteBufCodedInputStream {
         return stream;
     }
 
-    private ByteBufCodedInputStream(Handle handle) {
+    private ByteBufCodedInputStream(Handle<ByteBufCodedInputStream> handle) {
         this.recyclerHandle = handle;
     }
 
     private static final Recycler<ByteBufCodedInputStream> RECYCLER = new Recycler<ByteBufCodedInputStream>() {
-        protected ByteBufCodedInputStream newObject(Recycler.Handle handle) {
+        protected ByteBufCodedInputStream newObject(Recycler.Handle<ByteBufCodedInputStream> handle) {
             return new ByteBufCodedInputStream(handle);
         }
     };
@@ -96,7 +96,7 @@ public class ByteBufCodedInputStream {
     public void recycle() {
         this.buf = null;
         if (recyclerHandle != null) {
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
     }
 

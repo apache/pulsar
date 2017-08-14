@@ -178,9 +178,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             recycle();
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<ProducerSendCallback> recyclerHandle;
 
-        private ProducerSendCallback(Handle recyclerHandle) {
+        private ProducerSendCallback(Handle<ProducerSendCallback> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
@@ -199,12 +199,12 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                 msg.recycle();
                 msg = null;
             }
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
 
         private static final Recycler<ProducerSendCallback> RECYCLER = new Recycler<ProducerSendCallback>() {
             @Override
-            protected ProducerSendCallback newObject(Handle handle) {
+            protected ProducerSendCallback newObject(Handle<ProducerSendCallback> handle) {
                 return new ProducerSendCallback(handle);
             }
 

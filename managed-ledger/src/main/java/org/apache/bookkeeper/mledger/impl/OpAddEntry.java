@@ -196,14 +196,14 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml.mbean.addAddEntryLatencySample(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
-    private final Handle recyclerHandle;
+    private final Handle<OpAddEntry> recyclerHandle;
 
-    private OpAddEntry(Handle recyclerHandle) {
+    private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
     private static final Recycler<OpAddEntry> RECYCLER = new Recycler<OpAddEntry>() {
-        protected OpAddEntry newObject(Recycler.Handle recyclerHandle) {
+        protected OpAddEntry newObject(Recycler.Handle<OpAddEntry> recyclerHandle) {
             return new OpAddEntry(recyclerHandle);
         }
     };
@@ -218,7 +218,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         closeWhenDone = false;
         entryId = -1;
         startTime = -1;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);

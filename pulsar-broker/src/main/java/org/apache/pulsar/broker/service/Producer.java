@@ -298,14 +298,14 @@ public class Producer {
             return callback;
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<MessagePublishContext> recyclerHandle;
 
-        private MessagePublishContext(Handle recyclerHandle) {
+        private MessagePublishContext(Handle<MessagePublishContext> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
         private static final Recycler<MessagePublishContext> RECYCLER = new Recycler<MessagePublishContext>() {
-            protected MessagePublishContext newObject(Recycler.Handle handle) {
+            protected MessagePublishContext newObject(Recycler.Handle<MessagePublishContext> handle) {
                 return new MessagePublishContext(handle);
             }
         };
@@ -318,7 +318,7 @@ public class Producer {
             ledgerId = -1;
             entryId = -1;
             batchSize = 0;
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
     }
 

@@ -72,7 +72,7 @@ public class ByteBufCodedOutputStream {
 
     private ByteBuf buf;
 
-    private final Handle recyclerHandle;
+    private final Handle<ByteBufCodedOutputStream> recyclerHandle;
 
     public static ByteBufCodedOutputStream get(ByteBuf buf) {
         ByteBufCodedOutputStream stream = RECYCLER.get();
@@ -82,15 +82,15 @@ public class ByteBufCodedOutputStream {
 
     public void recycle() {
         buf = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
-    private ByteBufCodedOutputStream(Handle handle) {
+    private ByteBufCodedOutputStream(Handle<ByteBufCodedOutputStream> handle) {
         this.recyclerHandle = handle;
     }
 
     private static final Recycler<ByteBufCodedOutputStream> RECYCLER = new Recycler<ByteBufCodedOutputStream>() {
-        protected ByteBufCodedOutputStream newObject(Recycler.Handle handle) {
+        protected ByteBufCodedOutputStream newObject(Recycler.Handle<ByteBufCodedOutputStream> handle) {
             return new ByteBufCodedOutputStream(handle);
         }
     };

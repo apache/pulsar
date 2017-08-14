@@ -34,12 +34,12 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
-        protected EntryImpl newObject(Handle handle) {
+        protected EntryImpl newObject(Handle<EntryImpl> handle) {
             return new EntryImpl(handle);
         }
     };
 
-    private final Handle recyclerHandle;
+    private final Handle<EntryImpl> recyclerHandle;
     private long ledgerId;
     private long entryId;
     ByteBuf data;
@@ -93,7 +93,7 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         return entry;
     }
 
-    private EntryImpl(Recycler.Handle recyclerHandle) {
+    private EntryImpl(Recycler.Handle<EntryImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
@@ -154,7 +154,7 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         data = null;
         ledgerId = -1;
         entryId = -1;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
 }
