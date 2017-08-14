@@ -53,7 +53,6 @@
 package org.apache.pulsar.common.util.protobuf;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ExtensionRegistryLite;
@@ -315,13 +314,13 @@ public class ByteBufCodedInputStream {
 
     /** Read a 32-bit little-endian integer from the stream. */
     public int readRawLittleEndian32() throws IOException {
-        return buf.order(ByteOrder.LITTLE_ENDIAN).readInt();
+        return buf.readIntLE();
 
     }
 
     /** Read a 64-bit little-endian integer from the stream. */
     public long readRawLittleEndian64() throws IOException {
-        return buf.order(ByteOrder.LITTLE_ENDIAN).readLong();
+        return buf.readLongLE();
     }
 
     public long readSFixed64() throws IOException {
