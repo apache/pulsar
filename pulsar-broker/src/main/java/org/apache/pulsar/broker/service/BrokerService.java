@@ -63,10 +63,12 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationManager;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -87,6 +89,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
@@ -119,7 +122,6 @@ import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
@@ -1017,7 +1019,43 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.warn("Failed to change load manager due to {}", ex);
             }
         });
+        // add listener to update message-dispatch-rate in msg
+        registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
+            DispatchRate dispatchRate = new DispatchRate((int) dispatchRatePerTopicInMsg,
+                    pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte(), 1);
+            updateTopicMessageDispatchRate(dispatchRate);
+        });
+        // add listener to update message-dispatch-rate in byte
+        registerConfigurationListener("dispatchThrottlingRatePerTopicInByte", (dispatchRatePerTopicInByte) -> {
+            DispatchRate dispatchRate = new DispatchRate(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                    (long) dispatchRatePerTopicInByte, 1);
+            updateTopicMessageDispatchRate(dispatchRate);
+        });
         // add more listeners here
+    }
+
+    private void updateTopicMessageDispatchRate(final DispatchRate dispatchRate) {
+        this.pulsar().getExecutor().submit(() -> {
+            // update message-rate for each topic
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    String topicName = null;
+                    try {
+                        if (topicFuture.get() instanceof PersistentTopic) {
+                            PersistentTopic topic = (PersistentTopic) topicFuture.get();
+                            topicName = topicFuture.get().getName();
+                            // update broker-dispatch throttling only if namespace-policy is not configured
+                            DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
+                            if (rateLimiter.getPoliciesDispatchRate() == null) {
+                                rateLimiter.updateDispatchRate(dispatchRate);
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("[{}] failed to update message-dispatch rate {}", topicName, dispatchRate);
+                    }
+                }
+            });
+        });
     }
 
     /**

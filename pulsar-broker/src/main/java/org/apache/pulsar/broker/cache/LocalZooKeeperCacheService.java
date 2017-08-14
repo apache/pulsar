@@ -144,10 +144,11 @@ public class LocalZooKeeperCacheService {
      */
     @SuppressWarnings("deprecation")
     public CompletableFuture<Optional<LocalPolicies>> createPolicies(String path, boolean readFromGlobal) {
-        checkNotNull(path, "path can't be null");
-        checkArgument(path.startsWith(LOCAL_POLICIES_ROOT), "Invalid path of local policies");
-
         CompletableFuture<Optional<LocalPolicies>> future = new CompletableFuture<>();
+        if (path == null || !path.startsWith(LOCAL_POLICIES_ROOT)) {
+            future.completeExceptionally(new IllegalArgumentException("Invalid path of local policies " + path));
+            return future;
+        }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Creating local namespace policies for {} - readFromGlobal: {}", path, readFromGlobal);

@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -697,11 +698,32 @@ public interface Namespaces {
      * Split namespace bundle
      *
      * @param namespace
-     * @bundle range of bundle to split
+     * @param range of bundle to split
      * @throws PulsarAdminException
      *             Unexpected error
      */
     void splitNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
+    
+    /**
+     * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+    
+    /** Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
+    *
+    * @param namespace
+    * @returns messageRate
+    *            number of messages per second
+    * @throws PulsarAdminException
+    *             Unexpected error
+    */
+    DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
      * Clear backlog for all destinations on a namespace

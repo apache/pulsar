@@ -133,7 +133,6 @@ public class PersistentSubscription implements Subscription {
         }
 
         dispatcher.addConsumer(consumer);
-        activateCursor();
     }
 
     @Override
@@ -162,10 +161,6 @@ public class PersistentSubscription implements Subscription {
 
     public void deactivateCursor() {
         this.cursor.setInactive();
-    }
-
-    public void activateCursor() {
-        this.cursor.setActive();
     }
 
     @Override

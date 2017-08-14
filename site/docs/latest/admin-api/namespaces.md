@@ -583,6 +583,62 @@ GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
 admin.namespaces().getRetention(namespace)
 ```
 
+#### set dispatch throttling
+
+It sets message dispatch rate for all the topics under a given namespace. 
+Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`). 
+dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which 
+disables the throttling.
+
+###### CLI
+
+```
+$ pulsar-admin namespaces set-dispatch-rate test-property/cl1/ns1 --msg-dispatch-rate 1000 --byte-dispatch-rate 1048576 --dispatch-rate-period 1
+```
+
+###### REST
+
+```
+POST /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+```
+
+###### Java
+
+```java
+admin.namespaces().setDispatchRate(namespace, 1000, 1048576, 1)
+```
+
+#### get configured message-rate
+
+It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)  
+
+###### CLI
+
+```
+$ pulsar-admin namespaces get-dispatch-rate test-property/cl1/ns1
+```
+
+```json
+{
+  "dispatchThrottlingRatePerTopicInMsg" : 1000,
+  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "ratePeriodInSecond" : 1
+}
+```
+
+###### REST
+
+```
+GET /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+```
+
+###### Java
+
+```java
+admin.namespaces().getDispatchRate(namespace)
+```
+
+
 ### Namespace isolation
 
 Coming soon.

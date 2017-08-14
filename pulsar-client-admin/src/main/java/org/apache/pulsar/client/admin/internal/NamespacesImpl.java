@@ -33,12 +33,13 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
 
@@ -348,6 +349,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = new NamespaceName(namespace);
             request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle)
                     .path("split")).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
+    @Override
+    public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
+        try {
+            NamespaceName ns = new NamespaceName(namespace);
+            request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("dispatchRate"))
+                    .post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public DispatchRate getDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = new NamespaceName(namespace);
+            return request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("dispatchRate"))
+            .get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
