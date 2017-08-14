@@ -19,10 +19,9 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -34,10 +33,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,10 +109,15 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 readMoreEntries(currentConsumer);
             }
         } else {
-            currentConsumer.sendMessages(entries).getLeft().addListener(future -> {
+            SendMessageInfo sentMsgInfo = currentConsumer.sendMessages(entries);
+            final long totalMessagesSent = sentMsgInfo.getTotalSentMessages();
+            final long totalBytesSent = sentMsgInfo.getTotalSentMessageBytes();
+            sentMsgInfo.getChannelPromse().addListener(future -> {
                 if (future.isSuccess()) {
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
+                        // acquire message-dispatch permits for already delivered messages
+                        topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
                         Consumer newConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                         if (newConsumer != null && !havePendingRead) {
                             readMoreEntries(newConsumer);
@@ -193,6 +197,41 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
 
             int messagesToRead = Math.min(availablePermits, readBatchSize);
+            
+            // throttle only if: (1) cursor is not active bcz active-cursor reads message from cache rather from
+            // bookkeeper (2) if topic has reached message-rate threshold: then schedule the read after
+            // MESSAGE_RATE_BACKOFF_MS
+            if (!cursor.isActive()) {
+                DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
+                if (rateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!rateLimiter.hasMessageDispatchPermit()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}",
+                                    topic.getName(), rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                                    MESSAGE_RATE_BACKOFF_MS);
+                        }
+                        topic.getBrokerService().executor().schedule(() -> {
+                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+                            if (currentConsumer != null && !havePendingRead) {
+                                readMoreEntries(currentConsumer);
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.info("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
+                                            topic.getName(), currentConsumer, havePendingRead);
+                                }
+                            }
+                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                        return;
+                    } else {
+                        // if dispatch-rate is in msg then read only msg according to available permit
+                        long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        if (availablePermitsOnMsg > 0) {
+                            messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
+                        }
+
+                    }
+                }
+            }
 
             // Schedule read
             if (log.isDebugEnabled()) {

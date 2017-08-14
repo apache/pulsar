@@ -145,7 +145,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     public void sendMessages(List<Entry> entries) {
         Consumer consumer = TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0 ? getNextConsumer() : null;
         if (consumer != null) {
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getRight());
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getTotalSentMessages());
         } else {
             entries.forEach(entry -> {
                 int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), name, -1);

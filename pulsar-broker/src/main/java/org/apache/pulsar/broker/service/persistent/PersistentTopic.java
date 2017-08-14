@@ -19,7 +19,11 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -52,6 +56,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -148,6 +153,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
+    private DispatchRateLimiter dispatchRateLimiter;
+    public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -189,7 +196,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         USAGE_COUNT_UPDATER.set(this, 0);
-
+        
+        this.dispatchRateLimiter = new DispatchRateLimiter(this);
+        
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -661,6 +670,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     closeFuture.complete(null);
                 }
             }, null);
+            
+            dispatchRateLimiter.close();
+            
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -1405,5 +1417,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.hasBatchMessagePublished = true;
     }
 
+    public DispatchRateLimiter getDispatchRateLimiter() {
+        return this.dispatchRateLimiter;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }

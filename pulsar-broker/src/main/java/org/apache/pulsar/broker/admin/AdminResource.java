@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -46,6 +45,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -256,6 +256,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     ZooKeeperDataCache<Policies> policiesCache() {
         return pulsar().getConfigurationCache().policiesCache();
+    }
+
+    ZooKeeperDataCache<LocalPolicies> localPoliciesCache() {
+        return pulsar().getLocalZkCacheService().policiesCache();
     }
 
     ZooKeeperDataCache<ClusterData> clustersCache() {

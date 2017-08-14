@@ -105,6 +105,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
     // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
+    // Default number of message dispatching throttling-limit for every topic. Using a value of 0, is disabling default
+    // message dispatch-throttling 
+    @FieldContext(dynamic = true)
+    private int dispatchThrottlingRatePerTopicInMsg = 0;
+    // Default number of message-bytes dispatching throttling-limit for every topic. Using a value of 0, is disabling
+    // default message-byte dispatch-throttling
+    @FieldContext(dynamic = true)
+    private long dispatchThrottlingRatePerTopicInByte = 0;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -497,6 +505,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(
             double maxUnackedMessagesPerSubscriptionOnBrokerBlocked) {
         this.maxUnackedMessagesPerSubscriptionOnBrokerBlocked = maxUnackedMessagesPerSubscriptionOnBrokerBlocked;
+    }
+
+    public int getDispatchThrottlingRatePerTopicInMsg() {
+        return dispatchThrottlingRatePerTopicInMsg;
+    }
+
+    public void setDispatchThrottlingRatePerTopicInMsg(int dispatchThrottlingRatePerTopicInMsg) {
+        this.dispatchThrottlingRatePerTopicInMsg = dispatchThrottlingRatePerTopicInMsg;
+    }
+
+    public long getDispatchThrottlingRatePerTopicInByte() {
+        return dispatchThrottlingRatePerTopicInByte;
+    }
+
+    public void setDispatchThrottlingRatePerTopicInByte(long dispatchThrottlingRatePerTopicInByte) {
+        this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
     }
 
     public int getMaxConcurrentLookupRequest() {

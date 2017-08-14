@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static java.util.stream.Collectors.toSet;
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import static java.util.stream.Collectors.toSet;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -36,6 +38,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -45,8 +48,6 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.carrotsearch.hppc.ObjectHashSet;
-import com.carrotsearch.hppc.ObjectSet;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
@@ -171,6 +172,31 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         if (totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
 
+            // throttle only if: (1) cursor is not active bcz active-cursor reads message from cache rather from
+            // bookkeeper (2) if topic has reached message-rate threshold: then schedule the read after
+            // MESSAGE_RATE_BACKOFF_MS
+            if (!cursor.isActive()) {
+                DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
+                if (rateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!rateLimiter.hasMessageDispatchPermit()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}", name,
+                                    rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                                    MESSAGE_RATE_BACKOFF_MS);
+                        }
+                        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
+                                TimeUnit.MILLISECONDS);
+                        return;
+                    } else {
+                        // if dispatch-rate is in msg then read only msg according to available permit
+                        long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        if (availablePermitsOnMsg > 0) {
+                            messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
+                        }
+                    }
+                }
+            }
+            
             if (!messagesToReplay.isEmpty()) {
                 if (havePendingReplayRead) {
                     log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
@@ -299,6 +325,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+        long totalMessagesSent = 0;
+        long totalBytesSent = 0;
         while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
@@ -320,14 +348,19 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     });
                 }
 
-                int msgSent = c.sendMessages(entries.subList(start, start + messagesForC)).getRight();
+                SendMessageInfo sentMsgInfo = c.sendMessages(entries.subList(start, start + messagesForC));
 
+                long msgSent = sentMsgInfo.getTotalSentMessages();
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;
+                totalMessagesSent += sentMsgInfo.getTotalSentMessageBytes();
+                totalBytesSent += sentMsgInfo.getTotalSentMessages();
             }
         }
 
+        topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+        
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
