@@ -1259,6 +1259,61 @@
 </code></pre>
 </div>
 
+<h4 id="set-dispatch-throttling">set dispatch throttling</h4>
+
+<p>It sets message dispatch rate for all the topics under a given namespace. 
+Dispatch rate can be restricted by number of message per X seconds (<code class="highlighter-rouge">msg-dispatch-rate</code>) or by number of message-bytes per X second (<code class="highlighter-rouge">byte-dispatch-rate</code>). 
+dispatch rate is in second and it can be configured with <code class="highlighter-rouge">dispatch-rate-period</code>. Default value of <code class="highlighter-rouge">msg-dispatch-rate</code> and <code class="highlighter-rouge">byte-dispatch-rate</code> is -1 which 
+disables the throttling.</p>
+
+<h6 id="cli-15">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-dispatch-rate test-property/cl1/ns1 --msg-dispatch-rate 1000 --byte-dispatch-rate 1048576 --dispatch-rate-period 1
+</code></pre>
+</div>
+
+<h6 id="rest-16">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+</code></pre>
+</div>
+
+<h6 id="java-20">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="mi">1000</span><span class="o">,</span> <span class="mi">1048576</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
+</code></pre>
+</div>
+
+<h4 id="get-configured-message-rate">get configured message-rate</h4>
+
+<p>It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)</p>
+
+<h6 id="cli-16">CLI</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-dispatch-rate test-property/cl1/ns1
+</code></pre>
+</div>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"dispatchThrottlingRatePerTopicInMsg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"dispatchThrottlingRatePerTopicInByte"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1048576</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"ratePeriodInSecond"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<h6 id="rest-17">REST</h6>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+</code></pre>
+</div>
+
+<h6 id="java-21">Java</h6>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre>
+</div>
+
 <h3 id="namespace-isolation">Namespace isolation</h3>
 
 <p>Coming soon.</p>
@@ -1279,7 +1334,7 @@
 
 <h4 id="rest-api-4">REST API</h4>
 
-<h4 id="java-20">Java</h4>
+<h4 id="java-22">Java</h4>
 
       </section>
     </article>

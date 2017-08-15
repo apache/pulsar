@@ -260,6 +260,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#ClusterData-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">ClusterData(String, String, String, String)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#clusterDispatchRate">clusterDispatchRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Clusters</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
 <div class="block">Admin interface for clusters management.</div>
@@ -426,6 +428,16 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/AuthPolicies.html#destination_auth">destination_auth</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/AuthPolicies.html" title="class in org.apache.pulsar.common.policies.data">AuthPolicies</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">DispatchRate</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate--">DispatchRate()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate-int-long-int-">DispatchRate(int, long, int)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInByte">dispatchThrottlingRatePerTopicInByte</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInMsg">dispatchThrottlingRatePerTopicInMsg</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <a name="I:E">
 <!--   -->
@@ -447,6 +459,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/LocalPolicies.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/LocalPolicies.html" title="class in org.apache.pulsar.common.policies.data">LocalPolicies</a></dt>
 <dd>&nbsp;</dd>
@@ -583,6 +597,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getDestinations-java.lang.String-">getDestinations(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Get the list of destinations.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getDispatchRate-java.lang.String-">getDispatchRate(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#getDynamic--">getDynamic()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
@@ -835,6 +853,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BacklogQuota.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
 <dd>&nbsp;</dd>
@@ -1306,6 +1326,8 @@
 </a>
 <h2 class="title">R</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#ratePeriodInSecond">ratePeriodInSecond</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#readPosition">readPosition</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ErrorData.html#reason">reason</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ErrorData.html" title="class in org.apache.pulsar.common.policies.data">ErrorData</a></dt>
@@ -1423,6 +1445,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/ResourceQuotas.html#setDefaultResourceQuota-org.apache.pulsar.common.policies.data.ResourceQuota-">setDefaultResourceQuota(ResourceQuota)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></dt>
 <dd>
 <div class="block">Set default resource quota for new namespace bundles.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setDispatchRate-java.lang.String-org.apache.pulsar.common.policies.data.DispatchRate-">setDispatchRate(String, DispatchRate)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#setDynamic-boolean-">setDynamic(boolean)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
@@ -1587,6 +1613,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
 <dd>&nbsp;</dd>
