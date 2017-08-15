@@ -117,6 +117,7 @@
               <libraries>
                 <library>
                   <type>jni</type>
+                  <narSystemPackage>org.apache.pulsar.checksum</narSystemPackage>
                 </library>
               </libraries>
               <cpp>
@@ -150,6 +151,7 @@
               <libraries>
                 <library>
                   <type>jni</type>
+                  <narSystemPackage>org.apache.pulsar.checksum</narSystemPackage>
                 </library>
               </libraries>
               <cpp>
