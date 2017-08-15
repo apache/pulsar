@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
@@ -159,8 +158,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authorizationAllowWildcardsMatching = false;
 
     // Authentication settings of the broker itself. Used when the broker connects
-    // to other brokers, either in same or other clusters
-    private String brokerClientAuthenticationPlugin = AuthenticationDisabled.class.getName();
+    // to other brokers, either in same or other clusters. Default uses plugin which disables authentication
+    private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
 
     /**** --- BookKeeper Client --- ****/
