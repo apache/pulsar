@@ -44,7 +44,8 @@ Configuration:
     RollingFile:
       name: RollingFile
       fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
-      filePattern: "/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log"
+      filePattern: "/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+      immediateFlush: false
       PatternLayout:
         Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
       Policies:
@@ -53,8 +54,20 @@ Configuration:
           modulate: true
         SizeBasedTriggeringPolicy:
           size: 1 GB
+        # Trigger every day at midnight that also scan 
+        # roll-over strategy that deletes older file
+        CronTriggeringPolicy:
+          schedule: "0 0 0 * * ?"
+      # Delete file older than 30days
       DefaultRolloverStrategy:
-          max: 3
+          Delete:
+            basePath: ${sys:pulsar.log.dir}
+            maxDepth: 2
+            IfFileName:
+              glob: "*/${sys:pulsar.log.file}*log.gz"
+            IfLastModified:
+              age: 30d
+              
 
   Loggers:
   
