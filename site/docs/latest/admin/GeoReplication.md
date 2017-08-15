@@ -20,7 +20,7 @@ Geo-replication must be enabled on a per-{% popover property %} basis in Pulsar.
 
 Although geo-replication must be enabled between two clusters, it's actually managed at the {% popover namespace %} level. You must do the following to enable geo-replication for a namespace:
 
-* [Create a global namespace](#creating-a-global-namespace)
+* [Create a global namespace](#creating-global-namespaces)
 * Configure that namespace to replicate between two or more provisioned clusters
 
 Any message published on *any* topic in that namespace will then be replicated to all clusters in the specified set.
@@ -84,7 +84,7 @@ Once you've created a global namespace, any topics that producers or consumers c
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.
 
-Below is an example for the [Java API](../../clients/Java). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client com.yahoo.pulsar.client.api.Message %} object:
+Below is an example for the [Java API](../../clients/Java). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client org.apache.pulsar.client.api.Message %} object:
 
 ```java
 List<String> restrictReplicationTo = new ArrayList<>;
