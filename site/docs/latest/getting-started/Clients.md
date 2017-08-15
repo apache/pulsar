@@ -20,7 +20,7 @@ Library | Purpose
 [`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](../../clients/Java) for producing and consuming messages on Pulsar {% popover topics %}
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](../../admin-api/overview)
 
-<!-- * [`com.yahoo.pulsar.broker`](/api/broker) -->
+<!-- * [`org.apache.pulsar.broker`](/api/broker) -->
 
 ## Python client
 
