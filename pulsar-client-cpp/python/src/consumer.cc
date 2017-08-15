@@ -30,9 +30,26 @@ void Consumer_unsubscribe(Consumer& consumer) {
 Message Consumer_receive(Consumer& consumer) {
     Message msg;
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.receive(msg);
-    Py_END_ALLOW_THREADS
+
+    while (true) {
+        Py_BEGIN_ALLOW_THREADS
+        // Use 100ms timeout to periodically check whether the
+        // interpreter was interrupted
+        res = consumer.receive(msg, 100);
+        Py_END_ALLOW_THREADS
+
+        if (res != ResultTimeout) {
+            // In case of timeout we keep calling receive() to simulate a
+            // blocking call until a message is available, while breaking
+            // every once in a while to check the Python signal status
+            break;
+        }
+
+        if (PyErr_CheckSignals() == -1) {
+            PyErr_SetInterrupt();
+            return msg;
+        }
+    }
 
     CHECK_RESULT(res);
     return msg;
