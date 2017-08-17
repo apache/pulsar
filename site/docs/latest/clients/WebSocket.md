@@ -3,7 +3,7 @@ title: Pulsar's WebSocket API
 tags: [websocket, nodejs, python]
 ---
 
-Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](../../getting-started/Clients). Through WebSockets you can publish and consume messages and use all the features available in the [Java](../JavaClient), [Python](../PythonClient), and [C++](../CppClient) client libraries.
+Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](../../getting-started/Clients). Through WebSockets you can publish and consume messages and use all the features available in the [Java](../Java), [Python](../Python), and [C++](../Cpp) client libraries.
 
 {% include admonition.html type="success" content="You can use Pulsar's WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples)." %}
 
@@ -170,7 +170,7 @@ Error Code | Error Message
 
 ## Client examples
 
-Below you'll find code examples for the Pulsar WebSocket API in [Python](#python) and [Node.js](#node.js).
+Below you'll find code examples for the Pulsar WebSocket API in [Python](#python) and [Node.js](#nodejs).
 
 ### Python
 
