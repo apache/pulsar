@@ -212,6 +212,7 @@ public class WebSocketService implements Closeable {
 
     private static ServiceConfiguration createServiceConfiguration(WebSocketProxyConfiguration config) {
         ServiceConfiguration serviceConfig = new ServiceConfiguration();
+        serviceConfig.setProperties(config.getProperties());
         serviceConfig.setClusterName(config.getClusterName());
         serviceConfig.setWebServicePort(config.getWebServicePort());
         serviceConfig.setWebServicePortTls(config.getWebServicePortTls());
