@@ -5,7 +5,7 @@ tags: [Kubernetes, Google Container Engine]
 
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package](/downloads) holds resource definitions for:
+The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package](/download) holds resource definitions for:
 
 * A two-{% popover bookie %} {% popover BookKeeper %} cluster
 * A three-node {% popover ZooKeeper %} cluster
@@ -15,7 +15,7 @@ The deployment method shown in this guide relies on [YAML](http://yaml.org/) def
 
 ## Setup
 
-To get started, install a source package from the [downloads page](/downloads).
+To get started, install a source package from the [downloads page](/download).
 
 {% include admonition.html type='warning' content="Please note that the Pulsar binary package will *not* contain the necessary YAML resources to deploy Pulsar on Kubernetes." %}
 
