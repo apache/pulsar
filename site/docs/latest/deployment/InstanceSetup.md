@@ -8,10 +8,10 @@ A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working i
 * Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
 * Deploying a [BookKeeper cluster](#deploying-bookkeeper) of {% popover bookies %} in each Pulsar cluster
-* Deploying [brokers](../../admin/ClustersBrokers#managing-brokers) in each Pulsar cluster
+* Deploying [brokers](#deploying-brokers) in each Pulsar cluster
 
 
-If you're deploying a single Pulsar cluster, see the [Clusters and Brokers](../../admin/ClustersBrokers) guide.
+If you're deploying a single Pulsar cluster, see the [Clusters and Brokers](../../getting-started/LocalCluster#starting-the-cluster) guide.
 
 {% include admonition.html type="info" title='Running Pulsar locally or on Kubernetes?' content="
 This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you'd like to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide. If you're looking to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](../Kubernetes) guide, which includes sections on running Pulsar on Kubernetes on [Google Container Engine](../Kubernetes#pulsar-on-google-container-engine) and on [Amazon Web Services](../Kubernetes#pulsar-on-amazon-web-services).
