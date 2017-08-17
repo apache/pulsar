@@ -138,7 +138,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                                             subscription, getRemote().getInetSocketAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
-                                pendingMessages.getAndDecrement();
                             }
                         });
             } catch (JsonProcessingException e) {
@@ -149,9 +148,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             if (pending < maxPendingMessages) {
                 // Start next read in a separate thread to avoid recursion
                 service.getExecutor().execute(() -> receiveMessage());
-            } else {
-                // Resume delivery
-                receiveMessage();
             }
         }).exceptionally(exception -> {
             log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(),
@@ -163,6 +159,15 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     @Override
     public void onWebSocketText(String message) {
         super.onWebSocketText(message);
+
+        // We should have received an ack
+        // but reader doesn't send an ack to broker here because already reader did
+
+        int pending = pendingMessages.getAndDecrement();
+        if (pending >= maxPendingMessages) {
+            // Resume delivery
+            receiveMessage();
+        }
     }
 
     @Override
