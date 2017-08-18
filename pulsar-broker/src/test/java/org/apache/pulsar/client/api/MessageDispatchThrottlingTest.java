@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
 
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
@@ -620,6 +623,80 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
         final int totalReceivedBytes = dataSize * totalReceived.get();
         Assert.assertNotEquals(totalReceivedBytes, byteRate * 2);
+
+        consumer.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * <pre>
+     * Verifies setting dispatch-rate on global namespace.
+     * 1. It sets dispatch-rate for a local cluster into global-zk.policies
+     * 2. Topic fetches dispatch-rate for the local cluster from policies
+     * 3. applies dispatch rate
+     * 
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testGlobalNamespaceThrottling() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String namespace = "my-property/global/throttling_ns";
+        final String topicName = "persistent://" + namespace + "/throttlingBlock";
+        
+
+        final int messageRate = 100;
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+
+        admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("use"));
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        
+        // create producer and topic
+        Producer producer = pulsarClient.createProducer(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        boolean isMessageRateUpdate = false;
+        int retry = 5;
+        for (int i = 0; i < retry; i++) {
+            if (topic.getDispatchRateLimiter().getDispatchRateOnMsg() > 0
+                    || topic.getDispatchRateLimiter().getDispatchRateOnByte() > 0) {
+                isMessageRateUpdate = true;
+                break;
+            } else {
+                if (i != retry - 1) {
+                    Thread.sleep(100);
+                }
+            }
+        }
+        Assert.assertTrue(isMessageRateUpdate);
+        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+        int numMessages = 500;
+
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setMessageListener((consumer, msg) -> {
+            Assert.assertNotNull(msg, "Message cannot be null");
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message [{}] in the listener", receivedMessage);
+            totalReceived.incrementAndGet();
+        });
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        // deactive cursors
+        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+        // Asynchronously produce messages
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(new byte[80]);
+        }
+
+        // consumer should not have received all publihsed message due to message-rate throttling
+        Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
         consumer.close();
         producer.close();

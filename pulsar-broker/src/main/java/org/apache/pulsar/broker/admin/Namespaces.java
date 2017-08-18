@@ -829,7 +829,7 @@ public class Namespaces extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
-            policiesNode.getKey().clusterDispatchRate.put(cluster, dispatchRate);
+            policiesNode.getKey().clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path("policies", property, cluster, namespace),
@@ -864,7 +864,13 @@ public class Namespaces extends AdminResource {
             @PathParam("namespace") String namespace) {
         validateAdminAccessOnProperty(property);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
-        return policies.clusterDispatchRate.get(cluster);
+        DispatchRate dispatchRate = policies.clusterDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        if (dispatchRate != null) {
+            return dispatchRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                    "Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        }
     }
 
     @GET
