@@ -166,13 +166,14 @@ public class PulsarStandaloneStarter {
         // Create a sample namespace
         URL webServiceUrl = new URL(
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
-        String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
+        final String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
                 config.getBrokerServicePort());
         admin = new PulsarAdmin(webServiceUrl, config.getBrokerClientAuthenticationPlugin(),
                 config.getBrokerClientAuthenticationParameters());
-        String property = "sample";
-        String cluster = config.getClusterName();
-        String namespace = property + "/" + cluster + "/ns1";
+        final String property = "sample";
+        final String cluster = config.getClusterName();
+        final String globalCluster = "global";
+        final String namespace = property + "/" + cluster + "/ns1";
         try {
             ClusterData clusterData = new ClusterData(webServiceUrl.toString(), null /* serviceUrlTls */,
                     brokerServiceUrl, null /* brokerServiceUrlTls */);
@@ -180,6 +181,11 @@ public class PulsarStandaloneStarter {
                 admin.clusters().createCluster(cluster, clusterData);
             } else {
                 admin.clusters().updateCluster(cluster, clusterData);
+            }
+
+            // Create marker for "global" cluster
+            if (!admin.clusters().getClusters().contains(globalCluster)) {
+                admin.clusters().createCluster(globalCluster, new ClusterData(null, null));
             }
 
             if (!admin.properties().getProperties().contains(property)) {
