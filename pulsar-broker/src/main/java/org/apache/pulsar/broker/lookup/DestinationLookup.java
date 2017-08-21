@@ -223,7 +223,11 @@ public class DestinationLookup extends PulsarWebResource {
                                 log.debug("[{}] Lookup result {}", fqdn.toString(), lookupResult);
                             }
 
-                            checkArgument(lookupResult.isPresent());
+                            if (!lookupResult.isPresent()) {
+                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, "Namespace bundle is not owned by any broker", requestId));
+                                return;
+                            }
+
                             LookupData lookupData = lookupResult.get().getLookupData();
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = isLeaderBroker(pulsarService);
