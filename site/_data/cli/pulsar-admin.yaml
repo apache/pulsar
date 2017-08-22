@@ -291,6 +291,9 @@ commands:
   - name: lookup
     description: Look up a topic from the current serving broker
     argument: persistent://property/cluster/namespace/topic
+  - name: bundle-range
+    description: Get the namespace bundle which contains the given topic  
+    argument: persistent://property/cluster/namespace/topic
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
     argument: persistent://property/cluster/namespace/topic

@@ -49,11 +49,15 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.ws.rs.core.Response.Status;
 
 import io.netty.buffer.ByteBuf;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
@@ -145,6 +149,33 @@ public class DestinationLookup extends PulsarWebResource {
 
     }
 
+    @GET
+    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}/bundle")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Invalid destination domain type") })
+    public String getNamespaceBundle(@PathParam("destination-domain") String destinationDomain,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest) {
+        dest = Codec.decode(dest);
+        DestinationDomain domain = null;
+        try {
+            domain = DestinationDomain.getEnum(destinationDomain);
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Bundle lookup can not be done on destination domain " + destinationDomain);
+        }
+        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
+        validateSuperUserAccess();
+        try {
+            NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topic);
+            return bundle.getBundleRange();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace bundle for {}", clientAppId(), topic, e);
+            throw new RestException(e);
+        }
+    }
 
     /**
      *
