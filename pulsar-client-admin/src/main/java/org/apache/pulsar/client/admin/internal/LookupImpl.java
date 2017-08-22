@@ -56,6 +56,16 @@ public class LookupImpl extends BaseResource implements Lookup {
         }
     }
 
+    @Override
+    public String getBundleRange(String destination) throws PulsarAdminException {
+        try {
+            DestinationName destName = DestinationName.get(destination);
+            return request(v2lookup.path("/destination").path(destName.getLookupName()).path("bundle")).get(String.class);
+        } catch (Exception e) {
+            throw getLookupApiException(e);
+        }
+    }
+
     private String doDestinationLookup(WebTarget lookupResource, DestinationName destName) throws PulsarAdminException {
         LookupData lookupData = request(lookupResource.path(destName.getLookupName())).get(LookupData.class);
         if (useTls) {

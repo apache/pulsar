@@ -31,4 +31,13 @@ public interface Lookup {
      * @return the broker URL that serves the destination
      */
     public String lookupDestination(String destination) throws PulsarAdminException;
+    
+    /**
+     * Get a bundle range of a destination
+     * 
+     * @param destination
+     * @return
+     * @throws PulsarAdminException
+     */
+    public String getBundleRange(String destination) throws PulsarAdminException;
 }

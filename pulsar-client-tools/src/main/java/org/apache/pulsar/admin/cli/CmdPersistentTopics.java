@@ -54,6 +54,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
+        jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
@@ -158,6 +159,18 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String destination = validateDestination(params);
             print(admin.lookups().lookupDestination(destination));
+        }
+    }
+
+    @Parameters(commandDescription = "Get Namespace bundle range of a topic")
+    private class GetBundleRange extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String destination = validateDestination(params);
+            print(admin.lookups().getBundleRange(destination));
         }
     }
 
