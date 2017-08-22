@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
@@ -131,7 +132,8 @@ public class HttpDestinationLookupv2Test {
         doReturn(true).when(config).isAuthorizationEnabled();
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        destLookup.lookupDestinationAsync("myprop", "usc", "ns2", "topic1", false, asyncResponse);
+        destLookup.lookupDestinationAsync(DestinationDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
+                asyncResponse);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -160,7 +162,8 @@ public class HttpDestinationLookupv2Test {
         doReturn(true).when(config).isAuthorizationEnabled();
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
-        destLookup.lookupDestinationAsync("myprop", "usc", "ns2", "topic1", false, asyncResponse1);
+        destLookup.lookupDestinationAsync(DestinationDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
+                asyncResponse1);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -195,14 +198,16 @@ public class HttpDestinationLookupv2Test {
         doReturn(false).when(config).isAuthorizationEnabled();
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        destLookup.lookupDestinationAsync(property, cluster, ns1, "empty-cluster", false, asyncResponse);
+        destLookup.lookupDestinationAsync(DestinationDomain.persistent.value(), property, cluster, ns1, "empty-cluster",
+                false, asyncResponse);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getClass(), RestException.class);
 
         AsyncResponse asyncResponse2 = mock(AsyncResponse.class);
-        destLookup.lookupDestinationAsync(property, cluster, ns2, "invalid-localCluster", false, asyncResponse2);
+        destLookup.lookupDestinationAsync(DestinationDomain.persistent.value(), property, cluster, ns2,
+                "invalid-localCluster", false, asyncResponse2);
         ArgumentCaptor<Throwable> arg2 = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse2).resume(arg2.capture());
 

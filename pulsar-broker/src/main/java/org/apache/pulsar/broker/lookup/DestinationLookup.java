@@ -43,12 +43,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,23 +59,23 @@ import io.netty.buffer.ByteBuf;
 public class DestinationLookup extends PulsarWebResource {
 
     @GET
-    @Path("non-persistent/{property}/{cluster}/{namespace}/{dest}")
+    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void lookupNonPersistentDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
-        lookupDestinationAsync(property, cluster, namespace, dest, authoritative, asyncResponse);
-    }
-    @GET
-    @Path("persistent/{property}/{cluster}/{namespace}/{dest}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public void lookupDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void lookupDestinationAsync(@PathParam("destination-domain") String destinationDomain,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
-        DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
+        DestinationDomain domain = null;
+        try {
+            domain = DestinationDomain.getEnum(destinationDomain);
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Unsupported destination domain " + destinationDomain);
+        }
+        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
 
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topic);
