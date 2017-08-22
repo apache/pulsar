@@ -26,6 +26,7 @@ import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import javax.servlet.ServletContext;
@@ -120,7 +121,7 @@ public abstract class PulsarWebResource {
     public String clientAppId() {
         return (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
     }
-    
+
     public boolean isRequestHttps() {
     	return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
@@ -140,7 +141,7 @@ public abstract class PulsarWebResource {
             String appId = clientAppId();
             if(log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
-                        isClientAuthenticated(appId), appId);                
+                        isClientAuthenticated(appId), appId);
             }
             if (!config().getSuperUserRoles().contains(appId)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
@@ -166,7 +167,7 @@ public abstract class PulsarWebResource {
             throw new RestException(e);
         }
     }
-    
+
     protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) throws RestException, Exception{
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
@@ -258,7 +259,7 @@ public abstract class PulsarWebResource {
         }
 
     }
-    
+
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
             String cluster, String clientAppId) {
 
@@ -373,6 +374,21 @@ public abstract class PulsarWebResource {
         }
     }
 
+    /**
+     * Checks whether a given bundle is currently loaded by any broker
+     */
+    protected boolean isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
+            String bundleRange) {
+        NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
+        NamespaceService nsService = pulsar().getNamespaceService();
+        try {
+            return nsService.getWebServiceUrl(nsBundle, /*authoritative */ false, isRequestHttps(), /* read-only */ true).isPresent();
+        } catch (Exception e) {
+            log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
+            throw new RestException(e);
+        }
+    }
+
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
             String bundleRange, boolean authoritative, boolean readOnly) {
         try {
@@ -402,9 +418,9 @@ public abstract class PulsarWebResource {
             // - If authoritative is false and this broker is not leader, forward to leader
             // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
             // - If authoritative is true, own the namespace and continue
-            URL webUrl = nsService.getWebServiceUrl(bundle, authoritative, isRequestHttps(), readOnly);
+            Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, authoritative, isRequestHttps(), readOnly);
             // Ensure we get a url
-            if (webUrl == null) {
+            if (webUrl == null || !webUrl.isPresent()) {
                 log.warn("Unable to get web service url");
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Failed to find ownership for ServiceUnit:" + bundle.toString());
@@ -413,8 +429,8 @@ public abstract class PulsarWebResource {
             if (!nsService.isServiceUnitOwned(bundle)) {
                 boolean newAuthoritative = this.isLeaderBroker();
                 // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort())
-                        .replaceQueryParam("authoritative", newAuthoritative).build();
+                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
 
                 log.debug("{} is not a service unit owned", bundle);
 
@@ -454,18 +470,18 @@ public abstract class PulsarWebResource {
 
         try {
             // per function name, this is trying to acquire the whole namespace ownership
-            URL webUrl = nsService.getWebServiceUrl(fqdn, authoritative, isRequestHttps(), false);
+            Optional<URL> webUrl = nsService.getWebServiceUrl(fqdn, authoritative, isRequestHttps(), false);
             // Ensure we get a url
-            if (webUrl == null) {
+            if (webUrl == null || !webUrl.isPresent()) {
                 log.info("Unable to get web service url");
                 throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for destination:" + fqdn);
             }
 
             if (!nsService.isServiceUnitOwned(fqdn)) {
-                boolean newAuthoritative = this.isLeaderBroker(pulsar());
+                boolean newAuthoritative = isLeaderBroker(pulsar());
                 // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort())
-                        .replaceQueryParam("authoritative", newAuthoritative).build();
+                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
                 // Redirect
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
@@ -514,7 +530,7 @@ public abstract class PulsarWebResource {
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         }
     }
-    
+
     protected static CompletableFuture<Void> validateReplicationSettingsOnNamespaceAsync(PulsarService pulsarService,
             NamespaceName namespace) {
 
@@ -575,7 +591,7 @@ public abstract class PulsarWebResource {
     protected void checkConnect(DestinationName destination) throws RestException, Exception {
         checkAuthorization(pulsar(), destination, clientAppId());
     }
-    
+
     protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role)
             throws RestException, Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
@@ -597,7 +613,7 @@ public abstract class PulsarWebResource {
     protected boolean isLeaderBroker() {
         return isLeaderBroker(pulsar());
     }
-    
+
     protected static boolean isLeaderBroker(PulsarService pulsar) {
 
         String leaderAddress = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
