@@ -50,10 +50,10 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.ws.rs.core.Response.Status;
 
 import io.netty.buffer.ByteBuf;
 import io.swagger.annotations.ApiResponse;
