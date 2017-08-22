@@ -496,6 +496,32 @@ String destination = "persistent://my-property/my-cluster-my-namespace/my-topic"
 admin.lookup().lookupDestination(destination);
 ```
 
+### Get bundle 
+
+It gives range of the bundle which contains given topic
+
+#### pulsar-admin
+
+
+```shell
+$ pulsar-admin persistent bundle-range \
+  persistent://test-property/cl1/ns1/tp1 \
+
+ "0x00000000_0xffffffff"
+```
+
+#### REST API
+
+{% endpoint GET /lookup/v2/destination/:destination_domain/:property/:cluster/:namespace/:destination/bundle %}
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.lookup().getBundleRange(destination);
+```
+
+
 ### Get subscriptions
 
 It shows all subscription names for a given topic.

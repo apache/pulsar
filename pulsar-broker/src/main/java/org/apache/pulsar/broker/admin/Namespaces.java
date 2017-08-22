@@ -769,9 +769,15 @@ public class Namespaces extends AdminResource {
 
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
         validatePoliciesReadOnlyAccess();
+
+        if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
+            log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
+                    namespace, bundleRange);
+            return;
+        }
+
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, authoritative,
                 true);
-
         try {
             pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
             log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
@@ -826,15 +832,16 @@ public class Namespaces extends AdminResource {
         NamespaceName nsName = new NamespaceName(property, cluster, namespace);
 
         try {
+            final String path = path(POLICIES, property, cluster, namespace);
             // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path("policies", property, cluster, namespace))
+            policiesNode = policiesCache().getWithStat(path)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
-            policiesNode.getKey().clusterDispatchRate.put(cluster, dispatchRate);
+            policiesNode.getKey().clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
 
             // Write back the new policies into zookeeper
-            globalZk().setData(path("policies", property, cluster, namespace),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path("policies", property, cluster, namespace));
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                    policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
 
             log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}/{}/{}", clientAppId(),
                     property, cluster, namespace);
@@ -849,8 +856,8 @@ public class Namespaces extends AdminResource {
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
-            log.error("[{}] Failed to update the dispatchRate for cluster on namespace {}/{}/{}", clientAppId(), property,
-                    cluster, namespace, e);
+            log.error("[{}] Failed to update the dispatchRate for cluster on namespace {}/{}/{}", clientAppId(),
+                    property, cluster, namespace, e);
             throw new RestException(e);
         }
     }
@@ -864,7 +871,13 @@ public class Namespaces extends AdminResource {
             @PathParam("namespace") String namespace) {
         validateAdminAccessOnProperty(property);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
-        return policies.clusterDispatchRate.get(cluster);
+        DispatchRate dispatchRate = policies.clusterDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        if (dispatchRate != null) {
+            return dispatchRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                    "Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        }
     }
 
     @GET
@@ -1340,13 +1353,13 @@ public class Namespaces extends AdminResource {
                 }
                 for (Topic topic : topicList) {
                     if(topic instanceof PersistentTopic) {
-                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));    
+                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
                     if(topic instanceof PersistentTopic) {
-                        futures.add(((PersistentTopic)topic).clearBacklog());    
+                        futures.add(((PersistentTopic)topic).clearBacklog());
                     }
                 }
             }

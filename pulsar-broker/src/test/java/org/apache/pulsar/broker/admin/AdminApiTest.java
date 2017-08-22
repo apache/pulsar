@@ -1861,5 +1861,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.nonPersistentTopics().createPartitionedTopic(partitionedTopicName, 5);
         assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
     }
-    
+
+    @Test
+    public void testDestinationBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
+        admin.clusters().createCluster("usw", new ClusterData());
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"),
+                Sets.newHashSet("use", "usw"));
+        admin.properties().updateProperty("prop-xyz", propertyAdmin);
+        admin.namespaces().createNamespace("prop-xyz/use/getBundleNs", 100);
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/use/getBundleNs").bundles.numBundles, 100);
+
+        // (1) create a topic
+        final String topicName = "persistent://prop-xyz/use/getBundleNs/topic1";
+        String bundleRange = admin.lookups().getBundleRange(topicName);
+        assertEquals(bundleRange,
+                pulsar.getNamespaceService().getBundle(DestinationName.get(topicName)).getBundleRange());
+    }
+
 }

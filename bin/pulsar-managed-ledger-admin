@@ -20,11 +20,19 @@
 
 import argparse
 import traceback
-from google.protobuf.text_format import Merge
-from google.protobuf.text_format import MessageToString
 import sys
-    
-from proto import MLDataFormats_pb2
+try:
+    from google.protobuf.text_format import Merge
+    from google.protobuf.text_format import MessageToString
+except Exception as missingLib:
+    sys.exit("You need python protobuf library. Get it from: pip install protobuf")
+
+try:
+    from proto import MLDataFormats_pb2
+except Exception as missingLib:
+    sys.exit("Incompatible proto/MLDataFormats_pb2.py. Regenerate using: "+ 
+    "protoc -I=${PULSAR_PATH}/managed-ledger/src/main/proto --python_out=${PULSAR_PATH}/bin/proto/ "+
+    "${PULSAR_PATH}/managed-ledger/src/main/proto/MLDataFormats.proto")
 
 try:
     from kazoo.client import KazooClient
