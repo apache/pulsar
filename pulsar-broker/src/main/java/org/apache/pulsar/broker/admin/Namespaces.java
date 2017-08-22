@@ -769,9 +769,15 @@ public class Namespaces extends AdminResource {
 
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
         validatePoliciesReadOnlyAccess();
+
+        if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
+            log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
+                    namespace, bundleRange);
+            return;
+        }
+
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, authoritative,
                 true);
-
         try {
             pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
             log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
@@ -1346,13 +1352,13 @@ public class Namespaces extends AdminResource {
                 }
                 for (Topic topic : topicList) {
                     if(topic instanceof PersistentTopic) {
-                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));    
+                        futures.add(((PersistentTopic)topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
                     if(topic instanceof PersistentTopic) {
-                        futures.add(((PersistentTopic)topic).clearBacklog());    
+                        futures.add(((PersistentTopic)topic).clearBacklog());
                     }
                 }
             }

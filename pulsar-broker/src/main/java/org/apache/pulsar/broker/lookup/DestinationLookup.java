@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.lookup;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.DefaultValue;
@@ -37,18 +39,15 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,16 +99,17 @@ public class DestinationLookup extends PulsarWebResource {
             return;
         }
 
-        CompletableFuture<LookupResult> lookupFuture = pulsar().getNamespaceService().getBrokerServiceUrlAsync(topic,
+        CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService().getBrokerServiceUrlAsync(topic,
                 authoritative);
 
-        lookupFuture.thenAccept(result -> {
-            if (result == null) {
+        lookupFuture.thenAccept(optionalResult -> {
+            if (optionalResult == null || !optionalResult.isPresent()) {
                 log.warn("No broker was found available for topic {}", topic);
                 completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
                 return;
             }
 
+            LookupResult result = optionalResult.get();
             // We have found either a broker that owns the topic, or a broker to which we should redirect the client to
             if (result.isRedirect()) {
                 boolean newAuthoritative = this.isLeaderBroker();
@@ -223,8 +223,13 @@ public class DestinationLookup extends PulsarWebResource {
                                 log.debug("[{}] Lookup result {}", fqdn.toString(), lookupResult);
                             }
 
-                            LookupData lookupData = lookupResult.getLookupData();
-                            if (lookupResult.isRedirect()) {
+                            if (!lookupResult.isPresent()) {
+                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, "Namespace bundle is not owned by any broker", requestId));
+                                return;
+                            }
+
+                            LookupData lookupData = lookupResult.get().getLookupData();
+                            if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = isLeaderBroker(pulsarService);
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
