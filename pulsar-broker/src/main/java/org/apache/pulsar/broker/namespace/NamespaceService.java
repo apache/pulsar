@@ -129,7 +129,8 @@ public class NamespaceService {
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
     }
 
-    public CompletableFuture<LookupResult> getBrokerServiceUrlAsync(DestinationName topic, boolean authoritative) {
+    public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(DestinationName topic,
+            boolean authoritative) {
         return getBundleAsync(topic)
                 .thenCompose(bundle -> findBrokerServiceUrl(bundle, authoritative, false /* read-only */));
     }
@@ -151,7 +152,12 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
+    /**
+     * Return the URL of the broker who's owning a particular service unit.
+     *
+     * If the service unit is not owned, return an empty optional
+     */
+	public Optional<URL> getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
 			throws Exception {
         if (suName instanceof DestinationName) {
             DestinationName name = (DestinationName) suName;
@@ -172,23 +178,21 @@ public class NamespaceService {
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
     }
 
-    private CompletableFuture<URL> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
+    private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
             boolean isRequestHttps, boolean readOnly) {
 
         return findBrokerServiceUrl(bundle, authoritative, readOnly).thenApply(lookupResult -> {
-            if (lookupResult != null) {
+            if (lookupResult.isPresent()) {
                 try {
-                    LookupData lookupData = lookupResult.getLookupData();
+                    LookupData lookupData = lookupResult.get().getLookupData();
                     final String redirectUrl = isRequestHttps ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                    return new URL(redirectUrl);
-
+                    return Optional.of(new URL(redirectUrl));
                 } catch (Exception e) {
                     // just log the exception, nothing else to do
                     LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
                 }
-
             }
-            return null;
+            return Optional.empty();
         });
     }
 
@@ -273,13 +277,13 @@ public class NamespaceService {
      * @return
      * @throws PulsarServerException
      */
-    private CompletableFuture<LookupResult> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
+    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
             boolean readOnly) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - read-only: {}", bundle, readOnly);
         }
 
-        CompletableFuture<LookupResult> future = new CompletableFuture<>();
+        CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
         // First check if we or someone else already owns the bundle
         ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
@@ -288,8 +292,7 @@ public class NamespaceService {
 
                 if (readOnly) {
                     // Do not attempt to acquire ownership
-                    future.completeExceptionally(
-                            new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", bundle)));
+                    future.complete(Optional.empty());
                 } else {
                     // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
                     pulsar.getExecutor().execute(() -> {
@@ -303,7 +306,7 @@ public class NamespaceService {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
                 }
-                future.complete(new LookupResult(nsData.get()));
+                future.complete(Optional.of(new LookupResult(nsData.get())));
             }
         }).exceptionally(exception -> {
             LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
@@ -314,8 +317,8 @@ public class NamespaceService {
         return future;
     }
 
-    private void searchForCandidateBroker(NamespaceBundle bundle, CompletableFuture<LookupResult> lookupFuture,
-            boolean authoritative) {
+    private void searchForCandidateBroker(NamespaceBundle bundle,
+            CompletableFuture<Optional<LookupResult>> lookupFuture, boolean authoritative) {
         String candidateBroker = null;
         try {
             // check if this is Heartbeat or SLAMonitor namespace
@@ -365,7 +368,7 @@ public class NamespaceService {
                         // Schedule the task to pre-load destinations
                         pulsar.loadNamespaceDestinations(bundle);
 
-                        lookupFuture.complete(new LookupResult(ownerInfo));
+                        lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
                     }
                 }).exceptionally(exception -> {
                     LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
@@ -383,7 +386,8 @@ public class NamespaceService {
                 }
 
                 // Now setting the redirect url
-                createLookupResult(candidateBroker).thenAccept(lookupResult -> lookupFuture.complete(lookupResult))
+                createLookupResult(candidateBroker)
+                        .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
                             return null;
