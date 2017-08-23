@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
+    private final String name;
     
     private boolean havePendingRead = false;
 
@@ -55,6 +57,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             PersistentTopic topic) {
         super(subscriptionType, partitionIndex, topic.getName());
         this.topic = topic;
+        this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
     }
@@ -82,7 +85,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     public synchronized void readEntriesComplete(final List<Entry> entries, Object obj) {
         Consumer readConsumer = (Consumer) obj;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Got messages: {}", readConsumer, entries.size());
+            log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
 
         havePendingRead = false;
@@ -90,7 +93,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         if (readBatchSize < MaxReadBatchSize) {
             int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Increasing read batch size from {} to {}", readConsumer, readBatchSize,
+                log.debug("[{}-{}] Increasing read batch size from {} to {}", name, readConsumer, readBatchSize,
                         newReadBatchSize);
             }
 
@@ -103,6 +106,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         if (currentConsumer == null || readConsumer != currentConsumer) {
             // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
             // re-issue the read request for the new consumer
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] rewind because no available consumer found", name);
+            }
             entries.forEach(Entry::release);
             cursor.rewind();
             if (currentConsumer != null) {
@@ -124,8 +130,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         } else {
                             if (log.isDebugEnabled()) {
                                 log.debug(
-                                        "[{}] Ignoring write future complete. consumerAvailable={} havePendingRead={}",
-                                        newConsumer, newConsumer != null, havePendingRead);
+                                        "[{}-{}] Ignoring write future complete. consumerAvailable={} havePendingRead={}",
+                                        name, newConsumer, newConsumer != null, havePendingRead);
                             }
                         }
                     }
@@ -139,18 +145,18 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         if (!havePendingRead) {
             if (ACTIVE_CONSUMER_UPDATER.get(this) == consumer) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Trigger new read after receiving flow control message", consumer);
+                    log.debug("[{}-{}] Trigger new read after receiving flow control message", name, consumer);
                 }
                 readMoreEntries(consumer);
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Ignoring flow control message since consumer is not active partition consumer",
-                            consumer);
+                    log.debug("[{}-{}] Ignoring flow control message since consumer is not active partition consumer",
+                            name, consumer);
                 }
             }
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Ignoring flow control message since we already have a pending read req", consumer);
+                log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name, consumer);
             }
         }
     }
@@ -168,11 +174,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         if (!havePendingRead) {
             cursor.rewind();
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Cursor rewinded, redelivering unacknowledged messages. ", consumer);
+                log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
             }
             readMoreEntries(consumer);
         } else {
-            log.info("[{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", consumer);
+            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", name,
+                    consumer);
         }
 
     }
@@ -207,7 +214,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     if (!rateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}",
-                                    topic.getName(), rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                                    name, rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
                                     MESSAGE_RATE_BACKOFF_MS);
                         }
                         topic.getBrokerService().executor().schedule(() -> {
@@ -235,13 +242,13 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
             // Schedule read
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Schedule read of {} messages", consumer, messagesToRead);
+                log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
             havePendingRead = true;
             cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Consumer buffer is full, pause reading", consumer);
+                log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
     }
@@ -261,12 +268,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 consumers.forEach(Consumer::reachedEndOfTopic);
             }
         } else if (!(exception instanceof TooManyRequestsException)) {
-            log.error("[{}] Error reading entries at {} : {} - Retrying to read in {} seconds", c,
+            log.error("[{}-{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name, c,
                     cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got throttled by bookies while reading at {} : {} - Retrying to read in {} seconds", c,
-                        cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
+                log.debug("[{}-{}] Got throttled by bookies while reading at {} : {} - Retrying to read in {} seconds",
+                        name, c, cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
             }
         }
 
@@ -281,12 +288,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 // we should retry the read if we have an active consumer and there is no pending read
                 if (currentConsumer != null && !havePendingRead) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Retrying read operation", c);
+                        log.debug("[{}-{}] Retrying read operation", name, c);
                     }
                     readMoreEntries(currentConsumer);
                 } else {
-                    log.info("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}", c, currentConsumer,
-                            havePendingRead);
+                    log.info("[{}-{}] Skipping read retry: Current Consumer {}, havePendingRead {}", name, c,
+                            currentConsumer, havePendingRead);
                 }
             }
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
