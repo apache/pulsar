@@ -107,7 +107,7 @@ Key | Type | Required? | Explanation
 
 ### Consumer endpoint
 
-The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
+The consumer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
 
 {% endpoint ws://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
 
@@ -120,8 +120,7 @@ Server will push messages on the WebSocket session:
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785",
-  "context": "1"
+  "publishTime": "2016-08-30 16:45:57.785"
 }
 ```
 
@@ -131,7 +130,6 @@ Key | Type | Required? | Explanation
 `payload` | string | yes | Base-64 encoded payload
 `publishTime` | string | yes | Publish timestamp
 `properties` | key-value pairs | no | Application-defined properties
-`context` | string | no | Application-defined request identifier
 `key` | string | no |  Original routing key set by producer
 
 #### Acknowledging the message

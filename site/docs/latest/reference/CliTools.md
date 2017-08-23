@@ -11,7 +11,7 @@ tags:
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line {% popover producers %} and {% popover consumers %}, and more.
 
-All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](../../getting-started/LocalCluster#installing). The following tools are currently documented:
+All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](../../getting-started/LocalCluster#installing-pulsar). The following tools are currently documented:
 
 * [`pulsar`](#pulsar)
 * [`pulsar-admin`](#pulsar-admin)

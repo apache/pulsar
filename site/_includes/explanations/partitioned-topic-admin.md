@@ -9,7 +9,7 @@ In all of the instructions and commands below, the topic name structure is:
 Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.
 
 {% include admonition.html type="info" title="Global partitioned topics" content="
-If you'd like to create a [global]() partitioned topic, you need to create a partitioned topic using the instructions here and specify `global` as the cluster in the topic name.
+If you'd like to create a global partitioned topic, you need to create a partitioned topic using the instructions here and specify `global` as the cluster in the topic name.
 " %}
 
 #### pulsar-admin
@@ -46,7 +46,7 @@ Field | Meaning
 
 #### pulsar-admin
 
-You can see the see number of partitions in a partitioned topic using the [`get-partitioned-topic-metadata`](../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic) subcommand. Here's an example:
+You can see the number of partitions in a partitioned topic using the [`get-partitioned-topic-metadata`](../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic) subcommand. Here's an example:
 
 ```shell
 $ pulsar-admin persistent get-partitioned-topic-metadata \
@@ -79,7 +79,7 @@ Already created partitioned producers and consumers can’t see newly created pa
 
 #### pulsar-admin
 
-Partitioned topics can be deleted using the [`update-partitioned-topic`](../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic) command.
+Partitioned topics can be updated using the [`update-partitioned-topic`](../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic) command.
 
 ```shell
 $ pulsar-admin persistent update-partitioned-topic \

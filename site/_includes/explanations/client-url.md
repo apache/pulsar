@@ -15,7 +15,7 @@ pulsar://pulsar.us-west.example.com:6650
 If you're using [TLS](../../admin/Authz#tls-client-auth) authentication, the URL will look like something like this:
 
 ```
-pulsar+ssl://pulsar.us-west.example.com:6650
+pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
 ### Global vs. cluster-specific topics

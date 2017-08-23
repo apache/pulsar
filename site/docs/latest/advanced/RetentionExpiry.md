@@ -34,7 +34,7 @@ Both of these parameters are in the [`broker.conf`](../../reference/Configuratio
 
 ### Set retention policy
 
-You can a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit.
+You can set a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit.
 
 #### pulsar-admin
 

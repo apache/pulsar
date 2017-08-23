@@ -39,7 +39,7 @@ pulsar-perf simulation-controller --cluster <cluster to simulate on> --client-po
 The clients should already be started before the controller is started. You will then be presented with a simple prompt,
 where you can issue commands to simulation clients. Arguments often refer to tenant names, namespace names, and topic
 names. In all cases, the BASE name of the tenants, namespaces, and topics are used. For example, for the topic
-`persistent://my_cluster/my_tenant/my_namespace/my_topic`, the tenant name is `my_tenant`, the namespace name is
+`persistent://my_tenant/my_cluster/my_namespace/my_topic`, the tenant name is `my_tenant`, the namespace name is
 `my_namespace`, and the topic name is `my_topic`. The controller can perform the following actions:
 
 * Create a topic with a producer and a consumer

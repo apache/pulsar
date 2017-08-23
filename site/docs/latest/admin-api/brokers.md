@@ -111,7 +111,7 @@ admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 ### List updated values
 
-Fetch a list of all potentially updatable configuraton parameters.
+Fetch a list of all potentially updatable configuration parameters.
 
 #### pulsar-admin
 
