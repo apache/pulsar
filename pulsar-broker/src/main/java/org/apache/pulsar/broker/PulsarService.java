@@ -58,6 +58,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
+import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
@@ -283,6 +284,8 @@ public class PulsarService implements AutoCloseable {
                         new ServletHolder(new WebSocketProducerServlet(webSocketService)), true);
                 this.webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
                         new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true);
+                this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
+                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true);
             }
 
             if (LOG.isDebugEnabled()) {

@@ -94,20 +94,32 @@ public class WebSocketProxyStats extends WebSocketWebResource {
 
     public ProxyTopicStat getStat(String topicName) {
 
-        if (!service().getProducers().containsKey(topicName) && !service().getConsumers().containsKey(topicName)) {
+        if (!service().getProducers().containsKey(topicName) 
+        		&& !service().getConsumers().containsKey(topicName)
+        		&& !service().getReaders().containsKey(topicName)) {
             LOG.warn("topic doesn't exist {}", topicName);
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         }
         ProxyTopicStat topicStat = new ProxyTopicStat();
-        service().getProducers().get(topicName).forEach(handler -> {
-            ProducerStats stat = new ProducerStats(handler);
-            topicStat.producerStats.add(stat);
+        if (service().getProducers().containsKey(topicName)){
+            service().getProducers().get(topicName).forEach(handler -> {
+                ProducerStats stat = new ProducerStats(handler);
+                topicStat.producerStats.add(stat);
 
-        });
+            });
+        }
 
-        service().getConsumers().get(topicName).forEach(handler -> {
-            topicStat.consumerStats.add(new ConsumerStats(handler));
-        });
+        if (service().getConsumers().containsKey(topicName)){
+            service().getConsumers().get(topicName).forEach(handler -> {
+                topicStat.consumerStats.add(new ConsumerStats(handler));
+            });
+        }
+        
+        if (service().getReaders().containsKey(topicName)){
+            service().getReaders().get(topicName).forEach(handler -> {
+                topicStat.consumerStats.add(new ConsumerStats(handler));
+            });
+        }
         return topicStat;
     }
 
@@ -121,6 +133,11 @@ public class WebSocketProxyStats extends WebSocketWebResource {
             statMap.put(topicName, topicStat);
         });
         service().getConsumers().forEach((topicName, handlers) -> {
+            ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
+            handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
+            statMap.put(topicName, topicStat);
+        });
+        service().getReaders().forEach((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
             handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
             statMap.put(topicName, topicStat);

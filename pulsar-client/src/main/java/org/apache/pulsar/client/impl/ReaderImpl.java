@@ -81,7 +81,7 @@ public class ReaderImpl implements Reader {
         return consumer.getTopic();
     }
 
-    ConsumerImpl getConsumer() {
+    public ConsumerImpl getConsumer() {
         return consumer;
     }
 
