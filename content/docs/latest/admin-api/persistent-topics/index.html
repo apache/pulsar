@@ -179,7 +179,7 @@
       </li>
     </ul>
   </div>
-  <a href="http://www.apache.org/">
+  <a class="hidden-md-down" href="http://www.apache.org/">
     <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
   </a>
 </nav>
@@ -1238,11 +1238,35 @@ msg-payload
 </code></pre>
 </div>
 
+<h3 id="get-bundle">Get bundle</h3>
+
+<p>It gives range of the bundle which contains given topic</p>
+
+<h4 id="pulsar-admin-11">pulsar-admin</h4>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent bundle-range <span class="se">\</span>
+  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+
+ <span class="s2">"0x00000000_0xffffffff"</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-11">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/<span class="endpoint">:destination_domain</span>/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/bundle</code></pre></div>
+
+<h4 id="java-11">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">getBundleRange</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+</code></pre>
+</div>
+
 <h3 id="get-subscriptions">Get subscriptions</h3>
 
 <p>It shows all subscription names for a given topic.</p>
 
-<h4 id="pulsar-admin-11">pulsar-admin</h4>
+<h4 id="pulsar-admin-12">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent subscriptions <span class="se">\</span>
   persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
@@ -1251,13 +1275,13 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-11">REST API</h4>
+<h4 id="rest-api-12">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscriptions</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscriptions">More info</a></p>
 
-<h4 id="java-11">Java</h4>
+<h4 id="java-12">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
@@ -1268,7 +1292,7 @@ msg-payload
 
 <p>It can also help to unsubscribe a subscription which is no more processing further messages.</p>
 
-<h4 id="pulsar-admin-12">pulsar-admin</h4>
+<h4 id="pulsar-admin-13">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent unsubscribe <span class="se">\</span>
   --subscription my-subscription <span class="se">\</span>
@@ -1276,13 +1300,13 @@ msg-payload
 </code></pre>
 </div>
 
-<h4 id="rest-api-12">REST API</h4>
+<h4 id="rest-api-13">REST API</h4>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/unsubscribe/<span class="endpoint">:subscription</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/unsubscribe/:subscription">More info</a></p>
 
-<h4 id="java-12">Java</h4>
+<h4 id="java-13">Java</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subscriptionName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>

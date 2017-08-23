@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6};
+var methods = {"i0":6,"i1":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -122,6 +122,12 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange</a></span>(String&nbsp;destination)</code>
+<div class="block">Get a bundle range of a destination</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#lookupDestination-java.lang.String-">lookupDestination</a></span>(String&nbsp;destination)</code>
 <div class="block">Lookup a destination</div>
 </td>
@@ -144,7 +150,7 @@ var activeTableTab = "activeTableTab";
 <a name="lookupDestination-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>lookupDestination</h4>
 <pre>String&nbsp;lookupDestination(String&nbsp;destination)
@@ -155,6 +161,24 @@ var activeTableTab = "activeTableTab";
 <dd><code>destination</code> - </dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the broker URL that serves the destination</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getBundleRange-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getBundleRange</h4>
+<pre>String&nbsp;getBundleRange(String&nbsp;destination)
+               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get a bundle range of a destination</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>destination</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>

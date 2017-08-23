@@ -179,7 +179,7 @@
       </li>
     </ul>
   </div>
-  <a href="http://www.apache.org/">
+  <a class="hidden-md-down" href="http://www.apache.org/">
     <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
   </a>
 </nav>
@@ -4415,6 +4415,12 @@
           </li>
           
           <li>
+            <a href="#pulsar-admin-persistent-bundle-range">
+              <code class="highlighter-rouge">bundle-range</code>
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar-admin-persistent-delete">
               <code class="highlighter-rouge">delete</code>
             </a>
@@ -4607,6 +4613,17 @@
             <p>Look up a topic from the current serving broker</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent lookup <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-persistent-bundle-range"><code class="highlighter-rouge">bundle-range</code></h4>
+          <div class="card-content">
+            <p>Get the namespace bundle which contains the given topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent bundle-range <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
