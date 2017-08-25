@@ -20,8 +20,15 @@ package org.apache.pulsar.client.impl.auth;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -29,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 
 import java.security.PrivateKey;
+import com.google.common.base.Splitter;
 
 import com.yahoo.athenz.zts.RoleToken;
 import com.yahoo.athenz.zts.ZTSClient;
@@ -42,7 +50,7 @@ public class AuthenticationAthenz implements Authentication {
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
-    private String privateKeyPath;
+    private PrivateKey privateKey;
     private String keyId = "0";
     private long cachedRoleTokenTimestamp;
     private String roleToken;
@@ -88,7 +96,17 @@ public class AuthenticationAthenz implements Authentication {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
-        this.privateKeyPath = authParams.get("privateKeyPath");
+        // privateKeyPath is deprecated, this is for compatibility
+        if (isBlank(authParams.get("privateKey")) && isNotBlank(authParams.get("privateKeyPath"))) {
+            this.privateKey = loadPrivateKey(authParams.get("privateKeyPath"));
+        } else {
+            this.privateKey = loadPrivateKey(authParams.get("privateKey"));
+        }
+        
+        if(this.privateKey == null) {
+            throw new IllegalArgumentException("Failed to load private key from privateKey or privateKeyPath field");
+        }
+        
         this.keyId = authParams.getOrDefault("keyId", "0");
         if (authParams.containsKey("athenzConfPath")) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -108,11 +126,33 @@ public class AuthenticationAthenz implements Authentication {
 
     ZTSClient getZtsClient() {
         if (ztsClient == null) {
-            PrivateKey privateKey = Crypto.loadPrivateKey(new File(privateKeyPath));
             ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                     privateKey, keyId);
             ztsClient = new ZTSClient(null, tenantDomain, tenantService, siaProvider);
         }
         return ztsClient;
+    }
+
+    PrivateKey loadPrivateKey(String privateKeyURL) {
+        PrivateKey privateKey = null;
+        try {
+            URI uri = new URI(privateKeyURL);
+            if (isBlank(uri.getScheme())) {
+                // We treated as file path
+                privateKey = Crypto.loadPrivateKey(new File(privateKeyURL));
+            } else if (uri.getScheme().equals("file")) {
+                privateKey = Crypto.loadPrivateKey(new File(uri.getPath()));
+            } else if(uri.getScheme().equals("data")) {
+                List<String> dataParts = Splitter.on(",").splitToList(uri.getSchemeSpecificPart());
+                if (dataParts.get(0).equals("application/x-pem-file;base64")) {
+                    privateKey = Crypto.loadPrivateKey(new String(Base64.getDecoder().decode(dataParts.get(1))));
+                } else {
+                    throw new IllegalArgumentException("Unsupported media type or encoding format: " + dataParts.get(0));
+                }
+            }
+        } catch(URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid privateKey format");
+        }
+        return privateKey;
     }
 }
