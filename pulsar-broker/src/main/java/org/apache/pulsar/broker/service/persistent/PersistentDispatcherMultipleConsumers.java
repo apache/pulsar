@@ -354,8 +354,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
                 totalAvailablePermits -= msgSent;
-                totalMessagesSent += sentMsgInfo.getTotalSentMessageBytes();
-                totalBytesSent += sentMsgInfo.getTotalSentMessages();
+                totalMessagesSent += sentMsgInfo.getTotalSentMessages();
+                totalBytesSent += sentMsgInfo.getTotalSentMessageBytes();
             }
         }
 
