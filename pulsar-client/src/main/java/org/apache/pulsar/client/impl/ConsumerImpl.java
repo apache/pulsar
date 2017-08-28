@@ -51,12 +51,12 @@ import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.slf4j.Logger;
@@ -100,7 +100,7 @@ public class ConsumerImpl extends ConsumerBase {
     protected final ConsumerStats stats;
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
-    private final MessageId startMessageId;
+    private final BatchMessageIdImpl startMessageId;
 
     private volatile boolean hasReachedEndOfTopic;
 
@@ -125,7 +125,7 @@ public class ConsumerImpl extends ConsumerBase {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
-        this.startMessageId = startMessageId;
+        this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
@@ -359,7 +359,7 @@ public class ConsumerImpl extends ConsumerBase {
         } finally {
             lock.writeLock().unlock();
         }
-        
+
         // all messages in this batch have been acked
         if (isAllMsgsAcked) {
             if (log.isDebugEnabled()) {
@@ -518,6 +518,10 @@ public class ConsumerImpl extends ConsumerBase {
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             builder.setLedgerId(startMessageId.getLedgerId());
             builder.setEntryId(startMessageId.getEntryId());
+            if (startMessageId instanceof BatchMessageIdImpl) {
+                builder.setBatchIndex(((BatchMessageIdImpl) startMessageId).getBatchIndex());
+            }
+
             startMessageIdData = builder.build();
             builder.recycle();
         }
@@ -850,6 +854,8 @@ public class ConsumerImpl extends ConsumerBase {
         }
         batchMessageAckTracker.put(batchMessage, bitSet);
         unAckedMessageTracker.add(batchMessage);
+
+        int skippedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
@@ -859,6 +865,21 @@ public class ConsumerImpl extends ConsumerBase {
                     .newBuilder();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                     singleMessageMetadataBuilder, i, batchSize);
+
+                if (startMessageId != null
+                        && messageId.getLedgerId() == startMessageId.getLedgerId()
+                        && messageId.getEntryId() == startMessageId.getEntryId()
+                        && i <= startMessageId.getBatchIndex()) {
+                    // If we are receiving a batch message, we need to discard messages that were prior
+                    // to the startMessageId
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription, consumerName);
+                    }
+
+                    ++skippedMessages;
+                    continue;
+                }
+
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                     messageId.getEntryId(), getPartitionIndex(), i);
                 final MessageImpl message = new MessageImpl(batchMessageIdImpl, msgMetadata,
@@ -882,6 +903,10 @@ public class ConsumerImpl extends ConsumerBase {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] enqueued messages in batch. queue size - {}, available queue size - {}", subscription,
                 consumerName, incomingMessages.size(), incomingMessages.remainingCapacity());
+        }
+
+        if (skippedMessages > 0) {
+            increaseAvailablePermits(cnx, skippedMessages);
         }
     }
 

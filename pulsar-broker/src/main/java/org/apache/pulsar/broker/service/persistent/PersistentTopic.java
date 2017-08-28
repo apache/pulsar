@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.util.FutureUtil;
@@ -191,9 +192,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         USAGE_COUNT_UPDATER.set(this, 0);
-        
+
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
-        
+
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -466,12 +467,22 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
 
+        // Create a new non-durable cursor only for the first consumer that connects
         Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
-            // Create a new non-durable cursor only for the first consumer that connects
             MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
                     : (MessageIdImpl) MessageId.latest;
 
-            Position startPosition = new PositionImpl(msgId.getLedgerId(), msgId.getEntryId());
+            long ledgerId = msgId.getLedgerId();
+            long entryId = msgId.getEntryId();
+            if (msgId instanceof BatchMessageIdImpl) {
+                // When the start message is relative to a batch, we need to take one step back on the previous message,
+                // because the "batch" might not have been consumed in its entirety.
+                // The client will then be able to discard the first messages in the batch.
+                if (((BatchMessageIdImpl)msgId).getBatchIndex() >= 0) {
+                    entryId = msgId.getEntryId() - 1;
+                }
+            }
+            Position startPosition = new PositionImpl(ledgerId, entryId);
             ManagedCursor cursor = null;
             try {
                 cursor = ledger.newNonDurableCursor(startPosition);
@@ -665,9 +676,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     closeFuture.complete(null);
                 }
             }, null);
-            
+
             dispatchRateLimiter.close();
-            
+
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -1415,6 +1426,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public DispatchRateLimiter getDispatchRateLimiter() {
         return this.dispatchRateLimiter;
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }
