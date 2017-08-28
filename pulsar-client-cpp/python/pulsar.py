@@ -104,6 +104,33 @@ import _pulsar
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
 
+class MessageId:
+    """
+    Represents a message id
+    """
+
+    'Represents the earliest message stored in a topic'
+    earliest = _pulsar.MessageId.earliest
+
+    'Represents the latest message published on a topic'
+    latest = _pulsar.MessageId.latest
+
+    def serialize(self):
+        """
+        Returns a string representation of the message id.
+        This string can be stored and later deserialized.
+        """
+        return self._msg_id.serialize()
+
+    @staticmethod
+    def deserialize(message_id_str):
+        """
+        Deserialize a message id object from a previously
+        serialized string.
+        """
+        return _pulsar.MessageId.deserialize(message_id_str)
+
+
 class Message:
     """
     Message objects are returned by a consumer, either by calling `receive` or
@@ -353,6 +380,66 @@ class Client:
         self._consumers.append(c)
         return c
 
+    def create_reader(self, topic, start_message_id,
+                      reader_listener=None,
+                      receiver_queue_size=1000,
+                      reader_name=None
+                      ):
+        """
+        Create a reader on a particular topic
+
+        **Args**
+
+        * `topic`: The name of the topic.
+        * `start_message_id`: The initial reader positioning is done by specifying a message id.
+           The options are:
+            * `MessageId.earliest`: Start reading from the earliest message available in the topic
+            * `MessageId.latest`: Start reading from the end topic, only getting messages published
+               after the reader was created
+            * `MessageId`: When passing a particular message id, the reader will position itself on
+               that specific position. The first message to be read will be the message next to the
+               specified messageId. Message id can be serialized into a string and deserialized
+               back into a `MessageId` object:
+
+                   # Serialize to string
+                   s = msg.message_id().serialize()
+
+                   # Deserialize from string
+                   msg_id = MessageId.deserialize(s)
+
+        **Options**
+
+        * `reader_listener`:
+          Sets a message listener for the reader. When the listener is set,
+          the application will receive messages through it. Calls to
+          `reader.read_next()` will not be allowed. The listener function needs
+          to accept (reader, message), for example:
+
+                def my_listener(reader, message):
+                    # process message
+                    pass
+
+        * `receiver_queue_size`:
+          Sets the size of the reader receive queue. The reader receive
+          queue controls how many messages can be accumulated by the reader
+          before the application calls `read_next()`. Using a higher value could
+          potentially increase the reader throughput at the expense of higher
+          memory utilization.
+        * `reader_name`:
+          Sets the reader name.
+        """
+        conf = _pulsar.ReaderConfiguration()
+        if reader_listener:
+            conf.reader_listener(reader_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        if reader_name:
+            conf.reader_name(reader_name)
+        c = Reader()
+        c._reader = self._client.create_reader(topic, start_message_id, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -573,4 +660,41 @@ class Consumer:
         Close the consumer.
         """
         self._consumer.close()
+        self._client._consumers.remove(self)
+
+
+class Reader:
+    """
+    Pulsar topic reader.
+    """
+
+    def topic(self):
+        """
+        Return the topic this reader is reading from.
+        """
+        return self._reader.topic()
+
+    def read_next(self, timeout_millis=None):
+        """
+        Read a single message.
+
+        If a message is not immediately available, this method will block until
+        a new message is available.
+
+        **Options**
+
+        * `timeout_millis`:
+          If specified, the receive will raise an exception if a message is not
+          available within the timeout.
+        """
+        if timeout_millis is None:
+            return self._reader.read_next()
+        else:
+            return self._reader.read_next(timeout_millis)
+
+    def close(self):
+        """
+        Close the reader.
+        """
+        self._reader.close()
         self._client._consumers.remove(self)
