@@ -33,7 +33,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 {% include admonition.html type="success" title='Automatically created namespace' content='
-When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1` namespace that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](../ConceptsAndArchitecture#Topics).' %}
+When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1` [namespace](../ConceptsAndArchitecture#namespace) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](../ConceptsAndArchitecture#topics).' %}
 
 ## Testing your cluster setup
 
