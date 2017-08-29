@@ -57,7 +57,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             PersistentTopic topic) {
         super(subscriptionType, partitionIndex, topic.getName());
         this.topic = topic;
-        this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
+        this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
+                : ""/* NonDurableCursor doesn't have name */);
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
     }
