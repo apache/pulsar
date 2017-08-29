@@ -82,8 +82,17 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 | `persistent`         | It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk. |
 | `property`           | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.                                                                                      |
 | `cluster`            | Where the topic is located. Typically there will be one {% popover cluster %} for each geographical region or data center.                                                                                                                   |
-| `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the namespace level. Each property (tenant) can have multiple namespaces.                              |
+| `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each property (tenant) can have multiple namespaces.                              |
 | `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.                                                                                                                                       |
+
+{% include admonition.html type="success" title="No need to explicitly create new topics"
+content="Application does not explicitly create the topic but attempting to write or receive message on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace)." %}
+
+### Namespace
+A namespace is a logical nomenclature within a property. A property can create multiple namespaces via [admin API](../../admin-api/namespaces#create). For instance, a property with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. 
+For e.g.  `my-property/my-cluster/my-property-app1` is a namespace for the application  `my-property-app1` in cluster `my-cluster` for `my-property`. 
+Application can create any number of [topics](#topics) under the namespace.
+
 
 ### Subscription modes
 
