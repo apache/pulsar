@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -146,7 +147,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final OrderedSafeExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<DestinationName, PersistentOfflineTopicStats> offlineTopicStatCache;
-    private static final ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = prepareDynamicConfigurationMap();
+    private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = prepareDynamicConfigurationMap();
     private final ConcurrentOpenHashMap<String, Consumer> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<Pair<String, CompletableFuture<Topic>>> pendingTopicLoadingQueue;
@@ -1000,8 +1001,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * dynamic-ServiceConfiguration field to take appropriate action on change of zk-configuration-map.
      */
     private void updateConfigurationAndRegisterListeners() {
-        // update ServiceConfiguration value by reading zk-configuration-map
+        // (1) Dynamic-config value validation: add validator if updated value required strict check before considering
+        // validate configured load-manager classname present into classpath
+        addDynamicConfigValidator("loadManagerClassName", (className) -> {
+            try {
+                Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                log.warn("Configured load-manager class {} not found {}", className, e.getMessage());
+                return false;
+            }
+            return true;
+        });
+
+        // (2) update ServiceConfiguration value by reading zk-configuration-map
         updateDynamicServiceConfiguration();
+        
+        // (3) Listener Registration
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
                 (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, false)));
@@ -1073,11 +1088,33 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      *            : listener which takes appropriate action on config-value change
      */
     public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
+        validateConfigKey(configKey);
         configRegisteredListeners.put(configKey, listener);
     }
+    
+    private void addDynamicConfigValidator(String key, Predicate<String> validator) {
+        validateConfigKey(key);
+        if (dynamicConfigurationMap.containsKey(key)) {
+            dynamicConfigurationMap.get(key).validator = validator;
+        }
+    }
 
+    private void validateConfigKey(String key) {
+        try {
+            ServiceConfiguration.class.getDeclaredField(key);
+        } catch (Exception e) {
+            log.error("ServiceConfiguration key {} not found {}", key, e.getMessage());
+            throw new IllegalArgumentException("Invalid service config " + key, e);
+        }
+    }
+
+    /**
+     * Updates pulsar.ServiceConfiguration's dynamic field with value persent into zk-dynamic path. It also validates
+     * dynamic-value before updating it and throws {@code IllegalArgumentException} if validation fails
+     */
     private void updateDynamicServiceConfiguration() {
 
+        Optional<Map<String, String>> configCache = null;
         try {
             // create dynamic-config znode if not present
             if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
@@ -1089,23 +1126,32 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // Ok
                 }
             }
-            Optional<Map<String, String>> data = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
-            if (data.isPresent() && data.get() != null) {
-                data.get().forEach((key, value) -> {
-                    try {
-                        Field field = ServiceConfiguration.class.getDeclaredField(key);
-                        if (field != null && field.isAnnotationPresent(FieldContext.class)) {
-                            field.setAccessible(true);
-                            field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
-                            log.info("Successfully updated {}/{}", key, value);
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
-                    }
-                });
-            }
+            configCache = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
+        }
+        if (configCache != null && configCache.isPresent() && configCache.get() != null) {
+            configCache.get().forEach((key, value) -> {
+                // validate field
+                if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
+                    if (!dynamicConfigurationMap.get(key).validator.test(value)) {
+                        log.error("Failed to validate dynamic config {} with value {}", key, value);
+                        throw new IllegalArgumentException(
+                                String.format("Failed to validate dynamic-config %s/%s", key, value));
+                    }
+                }
+                // update field value
+                try {
+                    Field field = ServiceConfiguration.class.getDeclaredField(key);
+                    if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                        field.setAccessible(true);
+                        field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
+                        log.info("Successfully updated {}/{}", key, value);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
+                }
+            });
         }
         // register a listener: it updates field value and triggers appropriate registered field-listener only if
         // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
@@ -1115,7 +1161,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             public void onUpdate(String path, Map<String, String> data, Stat stat) {
                 if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
                     data.forEach((configKey, value) -> {
-                        Field configField = dynamicConfigurationMap.get(configKey);
+                        Field configField = dynamicConfigurationMap.get(configKey).field;
                         Object newValue = FieldParser.value(data.get(configKey), configField);
                         if (configField != null) {
                             Consumer listener = configRegisteredListeners.get(configKey);
@@ -1140,17 +1186,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public static ConcurrentOpenHashMap<String, Field> getDynamicConfigurationMap() {
-        return dynamicConfigurationMap;
+    public static List<String> getDynamicConfiguration() {
+        return dynamicConfigurationMap.keys();
     }
-
-    private static ConcurrentOpenHashMap<String, Field> prepareDynamicConfigurationMap() {
-        ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = new ConcurrentOpenHashMap<>();
+    
+    public static boolean isDynamicConfiguration(String key) {
+        return dynamicConfigurationMap.containsKey(key);
+    }
+    
+    public static boolean validateDynamicConfiguration(String key, String value) {
+        if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
+            return dynamicConfigurationMap.get(key).validator.test(value);
+        }
+        return true;
+    }
+    
+    private static ConcurrentOpenHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
+        ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = new ConcurrentOpenHashMap<>();
         for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
             if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                 field.setAccessible(true);
                 if (((FieldContext) field.getAnnotation(FieldContext.class)).dynamic()) {
-                    dynamicConfigurationMap.put(field.getName(), field);
+                    dynamicConfigurationMap.put(field.getName(), new ConfigField(field));
                 }
             }
         }
@@ -1311,4 +1368,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+    private static class ConfigField {
+        final Field field;
+        Predicate<String> validator;
+
+        public ConfigField(Field field) {
+            super();
+            this.field = field;
+        }
+    }
 }
