@@ -52,6 +52,11 @@ MessageId::MessageId(int64_t ledgerId, int64_t entryId)
      // consumer's partition is assigned to this partition
 }
 
+int64_t MessageId::getBatchIndex() const {
+    // It's only relevant for batch message ids
+    return -1;
+}
+
 const MessageId& MessageId::earliest() {
     static const BatchMessageId _earliest(-1, -1);
     return _earliest;

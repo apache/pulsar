@@ -141,7 +141,7 @@ private:
     ConsumerTopicType consumerTopicType_;
 
     Commands::SubscriptionMode subscriptionMode_;
-    const Optional<BatchMessageId> startMessageId_;
+    Optional<BatchMessageId> startMessageId_;
 
     Optional<BatchMessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;

@@ -172,8 +172,9 @@ namespace pulsar {
             }
         }
 
+        BatchMessageId msgId(startMessageId);
         lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleReaderMetadataLookup,
-                        shared_from_this(), _1, _2, dn, static_cast<const BatchMessageId&>(startMessageId), conf, callback));
+                        shared_from_this(), _1, _2, dn, msgId, conf, callback));
     }
 
     void ClientImpl::handleReaderMetadataLookup(const Result result,

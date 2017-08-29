@@ -132,17 +132,19 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     unAckedMessageTrackerPtr_->clear();
     batchAcknowledgementTracker_.clear();
 
-    lock.unlock();
+    if (subscriptionMode_ == Commands::SubscriptionModeNonDurable) {
+        // Update startMessageId so that we can discard messages after delivery
+        // restarts
+        startMessageId_ = firstMessageInQueue;
+    }
 
-    Optional<BatchMessageId> startMessageId =
-            subscriptionMode_ == Commands::SubscriptionModeDurable ?
-                    Optional<BatchMessageId>::empty() : firstMessageInQueue;
+    lock.unlock();
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId,
                                               getSubType(), consumerName_, subscriptionMode_,
-                                              startMessageId);
+                                              startMessageId_);
     cnx->sendRequestWithId(cmd, requestId).addListener(
             boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
@@ -318,7 +320,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
 uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage) {
     unsigned int batchSize = batchedMessage.impl_->metadata.num_messages_in_batch();
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
-    LOG_DEBUG("Received Batch messages of size - " << batchSize);
+    LOG_DEBUG("Received Batch messages of size - " << batchSize
+             << " -- msgId: " << batchedMessage.getMessageId());
+
+    int skippedMessages = 0;
 
     for (int i = 0; i < batchSize; i++) {
         batchedMessage.impl_->messageId.batchIndex_ = i;
@@ -336,7 +341,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
                 LOG_DEBUG(
                         getName() << "Ignoring message from before the startMessageId" << msg.getMessageId());
                 increaseAvailablePermits(cnx);
-                --batchSize;
+                ++skippedMessages;
                 continue;
             }
         }
@@ -344,7 +349,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
         // Regular path, append individual message to incoming messages queue
         incomingMessages_.push(msg);
     }
-    return batchSize;
+    return batchSize - skippedMessages;
 }
 
 bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,

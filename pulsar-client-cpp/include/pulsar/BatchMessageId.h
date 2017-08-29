@@ -35,6 +35,8 @@ class BatchMessageId : public MessageId {
               batchIndex_(batchIndex) {
     }
 
+    BatchMessageId(const MessageId& msgId);
+
     BatchMessageId()
             : batchIndex_(-1) {
     }
@@ -47,6 +49,8 @@ class BatchMessageId : public MessageId {
     bool operator==(const BatchMessageId& other) const;
 
   protected:
+    virtual int64_t getBatchIndex() const;
+
     friend class Commands;
     friend class ConsumerImpl;
     friend class ReaderImpl;

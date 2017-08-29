@@ -26,6 +26,10 @@
 
 namespace pulsar {
 
+BatchMessageId::BatchMessageId(const MessageId& msgId) :
+        MessageId(msgId.ledgerId_, msgId.entryId_), batchIndex_(msgId.getBatchIndex()) {
+}
+
 void BatchMessageId::serialize(std::string& result) const {
     proto::MessageIdData idData;
     idData.set_ledgerid(ledgerId_);
@@ -37,6 +41,10 @@ void BatchMessageId::serialize(std::string& result) const {
     }
 
     idData.SerializeToString(&result);
+}
+
+int64_t BatchMessageId::getBatchIndex() const {
+    return batchIndex_;
 }
 
 #pragma GCC visibility push(default)

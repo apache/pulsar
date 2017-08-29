@@ -62,10 +62,13 @@ class MessageId {
     bool operator==(const MessageId& other) const;
 
  protected:
+
+    virtual int64_t getBatchIndex() const;
     friend class ConsumerImpl;
     friend class Message;
     friend class MessageImpl;
     friend class Commands;
+    friend class BatchMessageId;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
