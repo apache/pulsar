@@ -45,7 +45,8 @@ void ReaderImpl::start(const BatchMessageId& startMessageId) {
     if (readerConf_.hasReaderListener()) {
         // Adapt the message listener to be a reader-listener
         readerListener_ = readerConf_.getReaderListener();
-        consumerConf.setMessageListener(&ReaderImpl::messageListener);
+        consumerConf.setMessageListener(boost::bind(&ReaderImpl::messageListener,
+                                                    shared_from_this(), _1, _2));
     }
 
     std::string subscription = "reader-" + generateRandomName();
