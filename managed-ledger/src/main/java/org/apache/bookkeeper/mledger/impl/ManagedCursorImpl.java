@@ -60,7 +60,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
-import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
@@ -91,15 +90,18 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
+    @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
+    @SuppressWarnings("unused")
     private volatile int resetCursorInProgress = FALSE;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
+    @SuppressWarnings("unused")
     private volatile int pendingReadOps = 0;
 
     // This counters are used to compute the numberOfEntries and numberOfEntriesInBacklog values, without having to look
@@ -116,8 +118,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final RateLimiter markDeleteLimiter;
-
-    private final ZNodeProtobufFormat protobufFormat;
 
     class PendingMarkDeleteEntry {
         final PositionImpl newPosition;
@@ -139,6 +139,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final ArrayDeque<PendingMarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
+    @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private long lastLedgerSwitchTimestamp;
 
@@ -171,9 +172,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
         WAITING_READ_OP_UPDATER.set(this, null);
         this.lastLedgerSwitchTimestamp = System.currentTimeMillis();
-        this.protobufFormat = ledger.factory.getConfig().useProtobufBinaryFormatInZK() ? //
-                ZNodeProtobufFormat.Binary : //
-                ZNodeProtobufFormat.Text;
 
         if (config.getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(config.getThrottleMarkDelete());
@@ -1234,7 +1232,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] cursor reset in progress - ignoring mark delete on position [{}] for cursor [{}]",
-                        ledger.getName(), (PositionImpl) position, name);
+                        ledger.getName(), position, name);
             }
             callback.markDeleteFailed(
                     new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
@@ -1674,9 +1672,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
                 .setMarkDeleteEntryId(position.getEntryId()); //
 
-        if (protobufFormat == ZNodeProtobufFormat.Binary) {
-            info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
-        }
+        info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, markDeletePosition);
@@ -1703,36 +1699,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
             return;
-        }
-
-        lock.readLock().lock();
-        try {
-            if (cursorLedger != null && protobufFormat == ZNodeProtobufFormat.Text
-                    && !individualDeletedMessages.isEmpty()) {
-                // To save individualDeletedMessages status, we don't want to dump the information in text format into
-                // the z-node. Until we switch to binary format, just flush the mark-delete + the
-                // individualDeletedMessages into the ledger.
-                persistPosition(cursorLedger, markDeletePosition, new VoidCallback() {
-                    @Override
-                    public void operationComplete() {
-                        cursorLedger.asyncClose(new CloseCallback() {
-                            @Override
-                            public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-                                callback.closeComplete(ctx);
-                            }
-                        }, ctx);
-                    }
-
-                    @Override
-                    public void operationFailed(ManagedLedgerException exception) {
-                        callback.closeFailed(exception, ctx);
-                    }
-                });
-
-                return;
-            }
-        } finally {
-            lock.readLock().unlock();
         }
 
         persistPositionMetaStore(-1, markDeletePosition, new MetaStoreCallback<Void>() {
@@ -2182,7 +2148,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     /**
      * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
      * deleted up to that point
-     * 
+     *
      * @param position
      * @return next available position
      */
@@ -2194,7 +2160,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         return position.getNext();
     }
-    
+
     public boolean isIndividuallyDeletedEntriesEmpty() {
         lock.readLock().lock();
         try {
