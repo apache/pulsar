@@ -100,7 +100,7 @@ public class ConsumerImpl extends ConsumerBase {
     protected final ConsumerStats stats;
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
-    private final BatchMessageIdImpl startMessageId;
+    private BatchMessageIdImpl startMessageId;
 
     private volatile boolean hasReachedEndOfTopic;
 
@@ -500,7 +500,6 @@ public class ConsumerImpl extends ConsumerBase {
         long requestId = client.newRequestId();
 
         int currentSize;
-        MessageIdImpl startMessageId;
         synchronized (this) {
             currentSize = incomingMessages.size();
             startMessageId = clearReceiverQueue();
@@ -597,21 +596,31 @@ public class ConsumerImpl extends ConsumerBase {
      * Clear the internal receiver queue and returns the message id of what was the 1st message in the queue that was
      * not seen by the application
      */
-    private MessageIdImpl clearReceiverQueue() {
+    private BatchMessageIdImpl clearReceiverQueue() {
         List<Message> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
         if (!currentMessageQueue.isEmpty()) {
             MessageIdImpl nextMessageInQueue = (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
-            MessageIdImpl previousMessage = new MessageIdImpl(nextMessageInQueue.getLedgerId(),
-                    nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex());
+            BatchMessageIdImpl previousMessage;
+            if (nextMessageInQueue instanceof BatchMessageIdImpl) {
+                // Get on the previous message within the current batch
+                previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
+                        nextMessageInQueue.getEntryId(), nextMessageInQueue.getPartitionIndex(),
+                        ((BatchMessageIdImpl) nextMessageInQueue).getBatchIndex() - 1);
+            } else {
+                // Get on previous message in previous entry
+                previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
+                        nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex(), -1);
+            }
+
             return previousMessage;
         } else if (lastDequeuedMessage != null) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
-            return lastDequeuedMessage;
+            return new BatchMessageIdImpl(lastDequeuedMessage);
         } else {
             // No message was received or dequeued by this consumer. Next message would still be the startMessageId
-            return (MessageIdImpl) startMessageId;
+            return startMessageId;
         }
     }
 
