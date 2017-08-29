@@ -52,7 +52,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 @SuppressWarnings({ "deprecation", "restriction", "rawtypes" })
 public class MockZooKeeper extends ZooKeeper {
-    private TreeMap<String, Pair<String, Integer>> tree;
+    private TreeMap<String, Pair<byte[], Integer>> tree;
     private SetMultimap<String, Watcher> watchers;
     private volatile boolean stopped;
     private boolean alwaysFail = false;
@@ -149,7 +149,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
-                String parentData = tree.get(parent).first;
+                byte[] parentData = tree.get(parent).first;
                 int parentVersion = tree.get(parent).second;
                 path = path + parentVersion;
 
@@ -157,7 +157,7 @@ public class MockZooKeeper extends ZooKeeper {
                 tree.put(parent, Pair.create(parentData, parentVersion + 1));
             }
 
-            tree.put(path, Pair.create(new String(data), 0));
+            tree.put(path, Pair.create(data, 0));
 
             if (!parent.isEmpty()) {
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
@@ -201,7 +201,7 @@ public class MockZooKeeper extends ZooKeeper {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                tree.put(path, Pair.create(new String(data), 0));
+                tree.put(path, Pair.create(data, 0));
                 mutex.unlock();
                 cb.processResult(0, path, ctx, null);
                 if (!parent.isEmpty()) {
@@ -218,7 +218,7 @@ public class MockZooKeeper extends ZooKeeper {
         mutex.lock();
         try {
             checkProgrammedFail();
-            Pair<String, Integer> value = tree.get(path);
+            Pair<byte[], Integer> value = tree.get(path);
             if (value == null) {
                 throw new KeeperException.NoNodeException(path);
             } else {
@@ -228,7 +228,7 @@ public class MockZooKeeper extends ZooKeeper {
                 if (stat != null) {
                     stat.setVersion(value.second);
                 }
-                return value.first.getBytes();
+                return value.first;
             }
         } finally {
             mutex.unlock();
@@ -247,7 +247,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            Pair<String, Integer> value;
+            Pair<byte[], Integer> value;
             mutex.lock();
             try {
                 value = tree.get(path);
@@ -260,7 +260,7 @@ public class MockZooKeeper extends ZooKeeper {
             } else {
                 Stat stat = new Stat();
                 stat.setVersion(value.second);
-                cb.processResult(0, path, ctx, value.first.getBytes(), stat);
+                cb.processResult(0, path, ctx, value.first, stat);
             }
         });
     }
@@ -280,7 +280,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            Pair<String, Integer> value = tree.get(path);
+            Pair<byte[], Integer> value = tree.get(path);
             if (value == null) {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
@@ -292,7 +292,7 @@ public class MockZooKeeper extends ZooKeeper {
                 Stat stat = new Stat();
                 stat.setVersion(value.second);
                 mutex.unlock();
-                cb.processResult(0, path, ctx, value.first.getBytes(), stat);
+                cb.processResult(0, path, ctx, value.first, stat);
             }
         });
     }
@@ -493,6 +493,7 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
+    @Override
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
         executor.execute(() -> {
             mutex.lock();
@@ -559,7 +560,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.create(new String(data), newVersion));
+            tree.put(path, Pair.create(data, newVersion));
 
             toNotify.addAll(watchers.get(path));
             watchers.removeAll(path);
@@ -617,7 +618,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             int newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.create(new String(data), newVersion));
+            tree.put(path, Pair.create(data, newVersion));
             Stat stat = new Stat();
             stat.setVersion(newVersion);
 

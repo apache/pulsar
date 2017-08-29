@@ -43,8 +43,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -52,21 +50,16 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
@@ -76,12 +69,6 @@ import com.google.common.collect.Sets;
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
-    
-    @Factory(dataProvider = "protobufFormat")
-    public ManagedCursorTest(ZNodeProtobufFormat protobufFormat) {
-        super();
-        this.protobufFormat = protobufFormat;
-    }
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
@@ -315,6 +302,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
+            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertNull(ctx);
                 assertEquals(entries.size(), 1);
@@ -322,6 +310,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 counter.countDown();
             }
 
+            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail(exception.getMessage());
             }
@@ -343,11 +332,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
+            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 entries.forEach(e -> e.release());
                 counter.countDown();
             }
 
+            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail("async-call should not have failed");
             }
@@ -364,10 +355,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter2 = new CountDownLatch(1);
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
+            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 fail("async-call should have failed");
             }
 
+            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter2.countDown();
             }
@@ -389,10 +382,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
 
         cursor.asyncReadEntries(0, new ReadEntriesCallback() {
+            @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 fail("async-call should have failed");
             }
 
+            @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter.countDown();
             }
@@ -534,6 +529,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             final int idx = i;
 
             futures.add(executor.submit(new Callable<AtomicBoolean>() {
+                @Override
                 public AtomicBoolean call() throws Exception {
                     barrier.await();
 
@@ -845,15 +841,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch latch = new CountDownLatch(N);
         for (int i = 0; i < N; i++) {
             ledger.asyncAddEntry("entry".getBytes(Encoding), new AddEntryCallback() {
+                @Override
                 public void addFailed(ManagedLedgerException exception, Object ctx) {
                 }
 
+                @Override
                 public void addComplete(Position position, Object ctx) {
                     lastPosition.set(position);
                     c1.asyncMarkDelete(position, new MarkDeleteCallback() {
+                        @Override
                         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                         }
 
+                        @Override
                         public void markDeleteComplete(Object ctx) {
                             latch.countDown();
                         }
@@ -893,10 +893,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final CountDownLatch latch = new CountDownLatch(N);
         for (final Position p : positions) {
             c1.asyncMarkDelete(p, new MarkDeleteCallback() {
+                @Override
                 public void markDeleteComplete(Object ctx) {
                     latch.countDown();
                 }
 
+                @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("Failed to markdelete", exception);
                     latch.countDown();
@@ -944,20 +946,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(2);
         c1.asyncMarkDelete(p2, new MarkDeleteCallback() {
+            @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 fail();
             }
 
+            @Override
             public void markDeleteComplete(Object ctx) {
                 latch.countDown();
             }
         }, null);
 
         c1.asyncMarkDelete(p1, new MarkDeleteCallback() {
+            @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 latch.countDown();
             }
 
+            @Override
             public void markDeleteComplete(Object ctx) {
                 fail();
             }
@@ -1462,12 +1468,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ManagedCursor c = ledger.openCursor("c" + i);
 
             c.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
+                @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     assertEquals(entries.size(), 1);
                     entries.forEach(e -> e.release());
                     counter.countDown();
                 }
 
+                @Override
                 public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("Error reading", exception);
                 }
@@ -1493,6 +1501,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             final ManagedCursor cursor = ledger.openCursor("c" + i);
 
             futures.add(executor.submit(new Callable<Void>() {
+                @Override
                 public Void call() throws Exception {
                     barrier.await();
 
@@ -2188,8 +2197,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertNull(e);
 
         // check that the mark delete and read positions have not been updated after all the previous operations
-        assertEquals((PositionImpl) c1.getMarkDeletedPosition(), new PositionImpl(currentLedger, -1));
-        assertEquals((PositionImpl) c1.getReadPosition(), new PositionImpl(currentLedger, 4));
+        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(currentLedger, -1));
+        assertEquals(c1.getReadPosition(), new PositionImpl(currentLedger, 4));
 
         c1.markDelete(pos4);
         assertEquals(c1.getMarkDeletedPosition(), pos4);
