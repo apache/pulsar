@@ -39,20 +39,39 @@ void BatchMessageId::serialize(std::string& result) const {
     idData.SerializeToString(&result);
 }
 
+#pragma GCC visibility push(default)
+
 bool BatchMessageId::operator<(const BatchMessageId& other) const {
-    return std::tie(ledgerId_, entryId_, batchIndex_)
-            < std::tie(other.ledgerId_, other.entryId_, other.batchIndex_);
+    if (ledgerId_ < other.ledgerId_) {
+        return true;
+    } else if (ledgerId_ > other.ledgerId_) {
+        return false;
+    }
+
+    if (entryId_ < other.entryId_) {
+        return true;
+    } else if (entryId_ > other.entryId_) {
+        return false;
+    }
+
+    return batchIndex_ < other.batchIndex_;
 }
 
 bool BatchMessageId::operator<=(const BatchMessageId& other) const {
-    return std::tie(ledgerId_, entryId_, batchIndex_)
-                <= std::tie(other.ledgerId_, other.entryId_, other.batchIndex_);
+    return *this < other || *this == other;
+}
+
+bool BatchMessageId::operator==(const BatchMessageId& other) const {
+    return ledgerId_ == other.ledgerId_ && entryId_ == other.entryId_
+            && batchIndex_ == other.batchIndex_;
 }
 
 std::ostream& operator<<(std::ostream& s, const BatchMessageId& messageId) {
-    s << '(' << messageId.ledgerId_ << ':' << messageId.entryId_ << ':'
-             << messageId.batchIndex_ << ':' << messageId.partition_ << ')';
+    s << '(' << messageId.ledgerId_ << ':' << messageId.entryId_ << ':' << messageId.batchIndex_
+      << ':' << messageId.partition_ << ')';
     return s;
 }
+
+#pragma GCC visibility pop
 
 }

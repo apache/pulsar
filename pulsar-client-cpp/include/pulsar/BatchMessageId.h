@@ -44,6 +44,7 @@ class BatchMessageId : public MessageId {
     // These functions compare the message order as stored in bookkeeper
     bool operator<(const BatchMessageId& other) const;
     bool operator<=(const BatchMessageId& other) const;
+    bool operator==(const BatchMessageId& other) const;
 
   protected:
     friend class Commands;

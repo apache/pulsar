@@ -30,7 +30,7 @@ TEST(MessageIdTest, testSerialization) {
     std::string serialized;
     msgId.serialize(serialized);
 
-    std::shared_ptr<MessageId> deserialized = MessageId::deserialize(serialized);
+    boost::shared_ptr<MessageId> deserialized = MessageId::deserialize(serialized);
 
-    ASSERT_EQ(msgId, *deserialized);
+    ASSERT_EQ(msgId, static_cast<const BatchMessageId&>(*deserialized));
 }
