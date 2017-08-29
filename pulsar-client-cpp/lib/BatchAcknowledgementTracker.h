@@ -60,6 +60,7 @@ class BatchAcknowledgementTracker {
     void deleteAckedMessage(const BatchMessageId& messageId, proto::CommandAck_AckType ackType);
     void receivedMessage(const Message& message);
 
+    void clear();
 
     inline friend std::ostream& operator<<(std::ostream& os, const BatchAcknowledgementTracker& batchAcknowledgementTracker);
 

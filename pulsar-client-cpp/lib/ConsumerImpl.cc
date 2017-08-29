@@ -36,7 +36,9 @@ DECLARE_LOG_OBJECT()
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscription, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
-                           const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */ )
+                           const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
+                           Commands::SubscriptionMode subscriptionMode,
+                           Optional<BatchMessageId> startMessageId)
         : HandlerBase(client, topic),
           waitingForZeroQueueSizeMessage(false),
           config_(conf),
@@ -44,6 +46,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
           originalSubscriptionName_(subscription),
           messageListener_(config_.getMessageListener()),
           consumerTopicType_(consumerTopicType),
+          subscriptionMode_(subscriptionMode),
+          startMessageId_(startMessageId),
           // This is the initial capacity of the queue
           incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
           availablePermits_(conf.getReceiverQueueSize()),
@@ -123,12 +127,22 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
         LOG_DEBUG(getName() << "connectionOpened : Consumer is already closed");
         return;
     }
+
+    Optional<BatchMessageId> firstMessageInQueue = clearReceiveQueue();
+    unAckedMessageTrackerPtr_->clear();
+    batchAcknowledgementTracker_.clear();
+
     lock.unlock();
+
+    Optional<BatchMessageId> startMessageId =
+            subscriptionMode_ == Commands::SubscriptionModeDurable ?
+                    Optional<BatchMessageId>::empty() : firstMessageInQueue;
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId,
-                                              getSubType(), consumerName_);
+                                              getSubType(), consumerName_, subscriptionMode_,
+                                              startMessageId);
     cnx->sendRequestWithId(cmd, requestId).addListener(
             boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
@@ -272,7 +286,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     unsigned int numOfMessageReceived = 1;
     if (metadata.has_num_messages_in_batch()) {
         Lock lock(mutex_);
-        numOfMessageReceived = receiveIndividualMessagesFromBatch(m);
+        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
     } else {
         // config_.getReceiverQueueSize() != 0 or waiting For ZeroQueueSize Message`
         if (config_.getReceiverQueueSize() != 0) {
@@ -301,14 +315,34 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
 }
 
 // Zero Queue size is not supported with Batch Messages
-unsigned int ConsumerImpl::receiveIndividualMessagesFromBatch(Message& batchedMessage) {
+uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage) {
     unsigned int batchSize = batchedMessage.impl_->metadata.num_messages_in_batch();
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize);
-    for (int i=0; i<batchSize; i++) {
+
+    for (int i = 0; i < batchSize; i++) {
         batchedMessage.impl_->messageId.batchIndex_ = i;
         // This is a cheap copy since message contains only one shared pointer (impl_)
-        incomingMessages_.push(Commands::deSerializeSingleMessageInBatch(batchedMessage));
+        Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage);
+
+        if (startMessageId_.is_present()) {
+            const BatchMessageId& msgId = static_cast<const BatchMessageId&>(msg.getMessageId());
+
+            // If we are receiving a batch message, we need to discard messages that were prior
+            // to the startMessageId
+            if (msgId.ledgerId_ == startMessageId_.value().ledgerId_
+                    && msgId.entryId_ == startMessageId_.value().entryId_
+                    && msgId.batchIndex_ <= startMessageId_.value().batchIndex_) {
+                LOG_DEBUG(
+                        getName() << "Ignoring message from before the startMessageId" << msg.getMessageId());
+                increaseAvailablePermits(cnx);
+                --batchSize;
+                continue;
+            }
+        }
+
+        // Regular path, append individual message to incoming messages queue
+        incomingMessages_.push(msg);
     }
     return batchSize;
 }
@@ -481,6 +515,9 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 
 void ConsumerImpl::messageProcessed(Message& msg) {
     Lock lock(mutex_);
+    lastDequedMessage_ = Optional<BatchMessageId>::of(
+            static_cast<const BatchMessageId&>(msg.getMessageId()));
+
     ClientConnectionPtr currentCnx = getCnx().lock();
     if (currentCnx && msg.impl_->cnx_ != currentCnx.get()) {
         LOG_DEBUG(getName() << "Not adding permit since connection is different.");
@@ -488,6 +525,37 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
+}
+
+/**
+ * Clear the internal receiver queue and returns the message id of what was the 1st message in the queue that was
+ * not seen by the application
+ */
+Optional<BatchMessageId> ConsumerImpl::clearReceiveQueue() {
+    Message nextMessageInQueue;
+    if (incomingMessages_.peekAndClear(nextMessageInQueue)) {
+        // There was at least one message pending in the queue
+        // We can safely cast to 'BatchMessageId' since all the messages queued will have that type of message id,
+        // irrespective of whether they were part of a batch or not.
+        const BatchMessageId& nextMessageId =
+                static_cast<const BatchMessageId&>(nextMessageInQueue.getMessageId());
+        BatchMessageId previousMessageId;
+        if (nextMessageId.batchIndex_ >= 0) {
+            previousMessageId = BatchMessageId(nextMessageId.ledgerId_, nextMessageId.entryId_,
+                                               nextMessageId.batchIndex_ - 1);
+        } else {
+            previousMessageId = BatchMessageId(nextMessageId.ledgerId_, nextMessageId.entryId_ - 1,
+                                               -1);
+        }
+        return Optional<BatchMessageId>::of(previousMessageId);
+    } else if (lastDequedMessage_.is_present()) {
+        // If the queue was empty we need to restart from the message just after the last one that has been dequeued
+        // in the past
+        return lastDequedMessage_;
+    } else {
+        // No message was received or dequeued by this consumer. Next message would still be the startMessageId
+        return startMessageId_;
+    }
 }
 
 void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx) {
@@ -523,7 +591,9 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 
 void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
     consumerStatsBasePtr_->messageAcknowledged(res, ackType);
-    callback(res);
+    if (callback) {
+        callback(res);
+    }
 }
 
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {

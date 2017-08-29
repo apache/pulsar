@@ -31,6 +31,11 @@ BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic
     LOG_DEBUG(name_ << "Constructed BatchAcknowledgementTracker");
 }
 
+void BatchAcknowledgementTracker::clear() {
+    trackerMap_.clear();
+    sendList_.clear();
+}
+
 void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
     // ignore message if it is not a batch message
     if (!message.impl_->metadata.has_num_messages_in_batch()) {

@@ -39,6 +39,12 @@ class PulsarFriend;
 typedef boost::shared_ptr<ClientImpl> ClientImplPtr;
 typedef boost::weak_ptr<ClientImpl> ClientImplWeakPtr;
 
+class ReaderImpl;
+typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
+typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
+
+const std::string generateRandomName();
+
 class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
  public:
     ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
@@ -50,6 +56,11 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
 
     void subscribeAsync(const std::string& topic, const std::string& consumerName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
+
+    void createReaderAsync(const std::string& topic,
+                           const MessageId& startMessageId,
+                           const ReaderConfiguration& conf,
+                           ReaderCallback callback);
 
     Future<Result, ClientConnectionWeakPtr> getConnection(const std::string& topic);
     void handleLookup(Result result, LookupDataResultPtr data,
@@ -86,6 +97,11 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
                              const std::string& consumerName,
                              ConsumerConfiguration conf,
                              SubscribeCallback callback);
+
+    void handleReaderMetadataLookup(const Result result,
+                                    const LookupDataResultPtr partitionMetadata,
+                                    DestinationNamePtr dn, BatchMessageId startMessageId,
+                                    ReaderConfiguration conf, ReaderCallback callback);
 
     void handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerWeakPtr,
                                CreateProducerCallback callback, ProducerImplBasePtr producer);

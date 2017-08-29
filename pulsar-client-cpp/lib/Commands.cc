@@ -21,6 +21,7 @@
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
+#include "Utils.h"
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
 #include <boost/thread/mutex.hpp>
@@ -177,7 +178,10 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication) {
 
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&subscription,
                                     uint64_t consumerId, uint64_t requestId,
-                                    CommandSubscribe_SubType subType, const std::string& consumerName) {
+                                    CommandSubscribe_SubType subType,
+                                    const std::string& consumerName,
+                                    SubscriptionMode subscriptionMode,
+                                    Optional<BatchMessageId> startMessageId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -187,6 +191,16 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_consumer_id(consumerId);
     subscribe->set_request_id(requestId);
     subscribe->set_consumer_name(consumerName);
+    subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
+    if (startMessageId.is_present()) {
+        MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
+        messageIdData.set_ledgerid(startMessageId.value().ledgerId_);
+        messageIdData.set_entryid(startMessageId.value().entryId_);
+
+        if (startMessageId.value().batchIndex_ != -1) {
+            messageIdData.set_batch_index(startMessageId.value().batchIndex_);
+        }
+    }
 
     return writeMessageWithSize(cmd);
 }

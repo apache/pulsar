@@ -16,25 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_UNACKEDMESSAGETRACKERDISABLED_H_
-#define LIB_UNACKEDMESSAGETRACKERDISABLED_H_
-#include "lib/UnAckedMessageTrackerInterface.h"
+#ifndef LIB_READERCONFIGURATIONIMPL_H_
+#define LIB_READERCONFIGURATIONIMPL_H_
+
+#include <pulsar/ReaderConfiguration.h>
+#include <boost/make_shared.hpp>
+
 namespace pulsar {
-
-class UnAckedMessageTrackerDisabled : public UnAckedMessageTrackerInterface {
- public:
-    bool add(const MessageId& m) {
-        return false;
-    }
-    bool remove(const MessageId& m) {
-        return false;
-    }
-    void removeMessagesTill(const MessageId& msgId) {
-    }
-
-    void clear() {
+struct ReaderConfigurationImpl {
+    ReaderListener readerListener;
+    bool hasReaderListener;
+    int receiverQueueSize;
+    std::string readerName;
+    ReaderConfigurationImpl()
+            : hasReaderListener(false),
+              receiverQueueSize(1000),
+              readerName() {
     }
 };
-
 }
-#endif /* LIB_UNACKEDMESSAGETRACKERDISABLED_H_ */
+#endif /* LIB_READERCONFIGURATIONIMPL_H_ */

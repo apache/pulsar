@@ -106,6 +106,18 @@ class UnboundedBlockingQueue {
         queue_.clear();
     }
 
+    // Check 1st item and clear the queue atomically
+    bool peekAndClear(T& value) {
+        Lock lock(mutex_);
+        if (queue_.empty()) {
+            return false;
+        }
+
+        value = queue_.front();
+        queue_.clear();
+        return true;
+    }
+
     size_t size() const {
         Lock lock(mutex_);
         return queue_.size();
