@@ -466,6 +466,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+        log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         // Create a new non-durable cursor only for the first consumer that connects
         Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
