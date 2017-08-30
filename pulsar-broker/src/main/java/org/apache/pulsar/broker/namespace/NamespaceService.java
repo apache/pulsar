@@ -336,8 +336,7 @@ public class NamespaceService {
                 if (!this.loadManager.get().isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
                     Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                     if (!availableBroker.isPresent()) {
-                        lookupFuture.completeExceptionally(
-                                new ServiceUnitNotReadyException("Couldn't find available broker for " + bundle));
+                        lookupFuture.complete(Optional.empty());
                         return;
                     }
                     candidateBroker = availableBroker.get();
