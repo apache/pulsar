@@ -404,7 +404,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
-                Consumer consumer = new Consumer(subscription, subType, consumerId, priorityLevel, consumerName,
+                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                         maxUnackedMessages, cnx, cnx.getRole());
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {

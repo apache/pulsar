@@ -625,7 +625,12 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Consumer> consumerFuture = consumers.get(flow.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).flowPermits(flow.getMessagePermits());
+            Consumer consumer = consumerFuture.getNow(null);
+            if (consumer != null) {
+                consumer.flowPermits(flow.getMessagePermits());
+            } else {
+                log.info("[{}] Couldn't find consumer {}", remoteAddress, flow.getConsumerId());
+            }
         }
     }
 
