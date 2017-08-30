@@ -1,6 +1,10 @@
 .rest-api-container, .docs-container {
   margin-top: $top-margin;
 
+  ul ul {
+    margin-bottom: 10px;
+  }
+
   nav.sidebar {
     display: inline;
     width: 100%;
