@@ -48,7 +48,9 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -453,12 +455,18 @@ public class NamespaceService {
      * @throws Exception
      */
     private String getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        String lookupAddress = loadManager.get().getLeastLoaded(serviceUnit).getResourceId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getWebServiceAddress(),
-                    lookupAddress);
+        ResourceUnit leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
+        if (leastLoadedBroker != null) {
+            String lookupAddress = leastLoadedBroker.getResourceId();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
+                        pulsar.getWebServiceAddress(), lookupAddress);
+            }
+            return lookupAddress;
+        } else {
+            LOG.warn("No broker is available for {}", serviceUnit);
+            throw new BrokerServiceException.ServiceUnitNotReadyException("No broker is available for " + serviceUnit);
         }
-        return lookupAddress;
     }
 
     public void unloadNamespace(NamespaceName ns) throws Exception {
