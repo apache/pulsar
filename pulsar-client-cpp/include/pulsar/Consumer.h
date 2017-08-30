@@ -112,6 +112,10 @@ class Consumer {
      * @return ResultError if there was a failure
      */
     Result acknowledge(const Message& message);
+
+    /*
+     * @deprecated - Not to be used with Batch Messages.
+     */
     Result acknowledge(const MessageId& messageId);
 
     /**
@@ -124,6 +128,10 @@ class Consumer {
      * @param callback callback that will be triggered when the message has been acknowledged
      */
     void acknowledgeAsync(const Message& message, ResultCallback callback);
+
+    /*
+     * @deprecated - Not to be used with Batch Messages.
+     */
     void acknowledgeAsync(const MessageId& messageID, ResultCallback callback);
 
     /**
@@ -143,6 +151,10 @@ class Consumer {
      * @return ResultError if there was a failure
      */
     Result acknowledgeCumulative(const Message& message);
+
+    /*
+     * @deprecated - Not to be used with Batch Messages.
+     */
     Result acknowledgeCumulative(const MessageId& messageId);
 
     /**
@@ -156,6 +168,10 @@ class Consumer {
      * @param callback callback that will be triggered when the message has been acknowledged
      */
     void acknowledgeCumulativeAsync(const Message& message, ResultCallback callback);
+
+    /*
+     * @deprecated - Not to be used with Batch Messages.
+     */
     void acknowledgeCumulativeAsync(const MessageId& messageId, ResultCallback callback);
 
     Result close();
