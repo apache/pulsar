@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Mockito.anyObject;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -45,12 +46,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.BrokerStats;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -64,20 +61,15 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.testng.collections.Maps;
 
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 
 /**
  */
@@ -850,50 +842,4 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(policy.get().bundles.numBundles, totalBundle);
     }
 
-    @Test
-    public void testInvalidDynamicConfiguration() throws Exception {
-
-        try {
-            // (1) try to update invalid loadManagerClass name
-            try {
-                admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                        "org.apache.pulsar.invalid.loadmanager");
-                fail("it should have failed due to invalid argument");
-            } catch (PulsarAdminException e) {
-                // Ok: should have failed due to invalid config value
-            }
-
-            // (2) try to update with valid loadManagerClass name
-            try {
-                admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                        "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
-            } catch (PulsarAdminException e) {
-                fail("it should have failed due to invalid argument", e);
-            }
-
-            // (3) restart broker with invalid config value
-
-            ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
-                    .getDynamicConfigurationCache();
-            Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
-                    .get();
-            configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-            dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
-
-            try {
-                stopBroker();
-                startBroker();
-                fail("it should have failed due to invalid argument");
-            } catch (Exception e) {
-                // Ok: should have failed due to invalid config value
-            }
-        } finally {
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(Maps.newHashMap());
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
-            startBroker();
-        }
-
-    }
 }
