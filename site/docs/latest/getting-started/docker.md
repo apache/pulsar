@@ -19,11 +19,11 @@ and follow the instructions for your OS.
 
 ```shell
 $ docker run -it \
-    -p 6650:6650 \
-    -p 8080:8080 \
-    -v $PWD/data:/pulsar/data \
-    apachepulsar/pulsar:{{site.current_version}} \
-    bin/pulsar standalone --advertised-address 127.0.0.1
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v $PWD/data:/pulsar/data \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone --advertised-address 127.0.0.1
 ```
 
 A few things to note about this command:
