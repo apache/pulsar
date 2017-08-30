@@ -1088,7 +1088,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
     ASSERT_EQ(receivedMsgIndex.size(), 10);
 
     for (int i = 0; i<numOfMessages; i++) {
-        ASSERT_NE(receivedMsgContent.find("msg-" + boost::lexical_cast<std::string>(i)), receivedMsgContent.end());
-        ASSERT_NE(receivedMsgIndex.find(boost::lexical_cast<std::string>(i)), receivedMsgIndex.end());
+        ASSERT_TRUE(receivedMsgContent.find("msg-" + boost::lexical_cast<std::string>(i)) != receivedMsgContent.end());
+        ASSERT_TRUE(receivedMsgIndex.find(boost::lexical_cast<std::string>(i)) != receivedMsgIndex.end());
     }
 }
