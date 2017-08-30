@@ -1,3 +1,14 @@
+@media screen and (min-width: 769px) {
+  .rest-api-container, .docs-container {
+    article {
+      @include shadow($shadow-size);
+      padding: 2% 3%;
+      margin-bottom: 50px;
+    }
+  }
+}
+
+
 .rest-api-container, .docs-container {
   margin-top: $top-margin;
 
@@ -5,26 +16,7 @@
     margin-bottom: 10px;
   }
 
-  nav.sidebar {
-    display: inline;
-    width: 100%;
-    //border: 1px solid green;
-
-    ul {
-      //border: 1px solid orange;
-      width: 100%;
-
-      li + li {
-        margin-top: 5px;
-      }
-    }
-  }
-
   article {
-    @include shadow($shadow-size);
-    padding: 2% 3%;
-    margin-bottom: 50px;
-
     section.docs-header {
       margin-bottom: 35px;
       //border: 1px solid blue;
