@@ -696,7 +696,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
                 if (header.contains("X-Pulsar-PROPERTY-")) {
-                    String keyName = header.substring(header.indexOf("X-Pulsar-PROPERTY-") + 1, header.length());
+                    String keyName = header.substring("X-Pulsar-PROPERTY-".length(), header.length());
                     properties.put(keyName, (String) entry.getValue().get(0));
                 }
             }
