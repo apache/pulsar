@@ -1221,6 +1221,439 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.KeyValue)
   }
   
+  public interface KeyByteValueOrBuilder
+      extends com.google.protobuf.MessageLiteOrBuilder {
+    
+    // required string key = 1;
+    boolean hasKey();
+    String getKey();
+    
+    // required bytes value = 2;
+    boolean hasValue();
+    com.google.protobuf.ByteString getValue();
+  }
+  public static final class KeyByteValue extends
+      com.google.protobuf.GeneratedMessageLite
+      implements KeyByteValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use KeyByteValue.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private KeyByteValue(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<KeyByteValue> RECYCLER = new io.netty.util.Recycler<KeyByteValue>() {
+            protected KeyByteValue newObject(Handle handle) {
+              return new KeyByteValue(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private KeyByteValue(boolean noInit) {}
+    
+    private static final KeyByteValue defaultInstance;
+    public static KeyByteValue getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public KeyByteValue getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required string key = 1;
+    public static final int KEY_FIELD_NUMBER = 1;
+    private java.lang.Object key_;
+    public boolean hasKey() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public String getKey() {
+      java.lang.Object ref = key_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          key_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getKeyBytes() {
+      java.lang.Object ref = key_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        key_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required bytes value = 2;
+    public static final int VALUE_FIELD_NUMBER = 2;
+    private com.google.protobuf.ByteString value_;
+    public boolean hasValue() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public com.google.protobuf.ByteString getValue() {
+      return value_;
+    }
+    
+    private void initFields() {
+      key_ = "";
+      value_ = com.google.protobuf.ByteString.EMPTY;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasKey()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasValue()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getKeyBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBytes(2, value_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(1, getKeyBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(2, value_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        key_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        value_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.key_ = key_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.value_ = value_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.getDefaultInstance()) return this;
+        if (other.hasKey()) {
+          setKey(other.getKey());
+        }
+        if (other.hasValue()) {
+          setValue(other.getValue());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasKey()) {
+          
+          return false;
+        }
+        if (!hasValue()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
+                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              key_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              value_ = input.readBytes();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string key = 1;
+      private java.lang.Object key_ = "";
+      public boolean hasKey() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getKey() {
+        java.lang.Object ref = key_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          key_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setKey(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        key_ = value;
+        
+        return this;
+      }
+      public Builder clearKey() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        key_ = getDefaultInstance().getKey();
+        
+        return this;
+      }
+      void setKey(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000001;
+        key_ = value;
+        
+      }
+      
+      // required bytes value = 2;
+      private com.google.protobuf.ByteString value_ = com.google.protobuf.ByteString.EMPTY;
+      public boolean hasValue() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public com.google.protobuf.ByteString getValue() {
+        return value_;
+      }
+      public Builder setValue(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        value_ = value;
+        
+        return this;
+      }
+      public Builder clearValue() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        value_ = getDefaultInstance().getValue();
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.KeyByteValue)
+    }
+    
+    static {
+      defaultInstance = new KeyByteValue(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.KeyByteValue)
+  }
+  
   public interface MessageMetadataOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
@@ -1270,6 +1703,20 @@ public final class PulsarApi {
     // optional uint64 event_time = 12 [default = 0];
     boolean hasEventTime();
     long getEventTime();
+    
+    // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> 
+        getEncryptionKeysList();
+    org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index);
+    int getEncryptionKeysCount();
+    
+    // optional string encryption_algo = 14;
+    boolean hasEncryptionAlgo();
+    String getEncryptionAlgo();
+    
+    // optional bytes encryption_param = 15;
+    boolean hasEncryptionParam();
+    com.google.protobuf.ByteString getEncryptionParam();
   }
   public static final class MessageMetadata extends
       com.google.protobuf.GeneratedMessageLite
@@ -1497,6 +1944,69 @@ public final class PulsarApi {
       return eventTime_;
     }
     
+    // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
+    public static final int ENCRYPTION_KEYS_FIELD_NUMBER = 13;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> encryptionKeys_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> getEncryptionKeysList() {
+      return encryptionKeys_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder> 
+        getEncryptionKeysOrBuilderList() {
+      return encryptionKeys_;
+    }
+    public int getEncryptionKeysCount() {
+      return encryptionKeys_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index) {
+      return encryptionKeys_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder getEncryptionKeysOrBuilder(
+        int index) {
+      return encryptionKeys_.get(index);
+    }
+    
+    // optional string encryption_algo = 14;
+    public static final int ENCRYPTION_ALGO_FIELD_NUMBER = 14;
+    private java.lang.Object encryptionAlgo_;
+    public boolean hasEncryptionAlgo() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    public String getEncryptionAlgo() {
+      java.lang.Object ref = encryptionAlgo_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          encryptionAlgo_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getEncryptionAlgoBytes() {
+      java.lang.Object ref = encryptionAlgo_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        encryptionAlgo_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // optional bytes encryption_param = 15;
+    public static final int ENCRYPTION_PARAM_FIELD_NUMBER = 15;
+    private com.google.protobuf.ByteString encryptionParam_;
+    public boolean hasEncryptionParam() {
+      return ((bitField0_ & 0x00000400) == 0x00000400);
+    }
+    public com.google.protobuf.ByteString getEncryptionParam() {
+      return encryptionParam_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -1509,6 +2019,9 @@ public final class PulsarApi {
       uncompressedSize_ = 0;
       numMessagesInBatch_ = 1;
       eventTime_ = 0L;
+      encryptionKeys_ = java.util.Collections.emptyList();
+      encryptionAlgo_ = "";
+      encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1529,6 +2042,12 @@ public final class PulsarApi {
       }
       for (int i = 0; i < getPropertiesCount(); i++) {
         if (!getProperties(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      for (int i = 0; i < getEncryptionKeysCount(); i++) {
+        if (!getEncryptionKeys(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -1577,6 +2096,15 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         output.writeUInt64(12, eventTime_);
+      }
+      for (int i = 0; i < encryptionKeys_.size(); i++) {
+        output.writeMessage(13, encryptionKeys_.get(i));
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        output.writeBytes(14, getEncryptionAlgoBytes());
+      }
+      if (((bitField0_ & 0x00000400) == 0x00000400)) {
+        output.writeBytes(15, encryptionParam_);
       }
     }
     
@@ -1634,6 +2162,18 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(12, eventTime_);
+      }
+      for (int i = 0; i < encryptionKeys_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(13, encryptionKeys_.get(i));
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(14, getEncryptionAlgoBytes());
+      }
+      if (((bitField0_ & 0x00000400) == 0x00000400)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(15, encryptionParam_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -1770,6 +2310,12 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000200);
         eventTime_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000400);
+        encryptionKeys_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000800);
+        encryptionAlgo_ = "";
+        bitField0_ = (bitField0_ & ~0x00001000);
+        encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00002000);
         return this;
       }
       
@@ -1850,6 +2396,19 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000100;
         }
         result.eventTime_ = eventTime_;
+        if (((bitField0_ & 0x00000800) == 0x00000800)) {
+          encryptionKeys_ = java.util.Collections.unmodifiableList(encryptionKeys_);
+          bitField0_ = (bitField0_ & ~0x00000800);
+        }
+        result.encryptionKeys_ = encryptionKeys_;
+        if (((from_bitField0_ & 0x00001000) == 0x00001000)) {
+          to_bitField0_ |= 0x00000200;
+        }
+        result.encryptionAlgo_ = encryptionAlgo_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00000400;
+        }
+        result.encryptionParam_ = encryptionParam_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -1903,6 +2462,22 @@ public final class PulsarApi {
         if (other.hasEventTime()) {
           setEventTime(other.getEventTime());
         }
+        if (!other.encryptionKeys_.isEmpty()) {
+          if (encryptionKeys_.isEmpty()) {
+            encryptionKeys_ = other.encryptionKeys_;
+            bitField0_ = (bitField0_ & ~0x00000800);
+          } else {
+            ensureEncryptionKeysIsMutable();
+            encryptionKeys_.addAll(other.encryptionKeys_);
+          }
+          
+        }
+        if (other.hasEncryptionAlgo()) {
+          setEncryptionAlgo(other.getEncryptionAlgo());
+        }
+        if (other.hasEncryptionParam()) {
+          setEncryptionParam(other.getEncryptionParam());
+        }
         return this;
       }
       
@@ -1921,6 +2496,12 @@ public final class PulsarApi {
         }
         for (int i = 0; i < getPropertiesCount(); i++) {
           if (!getProperties(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        for (int i = 0; i < getEncryptionKeysCount(); i++) {
+          if (!getEncryptionKeys(i).isInitialized()) {
             
             return false;
           }
@@ -2008,6 +2589,22 @@ public final class PulsarApi {
             case 96: {
               bitField0_ |= 0x00000400;
               eventTime_ = input.readUInt64();
+              break;
+            }
+            case 106: {
+              org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addEncryptionKeys(subBuilder.buildPartial());
+              break;
+            }
+            case 114: {
+              bitField0_ |= 0x00001000;
+              encryptionAlgo_ = input.readBytes();
+              break;
+            }
+            case 122: {
+              bitField0_ |= 0x00002000;
+              encryptionParam_ = input.readBytes();
               break;
             }
           }
@@ -2394,6 +2991,155 @@ public final class PulsarApi {
       public Builder clearEventTime() {
         bitField0_ = (bitField0_ & ~0x00000400);
         eventTime_ = 0L;
+        
+        return this;
+      }
+      
+      // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> encryptionKeys_ =
+        java.util.Collections.emptyList();
+      private void ensureEncryptionKeysIsMutable() {
+        if (!((bitField0_ & 0x00000800) == 0x00000800)) {
+          encryptionKeys_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue>(encryptionKeys_);
+          bitField0_ |= 0x00000800;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> getEncryptionKeysList() {
+        return java.util.Collections.unmodifiableList(encryptionKeys_);
+      }
+      public int getEncryptionKeysCount() {
+        return encryptionKeys_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index) {
+        return encryptionKeys_.get(index);
+      }
+      public Builder setEncryptionKeys(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.set(index, value);
+        
+        return this;
+      }
+      public Builder setEncryptionKeys(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addEncryptionKeys(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.add(value);
+        
+        return this;
+      }
+      public Builder addEncryptionKeys(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.add(index, value);
+        
+        return this;
+      }
+      public Builder addEncryptionKeys(
+          org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addEncryptionKeys(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllEncryptionKeys(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> values) {
+        ensureEncryptionKeysIsMutable();
+        super.addAll(values, encryptionKeys_);
+        
+        return this;
+      }
+      public Builder clearEncryptionKeys() {
+        encryptionKeys_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000800);
+        
+        return this;
+      }
+      public Builder removeEncryptionKeys(int index) {
+        ensureEncryptionKeysIsMutable();
+        encryptionKeys_.remove(index);
+        
+        return this;
+      }
+      
+      // optional string encryption_algo = 14;
+      private java.lang.Object encryptionAlgo_ = "";
+      public boolean hasEncryptionAlgo() {
+        return ((bitField0_ & 0x00001000) == 0x00001000);
+      }
+      public String getEncryptionAlgo() {
+        java.lang.Object ref = encryptionAlgo_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          encryptionAlgo_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setEncryptionAlgo(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00001000;
+        encryptionAlgo_ = value;
+        
+        return this;
+      }
+      public Builder clearEncryptionAlgo() {
+        bitField0_ = (bitField0_ & ~0x00001000);
+        encryptionAlgo_ = getDefaultInstance().getEncryptionAlgo();
+        
+        return this;
+      }
+      void setEncryptionAlgo(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00001000;
+        encryptionAlgo_ = value;
+        
+      }
+      
+      // optional bytes encryption_param = 15;
+      private com.google.protobuf.ByteString encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
+      public boolean hasEncryptionParam() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public com.google.protobuf.ByteString getEncryptionParam() {
+        return encryptionParam_;
+      }
+      public Builder setEncryptionParam(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00002000;
+        encryptionParam_ = value;
+        
+        return this;
+      }
+      public Builder clearEncryptionParam() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        encryptionParam_ = getDefaultInstance().getEncryptionParam();
         
         return this;
       }
@@ -10256,7 +11002,7 @@ public final class PulsarApi {
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
     
-    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
     boolean hasValidationError();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError getValidationError();
   }
@@ -10341,12 +11087,14 @@ public final class PulsarApi {
       DecompressionError(1, 1),
       ChecksumMismatch(2, 2),
       BatchDeSerializeError(3, 3),
+      DecryptionError(4, 4),
       ;
       
       public static final int UncompressedSizeCorruption_VALUE = 0;
       public static final int DecompressionError_VALUE = 1;
       public static final int ChecksumMismatch_VALUE = 2;
       public static final int BatchDeSerializeError_VALUE = 3;
+      public static final int DecryptionError_VALUE = 4;
       
       
       public final int getNumber() { return value; }
@@ -10357,6 +11105,7 @@ public final class PulsarApi {
           case 1: return DecompressionError;
           case 2: return ChecksumMismatch;
           case 3: return BatchDeSerializeError;
+          case 4: return DecryptionError;
           default: return null;
         }
       }
@@ -10413,8 +11162,8 @@ public final class PulsarApi {
       return messageId_;
     }
     
-    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
-    public static final int VALIDATION_ERROR_FIELD_NUMBER = 4;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
+    public static final int VALIDATION_ERROR_FIELD_NUMBER = 5;
     private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_;
     public boolean hasValidationError() {
       return ((bitField0_ & 0x00000008) == 0x00000008);
@@ -10472,7 +11221,7 @@ public final class PulsarApi {
         output.writeMessage(3, messageId_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeEnum(4, validationError_.getNumber());
+        output.writeEnum(5, validationError_.getNumber());
       }
     }
     
@@ -10496,7 +11245,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(4, validationError_.getNumber());
+          .computeEnumSize(5, validationError_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -10755,7 +11504,7 @@ public final class PulsarApi {
               subBuilder.recycle();
               break;
             }
-            case 32: {
+            case 40: {
               int rawValue = input.readEnum();
               org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError value = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.valueOf(rawValue);
               if (value != null) {
@@ -10858,7 +11607,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
+      // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.UncompressedSizeCorruption;
       public boolean hasValidationError() {
         return ((bitField0_ & 0x00000008) == 0x00000008);

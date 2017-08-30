@@ -52,6 +52,9 @@ public class ConsumerConfiguration implements Serializable {
     
     private int priorityLevel = 0;
 
+    private CryptoKeyReader cryptoKeyReader = null;
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -125,6 +128,41 @@ public class ConsumerConfiguration implements Serializable {
      */
     public int getReceiverQueueSize() {
         return this.receiverQueueSize;
+    }
+
+    /**
+     * @return the CryptoKeyReader
+     */
+    public CryptoKeyReader getCryptoKeyReader() {
+        return this.cryptoKeyReader;
+    }
+
+    /**
+     * Sets a {@link CryptoKeyReader}
+     *
+     * @param cryptoKeyReader
+     *            CryptoKeyReader object
+     */
+    public ConsumerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        checkNotNull(cryptoKeyReader);
+        this.cryptoKeyReader = cryptoKeyReader;
+        return this;
+    }
+
+    /**
+     * Sets the ConsumerCryptoFailureAction to the value specified
+     * 
+     * @param The consumer action
+     */
+    public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
+        cryptoFailureAction = action;
+    }
+
+    /**
+     * @return The ConsumerCryptoFailureAction
+     */
+    public ConsumerCryptoFailureAction getCryptoFailureAction() {
+        return this.cryptoFailureAction;
     }
 
     /**

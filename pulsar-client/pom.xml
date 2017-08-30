@@ -64,6 +64,11 @@
       <artifactId>sketches-core</artifactId>
       <version>0.6.0 </version>
     </dependency>
+
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

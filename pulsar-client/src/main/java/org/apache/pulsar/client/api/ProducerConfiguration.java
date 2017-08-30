@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
 import org.apache.pulsar.client.impl.SinglePartitionMessageRouterImpl;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import com.google.common.base.Objects;
 
@@ -46,6 +47,9 @@ public class ProducerConfiguration implements Serializable {
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
     private boolean batchingEnabled = false; // disabled by default
+
+    private CryptoKeyReader cryptoKeyReader;
+    private ConcurrentOpenHashSet<String> encryptionKeys;
 
     private CompressionType compressionType = CompressionType.NONE;
 
@@ -267,7 +271,61 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
+     * @return the CryptoKeyReader
+     */
+    public CryptoKeyReader getCryptoKeyReader() {
+        return this.cryptoKeyReader;
+    }
+
+    /**
+     * Sets a {@link CryptoKeyReader}
      *
+     * @param cryptoKeyReader
+     *            CryptoKeyReader object
+     */
+    public ProducerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        checkNotNull(cryptoKeyReader);
+        this.cryptoKeyReader = cryptoKeyReader;
+        return this;
+    }
+
+    /**
+     * 
+     * @return encryptionKeys
+     *  
+     */
+    public  ConcurrentOpenHashSet<String> getEncryptionKeys() {
+        return this.encryptionKeys;
+    }
+
+    /**
+     * 
+     * Returns true if encryption keys are added
+     *  
+     */
+    public boolean isEncryptionEnabled() {
+        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty();
+    }
+
+    /**
+     * Add public encryption key, used by producer to encrypt the data key.
+     *
+     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys.
+     * If keys are found, a callback getKey(String keyName) is invoked against each key to load
+     * the values of the key. Application should implement this callback to return the key in pkcs8 format.
+     * If compression is enabled, message is encrypted after compression.
+     * If batch messaging is enabled, the batched message is encrypted.
+     *
+     */
+    public void addEncryptionKey(String key) {
+        if (this.encryptionKeys == null) {
+            this.encryptionKeys = new ConcurrentOpenHashSet<String>(); 
+        }
+        this.encryptionKeys.add(key);
+    }
+
+    /**
+     * 
      * @return the batch time period in ms.
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      */

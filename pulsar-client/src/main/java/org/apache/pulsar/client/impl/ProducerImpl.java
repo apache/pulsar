@@ -31,6 +31,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.DoubleByteBuf;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -51,6 +54,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,9 +97,12 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     private final CompressionCodec compressor;
 
     private volatile long lastSequenceIdPublished;
+    private MessageCrypto msgCrypto = null;
 
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
+
+    private ScheduledExecutorService keyGenExecutor = null;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf,
             CompletableFuture<Producer> producerCreatedFuture, int partitionIndex) {
@@ -116,6 +123,26 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         } else {
             this.lastSequenceIdPublished = -1;
             this.msgIdGenerator = 0;
+        }
+
+        if (conf.isEncryptionEnabled()) {
+            this.msgCrypto = new MessageCrypto(true);
+
+            // Regenerate data key cipher at fixed interval
+            keyGenExecutor = Executors.newSingleThreadScheduledExecutor();
+            keyGenExecutor.scheduleWithFixedDelay(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
+                    } catch (CryptoException e) {
+                        if (!producerCreatedFuture.isDone()) {
+                            producerCreatedFuture.completeExceptionally(e);
+                        }
+                    }
+                }
+            }, 0L, 4L, TimeUnit.HOURS);
+
         }
 
         if (conf.getSendTimeoutMs() > 0) {
@@ -276,12 +303,13 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         doBatchSendAndAdd(msg, callback, payload);
                     }
                 } else {
-                    ByteBuf cmd = sendMessage(producerId, sequenceId, 1, msgMetadata.build(), compressedPayload);
+                    ByteBuf encryptedPayload = encryptMessage(msgMetadata, compressedPayload);
+                    ByteBuf cmd = sendMessage(producerId, sequenceId, 1, msgMetadata.build(), encryptedPayload);
                     msgMetadata.recycle();
 
                     final OpSendMsg op = OpSendMsg.create(msg, cmd, sequenceId, callback);
                     op.setNumMessagesInBatch(1);
-                    op.setBatchSizeByte(payload.readableBytes());
+                    op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
 
                     // Read the connection before validating if it's still connected, so that we avoid reading a null
@@ -312,9 +340,25 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         }
     }
 
+    private ByteBuf encryptMessage(MessageMetadata.Builder msgMetadata, ByteBuf compressedPayload) {
+
+        ByteBuf encryptedPayload = compressedPayload;
+        if (!conf.isEncryptionEnabled() || msgCrypto == null) {
+            return encryptedPayload;
+        }
+        try {
+            encryptedPayload = msgCrypto.encrypt(conf.getEncryptionKeys(), msgMetadata, compressedPayload);
+        } catch (PulsarClientException e) {
+            // TODO: Provide option to fail the request vs. proceed with warning
+            return compressedPayload;
+        }
+        return encryptedPayload;
+    }
+
     private ByteBuf sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) throws IOException {
         ChecksumType checksumType;
+
         if (getClientCnx() == null
                 || getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             checksumType = ChecksumType.Crc32c;
@@ -795,8 +839,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                         cnx.channel().close();
                         return null;
                     }
-                    log.error("[{}] [{}] Failed to create producer: {}", topic, producerName,
-                            cause.getMessage());
+                    log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
 
                     if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
                         synchronized (this) {
@@ -1092,8 +1135,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 numMessagesInBatch = batchMessageContainer.numMessagesInBatch;
                 ByteBuf compressedPayload = batchMessageContainer.getCompressedBatchMetadataAndPayload();
                 long sequenceId = batchMessageContainer.sequenceId;
+                ByteBuf encryptedPayload = encryptMessage(batchMessageContainer.messageMetadata, compressedPayload);
                 ByteBuf cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
-                        batchMessageContainer.setBatchAndBuild(), compressedPayload);
+                        batchMessageContainer.setBatchAndBuild(), encryptedPayload);
 
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);

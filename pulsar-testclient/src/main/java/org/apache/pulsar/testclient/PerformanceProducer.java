@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -43,6 +44,7 @@ import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
@@ -141,9 +143,18 @@ public class PerformanceProducer {
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
+
+        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+        public String encKeyName = null;
+
+        @Parameter(names = { "-v",
+                "--encryption-key-value-file" }, description = "The file which contains the public key to encrypt payload")
+        public String encKeyFile = null;
+
     }
 
     public static void main(String[] args) throws Exception {
+
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
         jc.setProgramName("pulsar-perf-producer");
@@ -230,6 +241,23 @@ public class PerformanceProducer {
         clientConf.setUseTls(arguments.useTls);
         clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
+        class EncKeyReader implements CryptoKeyReader {
+
+            byte[] encKeyValue;
+
+            EncKeyReader(byte[] value) {
+                encKeyValue = value;
+            }
+
+            @Override
+            public byte[] getKey(String keyName) {
+                if (keyName.equals("public-key." + arguments.encKeyName)) {
+                    return encKeyValue;
+                }
+                return null;
+            }
+
+        }
         PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
@@ -245,6 +273,13 @@ public class PerformanceProducer {
 
         // Block if queue is full else we will start seeing errors in sendAsync
         producerConf.setBlockIfQueueFull(true);
+
+        if (arguments.encKeyName != null) {
+            producerConf.addEncryptionKey(arguments.encKeyName);
+            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
+            EncKeyReader keyReader = new EncKeyReader(pKey);
+            producerConf.setCryptoKeyReader(keyReader);
+        }
 
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);

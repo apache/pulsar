@@ -28,8 +28,13 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -2155,6 +2160,232 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
         }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(groups = "encryption")
+    public void testRSAEncryption() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            @Override
+            public byte[] getKey(String keyName) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/" + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+        }
+
+        final int totalMsg = 10;
+
+        Set<String> messageSet = Sets.newHashSet();
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setCryptoKeyReader(new EncKeyReader());
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.addEncryptionKey("client-rsa.pem");
+        producerConf.setCryptoKeyReader(new EncKeyReader());
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer producer2 = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        for (int i = totalMsg; i < totalMsg*2; i++) {
+            String message = "my-message-" + i;
+            producer2.send(message.getBytes());
+        }
+
+        Message msg = null;
+
+        for (int i = 0; i < totalMsg*2; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(groups = "encryption")
+    public void testECDSAEncryption() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            @Override
+            public byte[] getKey(String keyName) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/" + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+        }
+
+        final int totalMsg = 10;
+
+        Set<String> messageSet = Sets.newHashSet();
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setCryptoKeyReader(new EncKeyReader());
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.addEncryptionKey("client-ecdsa.pem");
+        producerConf.setCryptoKeyReader(new EncKeyReader());
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message msg = null;
+
+        for (int i = 0; i < totalMsg; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(groups = "encryption")
+    public void testEncryptionFailure() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            @Override
+            public byte[] getKey(String keyName) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/" + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                    } catch (IOException e) {
+                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                    }
+                }
+                return null;
+            }
+
+        }
+
+        final int totalMsg = 10;
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        
+        Message msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        // 1. Invalid key name
+        producerConf.addEncryptionKey("client-non-existant-rsa.pem");
+        producerConf.setCryptoKeyReader(new EncKeyReader());
+
+        try {
+            Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+            Assert.fail("Producer creation should not suceed if failing to read key");
+        } catch (Exception e) {
+            // ok
+        }
+
+        // 2. Producer with valid key name
+        producerConf = new ProducerConfiguration();
+        producerConf.setCryptoKeyReader(new EncKeyReader());
+        producerConf.addEncryptionKey("client-rsa.pem");
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // 3. KeyReder is not set by consumer
+        // Receive should fail since key reader is not setup
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        Assert.assertNull(msg, "Receive should have failed with no keyreader");
+
+        // 4. Set consumer config to consume even if decryption fails
+        conf.setCryptoFailureAction(ConsumerCryptoFailureAction.CONSUME);
+        consumer.close();
+        consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+        
+        int msgNum = 0;
+        try {
+            // Receive should proceed and deliver encrypted message
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + msgNum++;
+            Assert.assertNotEquals(receivedMessage, expectedMessage,
+                    "Received encrypted message " + receivedMessage + " should not match the expected message " + expectedMessage);
+            consumer.acknowledgeCumulative(msg);
+        } catch (Exception e) {
+            Assert.fail("Failed to receive message even aftet ConsumerCryptoFailureAction.CONSUME is set.");
+        }
+
+        // 5. Set keyreader and failure action
+        conf.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
+        consumer.close();
+        // Set keyreader
+        conf.setCryptoKeyReader(new EncKeyReader());
+        consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
+
+        for (int i = msgNum; i < totalMsg-1; i++) {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+
+         //6. Set consumer config to discard if decryption fails
+        consumer.close();
+        ConsumerConfiguration conf2 = new ConsumerConfiguration();
+        conf2.setSubscriptionType(SubscriptionType.Exclusive);
+        conf2.setCryptoFailureAction(ConsumerCryptoFailureAction.DISCARD);
+        consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name", conf2);
+
+        // Receive should proceed and discard encrypted messages
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         log.info("-- Exiting {} test --", methodName);
     }
