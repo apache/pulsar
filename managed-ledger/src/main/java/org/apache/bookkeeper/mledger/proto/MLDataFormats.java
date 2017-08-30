@@ -1266,6 +1266,16 @@ public final class MLDataFormats {
         getIndividualDeletedMessagesOrBuilderList();
     org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRangeOrBuilder getIndividualDeletedMessagesOrBuilder(
         int index);
+    
+    // repeated .LongProperty properties = 4;
+    java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> 
+        getPropertiesList();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index);
+    int getPropertiesCount();
+    java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+        getPropertiesOrBuilderList();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
+        int index);
   }
   public static final class PositionInfo extends
       com.google.protobuf.GeneratedMessage
@@ -1337,10 +1347,32 @@ public final class MLDataFormats {
       return individualDeletedMessages_.get(index);
     }
     
+    // repeated .LongProperty properties = 4;
+    public static final int PROPERTIES_FIELD_NUMBER = 4;
+    private java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> properties_;
+    public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> getPropertiesList() {
+      return properties_;
+    }
+    public java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+        getPropertiesOrBuilderList() {
+      return properties_;
+    }
+    public int getPropertiesCount() {
+      return properties_.size();
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index) {
+      return properties_.get(index);
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
+        int index) {
+      return properties_.get(index);
+    }
+    
     private void initFields() {
       ledgerId_ = 0L;
       entryId_ = 0L;
       individualDeletedMessages_ = java.util.Collections.emptyList();
+      properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1361,6 +1393,12 @@ public final class MLDataFormats {
           return false;
         }
       }
+      for (int i = 0; i < getPropertiesCount(); i++) {
+        if (!getProperties(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -1376,6 +1414,9 @@ public final class MLDataFormats {
       }
       for (int i = 0; i < individualDeletedMessages_.size(); i++) {
         output.writeMessage(3, individualDeletedMessages_.get(i));
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        output.writeMessage(4, properties_.get(i));
       }
       getUnknownFields().writeTo(output);
     }
@@ -1397,6 +1438,10 @@ public final class MLDataFormats {
       for (int i = 0; i < individualDeletedMessages_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(3, individualDeletedMessages_.get(i));
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(4, properties_.get(i));
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -1515,6 +1560,7 @@ public final class MLDataFormats {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
           getIndividualDeletedMessagesFieldBuilder();
+          getPropertiesFieldBuilder();
         }
       }
       private static Builder create() {
@@ -1532,6 +1578,12 @@ public final class MLDataFormats {
           bitField0_ = (bitField0_ & ~0x00000004);
         } else {
           individualDeletedMessagesBuilder_.clear();
+        }
+        if (propertiesBuilder_ == null) {
+          properties_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000008);
+        } else {
+          propertiesBuilder_.clear();
         }
         return this;
       }
@@ -1588,6 +1640,15 @@ public final class MLDataFormats {
         } else {
           result.individualDeletedMessages_ = individualDeletedMessagesBuilder_.build();
         }
+        if (propertiesBuilder_ == null) {
+          if (((bitField0_ & 0x00000008) == 0x00000008)) {
+            properties_ = java.util.Collections.unmodifiableList(properties_);
+            bitField0_ = (bitField0_ & ~0x00000008);
+          }
+          result.properties_ = properties_;
+        } else {
+          result.properties_ = propertiesBuilder_.build();
+        }
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -1636,6 +1697,32 @@ public final class MLDataFormats {
             }
           }
         }
+        if (propertiesBuilder_ == null) {
+          if (!other.properties_.isEmpty()) {
+            if (properties_.isEmpty()) {
+              properties_ = other.properties_;
+              bitField0_ = (bitField0_ & ~0x00000008);
+            } else {
+              ensurePropertiesIsMutable();
+              properties_.addAll(other.properties_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.properties_.isEmpty()) {
+            if (propertiesBuilder_.isEmpty()) {
+              propertiesBuilder_.dispose();
+              propertiesBuilder_ = null;
+              properties_ = other.properties_;
+              bitField0_ = (bitField0_ & ~0x00000008);
+              propertiesBuilder_ = 
+                com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                   getPropertiesFieldBuilder() : null;
+            } else {
+              propertiesBuilder_.addAllMessages(other.properties_);
+            }
+          }
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -1651,6 +1738,12 @@ public final class MLDataFormats {
         }
         for (int i = 0; i < getIndividualDeletedMessagesCount(); i++) {
           if (!getIndividualDeletedMessages(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        for (int i = 0; i < getPropertiesCount(); i++) {
+          if (!getProperties(i).isInitialized()) {
             
             return false;
           }
@@ -1695,6 +1788,12 @@ public final class MLDataFormats {
               org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addIndividualDeletedMessages(subBuilder.buildPartial());
+              break;
+            }
+            case 34: {
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addProperties(subBuilder.buildPartial());
               break;
             }
           }
@@ -1929,6 +2028,192 @@ public final class MLDataFormats {
           individualDeletedMessages_ = null;
         }
         return individualDeletedMessagesBuilder_;
+      }
+      
+      // repeated .LongProperty properties = 4;
+      private java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> properties_ =
+        java.util.Collections.emptyList();
+      private void ensurePropertiesIsMutable() {
+        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+          properties_ = new java.util.ArrayList<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty>(properties_);
+          bitField0_ |= 0x00000008;
+         }
+      }
+      
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> propertiesBuilder_;
+      
+      public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> getPropertiesList() {
+        if (propertiesBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(properties_);
+        } else {
+          return propertiesBuilder_.getMessageList();
+        }
+      }
+      public int getPropertiesCount() {
+        if (propertiesBuilder_ == null) {
+          return properties_.size();
+        } else {
+          return propertiesBuilder_.getCount();
+        }
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index) {
+        if (propertiesBuilder_ == null) {
+          return properties_.get(index);
+        } else {
+          return propertiesBuilder_.getMessage(index);
+        }
+      }
+      public Builder setProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.set(index, value);
+          onChanged();
+        } else {
+          propertiesBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      public Builder setProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addProperties(org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.add(value);
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.add(index, value);
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      public Builder addProperties(
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.add(builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addAllProperties(
+          java.lang.Iterable<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> values) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          super.addAll(values, properties_);
+          onChanged();
+        } else {
+          propertiesBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      public Builder clearProperties() {
+        if (propertiesBuilder_ == null) {
+          properties_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000008);
+          onChanged();
+        } else {
+          propertiesBuilder_.clear();
+        }
+        return this;
+      }
+      public Builder removeProperties(int index) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.remove(index);
+          onChanged();
+        } else {
+          propertiesBuilder_.remove(index);
+        }
+        return this;
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder getPropertiesBuilder(
+          int index) {
+        return getPropertiesFieldBuilder().getBuilder(index);
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
+          int index) {
+        if (propertiesBuilder_ == null) {
+          return properties_.get(index);  } else {
+          return propertiesBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      public java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+           getPropertiesOrBuilderList() {
+        if (propertiesBuilder_ != null) {
+          return propertiesBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(properties_);
+        }
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder addPropertiesBuilder() {
+        return getPropertiesFieldBuilder().addBuilder(
+            org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance());
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder addPropertiesBuilder(
+          int index) {
+        return getPropertiesFieldBuilder().addBuilder(
+            index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance());
+      }
+      public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder> 
+           getPropertiesBuilderList() {
+        return getPropertiesFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+          getPropertiesFieldBuilder() {
+        if (propertiesBuilder_ == null) {
+          propertiesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder>(
+                  properties_,
+                  ((bitField0_ & 0x00000008) == 0x00000008),
+                  getParentForChildren(),
+                  isClean());
+          properties_ = null;
+        }
+        return propertiesBuilder_;
       }
       
       // @@protoc_insertion_point(builder_scope:PositionInfo)
@@ -2952,6 +3237,454 @@ public final class MLDataFormats {
     // @@protoc_insertion_point(class_scope:MessageRange)
   }
   
+  public interface LongPropertyOrBuilder
+      extends com.google.protobuf.MessageOrBuilder {
+    
+    // required string name = 1;
+    boolean hasName();
+    String getName();
+    
+    // required int64 value = 2;
+    boolean hasValue();
+    long getValue();
+  }
+  public static final class LongProperty extends
+      com.google.protobuf.GeneratedMessage
+      implements LongPropertyOrBuilder {
+    // Use LongProperty.newBuilder() to construct.
+    private LongProperty(Builder builder) {
+      super(builder);
+    }
+    private LongProperty(boolean noInit) {}
+    
+    private static final LongProperty defaultInstance;
+    public static LongProperty getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public LongProperty getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.apache.bookkeeper.mledger.proto.MLDataFormats.internal_static_LongProperty_descriptor;
+    }
+    
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.apache.bookkeeper.mledger.proto.MLDataFormats.internal_static_LongProperty_fieldAccessorTable;
+    }
+    
+    private int bitField0_;
+    // required string name = 1;
+    public static final int NAME_FIELD_NUMBER = 1;
+    private java.lang.Object name_;
+    public boolean hasName() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public String getName() {
+      java.lang.Object ref = name_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          name_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getNameBytes() {
+      java.lang.Object ref = name_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        name_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required int64 value = 2;
+    public static final int VALUE_FIELD_NUMBER = 2;
+    private long value_;
+    public boolean hasValue() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public long getValue() {
+      return value_;
+    }
+    
+    private void initFields() {
+      name_ = "";
+      value_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasValue()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getNameBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeInt64(2, value_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(1, getNameBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(2, value_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder>
+       implements org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.apache.bookkeeper.mledger.proto.MLDataFormats.internal_static_LongProperty_descriptor;
+      }
+      
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.apache.bookkeeper.mledger.proto.MLDataFormats.internal_static_LongProperty_fieldAccessorTable;
+      }
+      
+      // Construct using org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+      
+      private Builder(BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        }
+      }
+      private static Builder create() {
+        return new Builder();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        name_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        value_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDescriptor();
+      }
+      
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getDefaultInstanceForType() {
+        return org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance();
+      }
+      
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty build() {
+        org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty buildPartial() {
+        org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty result = new org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.name_ = name_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.value_ = value_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty) {
+          return mergeFrom((org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+      
+      public Builder mergeFrom(org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty other) {
+        if (other == org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance()) return this;
+        if (other.hasName()) {
+          setName(other.getName());
+        }
+        if (other.hasValue()) {
+          setValue(other.getValue());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasName()) {
+          
+          return false;
+        }
+        if (!hasValue()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder(
+            this.getUnknownFields());
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              this.setUnknownFields(unknownFields.build());
+              onChanged();
+              return this;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                this.setUnknownFields(unknownFields.build());
+                onChanged();
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              name_ = input.readBytes();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              value_ = input.readInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string name = 1;
+      private java.lang.Object name_ = "";
+      public boolean hasName() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getName() {
+        java.lang.Object ref = name_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          name_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        name_ = value;
+        onChanged();
+        return this;
+      }
+      public Builder clearName() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        name_ = getDefaultInstance().getName();
+        onChanged();
+        return this;
+      }
+      void setName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000001;
+        name_ = value;
+        onChanged();
+      }
+      
+      // required int64 value = 2;
+      private long value_ ;
+      public boolean hasValue() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public long getValue() {
+        return value_;
+      }
+      public Builder setValue(long value) {
+        bitField0_ |= 0x00000002;
+        value_ = value;
+        onChanged();
+        return this;
+      }
+      public Builder clearValue() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        value_ = 0L;
+        onChanged();
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:LongProperty)
+    }
+    
+    static {
+      defaultInstance = new LongProperty(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:LongProperty)
+  }
+  
   public interface ManagedCursorInfoOrBuilder
       extends com.google.protobuf.MessageOrBuilder {
     
@@ -2975,6 +3708,16 @@ public final class MLDataFormats {
     java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRangeOrBuilder> 
         getIndividualDeletedMessagesOrBuilderList();
     org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRangeOrBuilder getIndividualDeletedMessagesOrBuilder(
+        int index);
+    
+    // repeated .LongProperty properties = 5;
+    java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> 
+        getPropertiesList();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index);
+    int getPropertiesCount();
+    java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+        getPropertiesOrBuilderList();
+    org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
         int index);
   }
   public static final class ManagedCursorInfo extends
@@ -3057,11 +3800,33 @@ public final class MLDataFormats {
       return individualDeletedMessages_.get(index);
     }
     
+    // repeated .LongProperty properties = 5;
+    public static final int PROPERTIES_FIELD_NUMBER = 5;
+    private java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> properties_;
+    public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> getPropertiesList() {
+      return properties_;
+    }
+    public java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+        getPropertiesOrBuilderList() {
+      return properties_;
+    }
+    public int getPropertiesCount() {
+      return properties_.size();
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index) {
+      return properties_.get(index);
+    }
+    public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
+        int index) {
+      return properties_.get(index);
+    }
+    
     private void initFields() {
       cursorsLedgerId_ = 0L;
       markDeleteLedgerId_ = 0L;
       markDeleteEntryId_ = 0L;
       individualDeletedMessages_ = java.util.Collections.emptyList();
+      properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3074,6 +3839,12 @@ public final class MLDataFormats {
       }
       for (int i = 0; i < getIndividualDeletedMessagesCount(); i++) {
         if (!getIndividualDeletedMessages(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      for (int i = 0; i < getPropertiesCount(); i++) {
+        if (!getProperties(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -3096,6 +3867,9 @@ public final class MLDataFormats {
       }
       for (int i = 0; i < individualDeletedMessages_.size(); i++) {
         output.writeMessage(4, individualDeletedMessages_.get(i));
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        output.writeMessage(5, properties_.get(i));
       }
       getUnknownFields().writeTo(output);
     }
@@ -3121,6 +3895,10 @@ public final class MLDataFormats {
       for (int i = 0; i < individualDeletedMessages_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, individualDeletedMessages_.get(i));
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(5, properties_.get(i));
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -3239,6 +4017,7 @@ public final class MLDataFormats {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
           getIndividualDeletedMessagesFieldBuilder();
+          getPropertiesFieldBuilder();
         }
       }
       private static Builder create() {
@@ -3258,6 +4037,12 @@ public final class MLDataFormats {
           bitField0_ = (bitField0_ & ~0x00000008);
         } else {
           individualDeletedMessagesBuilder_.clear();
+        }
+        if (propertiesBuilder_ == null) {
+          properties_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000010);
+        } else {
+          propertiesBuilder_.clear();
         }
         return this;
       }
@@ -3318,6 +4103,15 @@ public final class MLDataFormats {
         } else {
           result.individualDeletedMessages_ = individualDeletedMessagesBuilder_.build();
         }
+        if (propertiesBuilder_ == null) {
+          if (((bitField0_ & 0x00000010) == 0x00000010)) {
+            properties_ = java.util.Collections.unmodifiableList(properties_);
+            bitField0_ = (bitField0_ & ~0x00000010);
+          }
+          result.properties_ = properties_;
+        } else {
+          result.properties_ = propertiesBuilder_.build();
+        }
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -3369,6 +4163,32 @@ public final class MLDataFormats {
             }
           }
         }
+        if (propertiesBuilder_ == null) {
+          if (!other.properties_.isEmpty()) {
+            if (properties_.isEmpty()) {
+              properties_ = other.properties_;
+              bitField0_ = (bitField0_ & ~0x00000010);
+            } else {
+              ensurePropertiesIsMutable();
+              properties_.addAll(other.properties_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.properties_.isEmpty()) {
+            if (propertiesBuilder_.isEmpty()) {
+              propertiesBuilder_.dispose();
+              propertiesBuilder_ = null;
+              properties_ = other.properties_;
+              bitField0_ = (bitField0_ & ~0x00000010);
+              propertiesBuilder_ = 
+                com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                   getPropertiesFieldBuilder() : null;
+            } else {
+              propertiesBuilder_.addAllMessages(other.properties_);
+            }
+          }
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -3380,6 +4200,12 @@ public final class MLDataFormats {
         }
         for (int i = 0; i < getIndividualDeletedMessagesCount(); i++) {
           if (!getIndividualDeletedMessages(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        for (int i = 0; i < getPropertiesCount(); i++) {
+          if (!getProperties(i).isInitialized()) {
             
             return false;
           }
@@ -3429,6 +4255,12 @@ public final class MLDataFormats {
               org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addIndividualDeletedMessages(subBuilder.buildPartial());
+              break;
+            }
+            case 42: {
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addProperties(subBuilder.buildPartial());
               break;
             }
           }
@@ -3686,6 +4518,192 @@ public final class MLDataFormats {
         return individualDeletedMessagesBuilder_;
       }
       
+      // repeated .LongProperty properties = 5;
+      private java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> properties_ =
+        java.util.Collections.emptyList();
+      private void ensurePropertiesIsMutable() {
+        if (!((bitField0_ & 0x00000010) == 0x00000010)) {
+          properties_ = new java.util.ArrayList<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty>(properties_);
+          bitField0_ |= 0x00000010;
+         }
+      }
+      
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> propertiesBuilder_;
+      
+      public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> getPropertiesList() {
+        if (propertiesBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(properties_);
+        } else {
+          return propertiesBuilder_.getMessageList();
+        }
+      }
+      public int getPropertiesCount() {
+        if (propertiesBuilder_ == null) {
+          return properties_.size();
+        } else {
+          return propertiesBuilder_.getCount();
+        }
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty getProperties(int index) {
+        if (propertiesBuilder_ == null) {
+          return properties_.get(index);
+        } else {
+          return propertiesBuilder_.getMessage(index);
+        }
+      }
+      public Builder setProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.set(index, value);
+          onChanged();
+        } else {
+          propertiesBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      public Builder setProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addProperties(org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.add(value);
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty value) {
+        if (propertiesBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensurePropertiesIsMutable();
+          properties_.add(index, value);
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      public Builder addProperties(
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.add(builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder builderForValue) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          propertiesBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      public Builder addAllProperties(
+          java.lang.Iterable<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty> values) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          super.addAll(values, properties_);
+          onChanged();
+        } else {
+          propertiesBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      public Builder clearProperties() {
+        if (propertiesBuilder_ == null) {
+          properties_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000010);
+          onChanged();
+        } else {
+          propertiesBuilder_.clear();
+        }
+        return this;
+      }
+      public Builder removeProperties(int index) {
+        if (propertiesBuilder_ == null) {
+          ensurePropertiesIsMutable();
+          properties_.remove(index);
+          onChanged();
+        } else {
+          propertiesBuilder_.remove(index);
+        }
+        return this;
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder getPropertiesBuilder(
+          int index) {
+        return getPropertiesFieldBuilder().getBuilder(index);
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
+          int index) {
+        if (propertiesBuilder_ == null) {
+          return properties_.get(index);  } else {
+          return propertiesBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      public java.util.List<? extends org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+           getPropertiesOrBuilderList() {
+        if (propertiesBuilder_ != null) {
+          return propertiesBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(properties_);
+        }
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder addPropertiesBuilder() {
+        return getPropertiesFieldBuilder().addBuilder(
+            org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance());
+      }
+      public org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder addPropertiesBuilder(
+          int index) {
+        return getPropertiesFieldBuilder().addBuilder(
+            index, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.getDefaultInstance());
+      }
+      public java.util.List<org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder> 
+           getPropertiesBuilderList() {
+        return getPropertiesFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder> 
+          getPropertiesFieldBuilder() {
+        if (propertiesBuilder_ == null) {
+          propertiesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder, org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder>(
+                  properties_,
+                  ((bitField0_ & 0x00000010) == 0x00000010),
+                  getParentForChildren(),
+                  isClean());
+          properties_ = null;
+        }
+        return propertiesBuilder_;
+      }
+      
       // @@protoc_insertion_point(builder_scope:ManagedCursorInfo)
     }
     
@@ -3723,6 +4741,11 @@ public final class MLDataFormats {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_MessageRange_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_LongProperty_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_LongProperty_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
     internal_static_ManagedCursorInfo_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -3742,18 +4765,21 @@ public final class MLDataFormats {
       "tedPosition\030\002 \001(\0132\023.NestedPositionInfo\032P" +
       "\n\nLedgerInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entrie" +
       "s\030\002 \001(\003\022\014\n\004size\030\003 \001(\003\022\021\n\ttimestamp\030\004 \001(\003" +
-      "\"c\n\014PositionInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007en" +
-      "tryId\030\002 \002(\003\0220\n\031individualDeletedMessages" +
-      "\030\003 \003(\0132\r.MessageRange\"7\n\022NestedPositionI" +
-      "nfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f",
-      "\n\014MessageRange\022*\n\rlowerEndpoint\030\001 \002(\0132\023." +
-      "NestedPositionInfo\022*\n\rupperEndpoint\030\002 \002(" +
-      "\0132\023.NestedPositionInfo\"\225\001\n\021ManagedCursor" +
-      "Info\022\027\n\017cursorsLedgerId\030\001 \002(\003\022\032\n\022markDel" +
-      "eteLedgerId\030\002 \001(\003\022\031\n\021markDeleteEntryId\030\003" +
-      " \001(\003\0220\n\031individualDeletedMessages\030\004 \003(\0132" +
-      "\r.MessageRangeB\'\n#org.apache.bookkeeper." +
-      "mledger.protoH\001"
+      "\"\206\001\n\014PositionInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007e" +
+      "ntryId\030\002 \002(\003\0220\n\031individualDeletedMessage" +
+      "s\030\003 \003(\0132\r.MessageRange\022!\n\nproperties\030\004 \003" +
+      "(\0132\r.LongProperty\"7\n\022NestedPositionInfo\022",
+      "\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f\n\014Me" +
+      "ssageRange\022*\n\rlowerEndpoint\030\001 \002(\0132\023.Nest" +
+      "edPositionInfo\022*\n\rupperEndpoint\030\002 \002(\0132\023." +
+      "NestedPositionInfo\"+\n\014LongProperty\022\014\n\004na" +
+      "me\030\001 \002(\t\022\r\n\005value\030\002 \002(\003\"\270\001\n\021ManagedCurso" +
+      "rInfo\022\027\n\017cursorsLedgerId\030\001 \002(\003\022\032\n\022markDe" +
+      "leteLedgerId\030\002 \001(\003\022\031\n\021markDeleteEntryId\030" +
+      "\003 \001(\003\0220\n\031individualDeletedMessages\030\004 \003(\013" +
+      "2\r.MessageRange\022!\n\nproperties\030\005 \003(\0132\r.Lo" +
+      "ngPropertyB\'\n#org.apache.bookkeeper.mled",
+      "ger.protoH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -3781,7 +4807,7 @@ public final class MLDataFormats {
           internal_static_PositionInfo_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_PositionInfo_descriptor,
-              new java.lang.String[] { "LedgerId", "EntryId", "IndividualDeletedMessages", },
+              new java.lang.String[] { "LedgerId", "EntryId", "IndividualDeletedMessages", "Properties", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo.Builder.class);
           internal_static_NestedPositionInfo_descriptor =
@@ -3800,12 +4826,20 @@ public final class MLDataFormats {
               new java.lang.String[] { "LowerEndpoint", "UpperEndpoint", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange.Builder.class);
-          internal_static_ManagedCursorInfo_descriptor =
+          internal_static_LongProperty_descriptor =
             getDescriptor().getMessageTypes().get(4);
+          internal_static_LongProperty_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_LongProperty_descriptor,
+              new java.lang.String[] { "Name", "Value", },
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.class,
+              org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder.class);
+          internal_static_ManagedCursorInfo_descriptor =
+            getDescriptor().getMessageTypes().get(5);
           internal_static_ManagedCursorInfo_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ManagedCursorInfo_descriptor,
-              new java.lang.String[] { "CursorsLedgerId", "MarkDeleteLedgerId", "MarkDeleteEntryId", "IndividualDeletedMessages", },
+              new java.lang.String[] { "CursorsLedgerId", "MarkDeleteLedgerId", "MarkDeleteEntryId", "IndividualDeletedMessages", "Properties", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo.Builder.class);
           return null;

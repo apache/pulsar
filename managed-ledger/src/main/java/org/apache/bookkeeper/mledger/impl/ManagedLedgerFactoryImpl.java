@@ -58,6 +58,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -395,6 +396,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 cursorInfo.markDelete = new PositionInfo();
                                                 cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
                                                 cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
+                                            }
+
+                                            if (pbCursorInfo.getPropertiesCount() > 0) {
+                                                cursorInfo.properties = Maps.newTreeMap();
+                                                for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
+                                                    LongProperty property = pbCursorInfo.getProperties(i);
+                                                    cursorInfo.properties.put(property.getName(), property.getValue());
+                                                }
                                             }
 
                                             if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {

@@ -42,6 +42,10 @@ message PositionInfo {
 	required int64 ledgerId = 1;
 	required int64 entryId  = 2;
     repeated MessageRange individualDeletedMessages = 3;
+
+    // Additional custom properties associated with
+	// the current cursor position
+	repeated LongProperty properties = 4;
 }
 
 message NestedPositionInfo {
@@ -54,6 +58,12 @@ message MessageRange {
     required NestedPositionInfo upperEndpoint = 2;
 }
 
+// Generic string and long tuple
+message LongProperty {
+    required string name = 1;
+    required int64 value  = 2;
+}
+
 message ManagedCursorInfo {
 	// If the ledger id is -1, then the mark-delete position is
 	// the one from the (ledgerId, entryId) snapshot below
@@ -63,4 +73,8 @@ message ManagedCursorInfo {
 	optional int64 markDeleteLedgerId = 2;
 	optional int64 markDeleteEntryId  = 3;
 	repeated MessageRange individualDeletedMessages = 4;
+
+	// Additional custom properties associated with
+	// the current cursor position
+	repeated LongProperty properties = 5;
 }
