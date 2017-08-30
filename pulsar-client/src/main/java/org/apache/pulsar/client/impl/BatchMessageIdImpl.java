@@ -31,7 +31,7 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
         this.batchIndex = batchIndex;
     }
 
-    int getBatchIndex() {
+    public int getBatchIndex() {
         return batchIndex;
     }
 

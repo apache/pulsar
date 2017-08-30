@@ -21,6 +21,8 @@ package org.apache.pulsar.client.admin.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,8 +48,13 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -65,9 +72,12 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 public class PersistentTopicsImpl extends BaseResource implements PersistentTopics {
     private final WebTarget persistentTopics;
-
+    private final String BATCH_HEADER = "X-Pulsar-num-msg-batch";
     public PersistentTopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
         this.persistentTopics = web.path("/persistent");
@@ -515,10 +525,10 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<Message> peekNthMessage(String destination, String subName, int messagePosition) {
+    private CompletableFuture<List<Message>> peekNthMessage(String destination, String subName, int messagePosition) {
         DestinationName ds = validateTopic(destination);
         String encodedSubName = Codec.encode(subName);
-        final CompletableFuture<Message> future = new CompletableFuture<Message>();
+        final CompletableFuture<List<Message>> future = new CompletableFuture<List<Message>>();
         asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
                 .path(encodedSubName).path("position").path(String.valueOf(messagePosition)),
                 new InvocationCallback<Response>() {
@@ -526,8 +536,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                     @Override
                     public void completed(Response response) {
                         try {
-                            Message msg = getMessageFromHttpResponse(response);
-                            future.complete(msg);
+                            future.complete(getMessageFromHttpResponse(response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -543,7 +552,6 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
 
     @Override
     public List<Message> peekMessages(String destination, String subName, int numMessages) throws PulsarAdminException {
-
         try {
             return peekMessagesAsync(destination, subName, numMessages).get();
         } catch (ExecutionException e) {
@@ -565,15 +573,15 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             if (ex != null) {
                 futures.completeExceptionally(ex);
             } else {
-                messages.add(r);
-                List<CompletableFuture<Message>> futureMessages = Lists.newArrayList();
+                messages.addAll(r);
+                List<CompletableFuture<List<Message>>> futureMessages = Lists.newArrayList();
                 for (int i = 2; i <= numMessages; i++) {
                     futureMessages.add(peekNthMessage(destination, subName, i));
                 }
 
                 try {
-                    for (CompletableFuture<Message> futureMessage : futureMessages) {
-                        messages.add(futureMessage.get());
+                    for (CompletableFuture<List<Message>> futureMessage : futureMessages) {
+                        messages.addAll(futureMessage.get());
                     }
                 } catch (Exception e) {
                     // if we get a not found exception, it means that the position for the message we are trying to get
@@ -655,7 +663,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return DestinationName.get(destination);
     }
 
-    private Message getMessageFromHttpResponse(Response response) throws Exception {
+    private List<Message> getMessageFromHttpResponse(Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             if (response.getStatus() >= 500) {
@@ -676,9 +684,14 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
 
             Map<String, String> properties = Maps.newTreeMap();
             MultivaluedMap<String, Object> headers = response.getHeaders();
-            Object publishTime = headers.getFirst("X-Pulsar-publish-time");
-            if (publishTime != null) {
-                properties.put("publish-time", (String) publishTime);
+            Object tmp = headers.getFirst("X-Pulsar-publish-time");
+            if (tmp != null) {
+                properties.put("publish-time", (String) tmp);
+            }
+            tmp =  headers.getFirst(BATCH_HEADER);
+            if (response.getHeaderString(BATCH_HEADER) != null) {
+                properties.put(BATCH_HEADER, (String)tmp);
+                return getBatchMessagFromHTTP(msgId, data, properties);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
@@ -688,12 +701,39 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
             }
 
-            return new MessageImpl(msgId, properties, data);
+            return new ArrayList<Message>() {{ add(new MessageImpl(msgId, properties, data)); }};
         } finally {
             if (stream != null) {
                 stream.close();
             }
         }
+    }
+
+    private List<Message> getBatchMessagFromHTTP(String msgId, byte[] data, Map<String, String> properties) {
+        List<Message> ret = new ArrayList<Message>();
+        int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
+        for (int i = 0; i < batchSize; i++) {
+            String batchMsgId = msgId + ":" + i;
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
+                    .newBuilder();
+            ByteBuf buf = Unpooled.wrappedBuffer(data);
+            try {
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i,
+                        batchSize);
+                SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.build();
+                if (singleMessageMetadata.getPropertiesCount() > 0) {
+                    for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
+                        properties.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                ret.add(new MessageImpl(batchMsgId, properties, singleMessagePayload));
+            } catch (Exception ex) {
+                log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
+            }
+            buf.release();
+            singleMessageMetadataBuilder.recycle();          
+        }
+        return ret;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsImpl.class);
