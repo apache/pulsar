@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -333,7 +334,12 @@ public class NamespaceService {
 
             if (candidateBroker == null) {
                 if (!this.loadManager.get().isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
-                    candidateBroker = getLeastLoadedFromLoadManager(bundle);
+                    Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
+                    if (!availableBroker.isPresent()) {
+                        lookupFuture.complete(Optional.empty());
+                        return;
+                    }
+                    candidateBroker = availableBroker.get();
                 } else {
                     if (authoritative) {
                         // leader broker already assigned the current broker as owner
@@ -452,13 +458,19 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    private String getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        String lookupAddress = loadManager.get().getLeastLoaded(serviceUnit).getResourceId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getWebServiceAddress(),
-                    lookupAddress);
+    private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
+        ResourceUnit leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
+        if (leastLoadedBroker != null) {
+            String lookupAddress = leastLoadedBroker.getResourceId();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
+                        pulsar.getWebServiceAddress(), lookupAddress);
+            }
+            return Optional.of(lookupAddress);
+        } else {
+            LOG.warn("No broker is available for {}", serviceUnit);
+            return Optional.empty();
         }
-        return lookupAddress;
     }
 
     public void unloadNamespace(NamespaceName ns) throws Exception {

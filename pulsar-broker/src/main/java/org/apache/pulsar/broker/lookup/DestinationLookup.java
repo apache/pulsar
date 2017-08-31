@@ -256,7 +256,8 @@ public class DestinationLookup extends PulsarWebResource {
                             }
 
                             if (!lookupResult.isPresent()) {
-                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, "Namespace bundle is not owned by any broker", requestId));
+                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                        "No broker was available to own " + fqdn, requestId));
                                 return;
                             }
 
