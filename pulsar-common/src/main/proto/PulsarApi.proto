@@ -60,6 +60,10 @@ message MessageMetadata {
 	//optional sfixed64 checksum = 10;
 	// differentiate single and batch message metadata
 	optional int32 num_messages_in_batch = 11 [default = 1];
+
+        // the timestamp that this event occurs. it is typically set by applications.
+        // if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
+        optional uint64 event_time = 12 [default = 0];
 }
 
 
