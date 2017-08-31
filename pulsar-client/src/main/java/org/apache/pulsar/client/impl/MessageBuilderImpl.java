@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +78,13 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setKey(String key) {
         msgMetadataBuilder.setPartitionKey(key);
+        return this;
+    }
+
+    @Override
+    public MessageBuilder setEventTime(long timestamp) {
+        checkArgument(timestamp > 0, "Invalid timestamp : '%s'", timestamp);
+        msgMetadataBuilder.setEventTime(timestamp);
         return this;
     }
 

@@ -73,7 +73,24 @@ public interface Message {
      */
     MessageId getMessageId();
 
+    /**
+     * Get the publish time of this message. The publish time is the timestamp that a client publish the message.
+     *
+     * @return publish time of this message.
+     * @see #getEventTime()
+     */
     long getPublishTime();
+
+    /**
+     * Get the event time associated with this message. It is typically set by the applications via
+     * {@link MessageBuilder#setEventTime(long)}.
+     *
+     * <p>If there isn't any event time associated with this event, it will return 0.
+     *
+     * @see MessageBuilder#setEventTime(long)
+     * @since 1.20.0
+     */
+    long getEventTime();
 
     /**
      * Check whether the message has a key
