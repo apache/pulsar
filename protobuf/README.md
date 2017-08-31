@@ -25,20 +25,6 @@ export PULSAR_HOME=<Path where you cloned the pulsar repo>
 cd $HOME
 git clone https://github.com/google/protobuf.git
 
-### For C++ ###
-cd ${HOME}/protobuf
-git checkout v2.6.0
-
-### Compile protobuf
-autoreconf --install
-./configure
-make
-
-### Re-generate PulsarApi
-cd ${PULSAR_HOME}/pulsar-client-cpp/
-export PROTOC=${HOME}/protobuf/src/protoc 
-./generate_protobuf.sh
-
 ### For Java ###
 cd ${HOME}/protobuf
 git checkout v2.4.1
