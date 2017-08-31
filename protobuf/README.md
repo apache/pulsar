@@ -27,7 +27,6 @@ export PULSAR_HOME=<Path where you cloned the pulsar repo>
 cd $HOME
 git clone https://github.com/google/protobuf.git
 
-### For Java ###
 cd ${HOME}/protobuf
 git checkout v2.4.1
 
