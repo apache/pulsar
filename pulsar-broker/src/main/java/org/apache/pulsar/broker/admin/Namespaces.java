@@ -1081,6 +1081,7 @@ public class Namespaces extends AdminResource {
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setPersistence(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, PersistencePolicies persistence) {
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
