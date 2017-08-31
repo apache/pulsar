@@ -691,7 +691,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             tmp =  headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
                 properties.put(BATCH_HEADER, (String)tmp);
-                return getBatchMessagFromHTTP(msgId, data, properties);
+                return getIndividualMsgsFromBatch(msgId, data, properties);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
@@ -709,7 +709,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         }
     }
 
-    private List<Message> getBatchMessagFromHTTP(String msgId, byte[] data, Map<String, String> properties) {
+    private List<Message> getIndividualMsgsFromBatch(String msgId, byte[] data, Map<String, String> properties) {
         List<Message> ret = new ArrayList<Message>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         for (int i = 0; i < batchSize; i++) {
