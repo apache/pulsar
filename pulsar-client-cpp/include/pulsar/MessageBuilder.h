@@ -73,7 +73,7 @@ class MessageBuilder {
     /**
      * Set the event timestamp for the message.
      */
-    MessageBuilder& setEventTimestamp(uint64_t event_timestamp);
+    MessageBuilder& setEventTimestamp(uint64_t eventTimestamp);
 
     /**
      * override namespace replication clusters.  note that it is the

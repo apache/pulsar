@@ -58,7 +58,7 @@ private:
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
     void setPartitionKey(const std::string& partitionKey);
-    void setEventTimestamp(uint64_t event_timestamp);
+    void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };
 

@@ -86,7 +86,7 @@ namespace pulsar {
         metadata.set_partition_key(partitionKey);
     }
 
-    void MessageImpl::setEventTimestamp(uint64_t event_timestamp) {
-        metadata.set_event_time(event_timestamp);
+    void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) {
+        metadata.set_event_time(eventTimestamp);
     }
 }

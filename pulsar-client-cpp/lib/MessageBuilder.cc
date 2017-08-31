@@ -100,9 +100,9 @@ MessageBuilder& MessageBuilder::setPartitionKey(const std::string& partitionKey)
     return *this;
 }
 
-MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t event_timestamp) {
+MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
     checkMetadata();
-    impl_->metadata.set_event_time(event_timestamp);
+    impl_->metadata.set_event_time(eventTimestamp);
     return *this;
 }
 
