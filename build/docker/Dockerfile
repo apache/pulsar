@@ -19,6 +19,10 @@
 
 FROM ubuntu:16.04
 
+# prepare the directory for pulsar related files
+RUN mkdir /pulsar
+ADD protobuf.patch /pulsar
+
 RUN apt-get update
 RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev  libgtest-dev \
@@ -51,3 +55,12 @@ RUN wget https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.0.0-a
     tar xvfz protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1.tar.gz && \
     cp protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1/protoc-gen-doc /usr/local/bin && \
     rm protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1.tar.gz
+
+# Build the patched protoc
+RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
+    cd /pulsar/protobuf && \
+    git checkout v2.4.1 && \
+    patch -p1 < /pulsar/protobuf.patch && \
+    autoreconf --install && \
+    ./configure && \
+    make
