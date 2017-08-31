@@ -116,6 +116,10 @@ uint64_t Message::getPublishTimestamp() const {
     return impl_ ? impl_->getPublishTimestamp() : 0ull;
 }
 
+uint64_t Message::getEventTimestamp() const {
+    return impl_ ? impl_->getEventTimestamp() : 0ull;
+}
+
 #pragma GCC visibility push(default)
 
 std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {

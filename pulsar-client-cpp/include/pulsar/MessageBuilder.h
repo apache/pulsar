@@ -71,6 +71,11 @@ class MessageBuilder {
     MessageBuilder& setPartitionKey(const std::string& partitionKey);
 
     /**
+     * Set the event timestamp for the message.
+     */
+    MessageBuilder& setEventTimestamp(uint64_t event_timestamp);
+
+    /**
      * override namespace replication clusters.  note that it is the
      * caller's responsibility to provide valid cluster names, and that
      * all clusters have been previously configured as destinations.

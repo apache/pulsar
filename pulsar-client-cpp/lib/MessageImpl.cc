@@ -54,6 +54,14 @@ namespace pulsar {
         }
     }
 
+    uint64_t MessageImpl::getEventTimestamp() const {
+        if (metadata.has_event_time()) {
+            return metadata.event_time();
+        } else {
+            return 0ull;
+        }
+    }
+
     void MessageImpl::setReplicationClusters(const std::vector<std::string>& clusters) {
         google::protobuf::RepeatedPtrField<std::string> r(clusters.begin(), clusters.end());
         r.Swap(metadata.mutable_replicate_to());
@@ -76,5 +84,9 @@ namespace pulsar {
 
     void MessageImpl::setPartitionKey(const std::string& partitionKey) {
         metadata.set_partition_key(partitionKey);
+    }
+
+    void MessageImpl::setEventTimestamp(uint64_t event_timestamp) {
+        metadata.set_event_time(event_timestamp);
     }
 }

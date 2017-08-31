@@ -114,6 +114,11 @@ class Message {
      */
     uint64_t getPublishTimestamp() const;
 
+    /**
+     * Get the event timestamp associated with this message. It is set by the client producer.
+     */
+    uint64_t getEventTimestamp() const;
+
   private:
     typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
