@@ -264,7 +264,7 @@ namespace pulsar {
                         break;
                     }
                     roleToken.token = root["token"].asString();
-                    roleToken.expiryTime = root["expiryTime"].asInt64();
+                    roleToken.expiryTime = root["expiryTime"].asUInt();
                     boost::lock_guard<boost::mutex> lock(cacheMtx_);
                     roleTokenCache_[cacheKey] = roleToken;
                     LOG_DEBUG("Got role token " << roleToken.token)

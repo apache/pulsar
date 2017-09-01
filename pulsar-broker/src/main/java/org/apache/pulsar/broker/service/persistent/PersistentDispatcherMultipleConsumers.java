@@ -163,7 +163,8 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
         totalAvailablePermits += additionalNumberOfMessages;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Trigger new read after receiving flow control message", consumer);
+            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {}", name, consumer,
+                    totalAvailablePermits);
         }
         readMoreEntries();
     }
@@ -331,6 +332,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
+                log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
                 entries.subList(start, entries.size()).forEach(Entry::release);
                 cursor.rewind();
                 return;
@@ -460,7 +462,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             messagesToReplay.add(ledgerId, entryId);
         });
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, messagesToReplay);
+            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, messagesToReplay);
         }
         readMoreEntries();
     }
@@ -469,7 +471,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Redelivering unacknowledged messages for consumer {}", consumer, positions);
+            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
         readMoreEntries();
     }
