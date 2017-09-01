@@ -262,7 +262,7 @@ Here's an example Python {% popover consumer %} that listens on a Pulsar {% popo
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'
+TOPIC = 'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -343,11 +343,12 @@ Here's an example Node.js {% popover consumer %} that listens on the same topic 
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
     ws = new WebSocket(topic);
 
 ws.onmessage = function(packet) {
 	var receiveMsg = JSON.parse(packet.data);
+	console.log('Received: %s - payload: %s', packet.data, new Buffer(receiveMsg.payload, 'base64').toString());
 	var ackMsg = {"messageId" : receiveMsg.messageId};
 	ws.send(JSON.stringify(ackMsg));
 };
@@ -359,9 +360,10 @@ var WebSocket = require('ws'),
     topic = "ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1",
     ws = new WebSocket(topic);
 
-socket.onmessage = function(packet) {
+ws.onmessage = function(packet) {
 	var receiveMsg = JSON.parse(packet.data);
+	console.log('Received: %s - payload: %s', packet.data, new Buffer(receiveMsg.payload, 'base64').toString());
 	var ackMsg = {"messageId" : receiveMsg.messageId};
-	socket.send(JSON.stringify(ackMsg));      
+	ws.send(JSON.stringify(ackMsg));
 };
 ```
