@@ -268,18 +268,20 @@ ws.on('open', function() {
 ws.on('message', function(message) {
   console.log('received ack: %s', message);
 });
-
 ```
 
-#### NodeJS consumer
+#### Node.js consumer
+
+Here's an example Node.js {% popover consumer %} that listens on the same topic used by the producer above:
+
 ```javascript
 var WebSocket = require('ws'),
     topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
     ws = new WebSocket(topic);
 
-socket.onmessage = function(packet) {
+ws.onmessage = function(packet) {
 	var receiveMsg = JSON.parse(packet.data);
 	var ackMsg = {"messageId" : receiveMsg.messageId};
-	socket.send(JSON.stringify(ackMsg));      
+	ws.send(JSON.stringify(ackMsg));
 };
 ```
