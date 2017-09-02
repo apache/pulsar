@@ -1085,7 +1085,8 @@ public class PersistentTopics extends AdminResource {
                     return offlineTopicStats;
                 }
             }
-            final ManagedLedgerConfig config = pulsar().getBrokerService().getManagedLedgerConfig(dn).get();
+            final ManagedLedgerConfig config = pulsar().getBrokerService().getTopicConfiguration(dn).get()
+                    .getManagedLedgerConfig();
             ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(config.getDigestType(),
                     config.getPassword(), pulsar().getAdvertisedAddress(), false);
             offlineTopicStats = offlineTopicBacklog

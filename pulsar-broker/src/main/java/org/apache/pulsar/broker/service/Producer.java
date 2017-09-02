@@ -195,6 +195,16 @@ public class Producer {
         private int msgSize;
         private long batchSize;
 
+        @Override
+        public String getProducerName() {
+            return producer.getProducerName();
+        }
+
+        @Override
+        public long getSequenceId() {
+            return sequenceId;
+        }
+
         /**
          * Executed from managed ledger thread when the message is persisted
          */
@@ -395,5 +405,5 @@ public class Producer {
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
-    
+
 }

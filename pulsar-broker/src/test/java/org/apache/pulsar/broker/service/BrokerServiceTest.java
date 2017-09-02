@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopicConfiguration;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -727,7 +728,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     /**
      * Verifies: client side throttling.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -776,11 +777,11 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         }
     }
-    
+
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
-     * 
+     *
      */
     @Test(timeOut = 3000)
     public void testTopicFailureShouldNotHaveDeadLock() {
@@ -799,9 +800,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
-        CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
-        failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        CompletableFuture<PersistentTopicConfiguration> failedPersistentTopicConfig = new CompletableFuture<>();
+        failedPersistentTopicConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
+        doReturn(failedPersistentTopicConfig).when(service).getTopicConfiguration(anyObject());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
 
@@ -827,7 +828,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     /**
      * It verifies that policiesCache() copies global-policy data into local-policy data and returns combined result
-     * 
+     *
      * @throws Exception
      */
     @Test

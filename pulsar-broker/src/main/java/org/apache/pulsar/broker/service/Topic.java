@@ -38,6 +38,14 @@ import io.netty.buffer.ByteBuf;
 public interface Topic {
 
     public interface PublishCallback {
+        default String getProducerName() {
+            return null;
+        }
+
+        default long getSequenceId() {
+            return -1;
+        }
+
         void completed(Exception e, long ledgerId, long entryId);
     }
 
@@ -49,7 +57,7 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
-    
+
     CompletableFuture<Subscription> createSubscription(String subscriptionName);
 
     CompletableFuture<Void> unsubscribe(String subName);
@@ -70,10 +78,12 @@ public interface Topic {
 
     void checkMessageExpiry();
 
+    void checkMessageDeduplicationInfo();
+
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);
-    
+
     BacklogQuota getBacklogQuota();
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,

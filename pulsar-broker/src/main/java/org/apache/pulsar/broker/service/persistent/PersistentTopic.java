@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
@@ -137,6 +138,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Prefix for replication cursors
     public final String replicatorPrefix;
 
+    static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
@@ -151,6 +154,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private volatile boolean hasBatchMessagePublished = false;
     private DispatchRateLimiter dispatchRateLimiter;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
+
+    private final MessageDeduplication messageDeduplication;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -183,6 +188,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+        this(topic, ledger, brokerService, new PersistentTopicConfiguration(new Policies(), new ManagedLedgerConfig()));
+    }
+
+    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+            PersistentTopicConfiguration topicConfiguration) {
         this.topic = topic;
         this.ledger = ledger;
         this.brokerService = brokerService;
@@ -201,6 +211,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
                 replicators.put(remoteCluster,
                         new PersistentReplicator(this, cursor, localCluster, remoteCluster, brokerService));
+            } else if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)) {
+                // This is not a regular subscription, we are going to ignore it for now and let the message dedup logic
+                // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
                 subscriptions.put(subscriptionName, new PersistentSubscription(this, subscriptionName, cursor));
@@ -210,18 +223,27 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }
         }
         this.lastActive = System.nanoTime();
+
+        this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
     }
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishCallback callback) {
-        ledger.asyncAddEntry(headersAndPayload, this, callback);
+        if (messageDeduplication.isMessageAlreadyStored(callback.getProducerName(), callback.getSequenceId())) {
+            // Immediately acknowledge duplicated message
+            callback.completed(null, -1, -1);
+        } else {
+            ledger.asyncAddEntry(headersAndPayload, this, callback);
+        }
     }
 
     @Override
     public void addComplete(Position pos, Object ctx) {
         PublishCallback callback = (PublishCallback) ctx;
         PositionImpl position = (PositionImpl) pos;
+
         // Message has been successfully persisted
+        messageDeduplication.recordMessagePersisted(callback.getProducerName(), callback.getSequenceId(), position);
         callback.completed(null, position.getLedgerId(), position.getEntryId());
     }
 
@@ -275,6 +297,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
+
+            messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
             startReplProducers();
@@ -350,6 +374,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         USAGE_COUNT_UPDATER.get(this));
             }
             lastActive = System.nanoTime();
+
+            messageDeduplication.producerRemoved(producer.getProducerName());
         }
     }
 
@@ -375,7 +401,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             return future;
         }
 
-        if (subscriptionName.startsWith(replicatorPrefix)) {
+        if (subscriptionName.startsWith(replicatorPrefix) || subscriptionName.equals(DEDUPLICATION_CURSOR_NAME)) {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
             return future;
@@ -706,6 +732,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return result;
     }
 
+    public CompletableFuture<Void> checkDeduplicationStatus() {
+        return messageDeduplication.checkStatus();
+    }
+
     @Override
     public CompletableFuture<Void> checkReplication() {
         DestinationName name = DestinationName.get(topic);
@@ -786,6 +816,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
+    @Override
+    public void checkMessageDeduplicationInfo() {
+        messageDeduplication.purgeInactiveProducers();
+    }
+
     CompletableFuture<Void> startReplicator(String remoteCluster) {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -839,6 +874,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         return future;
+    }
+
+    public boolean isDeduplicationEnabled() {
+        return messageDeduplication.isEnabled();
     }
 
     @Override
@@ -1292,7 +1331,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         producers.forEach(Producer::checkPermissions);
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         checkMessageExpiry();
-        return checkReplicationAndRetryOnFailure();
+        CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
+        CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
+        return CompletableFuture.allOf(replicationFuture, dedupFuture);
     }
 
     /**

@@ -245,6 +245,11 @@ public class NonPersistentTopic implements Topic {
         }
     }
 
+    @Override
+    public void checkMessageDeduplicationInfo() {
+        // No-op
+    }
+
     private boolean hasLocalProducers() {
         AtomicBoolean foundLocal = new AtomicBoolean(false);
         producers.forEach(producer -> {
