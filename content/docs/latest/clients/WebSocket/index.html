@@ -767,9 +767,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -915,9 +915,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -1065,9 +1065,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -1583,19 +1583,21 @@ following error codes:</p>
 <span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'received ack: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">);</span>
 <span class="p">});</span>
-
 </code></pre>
 </div>
 
-<h4 id="nodejs-consumer">NodeJS consumer</h4>
+<h4 id="nodejs-consumer">Node.js consumer</h4>
+
+<p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on the same topic used by the producer above:</p>
+
 <div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
     <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
-<span class="nx">socket</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">packet</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">ws</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">packet</span><span class="p">)</span> <span class="p">{</span>
 	<span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">packet</span><span class="p">.</span><span class="nx">data</span><span class="p">);</span>
 	<span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
-	<span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>      
+	<span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
 <span class="p">};</span>
 </code></pre>
 </div>
