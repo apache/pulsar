@@ -875,7 +875,7 @@ public class ConsumerImpl extends ConsumerBase {
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                     singleMessageMetadataBuilder, i, batchSize);
 
-                if (startMessageId != null
+                if (subscriptionMode == SubscriptionMode.NonDurable && startMessageId != null
                         && messageId.getLedgerId() == startMessageId.getLedgerId()
                         && messageId.getEntryId() == startMessageId.getEntryId()
                         && i <= startMessageId.getBatchIndex()) {

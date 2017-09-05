@@ -48,17 +48,6 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
@@ -242,9 +231,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic4", producerConf);
 
         // Produce messages
+        CompletableFuture<MessageId> lastFuture = null;
         for (int i = 0; i < 10; i++) {
-            producer.send("my-message".getBytes());
+            lastFuture = producer.sendAsync(("my-message-" + i).getBytes()).thenApply(msgId -> {
+                log.info("Published message id: {}", msgId);
+                return msgId;
+            });
         }
+
+        lastFuture.get();
 
         Message msg = null;
         for (int i = 0; i < 10; i++) {
@@ -594,7 +589,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     /**
      * Verifies non-batch message size being validated after performing compression while batch-messaging validates
      * before compression of message
-     * 
+     *
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)
      * a. non-batch with compression: pass
@@ -602,7 +597,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * c. non-batch w/o  compression: fail
      * d. non-batch with compression, consumer consume: pass
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1333,7 +1328,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-    
+
     @Test
     public void testShouldNotBlockConsumerIfRedeliverBeforeReceive() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -1867,7 +1862,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
     }
-    
+
     @Test
     public void testPriorityConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -1909,10 +1904,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         /**
-         * a. consumer1 and consumer2 now has more permits (as received and sent more permits) 
-         * b. try to produce more messages: which will again distribute among consumer1 and consumer2 
+         * a. consumer1 and consumer2 now has more permits (as received and sent more permits)
+         * b. try to produce more messages: which will again distribute among consumer1 and consumer2
          * and should not dispatch to consumer4
-         * 
+         *
          */
         for (int i = 0; i < 5; i++) {
             final String message = "my-message-" + i;
@@ -1935,12 +1930,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <pre>
      * Verifies Dispatcher dispatches messages properly with shared-subscription consumers with combination of blocked
      * and unblocked consumers.
-     * 
-     * 1. Dispatcher will have 5 consumers : c1, c2, c3, c4, c5. 
+     *
+     * 1. Dispatcher will have 5 consumers : c1, c2, c3, c4, c5.
      *      Out of which : c1,c2,c4,c5 will be blocked due to MaxUnackedMessages limit.
      * 2. So, dispatcher should moves round-robin and make sure it delivers unblocked consumer : c3
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut=5000)
@@ -2129,7 +2124,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
 
     }
- 
+
     @Test(timeOut = 5000)
     public void testFailReceiveAsyncOnConsumerClose() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -2163,5 +2158,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
 }
