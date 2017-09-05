@@ -346,12 +346,12 @@ var WebSocket = require('ws'),
     topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
     ws = new WebSocket(topic);
 
-ws.onmessage = function(packet) {
-	var receiveMsg = JSON.parse(packet.data);
-	console.log('Received: %s - payload: %s', packet.data, new Buffer(receiveMsg.payload, 'base64').toString());
-	var ackMsg = {"messageId" : receiveMsg.messageId};
-	ws.send(JSON.stringify(ackMsg));
-};
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
 ```
 
 #### NodeJS reader
@@ -360,10 +360,10 @@ var WebSocket = require('ws'),
     topic = "ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1",
     ws = new WebSocket(topic);
 
-ws.onmessage = function(packet) {
-	var receiveMsg = JSON.parse(packet.data);
-	console.log('Received: %s - payload: %s', packet.data, new Buffer(receiveMsg.payload, 'base64').toString());
-	var ackMsg = {"messageId" : receiveMsg.messageId};
-	ws.send(JSON.stringify(ackMsg));
-};
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
 ```
