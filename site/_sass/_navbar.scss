@@ -1,22 +1,23 @@
 nav.navbar {
   background-color: white;
-  width: auto;
-  margin-left: 50px;
-  margin-right: 30px;
+
+  .navbar-brand {
+    padding: 0px;
+    &  > img {
+      max-height: 100%;
+      width: auto;
+    }
+  }
 
   img {
     &.main-logo {
       height: 40px;
     }
 
-    &.japan-flag {
-      height: 28px;
-      border: 1px solid darken(#ddd, 10%);
-    }
-
     &.asf-logo {
       height: 80px;
       margin-left: 40px;
+      padding-right: 20px;
     }
   }
 
@@ -30,6 +31,7 @@ nav.navbar {
     }
   }
 
+  /*
   .collapse {
     margin: 8px 0 8px 100px;
 
@@ -53,4 +55,5 @@ nav.navbar {
       font-size: 18px;
     }
   }
+  */
 }
