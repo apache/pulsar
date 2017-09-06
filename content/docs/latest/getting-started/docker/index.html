@@ -92,31 +92,33 @@
     under the License.
 
 -->
-<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
   <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
 
- 
+  
   <a class="navbar-brand" href="/">
     <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
   
 
+  <a class="navbar-nav"></a>
+
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
-            aria-haspopup="true" aria-expanded="false">Documentation</a>
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
 
         <div class="dropdown-menu" aria-labelledby="documentationDropdown">
-            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
 
-            <div class="dropdown-divider"></div>
-            <h3 class="dropdown-header">Stable release</h3>
-            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
 
-            
+          
         </div>
       </li>
 
@@ -158,7 +160,7 @@
         <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Community
         </a>
-        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
@@ -184,6 +186,30 @@
   </a>
 </nav>
 
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
 
       <main>
         <!--
@@ -1130,11 +1156,11 @@ and follow the instructions for your OS.</p>
 <h2 id="starting-pulsar-inside-docker">Starting Pulsar inside Docker</h2>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run -it <span class="se">\</span>
-    -p 6650:6650 <span class="se">\</span>
-    -p 8080:8080 <span class="se">\</span>
-    -v <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
-    apachepulsar/pulsar:1.19.0-incubating <span class="se">\</span>
-    bin/pulsar standalone --advertised-address 127.0.0.1
+  -p 6650:6650 <span class="se">\</span>
+  -p 8080:8080 <span class="se">\</span>
+  -v <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
+  apachepulsar/pulsar:1.19.0-incubating <span class="se">\</span>
+  bin/pulsar standalone --advertised-address 127.0.0.1
 </code></pre>
 </div>
 
@@ -1253,51 +1279,51 @@ You can find detailed documentation of all the APIs in the <a href="../../admin-
 <p>The output will be something like this:</p>
 
 <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-        </span><span class="p">{</span><span class="w">
-            </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35048"</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 20:59:34.621+0000"</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone-0-1"</span><span class="w">
-        </span><span class="p">}</span><span class="w">
-    </span><span class="p">],</span><span class="w">
-    </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
-    </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="nt">"my-sub"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-            </span><span class="nt">"blockedSubscriptionOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-                </span><span class="p">{</span><span class="w">
-                    </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35064"</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">996</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"blockedConsumerOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 21:05:39.222+0000"</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"166111"</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-                    </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
-                </span><span class="p">}</span><span class="w">
-            </span><span class="p">],</span><span class="w">
-            </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
-            </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
-        </span><span class="p">}</span><span class="w">
+  </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35048"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 20:59:34.621+0000"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone-0-1"</span><span class="w">
     </span><span class="p">}</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+  </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nt">"my-sub"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nt">"blockedSubscriptionOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+          </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35064"</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">996</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"blockedConsumerOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 21:05:39.222+0000"</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"166111"</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+      </span><span class="p">],</span><span class="w">
+      </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
+      </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre>
 </div>

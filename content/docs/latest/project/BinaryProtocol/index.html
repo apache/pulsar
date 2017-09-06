@@ -92,31 +92,33 @@
     under the License.
 
 -->
-<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
   <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
 
- 
+  
   <a class="navbar-brand" href="/">
     <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
   
 
+  <a class="navbar-nav"></a>
+
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
-            aria-haspopup="true" aria-expanded="false">Documentation</a>
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
 
         <div class="dropdown-menu" aria-labelledby="documentationDropdown">
-            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
 
-            <div class="dropdown-divider"></div>
-            <h3 class="dropdown-header">Stable release</h3>
-            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
 
-            
+          
         </div>
       </li>
 
@@ -158,7 +160,7 @@
         <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Community
         </a>
-        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
@@ -184,6 +186,30 @@
   </a>
 </nav>
 
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
 
       <main>
         <!--
@@ -709,9 +735,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
-          
-          
           
           
           
@@ -857,9 +883,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
-          
-          
           
           
           
@@ -1797,7 +1823,7 @@ response will contain actual metadata.</p>
         tex2jax: {
           skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
         },
-        "HTML-CSS": { scale: 125 }
+        "HTML-CSS": { scale: 100 }
       });
 
       MathJax.Hub.Queue(function() {

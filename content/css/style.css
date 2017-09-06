@@ -9151,31 +9151,46 @@ a.text-gray-dark:focus, a.text-gray-dark:hover {
 
 nav.navbar {
   background-color: white;
-  width: auto;
-  margin-left: 50px;
-  margin-right: 30px; }
+  /*
+  .collapse {
+    margin: 8px 0 8px 100px;
+
+    ul.navbar-nav {
+      li.nav-item + li.nav-item {
+        margin-left: 15px;
+      }
+    }
+  }
+
+  a.dropdown-item {
+    font-size: 14px;
+
+    span.badge {
+      margin-left: 2rem;
+    }
+  }
+
+  ul.navbar-nav {
+    li {
+      font-size: 18px;
+    }
+  }
+  */ }
+  nav.navbar .navbar-brand {
+    padding: 0px; }
+    nav.navbar .navbar-brand > img {
+      max-height: 100%;
+      width: auto; }
   nav.navbar img.main-logo {
     height: 40px; }
-  nav.navbar img.japan-flag {
-    height: 28px;
-    border: 1px solid #c4c4c4; }
   nav.navbar img.asf-logo {
     height: 80px;
-    margin-left: 40px; }
+    margin-left: 40px;
+    padding-right: 20px; }
   nav.navbar li.nav-item a.nav-link {
     color: #188fff; }
     nav.navbar li.nav-item a.nav-link:hover, nav.navbar li.nav-item a.nav-link:active {
       color: #188fff; }
-  nav.navbar .collapse {
-    margin: 8px 0 8px 100px; }
-    nav.navbar .collapse ul.navbar-nav li.nav-item + li.nav-item {
-      margin-left: 15px; }
-  nav.navbar a.dropdown-item {
-    font-size: 14px; }
-    nav.navbar a.dropdown-item span.badge {
-      margin-left: 2rem; }
-  nav.navbar ul.navbar-nav li {
-    font-size: 18px; }
 
 /* Regular font */
 /* Monospaced font for syntax highlighting */
@@ -9235,141 +9250,137 @@ span.popover-term {
     .protobuf table tbody tr td p {
       padding: 0; }
 
-.rest-api-container, .docs-container {
-  margin-top: 50px; }
-  .rest-api-container nav.sidebar, .docs-container nav.sidebar {
-    display: inline;
-    width: 100%; }
-    .rest-api-container nav.sidebar ul, .docs-container nav.sidebar ul {
-      width: 100%; }
-      .rest-api-container nav.sidebar ul li + li, .docs-container nav.sidebar ul li + li {
-        margin-top: 5px; }
+@media screen and (min-width: 769px) {
   .rest-api-container article, .docs-container article {
     -webkit-box-shadow: 2px 2px 1rem 0px #dddddd;
     -moz-box-shadow: 2px 2px 1rem 0px #dddddd;
     box-shadow: 2px 2px 1rem 0px #dddddd;
     padding: 2% 3%;
-    margin-bottom: 50px; }
-    .rest-api-container article section.docs-header, .docs-container article section.docs-header {
-      margin-bottom: 35px; }
-      .rest-api-container article section.docs-header .tags, .docs-container article section.docs-header .tags {
+    margin-bottom: 50px; } }
+.rest-api-container, .docs-container {
+  margin-top: 50px; }
+  .rest-api-container ul ul, .docs-container ul ul {
+    margin-bottom: 10px; }
+  .rest-api-container article section.docs-header, .docs-container article section.docs-header {
+    margin-bottom: 35px; }
+    .rest-api-container article section.docs-header .tags, .docs-container article section.docs-header .tags {
+      margin-top: 20px; }
+      .rest-api-container article section.docs-header .tags button, .docs-container article section.docs-header .tags button {
+        padding: 4px 8px;
+        font-size: 14px; }
+    .rest-api-container article section.docs-header h1.docs-title, .docs-container article section.docs-header h1.docs-title {
+      font-size: 40px; }
+    .rest-api-container article section.docs-header span.docs-lead, .docs-container article section.docs-header span.docs-lead {
+      margin: 20px 0 0 0;
+      font-size: 16px;
+      font-weight: lighter; }
+    .rest-api-container article section.docs-header .tag-group, .docs-container article section.docs-header .tag-group {
+      margin-top: 20px; }
+  .rest-api-container article section.content, .docs-container article section.content {
+    font-size: 1rem; }
+    .rest-api-container article section.content li, .docs-container article section.content li {
+      margin-left: 22px;
+      font-size: 100%; }
+    .rest-api-container article section.content h3 + h4, .docs-container article section.content h3 + h4 {
+      margin-top: 20px; }
+    .rest-api-container article section.content h2:not(.cli-command-title), .docs-container article section.content h2:not(.cli-command-title) {
+      margin-top: 35px; }
+    .rest-api-container article section.content h3:not(.cli-command-title), .docs-container article section.content h3:not(.cli-command-title) {
+      margin-top: 35px; }
+    .rest-api-container article section.content a:hover, .docs-container article section.content a:hover {
+      text-decoration: none; }
+    .rest-api-container article section.content h2 + p, .rest-api-container article section.content h3 + p, .rest-api-container article section.content h4 + p, .rest-api-container article section.content h5 + p, .rest-api-container article section.content h6 + p, .docs-container article section.content h2 + p, .docs-container article section.content h3 + p, .docs-container article section.content h4 + p, .docs-container article section.content h5 + p, .docs-container article section.content h6 + p {
+      margin-top: 15px; }
+    .rest-api-container article section.content .topic, .docs-container article section.content .topic {
+      color: #bcc5c5;
+      background-color: #232937;
+      font-size: 1rem;
+      font-family: "Inconsolata", monospace;
+      padding: 10px 0 10px 20px;
+      border-radius: 0; }
+      .rest-api-container article section.content .topic .property, .docs-container article section.content .topic .property {
+        color: #b1cc00; }
+      .rest-api-container article section.content .topic .cluster, .docs-container article section.content .topic .cluster {
+        color: #e25418; }
+      .rest-api-container article section.content .topic .namespace, .docs-container article section.content .topic .namespace {
+        color: #3797db; }
+      .rest-api-container article section.content .topic .t, .docs-container article section.content .topic .t {
+        color: #d33682; }
+      .rest-api-container article section.content .topic + p, .docs-container article section.content .topic + p {
         margin-top: 20px; }
-        .rest-api-container article section.docs-header .tags button, .docs-container article section.docs-header .tags button {
-          padding: 4px 8px;
-          font-size: 14px; }
-      .rest-api-container article section.docs-header h1.docs-title, .docs-container article section.docs-header h1.docs-title {
-        font-size: 40px; }
-      .rest-api-container article section.docs-header span.docs-lead, .docs-container article section.docs-header span.docs-lead {
-        margin: 20px 0 0 0;
-        font-size: 16px;
-        font-weight: lighter; }
-      .rest-api-container article section.docs-header .tag-group, .docs-container article section.docs-header .tag-group {
-        margin-top: 20px; }
-    .rest-api-container article section.content, .docs-container article section.content {
+    .rest-api-container article section.content .highlighter-rouge, .docs-container article section.content .highlighter-rouge {
+      font-family: "Inconsolata", monospace; }
+      .rest-api-container article section.content .highlighter-rouge + h2, .docs-container article section.content .highlighter-rouge + h2 {
+        margin-top: 40px; }
+      .rest-api-container article section.content .highlighter-rouge .highlight, .docs-container article section.content .highlighter-rouge .highlight {
+        padding: 15px; }
+        .rest-api-container article section.content .highlighter-rouge .highlight code, .docs-container article section.content .highlighter-rouge .highlight code {
+          font-size: 1rem; }
+    .rest-api-container article section.content code.highlighter-rouge, .docs-container article section.content code.highlighter-rouge {
+      color: #188fff;
+      padding: .2rem .3rem;
+      background-color: #f8f9f9;
+      border-radius: 0; }
+    .rest-api-container article section.content em, .docs-container article section.content em {
+      margin-right: 2px; }
+    .rest-api-container article section.content img, .docs-container article section.content img {
+      margin: 20px 0;
+      width: 100%; }
+      .rest-api-container article section.content img[alt="Maven Central"], .docs-container article section.content img[alt="Maven Central"] {
+        width: 20%;
+        margin: 0;
+        padding: 0; }
+    .rest-api-container article section.content img.inline, .docs-container article section.content img.inline {
+      margin: initial;
+      width: initial; }
+    .rest-api-container article section.content p, .docs-container article section.content p {
       font-size: 1rem; }
-      .rest-api-container article section.content li, .docs-container article section.content li {
-        margin-left: 22px;
-        font-size: 100%; }
-      .rest-api-container article section.content h3 + h4, .docs-container article section.content h3 + h4 {
-        margin-top: 20px; }
-      .rest-api-container article section.content h2:not(.cli-command-title), .docs-container article section.content h2:not(.cli-command-title) {
-        margin-top: 35px; }
-      .rest-api-container article section.content h3:not(.cli-command-title), .docs-container article section.content h3:not(.cli-command-title) {
-        margin-top: 35px; }
-      .rest-api-container article section.content a:hover, .docs-container article section.content a:hover {
-        text-decoration: none; }
-      .rest-api-container article section.content h2 + p, .rest-api-container article section.content h3 + p, .rest-api-container article section.content h4 + p, .rest-api-container article section.content h5 + p, .rest-api-container article section.content h6 + p, .docs-container article section.content h2 + p, .docs-container article section.content h3 + p, .docs-container article section.content h4 + p, .docs-container article section.content h5 + p, .docs-container article section.content h6 + p {
+      .rest-api-container article section.content p + .highlighter-rouge, .docs-container article section.content p + .highlighter-rouge {
         margin-top: 15px; }
-      .rest-api-container article section.content .topic, .docs-container article section.content .topic {
-        color: #bcc5c5;
-        background-color: #232937;
-        font-size: 1rem;
-        font-family: "Inconsolata", monospace;
-        padding: 10px 0 10px 20px;
-        border-radius: 0; }
-        .rest-api-container article section.content .topic .property, .docs-container article section.content .topic .property {
-          color: #b1cc00; }
-        .rest-api-container article section.content .topic .cluster, .docs-container article section.content .topic .cluster {
-          color: #e25418; }
-        .rest-api-container article section.content .topic .namespace, .docs-container article section.content .topic .namespace {
-          color: #3797db; }
-        .rest-api-container article section.content .topic .t, .docs-container article section.content .topic .t {
-          color: #d33682; }
-        .rest-api-container article section.content .topic + p, .docs-container article section.content .topic + p {
-          margin-top: 20px; }
-      .rest-api-container article section.content .highlighter-rouge, .docs-container article section.content .highlighter-rouge {
-        font-family: "Inconsolata", monospace; }
-        .rest-api-container article section.content .highlighter-rouge + h2, .docs-container article section.content .highlighter-rouge + h2 {
-          margin-top: 40px; }
-        .rest-api-container article section.content .highlighter-rouge .highlight, .docs-container article section.content .highlighter-rouge .highlight {
-          padding: 15px; }
-          .rest-api-container article section.content .highlighter-rouge .highlight code, .docs-container article section.content .highlighter-rouge .highlight code {
-            font-size: 1rem; }
-      .rest-api-container article section.content code.highlighter-rouge, .docs-container article section.content code.highlighter-rouge {
-        color: #188fff;
-        padding: .2rem .3rem;
-        background-color: #f8f9f9;
-        border-radius: 0; }
-      .rest-api-container article section.content em, .docs-container article section.content em {
-        margin-right: 2px; }
-      .rest-api-container article section.content img, .docs-container article section.content img {
-        margin: 20px 0;
+    .rest-api-container article section.content h2 + p, .rest-api-container article section.content h3 + p, .docs-container article section.content h2 + p, .docs-container article section.content h3 + p {
+      margin-top: 20px; }
+    .rest-api-container article section.content table, .docs-container article section.content table {
+      margin: 25px 0;
+      width: 100%; }
+      .rest-api-container article section.content table thead, .docs-container article section.content table thead {
+        font-size: 16px;
+        border-bottom: 1px solid black; }
+        .rest-api-container article section.content table thead tr th, .docs-container article section.content table thead tr th {
+          padding-right: 1rem; }
+      .rest-api-container article section.content table tbody tr td, .docs-container article section.content table tbody tr td {
+        padding: 5px 1rem 5px 0;
+        overflow-x: scroll; }
+        .rest-api-container article section.content table tbody tr td code, .docs-container article section.content table tbody tr td code {
+          font-size: inherit; }
+        .rest-api-container article section.content table tbody tr td em, .docs-container article section.content table tbody tr td em {
+          font-size: 12px;
+          font-style: normal; }
+      .rest-api-container article section.content table tbody tr + tr, .docs-container article section.content table tbody tr + tr {
+        border-top: 1px solid #ddd;
+        margin-top: 10px; }
+      .rest-api-container article section.content table.config, .docs-container article section.content table.config {
+        overflow-x: scroll;
         width: 100%; }
-        .rest-api-container article section.content img[alt="Maven Central"], .docs-container article section.content img[alt="Maven Central"] {
-          width: 20%;
-          margin: 0;
-          padding: 0; }
-      .rest-api-container article section.content img.inline, .docs-container article section.content img.inline {
-        margin: initial;
-        width: initial; }
-      .rest-api-container article section.content p, .docs-container article section.content p {
-        font-size: 1rem; }
-        .rest-api-container article section.content p + .highlighter-rouge, .docs-container article section.content p + .highlighter-rouge {
-          margin-top: 15px; }
-      .rest-api-container article section.content h2 + p, .rest-api-container article section.content h3 + p, .docs-container article section.content h2 + p, .docs-container article section.content h3 + p {
-        margin-top: 20px; }
-      .rest-api-container article section.content table, .docs-container article section.content table {
-        margin: 25px 0;
-        width: 100%; }
-        .rest-api-container article section.content table thead, .docs-container article section.content table thead {
-          font-size: 16px;
-          border-bottom: 1px solid black; }
-          .rest-api-container article section.content table thead tr th, .docs-container article section.content table thead tr th {
-            padding-right: 1rem; }
-        .rest-api-container article section.content table tbody tr td, .docs-container article section.content table tbody tr td {
-          padding: 5px 1rem 5px 0;
-          overflow-x: scroll; }
-          .rest-api-container article section.content table tbody tr td code, .docs-container article section.content table tbody tr td code {
-            font-size: inherit; }
-          .rest-api-container article section.content table tbody tr td em, .docs-container article section.content table tbody tr td em {
-            font-size: 12px;
-            font-style: normal; }
-        .rest-api-container article section.content table tbody tr + tr, .docs-container article section.content table tbody tr + tr {
-          border-top: 1px solid #ddd;
-          margin-top: 10px; }
-        .rest-api-container article section.content table.config, .docs-container article section.content table.config {
-          overflow-x: scroll;
-          width: 100%; }
-          .rest-api-container article section.content table.config thead tr th:nth-child(2), .rest-api-container article section.content table.config thead tr th:nth-child(3), .docs-container article section.content table.config thead tr th:nth-child(2), .docs-container article section.content table.config thead tr th:nth-child(3) {
+        .rest-api-container article section.content table.config thead tr th:nth-child(2), .rest-api-container article section.content table.config thead tr th:nth-child(3), .docs-container article section.content table.config thead tr th:nth-child(2), .docs-container article section.content table.config thead tr th:nth-child(3) {
+          padding-left: 10px; }
+        .rest-api-container article section.content table.config td, .rest-api-container article section.content table.config td p, .docs-container article section.content table.config td, .docs-container article section.content table.config td p {
+          font-size: 12px; }
+        .rest-api-container article section.content table.config td, .docs-container article section.content table.config td {
+          padding: 5px 0; }
+          .rest-api-container article section.content table.config td:nth-child(1), .rest-api-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(1), .docs-container article section.content table.config td:nth-child(2) {
+            max-width: 225px;
+            overflow: auto;
+            white-space: nowrap; }
+          .rest-api-container article section.content table.config td:nth-child(2), .rest-api-container article section.content table.config td:nth-child(3), .docs-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(3) {
             padding-left: 10px; }
-          .rest-api-container article section.content table.config td, .rest-api-container article section.content table.config td p, .docs-container article section.content table.config td, .docs-container article section.content table.config td p {
-            font-size: 12px; }
-          .rest-api-container article section.content table.config td, .docs-container article section.content table.config td {
-            padding: 5px 0; }
-            .rest-api-container article section.content table.config td:nth-child(1), .rest-api-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(1), .docs-container article section.content table.config td:nth-child(2) {
-              max-width: 225px;
-              overflow: auto;
-              white-space: nowrap; }
-            .rest-api-container article section.content table.config td:nth-child(2), .rest-api-container article section.content table.config td:nth-child(3), .docs-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(3) {
-              padding-left: 10px; }
-            .rest-api-container article section.content table.config td + td, .docs-container article section.content table.config td + td {
-              border-left: 1px solid #ddd; }
-        .rest-api-container article section.content table.env-var th:first-child, .docs-container article section.content table.env-var th:first-child {
-          min-width: 200px; }
-      .rest-api-container article section.content p + table, .rest-api-container article section.content table + p, .rest-api-container article section.content table + h4, .rest-api-container article section.content h4 + .highlighter-rouge, .docs-container article section.content p + table, .docs-container article section.content table + p, .docs-container article section.content table + h4, .docs-container article section.content h4 + .highlighter-rouge {
-        margin-top: 20px; }
-      .rest-api-container article section.content .highlighter-rouge + table, .rest-api-container article section.content .highlighter-rouge + h4, .docs-container article section.content .highlighter-rouge + table, .docs-container article section.content .highlighter-rouge + h4 {
-        margin-top: 20px; }
+          .rest-api-container article section.content table.config td + td, .docs-container article section.content table.config td + td {
+            border-left: 1px solid #ddd; }
+      .rest-api-container article section.content table.env-var th:first-child, .docs-container article section.content table.env-var th:first-child {
+        min-width: 200px; }
+    .rest-api-container article section.content p + table, .rest-api-container article section.content table + p, .rest-api-container article section.content table + h4, .rest-api-container article section.content h4 + .highlighter-rouge, .docs-container article section.content p + table, .docs-container article section.content table + p, .docs-container article section.content table + h4, .docs-container article section.content h4 + .highlighter-rouge {
+      margin-top: 20px; }
+    .rest-api-container article section.content .highlighter-rouge + table, .rest-api-container article section.content .highlighter-rouge + h4, .docs-container article section.content .highlighter-rouge + table, .docs-container article section.content .highlighter-rouge + h4 {
+      margin-top: 20px; }
 
 /* Regular font */
 /* Monospaced font for syntax highlighting */

@@ -92,31 +92,33 @@
     under the License.
 
 -->
-<nav class="navbar navbar-toggleable-md navbar-light container-fluid sticky-top">
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
   <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
 
- 
+  
   <a class="navbar-brand" href="/">
     <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
   </a>
   
 
+  <a class="navbar-nav"></a>
+
   <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
     <ul class="navbar-nav">
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown"
-            aria-haspopup="true" aria-expanded="false">Documentation</a>
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
 
         <div class="dropdown-menu" aria-labelledby="documentationDropdown">
-            <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
 
-            <div class="dropdown-divider"></div>
-            <h3 class="dropdown-header">Stable release</h3>
-            <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
 
-            
+          
         </div>
       </li>
 
@@ -158,7 +160,7 @@
         <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Community
         </a>
-        <div class="dropdown-menu" aria-labelledby="versionsDropdown">
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
@@ -184,6 +186,30 @@
   </a>
 </nav>
 
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
 
       <main>
         <!--
@@ -767,9 +793,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
-          
-          
           
           
           
@@ -915,9 +941,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
-          
-          
           
           
           
@@ -1065,9 +1091,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
-          
-          
           
           
           
@@ -1196,7 +1222,7 @@
 
 <h2 id="api-reference">API Reference</h2>
 
-<p>Pulsar’s WebSocket API offers two endpoints, one for <a href="#producer-endpoint">producing</a> messages and one for <a href="#consumer-endpoint">consuming</a> messages.</p>
+<p>Pulsar’s WebSocket API offers three endpoints for <a href="#producer-endpoint">producing</a> messages, <a href="#consumer-endpoint">consuming</a> messages and <a href="#reader-endpoint">reading</a> messages.</p>
 
 <p>All exchanges via the WebSocket API use JSON.</p>
 
@@ -1408,6 +1434,99 @@ have the Pulsar broker delete it.</p>
   </tbody>
 </table>
 
+<h3 id="reader-endpoint">Reader endpoint</h3>
+
+<p>The reader endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/reader/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+
+<h5 id="receiving-messages-1">Receiving messages</h5>
+
+<p>Server will push messages on the WebSocket session:</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="nt">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Base-64 encoded payload</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publishTime</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Publish timestamp</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: left">key-value pairs</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Original routing key set by producer</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="acknowledging-the-message-1">Acknowledging the message</h4>
+
+<p><strong>In WebSocket</strong>, Reader needs to acknowledge the successful processing of the message to
+have the Pulsar WebSocket service update the number of pending messages.
+If you don’t send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.</p>
+
+<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID of the processed message</td>
+    </tr>
+  </tbody>
+</table>
+
 <h3 id="error-codes">Error codes</h3>
 
 <p>In case of error the server will close the WebSocket session using the
@@ -1533,7 +1652,30 @@ following error codes:</p>
 
 <div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
 
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span><span class="p">:</span> <span class="k">break</span>
+
+    <span class="k">print</span> <span class="s">"Received: {} - payload: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">])</span>
+
+    <span class="c"># Acknowledge successful processing</span>
+    <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
+
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<h4 id="python-reader">Python reader</h4>
+
+<p>Here’s an example Python reader that listens on a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and prints the message ID whenever a message arrives:</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
+
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/reader/persistent/sample/standalone/ns1/my-topic'</span>
 
 <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
@@ -1591,14 +1733,29 @@ following error codes:</p>
 <p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on the same topic used by the producer above:</p>
 
 <div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
-    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
-<span class="nx">ws</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">packet</span><span class="p">)</span> <span class="p">{</span>
-	<span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">packet</span><span class="p">.</span><span class="nx">data</span><span class="p">);</span>
-	<span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
-	<span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
-<span class="p">};</span>
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Received: %s - payload: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">,</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span> <span class="s1">'base64'</span><span class="p">).</span><span class="nx">toString</span><span class="p">());</span>
+    <span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
+    <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+
+<h4 id="nodejs-reader">NodeJS reader</h4>
+<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Received: %s - payload: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">,</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span> <span class="s1">'base64'</span><span class="p">).</span><span class="nx">toString</span><span class="p">());</span>
+    <span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
+    <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
+<span class="p">});</span>
 </code></pre>
 </div>
 
