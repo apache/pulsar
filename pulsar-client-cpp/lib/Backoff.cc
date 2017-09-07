@@ -20,7 +20,6 @@
 #include <algorithm>
 
 namespace pulsar {
-
 Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max)
         : initial_(initial),
           max_(max),
@@ -29,7 +28,7 @@ Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max)
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;
-    next_ = std::min(next_ * 2, max_);
+    next_ = std::min((next_ + next_/2), max_);
     return current;
 }
 
