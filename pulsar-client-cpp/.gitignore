@@ -44,6 +44,7 @@ lib*.so*
 /system-test/SystemTest
 
 # IDE generated files
+.csettings/
 .cproject
 .project
 .settings/

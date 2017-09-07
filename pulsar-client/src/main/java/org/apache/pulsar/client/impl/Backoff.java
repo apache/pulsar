@@ -39,7 +39,7 @@ public class Backoff {
     public long next() {
         long current = this.next;
         if (current < max) {
-            this.next = Math.min(this.next * 2, this.max);
+            this.next = Math.min(this.next + this.next/2, this.max);
         }
 
         // Randomly increase the timeout up to 25% to avoid simultaneous retries
