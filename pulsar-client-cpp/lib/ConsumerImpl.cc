@@ -28,7 +28,6 @@
 #include "DestinationName.h"
 #include <algorithm>
 
-using namespace pulsar;
 namespace pulsar {
 
 DECLARE_LOG_OBJECT()
@@ -37,7 +36,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscription, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */ )
-        : HandlerBase(client, topic),
+        : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), seconds(60))),
           waitingForZeroQueueSizeMessage(false),
           config_(conf),
           subscription_(subscription),

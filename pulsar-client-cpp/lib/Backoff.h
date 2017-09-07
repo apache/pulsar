@@ -28,13 +28,15 @@ typedef boost::posix_time::time_duration TimeDuration;
 
 class Backoff {
  public:
-    Backoff(const TimeDuration& intial, const TimeDuration& max);
+    Backoff(const TimeDuration&, const TimeDuration&, const TimeDuration&);
     TimeDuration next();
     void reset();
  private:
-    TimeDuration initial_;
-    TimeDuration max_;
+    const TimeDuration initial_;
+    const TimeDuration max_;
     TimeDuration next_;
+    TimeDuration mandatoryStop_;
+    bool mandatoryStopMade_;
 };
 }
 
