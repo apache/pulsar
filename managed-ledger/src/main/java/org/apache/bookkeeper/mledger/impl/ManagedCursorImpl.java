@@ -90,7 +90,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     protected volatile PositionImpl markDeletePosition;
     protected volatile PositionImpl readPosition;
-    private volatile PendingMarkDeleteEntry lastMarkDeleteEntry;
+    private volatile MarkDeleteEntry lastMarkDeleteEntry;
 
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
@@ -123,7 +123,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private final RateLimiter markDeleteLimiter;
 
-    class PendingMarkDeleteEntry {
+    class MarkDeleteEntry {
         final PositionImpl newPosition;
         final MarkDeleteCallback callback;
         final Object ctx;
@@ -132,9 +132,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         // If the callbackGroup is set, it means this mark-delete request was done on behalf of a group of request (just
         // persist the last one in the chain). In this case we need to trigger the callbacks for every request in the
         // group.
-        List<PendingMarkDeleteEntry> callbackGroup;
+        List<MarkDeleteEntry> callbackGroup;
 
-        public PendingMarkDeleteEntry(PositionImpl newPosition, Map<String, Long> properties,
+        public MarkDeleteEntry(PositionImpl newPosition, Map<String, Long> properties,
                 MarkDeleteCallback callback, Object ctx) {
             this.newPosition = PositionImpl.get(newPosition);
             this.properties = properties;
@@ -143,7 +143,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private final ArrayDeque<PendingMarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
+    private final ArrayDeque<MarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
@@ -336,7 +336,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
         markDeletePosition = position;
         readPosition = ledger.getNextValidPosition(position);
-        lastMarkDeleteEntry = new PendingMarkDeleteEntry(markDeletePosition, properties, null, null);
+        lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, properties, null, null);
         STATE_UPDATER.set(this, State.NoLedger);
     }
 
@@ -758,7 +758,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 Range.closedOpen(markDeletePosition, newMarkDeletePosition));
                     }
                     markDeletePosition = newMarkDeletePosition;
-                    lastMarkDeleteEntry = new PendingMarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(),
+                    lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(),
                             null, null);
                     individualDeletedMessages.clear();
 
@@ -1301,7 +1301,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
-            lastMarkDeleteEntry = new PendingMarkDeleteEntry(newPosition, properties, null, null);
+            lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, properties, null, null);
             callback.markDeleteComplete(ctx);
             return;
         }
@@ -1312,7 +1312,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             final MarkDeleteCallback callback, final Object ctx) {
         ledger.mbean.addMarkDeleteOp();
 
-        PendingMarkDeleteEntry mdEntry = new PendingMarkDeleteEntry(newPosition, properties, callback, ctx);
+        MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
 
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
         synchronized (pendingMarkDeleteOps) {
@@ -1348,7 +1348,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void internalMarkDelete(final PendingMarkDeleteEntry mdEntry) {
+    void internalMarkDelete(final MarkDeleteEntry mdEntry) {
         // The counter is used to mark all the pending mark-delete request that were submitted to BK and that are not
         // yet finished. While we have outstanding requests we cannot close the current ledger, so the switch to new
         // ledger is postponed to when the counter goes to 0.
@@ -1382,7 +1382,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // operation.
                 if (mdEntry.callbackGroup != null) {
                     // Trigger the callback for every request in the group
-                    for (PendingMarkDeleteEntry e : mdEntry.callbackGroup) {
+                    for (MarkDeleteEntry e : mdEntry.callbackGroup) {
                         e.callback.markDeleteComplete(e.ctx);
                     }
                 } else {
@@ -1403,7 +1403,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 decrementPendingMarkDeleteCount();
 
                 if (mdEntry.callbackGroup != null) {
-                    for (PendingMarkDeleteEntry e : mdEntry.callbackGroup) {
+                    for (MarkDeleteEntry e : mdEntry.callbackGroup) {
                         e.callback.markDeleteFailed(exception, e.ctx);
                     }
                 } else {
@@ -1545,7 +1545,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
-            lastMarkDeleteEntry = new PendingMarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(), null, null);
+            lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(), null, null);
             callback.deleteComplete(ctx);
             return;
         }
@@ -1818,7 +1818,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 synchronized (pendingMarkDeleteOps) {
                     while (!pendingMarkDeleteOps.isEmpty()) {
-                        PendingMarkDeleteEntry entry = pendingMarkDeleteOps.poll();
+                        MarkDeleteEntry entry = pendingMarkDeleteOps.poll();
                         entry.callback.markDeleteFailed(exception, entry.ctx);
                     }
 
@@ -1836,7 +1836,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void internalFlushPendingMarkDeletes() {
-        PendingMarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
+        MarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
         lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
         pendingMarkDeleteOps.clear();
 
@@ -1861,7 +1861,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         }
                         // Created the ledger, now write the last position
                         // content
-                        PendingMarkDeleteEntry mdEntry = lastMarkDeleteEntry;
+                        MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
                         persistPosition(lh, mdEntry, new VoidCallback() {
                             @Override
                             public void operationComplete() {
@@ -1950,7 +1950,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void persistPosition(final LedgerHandle lh, PendingMarkDeleteEntry mdEntry, final VoidCallback callback) {
+    void persistPosition(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         PositionImpl position = mdEntry.newPosition;
         PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
