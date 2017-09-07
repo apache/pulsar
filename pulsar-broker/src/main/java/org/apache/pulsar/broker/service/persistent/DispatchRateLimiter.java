@@ -98,7 +98,7 @@ public class DispatchRateLimiter {
      * Update dispatch-throttling-rate. gives first priority to namespace-policy configured dispatch rate else applies
      * default broker dispatch-throttling-rate
      */
-    private void updateDispatchRate() {
+    public void updateDispatchRate() {
         DispatchRate dispatchRate = getPoliciesDispatchRate();
         if (dispatchRate == null) {
             dispatchRate = new DispatchRate(brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
@@ -121,6 +121,14 @@ public class DispatchRateLimiter {
                 DispatchRate dispatchRate = data.clusterDispatchRate.get(cluster);
                 // update dispatch-rate only if it's configured in policies else ignore
                 if (dispatchRate != null) {
+                    final DispatchRate clusterDispatchRate = new DispatchRate(
+                            brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                            brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte(), 1);
+                    // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
+                    // cluster-throttling rate
+                    if (!isDispatchRateEnabled(dispatchRate) && isDispatchRateEnabled(clusterDispatchRate)) {
+                        dispatchRate = clusterDispatchRate;
+                    }
                     updateDispatchRate(dispatchRate);
                 }
             }
@@ -128,7 +136,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * Gets configured dispatch-rate from namespace policies. Returns null if dispach-rate is not configured
+     * Gets configured dispatch-rate from namespace policies. Returns null if dispatch-rate is not configured
      * 
      * @return
      */
@@ -141,7 +149,11 @@ public class DispatchRateLimiter {
                     .get(cacheTimeOutInSec, SECONDS);
             if (policies.isPresent() && policies.get().clusterDispatchRate != null
                     && policies.get().clusterDispatchRate.get(cluster) != null) {
-                return policies.get().clusterDispatchRate.get(cluster);
+                DispatchRate dispatchRate = policies.get().clusterDispatchRate.get(cluster);
+                // return policy-dispatch rate only if it's enabled in policies
+                if (isDispatchRateEnabled(dispatchRate)) {
+                    return dispatchRate;
+                }
             }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {}", this.topicName, e);
@@ -214,6 +226,12 @@ public class DispatchRateLimiter {
      */
     public long getDispatchRateOnByte() {
         return dispatchRateLimiterOnByte != null ? dispatchRateLimiterOnByte.getRate() : -1;
+    }
+
+
+    private boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
+        return dispatchRate != null && (dispatchRate.dispatchThrottlingRatePerTopicInMsg > 0
+                || dispatchRate.dispatchThrottlingRatePerTopicInByte > 0);
     }
 
     public void close() {

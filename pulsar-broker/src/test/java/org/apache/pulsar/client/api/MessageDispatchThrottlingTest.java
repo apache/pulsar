@@ -772,6 +772,80 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         this.conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
         log.info("-- Exiting {} test --", methodName);
     }
+
+     /**   
+     * <pre>
+     * It verifies that cluster-throttling value gets considered when namespace-policy throttling is disabled.
+     * 
+     *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
+     *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
+     *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
+     *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
+     * 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testClusterPolicyOverrideConfiguration() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String namespace = "my-property/use/throttling_ns";
+        final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
+        final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
+        final int clusterMessageRate = 100;
+
+        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+        // (1) Update message-dispatch-rate limit
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(clusterMessageRate));
+        // sleep incrementally as zk-watch notification is async and may take some time
+        for (int i = 0; i < 5; i++) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() != initValue) {
+                Thread.sleep(50 + (i * 10));
+            }
+        }
+        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
+
+        admin.namespaces().createNamespace(namespace);
+        // create producer and topic
+        Producer producer = pulsarClient.createProducer(topicName1);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName1).get();
+
+        // (1) Update dispatch rate on cluster-config update
+        Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().getDispatchRateOnMsg());
+
+        // (2) Update namespace throttling limit
+        int nsMessageRate = 500;
+        DispatchRate dispatchRate = new DispatchRate(nsMessageRate, 0, 1);
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        for (int i = 0; i < 5; i++) {
+            if (topic.getDispatchRateLimiter().getDispatchRateOnMsg() != nsMessageRate) {
+                Thread.sleep(50 + (i * 10));
+            }
+        }
+        Assert.assertEquals(nsMessageRate, topic.getDispatchRateLimiter().getDispatchRateOnMsg());
+
+        // (3) Disable namespace throttling limit will force to take cluster-config
+        dispatchRate = new DispatchRate(0, 0, 1);
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        for (int i = 0; i < 5; i++) {
+            if (topic.getDispatchRateLimiter().getDispatchRateOnMsg() == nsMessageRate) {
+                Thread.sleep(50 + (i * 10));
+            }
+        }
+        Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().getDispatchRateOnMsg());
+
+        // (5) Namespace throttling is disabled so, new topic should take cluster throttling limit
+        Producer producer2 = pulsarClient.createProducer(topicName2);
+        PersistentTopic topic2 = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName2).get();
+        Assert.assertEquals(clusterMessageRate, topic2.getDispatchRateLimiter().getDispatchRateOnMsg());
+
+        producer.close();
+        producer2.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
     
     private void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
         Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
