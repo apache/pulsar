@@ -59,7 +59,7 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
         return entryId;
     }
 
-    int getPartitionIndex() {
+    public int getPartitionIndex() {
         return partitionIndex;
     }
 
