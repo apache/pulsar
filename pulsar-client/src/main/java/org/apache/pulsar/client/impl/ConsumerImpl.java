@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentNavigableMap;
@@ -1171,6 +1172,11 @@ public class ConsumerImpl extends ConsumerBase {
     @Override
     public boolean hasReachedEndOfTopic() {
         return hasReachedEndOfTopic;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(topic, subscription, consumerName);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

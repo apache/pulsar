@@ -90,6 +90,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-testclient</module>
     <module>pulsar-broker-auth-athenz</module>
     <module>pulsar-client-auth-athenz</module>
+    <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>all</module>
   </modules>

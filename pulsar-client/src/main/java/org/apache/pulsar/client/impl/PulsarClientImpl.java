@@ -450,7 +450,7 @@ public class PulsarClientImpl implements PulsarClient {
         return eventLoopGroup;
     }
 
-    private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture;
 

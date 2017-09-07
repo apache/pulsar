@@ -172,7 +172,7 @@ public class DestinationName implements ServiceUnitId {
     }
 
     public DestinationName getPartition(int index) {
-        if (this.toString().contains(PARTITIONED_TOPIC_SUFFIX)) {
+        if (index == -1 || this.toString().contains(PARTITIONED_TOPIC_SUFFIX)) {
             return this;
         }
         String partitionName = this.toString() + PARTITIONED_TOPIC_SUFFIX + index;
@@ -184,6 +184,26 @@ public class DestinationName implements ServiceUnitId {
      */
     public int getPartitionIndex() {
         return partitionIndex;
+    }
+
+    public boolean isPartitioned() {
+        return partitionIndex != -1;
+    }
+
+    /**
+     * For partitions in a topic, return the base partitioned topic name
+     * Eg:
+     * <ul>
+     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
+     *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
+     * </ul>
+     */
+    public String getPartitionedTopicName() {
+        if (isPartitioned()) {
+            return destination.substring(0, destination.lastIndexOf('-'));
+        } else {
+            return destination;
+        }
     }
 
     /**
