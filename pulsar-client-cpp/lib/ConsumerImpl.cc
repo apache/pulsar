@@ -36,7 +36,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscription, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */ )
-        : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), seconds(60))),
+        : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), milliseconds(0))),
           waitingForZeroQueueSizeMessage(false),
           config_(conf),
           subscription_(subscription),

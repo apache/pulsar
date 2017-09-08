@@ -19,6 +19,9 @@
 #ifndef  _PULSAR_BACKOFF_HEADER_
 #define _PULSAR_BACKOFF_HEADER_
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <stdlib.h>     /* srand, rand */
+#include <algorithm>
+#include <time.h>       /* time */
 
 #pragma GCC visibility push(default)
 
@@ -36,7 +39,9 @@ class Backoff {
     const TimeDuration max_;
     TimeDuration next_;
     TimeDuration mandatoryStop_;
+    TimeDuration timeElapsedSinceDisconnection_;
     bool mandatoryStopMade_;
+    unsigned int seed_;
 };
 }
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 #include "Backoff.h"
-#include <algorithm>
 
 namespace pulsar {
 
@@ -26,14 +25,15 @@ Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const Tim
           max_(max),
           next_(initial),
           mandatoryStopMade_(false),
-          mandatoryStop_(mandatoryStop) {
+          mandatoryStop_(mandatoryStop),
+          seed_(time(NULL)) {
 }
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;
     next_ = std::min(next_ * 2, max_);
 
-    static TimeDuration timeElapsedSinceDisconnection_;
+    // Check for mandatory stop
     if (initial_ == current) {
         timeElapsedSinceDisconnection_ = boost::posix_time::milliseconds(0);
     }
@@ -43,7 +43,9 @@ TimeDuration Backoff::next() {
     }
     timeElapsedSinceDisconnection_ += current;
 
-    return current;
+    // Add Randomness
+    current = current - (current * (rand_r(&seed_) % 10) / 100);
+    return std::max(initial_, current);
 }
 
 void Backoff::reset() {
