@@ -425,4 +425,18 @@ public interface ManagedCursor {
      * Tells whether the cursor is durable or just kept in memory
      */
     public boolean isDurable();
+
+    /**
+     * Returns total number of entries from the first not-acked message to current dispatching position 
+     * 
+     * @return
+     */
+    long getNumberOfEntriesSinceFirstNotAckedMessage();
+
+    /**
+     * Returns number of mark-Delete range
+     * 
+     * @return
+     */
+    int getTotalNonContiguousDeletedMessagesRange();
 }

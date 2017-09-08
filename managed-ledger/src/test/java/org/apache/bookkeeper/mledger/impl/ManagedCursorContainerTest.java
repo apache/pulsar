@@ -235,6 +235,16 @@ public class ManagedCursorContainerTest {
         public boolean isActive() {
             return true;
         }
+
+        @Override
+        public long getNumberOfEntriesSinceFirstNotAckedMessage() {
+            return 0;
+        }
+
+        @Override
+        public int getTotalNonContiguousDeletedMessagesRange() {
+            return 0;
+        }
     }
 
     @Test
