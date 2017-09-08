@@ -1176,6 +1176,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
             cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(cursor.getLastLedgerSwitchTimestamp()));
             cs.state = cursor.getState();
+            cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });
         return stats;
