@@ -565,39 +565,30 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     @Override
     public CompletableFuture<List<Message>> peekMessagesAsync(String destination, String subName, int numMessages) {
         checkArgument(numMessages > 0);
-        List<Message> messages = Lists.newArrayList();
-        CompletableFuture<List<Message>> futures = new CompletableFuture<List<Message>>();
+        CompletableFuture<List<Message>> future = new CompletableFuture<List<Message>>();
+        peekMessagesAsync(destination, subName, numMessages, Lists.newArrayList(), future);
+        return future;
+    }
+    
+    
+    private void peekMessagesAsync(String destination, String subName, int numMessages,
+            List<Message> messages, CompletableFuture<List<Message>> future) {
+        if (numMessages <= 0) {
+            future.complete(messages);
+        }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
         peekNthMessage(destination, subName, 1).handle((r, ex) -> {
             if (ex != null) {
-                futures.completeExceptionally(ex);
-            } else {
-                messages.addAll(r);
-                List<CompletableFuture<List<Message>>> futureMessages = Lists.newArrayList();
-                for (int i = 2; i <= numMessages; i++) {
-                    futureMessages.add(peekNthMessage(destination, subName, i));
-                }
-
-                try {
-                    for (CompletableFuture<List<Message>> futureMessage : futureMessages) {
-                        messages.addAll(futureMessage.get());
-                    }
-                } catch (Exception e) {
-                    // if we get a not found exception, it means that the position for the message we are trying to get
-                    // does not exist. At this point, we can return the already found messages.
-                if (!(e.getCause() instanceof NotFoundException)) {
-                    futures.completeExceptionally(e.getCause());
-                    return null;
-                }
+                future.completeExceptionally(ex);
+                return null;
             }
-
-            futures.complete(messages);
-        }
-        return null;
-    }   );
-
-        return futures;
+            for (int i = 0; i < Math.min(numMessages, messages.size()); i++) {
+                messages.add(r.get(i));
+            }
+            peekMessagesAsync(destination, subName, numMessages - messages.size(), messages, future);
+            return null;
+        });
     }
 
     @Override
