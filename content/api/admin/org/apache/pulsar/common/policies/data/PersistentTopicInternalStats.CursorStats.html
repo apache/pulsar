@@ -154,14 +154,18 @@ extends Object</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#pendingReadOps">pendingReadOps</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#readPosition">readPosition</a></span></code>&nbsp;</td>
+<td class="colFirst"><code>Map&lt;String,Long&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#properties">properties</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#state">state</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#readPosition">readPosition</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#state">state</a></span></code>&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#waitingReadOp">waitingReadOp</a></span></code>&nbsp;</td>
 </tr>
@@ -296,10 +300,19 @@ extends Object</pre>
 <a name="state">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>state</h4>
 <pre>public&nbsp;String state</pre>
+</li>
+</ul>
+<a name="properties">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>properties</h4>
+<pre>public&nbsp;Map&lt;String,Long&gt; properties</pre>
 </li>
 </ul>
 </li>
