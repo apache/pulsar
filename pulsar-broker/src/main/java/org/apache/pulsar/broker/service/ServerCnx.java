@@ -19,6 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
+import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
+import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
+import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -28,15 +33,11 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
-import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
-import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
-import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
-
+import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
@@ -53,16 +54,15 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -345,8 +345,9 @@ public class ServerCnx extends PulsarHandler {
         final String consumerName = subscribe.getConsumerName();
         final boolean isDurable = subscribe.getDurable();
         final MessageIdImpl startMessageId = subscribe.hasStartMessageId()
-                ? new MessageIdImpl(subscribe.getStartMessageId().getLedgerId(),
-                        subscribe.getStartMessageId().getEntryId(), subscribe.getStartMessageId().getPartition())
+                ? new BatchMessageIdImpl(subscribe.getStartMessageId().getLedgerId(),
+                        subscribe.getStartMessageId().getEntryId(), subscribe.getStartMessageId().getPartition(),
+                        subscribe.getStartMessageId().getBatchIndex())
                 : null;
 
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
@@ -625,7 +626,12 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Consumer> consumerFuture = consumers.get(flow.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).flowPermits(flow.getMessagePermits());
+            Consumer consumer = consumerFuture.getNow(null);
+            if (consumer != null) {
+                consumer.flowPermits(flow.getMessagePermits());
+            } else {
+                log.info("[{}] Couldn't find consumer {}", remoteAddress, flow.getConsumerId());
+            }
         }
     }
 

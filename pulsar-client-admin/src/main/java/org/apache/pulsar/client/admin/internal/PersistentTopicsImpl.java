@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,7 +47,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.Commands;
@@ -566,27 +564,34 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     public CompletableFuture<List<Message>> peekMessagesAsync(String destination, String subName, int numMessages) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message>> future = new CompletableFuture<List<Message>>();
-        peekMessagesAsync(destination, subName, numMessages, Lists.newArrayList(), future);
+        peekMessagesAsync(destination, subName, numMessages, Lists.newArrayList(), future, 1);
         return future;
     }
     
     
     private void peekMessagesAsync(String destination, String subName, int numMessages,
-            List<Message> messages, CompletableFuture<List<Message>> future) {
+            List<Message> messages, CompletableFuture<List<Message>> future, int nthMessage) {
         if (numMessages <= 0) {
             future.complete(messages);
+            return;
         }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
-        peekNthMessage(destination, subName, 1).handle((r, ex) -> {
+        peekNthMessage(destination, subName, nthMessage).handle((r, ex) -> {
             if (ex != null) {
-                future.completeExceptionally(ex);
+                // if we get a not found exception, it means that the position for the message we are trying to get        
+                // does not exist. At this point, we can return the already found messages.       
+                if (ex instanceof NotFoundException && ex.getMessage().equals("Message not found")) {    
+                    future.complete(messages);
+                } else {
+                    future.completeExceptionally(ex);
+                }
                 return null;
             }
-            for (int i = 0; i < Math.min(numMessages, messages.size()); i++) {
+            for (int i = r.size() - 1; i >= Math.max(0, r.size() - numMessages); i--) {
                 messages.add(r.get(i));
             }
-            peekMessagesAsync(destination, subName, numMessages - messages.size(), messages, future);
+            peekMessagesAsync(destination, subName, numMessages - r.size(), messages, future, nthMessage + 1);
             return null;
         });
     }

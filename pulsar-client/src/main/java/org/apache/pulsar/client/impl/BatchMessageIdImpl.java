@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 
 /**
@@ -29,6 +28,15 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
+    }
+
+    public BatchMessageIdImpl(MessageIdImpl other) {
+        super(other.ledgerId, other.entryId, other.partitionIndex);
+        if (other instanceof BatchMessageIdImpl) {
+            this.batchIndex = ((BatchMessageIdImpl) other).batchIndex;
+        } else {
+            this.batchIndex = -1;
+        }
     }
 
     public int getBatchIndex() {

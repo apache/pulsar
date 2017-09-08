@@ -98,6 +98,18 @@ public interface MessageBuilder {
     MessageBuilder setKey(String key);
 
     /**
+     * Set the event time for a given message.
+     *
+     * <p>Applications can retrieve the event time by calling {@link Message#getEventTime()}.
+     *
+     * <p>Note: currently pulsar doesn't support event-time based index. so the subscribers can't
+     * seek the messages by event time.
+     *
+     * @since 1.20.0
+     */
+    MessageBuilder setEventTime(long timestamp);
+
+    /**
      * Override the replication clusters for this message.
      *
      * @param clusters

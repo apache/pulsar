@@ -157,6 +157,15 @@ public class MessageImpl implements Message {
         return msgMetadataBuilder.getPublishTime();
     }
 
+    @Override
+    public long getEventTime() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasEventTime()) {
+            return msgMetadataBuilder.getEventTime();
+        }
+        return 0;
+    }
+
     public boolean isExpired(int messageTTLInSeconds) {
         return messageTTLInSeconds != 0
                 && System.currentTimeMillis() > (getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));

@@ -21,7 +21,6 @@
 #include <pulsar/Client.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/asio.hpp>
-#include <boost/range/algorithm/for_each.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 #include <lib/LogUtils.h>

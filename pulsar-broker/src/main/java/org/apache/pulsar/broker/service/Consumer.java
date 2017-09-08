@@ -65,6 +65,7 @@ public class Consumer {
     private final SubType subType;
     private final ServerCnx cnx;
     private final String appId;
+    private final String topicName;
 
     private final long consumerId;
     private final int priorityLevel;
@@ -95,11 +96,12 @@ public class Consumer {
     private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
-    public Consumer(Subscription subscription, SubType subType, long consumerId, int priorityLevel, String consumerName,
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
             int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
+        this.topicName = topicName;
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
         this.consumerName = consumerName;
@@ -151,8 +153,8 @@ public class Consumer {
         sentMessages.channelPromse = writePromise;
         if (entries.isEmpty()) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] List of messages is empty, triggering write future immediately for consumerId {}",
-                        subscription, consumerId);
+                log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
+                        topicName, subscription, consumerId);
             }
             writePromise.setSuccess();
             sentMessages.totalSentMessages = 0;
@@ -192,8 +194,8 @@ public class Consumer {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Sending message to consumerId {}, entry id {}", subscription, consumerId,
-                            pos.getEntryId());
+                    log.debug("[{}-{}] Sending message to consumerId {}, entry id {}", topicName, subscription,
+                            consumerId, pos.getEntryId());
                 }
 
                 // We only want to pass the "real" promise on the last entry written
@@ -273,7 +275,8 @@ public class Consumer {
         }
         if (permits < 0) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] message permits dropped below 0 - {}", subscription, consumerId, permits);
+                log.debug("[{}-{}] [{}] message permits dropped below 0 - {}", topicName, subscription, consumerId,
+                        permits);
             }
         }
 
@@ -363,8 +366,8 @@ public class Consumer {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Added more flow control message permits {} (old was: {})", this, additionalNumberOfMessages,
-                    oldPermits);
+            log.debug("[{}-{}] Added more flow control message permits {} (old was: {}), blocked = ", topicName,
+                    subscription, additionalNumberOfMessages, oldPermits, blockedConsumerOnUnackedMsgs);
         }
 
     }
@@ -497,6 +500,9 @@ public class Consumer {
         if (ackOwnedConsumer != null) {
             int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
             ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
+            }
             // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
             // consuming messages
             if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
@@ -520,6 +526,9 @@ public class Consumer {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         clearUnAckedMsgs(this);
         blockedConsumerOnUnackedMsgs = false;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
+        }
         // redeliver unacked-msgs
         subscription.redeliverUnacknowledgedMessages(this);
         flowConsumerBlockedPermits(this);
@@ -550,6 +559,11 @@ public class Consumer {
         addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
         blockedConsumerOnUnackedMsgs = false;
 
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] consumer {} received {} msg-redelivery {}", topicName, subscription, consumerId,
+                    totalRedeliveryMessages, pendingPositions.size());
+        }
+        
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
 

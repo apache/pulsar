@@ -423,7 +423,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{} -> {}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
-                        topic, localCluster, remoteCluster, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
+                        topicName, localCluster, remoteCluster, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
                         exception);
             }
         }
