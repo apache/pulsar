@@ -588,7 +588,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
                 return null;
             }
-            for (int i = r.size() - 1; i >= Math.max(0, r.size() - numMessages); i--) {
+            for (int i = 0; i < Math.min(r.size(), numMessages); i++) {
                 messages.add(r.get(i));
             }
             peekMessagesAsync(destination, subName, numMessages - r.size(), messages, future, nthMessage + 1);
