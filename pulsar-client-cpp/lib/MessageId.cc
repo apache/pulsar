@@ -101,13 +101,21 @@ std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
 }
 
 bool MessageId::operator<(const MessageId& other) const {
-    return std::tie(ledgerId_, entryId_, partition_)
-            < std::tie(other.ledgerId_, other.entryId_, other.partition_);
+    if (ledgerId_ < other.ledgerId_) {
+        return true;
+    } else if (ledgerId_ > other.ledgerId_) {
+        return false;
+    }
+
+    if (entryId_ < other.entryId_) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MessageId::operator==(const MessageId& other) const {
-    return std::tie(ledgerId_, entryId_, partition_)
-            == std::tie(other.ledgerId_, other.entryId_, other.partition_);
+    return ledgerId_ == other.ledgerId_ && entryId_ == other.entryId_;
 }
 
 #pragma GCC visibility pop
