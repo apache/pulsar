@@ -39,16 +39,20 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 
 public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private final PulsarClient client;
+    private final ProducerConfiguration pulsarProducerConf;
 
     private final ConcurrentMap<String, org.apache.pulsar.client.api.Producer> producers = new ConcurrentHashMap<>();
 
@@ -74,7 +78,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         this(new HashMap<>(), properties, keySerializer, valueSerializer);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "deprecation" })
     private PulsarKafkaProducer(Map<String, Object> conf, Properties properties, Serializer<K> keySerializer,
             Serializer<V> valueSerializer) {
         properties.forEach((k, v) -> conf.put((String) k, v));
@@ -100,11 +104,19 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
 
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
+        ClientConfiguration clientConf = PulsarKafkaConfig.getClientConfiguration(properties);
         try {
-            client = PulsarClient.create(serviceUrl);
+            client = PulsarClient.create(serviceUrl, clientConf);
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
+
+        pulsarProducerConf = new ProducerConfiguration();
+        pulsarProducerConf.setBatchingEnabled(true);
+        pulsarProducerConf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+
+        pulsarProducerConf.setBlockIfQueueFull(
+                Boolean.parseBoolean(properties.getProperty(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "false")));
     }
 
     @Override

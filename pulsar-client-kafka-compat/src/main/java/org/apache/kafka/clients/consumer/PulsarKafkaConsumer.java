@@ -44,6 +44,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -53,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -136,8 +138,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         isAutoCommit = config.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
 
         String serviceUrl = config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
+
+        Properties properties = new Properties();
+        config.originals().forEach((k, v) -> properties.put(k, v));
+        ClientConfiguration clientConf = PulsarKafkaConfig.getClientConfiguration(properties);
         try {
-            client = PulsarClient.create(serviceUrl);
+            client = PulsarClient.create(serviceUrl, clientConf);
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
