@@ -28,6 +28,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
@@ -61,7 +63,8 @@ public class ClientCnx extends PulsarHandler {
     private final Authentication authentication;
     private State state;
 
-    private final ConcurrentLongHashMap<CompletableFuture<String>> pendingRequests = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<Pair<String, Long>>> pendingRequests = new ConcurrentLongHashMap<>(
+            16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(
             16, 1);
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
@@ -179,7 +182,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("[{}] Message has been dropped for non-persistent topic producer-id {}", ctx.channel(),
                     producerId);
         }
-        
+
         if (log.isDebugEnabled()) {
             log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
                     ledgerId, entryId);
@@ -209,7 +212,7 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Received success response from server: {}", ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<String> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.complete(null);
         } else {
@@ -226,9 +229,9 @@ public class ClientCnx extends PulsarHandler {
                     success.getRequestId(), success.getProducerName());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<String> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(success.getProducerName());
+            requestFuture.complete(new ImmutablePair<>(success.getProducerName(), success.getLastSequenceId()));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -351,7 +354,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Producer creation has been blocked because backlog quota exceeded for producer topic",
                     ctx.channel());
         }
-        CompletableFuture<String> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.completeExceptionally(getPulsarClientException(error.getError(), error.getMessage()));
         } else {
@@ -430,8 +433,8 @@ public class ClientCnx extends PulsarHandler {
         return connectionFuture;
     }
 
-    CompletableFuture<String> sendRequestWithId(ByteBuf cmd, long requestId) {
-        CompletableFuture<String> future = new CompletableFuture<>();
+    CompletableFuture<Pair<String, Long>> sendRequestWithId(ByteBuf cmd, long requestId) {
+        CompletableFuture<Pair<String, Long>> future = new CompletableFuture<>();
         pendingRequests.put(requestId, future);
         ctx.writeAndFlush(cmd).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {

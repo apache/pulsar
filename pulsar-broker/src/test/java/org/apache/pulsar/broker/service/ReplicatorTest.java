@@ -212,8 +212,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
         Thread.sleep(3000);
 
-        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.anyObject(),
-                Mockito.anyString());
+        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.anyObject());
 
     }
 
@@ -623,7 +622,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     /**
      * It verifies that: if it fails while removing replicator-cluster-cursor: it should not restart the replicator and
      * it should have cleaned up from the list
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -750,7 +749,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     /**
      * It verifies that PersistentReplicator considers CursorAlreadyClosedException as non-retriable-read exception and
      * it should closed the producer as cursor is already closed because replicator is already deleted.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)

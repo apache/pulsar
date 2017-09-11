@@ -89,6 +89,13 @@ public class MessageBuilderImpl implements MessageBuilder {
     }
 
     @Override
+    public MessageBuilder setSequenceId(long sequenceId) {
+        checkArgument(sequenceId >= 0);
+        msgMetadataBuilder.setSequenceId(sequenceId);
+        return this;
+    }
+
+    @Override
     public MessageBuilder setReplicationClusters(List<String> clusters) {
         Preconditions.checkNotNull(clusters);
         msgMetadataBuilder.clearReplicateTo();
@@ -102,4 +109,6 @@ public class MessageBuilderImpl implements MessageBuilder {
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
     }
+
+
 }

@@ -55,13 +55,25 @@ public class PartitionedProducerImpl extends ProducerBase {
         start();
     }
 
+    @Override
+    public String getProducerName() {
+        return producers.get(0).getProducerName();
+    }
+
+    @Override
+    public long getLastSequenceId() {
+        // Return the highest sequence id across all partitions. This will be correct,
+        // since there is a single id generator across all partitions for the same producer
+        return producers.stream().map(Producer::getLastSequenceId).mapToLong(Long::longValue).max().orElse(-1);
+    }
+
     private void start() {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl producer = new ProducerImpl(client, partitionName, null, conf,
-                    new CompletableFuture<Producer>(), partitionIndex);
+            ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
+                    partitionIndex);
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {

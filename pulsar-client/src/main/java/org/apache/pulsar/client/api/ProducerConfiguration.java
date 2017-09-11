@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
@@ -35,10 +36,8 @@ import com.google.common.base.Objects;
  */
 public class ProducerConfiguration implements Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 1L;
+    private String producerName = null;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
@@ -50,8 +49,35 @@ public class ProducerConfiguration implements Serializable {
 
     private CompressionType compressionType = CompressionType.NONE;
 
+    private Optional<Long> initialSequenceId = Optional.empty();
+
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
+    }
+
+    /**
+     * @return the configured custom producer name or null if no custom name was specified
+     * @since 1.20.0
+     */
+    public String getProducerName() {
+        return producerName;
+    }
+
+    /**
+     * Specify a name for the producer
+     * <p>
+     * If not assigned, the system will generate a globally unique name which can be access with
+     * {@link Producer#getProducerName()}.
+     * <p>
+     * When specifying a name, it is app to the user to ensure that, for a given topic, the producer name is unique
+     * across all Pulsar's clusters.
+     *
+     * @param producerName
+     *            the custom name to use for the producer
+     * @since 1.20.0
+     */
+    public void setProducerName(String producerName) {
+        this.producerName = producerName;
     }
 
     /**
@@ -87,8 +113,8 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      * <p>
-     * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync}
-     * will fail unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the blocking behavior.
+     * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync} will fail
+     * unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the blocking behavior.
      *
      * @param maxPendingMessages
      * @return
@@ -227,7 +253,7 @@ public class ProducerConfiguration implements Serializable {
      * contents.
      *
      * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
-     * 
+     *
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      * @since 1.0.36 <br>
      *        Make sure all the consumer applications have been updated to use this client version, before starting to
@@ -240,7 +266,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return the batch time period in ms.
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      */
@@ -251,7 +277,7 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
      * enabled. If set to a non zero value, messages will be queued until this time interval or until
-     * 
+     *
      * @see ProducerConfiguration#batchingMaxMessages threshold is reached; all messages will be published as a single
      *      batch message. The consumer will be delivered individual messages in the batch in the same order they were
      *      enqueued
@@ -272,7 +298,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return the maximum number of messages permitted in a batch.
      */
     public int getBatchingMaxMessages() {
@@ -282,7 +308,7 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
      * messages will be queued until this threshold is reached or batch interval has elapsed
-     * 
+     *
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit) All messages in batch will be published as
      *      a single batch message. The consumer will be delivered individual messages in the batch in the same order
      *      they were enqueued
@@ -293,6 +319,24 @@ public class ProducerConfiguration implements Serializable {
     public ProducerConfiguration setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
         checkArgument(batchMessagesMaxMessagesPerBatch > 0);
         this.batchingMaxMessages = batchMessagesMaxMessagesPerBatch;
+        return this;
+    }
+
+    public Optional<Long> getInitialSequenceId() {
+        return initialSequenceId;
+    }
+
+    /**
+     * Set the baseline for the sequence ids for messages published by the producer.
+     * <p>
+     * First message will be using (initialSequenceId + 1) as its sequence id and subsequent messages will be assigned
+     * incremental sequence ids, if not otherwise specified.
+     *
+     * @param initialSequenceId
+     * @return
+     */
+    public ProducerConfiguration setInitialSequenceId(long initialSequenceId) {
+        this.initialSequenceId = Optional.of(initialSequenceId);
         return this;
     }
 

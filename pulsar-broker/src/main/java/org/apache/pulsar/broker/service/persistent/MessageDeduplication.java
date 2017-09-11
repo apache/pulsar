@@ -417,5 +417,10 @@ public class MessageDeduplication {
         }
     }
 
+    public long getLastPublishedSequenceId(String producerName) {
+        Long sequenceId = highestSequencedPushed.get(producerName);
+        return sequenceId != null ? sequenceId : -1;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);
 }
