@@ -112,6 +112,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
+    // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
+    @FieldContext(dynamic = true)
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -520,6 +524,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setDispatchThrottlingRatePerTopicInByte(long dispatchThrottlingRatePerTopicInByte) {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
+    }
+
+    public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
+        return dispatchThrottlingOnNonBacklogConsumerEnabled;
+    }
+
+    public void setDispatchThrottlingOnNonBacklogConsumerEnabled(boolean dispatchThrottlingOnNonBacklogConsumerEnabled) {
+        this.dispatchThrottlingOnNonBacklogConsumerEnabled = dispatchThrottlingOnNonBacklogConsumerEnabled;
     }
 
     public int getMaxConcurrentLookupRequest() {
