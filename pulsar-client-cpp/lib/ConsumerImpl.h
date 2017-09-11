@@ -119,7 +119,7 @@ private:
     void discardCorruptedMessage(const ClientConnectionPtr& cnx,
                                  const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
-    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx);
+    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
     void drainIncomingMessageQueue(size_t count);
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx,
                                                 Message &batchedMessage);

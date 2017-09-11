@@ -340,7 +340,6 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
                     && msgId.batchIndex_ <= startMessageId_.value().batchIndex_) {
                 LOG_DEBUG(
                         getName() << "Ignoring message from before the startMessageId" << msg.getMessageId());
-                increaseAvailablePermits(cnx);
                 ++skippedMessages;
                 continue;
             }
@@ -349,6 +348,11 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
         // Regular path, append individual message to incoming messages queue
         incomingMessages_.push(msg);
     }
+
+    if (skippedMessages > 0) {
+        increaseAvailablePermits(cnx, skippedMessages);
+    }
+
     return batchSize - skippedMessages;
 }
 
@@ -563,9 +567,11 @@ Optional<BatchMessageId> ConsumerImpl::clearReceiveQueue() {
     }
 }
 
-void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx) {
+void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits) {
     int additionalPermits =  0;
-    if (++availablePermits_ >= config_.getReceiverQueueSize() / 2) {
+
+    availablePermits_ += numberOfPermits;
+    if (availablePermits_ >= config_.getReceiverQueueSize() / 2) {
         additionalPermits = availablePermits_;
         availablePermits_ = 0;
     }
