@@ -58,11 +58,9 @@ bool BatchMessageId::operator<(const BatchMessageId& other) const {
 
     if (entryId_ < other.entryId_) {
         return true;
-    } else if (entryId_ > other.entryId_) {
+    } else {
         return false;
     }
-
-    return batchIndex_ < other.batchIndex_;
 }
 
 bool BatchMessageId::operator<=(const BatchMessageId& other) const {
