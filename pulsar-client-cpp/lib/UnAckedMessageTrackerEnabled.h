@@ -29,6 +29,8 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     bool remove(const MessageId& m);
     void removeMessagesTill(const MessageId& msgId);
     void timeoutHandler();
+
+    void clear();
  private:
     void timeoutHandler(const boost::system::error_code& ec);
     void timeoutHandlerHelper();

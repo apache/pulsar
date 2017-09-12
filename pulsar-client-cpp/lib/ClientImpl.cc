@@ -21,6 +21,7 @@
 #include "LogUtils.h"
 #include "ConsumerImpl.h"
 #include "ProducerImpl.h"
+#include "ReaderImpl.h"
 #include "DestinationName.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
@@ -153,6 +154,55 @@ namespace pulsar {
         callback(result, Producer(producer));
     }
 
+    void ClientImpl::createReaderAsync(const std::string& topic,
+            const MessageId& startMessageId,
+            const ReaderConfiguration& conf,
+            ReaderCallback callback) {
+        DestinationNamePtr dn;
+        {
+            Lock lock(mutex_);
+            if (state_ != Open) {
+                lock.unlock();
+                callback(ResultAlreadyClosed, Reader());
+                return;
+            } else if (!(dn = DestinationName::get(topic))) {
+                lock.unlock();
+                callback(ResultInvalidTopicName, Reader());
+                return;
+            }
+        }
+
+        BatchMessageId msgId(startMessageId);
+        lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(&ClientImpl::handleReaderMetadataLookup,
+                        shared_from_this(), _1, _2, dn, msgId, conf, callback));
+    }
+
+    void ClientImpl::handleReaderMetadataLookup(const Result result,
+            const LookupDataResultPtr partitionMetadata,
+            DestinationNamePtr dn,
+            BatchMessageId startMessageId,
+            ReaderConfiguration conf,
+            ReaderCallback callback) {
+        if (result != ResultOk) {
+            LOG_ERROR("Error Checking/Getting Partition Metadata while creating reader: " << result);
+            callback(result, Reader());
+            return;
+        }
+
+        if (partitionMetadata->getPartitions() > 1) {
+            LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << dn->toString());
+            callback(ResultOperationNotSupported, Reader());
+            return;
+        }
+
+        ReaderImplPtr reader = boost::make_shared<ReaderImpl>(shared_from_this(), dn->toString(),
+                 conf, getListenerExecutorProvider()->get(), callback);
+        reader->start(startMessageId);
+
+        Lock lock(mutex_);
+        consumers_.push_back(reader->getConsumer());
+    }
+
     void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
                                     const ConsumerConfiguration& conf, SubscribeCallback callback) {
         DestinationNamePtr dn;
@@ -179,7 +229,7 @@ namespace pulsar {
             const std::string& consumerName,
             ConsumerConfiguration conf,
             SubscribeCallback callback) {
-        if (!result) {
+        if (result == ResultOk) {
             // generate random name if not supplied by the customer.
             if(conf.getConsumerName().empty()) {
                 conf.setConsumerName(generateRandomName());

@@ -24,6 +24,7 @@
 
 #include "PulsarApi.pb.h"
 #include "SharedBuffer.h"
+#include "Utils.h"
 
 using namespace pulsar;
 
@@ -48,6 +49,15 @@ class Commands {
         MaxFrameSize = (5 * 1024 * 1024)
     };
 
+    enum SubscriptionMode {
+        // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
+        // position
+        SubscriptionModeDurable,
+
+        // Lightweight subscription mode that doesn't have a durable cursor associated
+        SubscriptionModeNonDurable
+    };
+
     const static uint16_t magicCrc32c = 0x0e01;
     const static int checksumSize = 4;
 
@@ -64,7 +74,9 @@ class Commands {
     static SharedBuffer newSubscribe(const std::string& topic, const std::string&subscription,
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType,
-                                     const std::string& consumerName);
+                                     const std::string& consumerName,
+                                     SubscriptionMode subscriptionMode,
+                                     Optional<BatchMessageId> startMessageId);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 

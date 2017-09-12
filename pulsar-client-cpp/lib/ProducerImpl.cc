@@ -241,7 +241,9 @@ void ProducerImpl::setMessageMetadata(const Message &msg, const uint64_t& sequen
 
 void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCallback callback, boost::posix_time::ptime publishTime) {
     producerStatsBasePtr_->messageReceived(res, publishTime);
-    callback(res, msg);
+    if (callback) {
+        callback(res, msg);
+    }
 }
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
