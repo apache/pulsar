@@ -37,7 +37,8 @@ import io.netty.buffer.ByteBuf;
 
 public interface Topic {
 
-    public interface PublishCallback {
+    public interface PublishContext {
+
         default String getProducerName() {
             return null;
         }
@@ -46,10 +47,30 @@ public interface Topic {
             return -1;
         }
 
+        default void setOriginalProducerName(String originalProducerName) {
+        }
+
+        default void setOriginalSequenceId(long originalSequenceId) {
+        }
+
+        /**
+         * Return the producer name for the original producer.
+         *
+         * For messages published locally, this will return the same local producer name, though in case of replicated
+         * messages, the original producer name will differ
+         */
+        default String getOriginalProducerName() {
+            return null;
+        }
+
+        default long getOriginalSequenceId() {
+            return -1;
+        }
+
         void completed(Exception e, long ledgerId, long entryId);
     }
 
-    void publishMessage(ByteBuf headersAndPayload, PublishCallback callback);
+    void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
     void addProducer(Producer producer) throws BrokerServiceException;
 

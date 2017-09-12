@@ -228,28 +228,28 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     @Override
-    public void publishMessage(ByteBuf headersAndPayload, PublishCallback callback) {
-        if (messageDeduplication.isMessageAlreadyStored(callback.getProducerName(), callback.getSequenceId())) {
-            // Immediately acknowledge duplicated message
-            callback.completed(null, -1, -1);
+    public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (messageDeduplication.shouldPublishNextMessage(publishContext, headersAndPayload)) {
+            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
         } else {
-            ledger.asyncAddEntry(headersAndPayload, this, callback);
+            // Immediately acknowledge duplicated message
+            publishContext.completed(null, -1, -1);
         }
     }
 
     @Override
     public void addComplete(Position pos, Object ctx) {
-        PublishCallback callback = (PublishCallback) ctx;
+        PublishContext publishContext = (PublishContext) ctx;
         PositionImpl position = (PositionImpl) pos;
 
         // Message has been successfully persisted
-        messageDeduplication.recordMessagePersisted(callback.getProducerName(), callback.getSequenceId(), position);
-        callback.completed(null, position.getLedgerId(), position.getEntryId());
+        messageDeduplication.recordMessagePersisted(publishContext, position);
+        publishContext.completed(null, position.getLedgerId(), position.getEntryId());
     }
 
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
-        PublishCallback callback = (PublishCallback) ctx;
+        PublishContext callback = (PublishContext) ctx;
         log.error("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
 
         if (exception instanceof ManagedLedgerTerminatedException) {
@@ -1167,7 +1167,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         stats.storageSize = ledger.getEstimatedBacklogSize();
-
+        stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         return stats;
     }
 

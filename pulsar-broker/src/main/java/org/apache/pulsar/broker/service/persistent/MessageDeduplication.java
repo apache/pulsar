@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -97,6 +98,8 @@ public class MessageDeduplication {
     // Map used to track the inactive producer along with the timestamp of their last activity
     private final Map<String, Long> inactiveProducers = new HashMap<>();
 
+    private final String replicatorPrefix;
+
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
         this.topic = topic;
@@ -105,6 +108,7 @@ public class MessageDeduplication {
         this.snapshotInterval = pulsar.getConfiguration().getBrokerDeduplicationEntriesInterval();
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
+        this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
     }
 
     private CompletableFuture<Void> recoverSequenceIdsMap() {
@@ -143,7 +147,7 @@ public class MessageDeduplication {
                     highestSequencedPersisted.put(producerName, sequenceId);
 
                     md.recycle();
-                    messageMetadataAndPayload.release();
+                    entry.release();
                 }
 
                 if (managedCursor.hasMoreEntries()) {
@@ -182,76 +186,85 @@ public class MessageDeduplication {
         }
     }
 
+    public Status getStatus() {
+        return status;
+    }
+
     /**
      * Check the status of deduplication. If the configuration has changed, it will enable/disable deduplication,
      * returning a future to track the completion of the task
      */
     public CompletableFuture<Void> checkStatus() {
-        if (status == Status.Recovering || status == Status.Removing) {
-            // If there's already a transition happening, check later for status
-            pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
-            return CompletableFuture.completedFuture(null);
-        }
-
         return isDeduplicationEnabled().thenCompose(shouldBeEnabled -> {
-            if (status != Status.Disabled && !shouldBeEnabled) {
-                // Disabled deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                status = Status.Removing;
-                managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new DeleteCursorCallback() {
+            synchronized (this) {
+                if (status == Status.Recovering || status == Status.Removing) {
+                    // If there's already a transition happening, check later for status
+                    pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
+                    return CompletableFuture.completedFuture(null);
+                }
 
-                    @Override
-                    public void deleteCursorComplete(Object ctx) {
-                        status = Status.Disabled;
-                        managedCursor = null;
-                        highestSequencedPushed.clear();
-                        highestSequencedPersisted.clear();
-                        future.complete(null);
-                        log.info("[{}] Disabled deduplication", topic.getName());
-                    }
+                if (status == Status.Enabled && !shouldBeEnabled) {
+                    // Disabled deduping
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    status = Status.Removing;
+                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
+                            new DeleteCursorCallback() {
 
-                    @Override
-                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to disable deduplication: {}", topic.getName(), exception.getMessage());
-                        status = Status.Failed;
-                        future.completeExceptionally(exception);
-                    }
-                }, null);
+                                @Override
+                                public void deleteCursorComplete(Object ctx) {
+                                    status = Status.Disabled;
+                                    managedCursor = null;
+                                    highestSequencedPushed.clear();
+                                    highestSequencedPersisted.clear();
+                                    future.complete(null);
+                                    log.info("[{}] Disabled deduplication", topic.getName());
+                                }
 
-                return future;
-            } else if (status != Status.Enabled && shouldBeEnabled) {
-                // Enable deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
+                                @Override
+                                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
+                                            exception.getMessage());
+                                    status = Status.Failed;
+                                    future.completeExceptionally(exception);
+                                }
+                            }, null);
 
-                    @Override
-                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                        // We don't want to retain cache for this cursor
-                        cursor.setInactive();
-                        managedCursor = cursor;
-                        recoverSequenceIdsMap().thenRun(() -> {
-                            status = Status.Enabled;
-                            future.complete(null);
-                            log.info("[{}] Enabled deduplication", topic.getName());
-                        }).exceptionally(ex -> {
-                            status = Status.Failed;
-                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), ex.getMessage());
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
-                    }
+                    return future;
+                } else if (status == Status.Disabled && shouldBeEnabled) {
+                    // Enable deduping
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
 
-                    @Override
-                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), exception.getMessage());
-                        future.completeExceptionally(exception);
-                    }
+                        @Override
+                        public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                            // We don't want to retain cache for this cursor
+                            cursor.setInactive();
+                            managedCursor = cursor;
+                            recoverSequenceIdsMap().thenRun(() -> {
+                                status = Status.Enabled;
+                                future.complete(null);
+                                log.info("[{}] Enabled deduplication", topic.getName());
+                            }).exceptionally(ex -> {
+                                status = Status.Failed;
+                                log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), ex.getMessage());
+                                future.completeExceptionally(ex);
+                                return null;
+                            });
+                        }
 
-                }, null);
-                return future;
-            } else {
-                // Nothing to do, we are in the correct state
-                return CompletableFuture.completedFuture(null);
+                        @Override
+                        public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
+                                    exception.getMessage());
+                            future.completeExceptionally(exception);
+                        }
+
+                    }, null);
+                    return future;
+                } else {
+                    // Nothing to do, we are in the correct state
+                    return CompletableFuture.completedFuture(null);
+                }
             }
         });
     }
@@ -261,11 +274,28 @@ public class MessageDeduplication {
     }
 
     /**
-     * Assess whether the message was already stored in the topic
+     * Assess whether the message was already stored in the topic.
+     *
+     * @return true if the message should be published or false if it was recognized as a duplicate
      */
-    public boolean isMessageAlreadyStored(String producerName, long sequenceId) {
+    public boolean shouldPublishNextMessage(PublishContext publishContext, ByteBuf headersAndPayload) {
         if (!isEnabled()) {
-            return false;
+            return true;
+        }
+
+        String producerName = publishContext.getProducerName();
+        long sequenceId = publishContext.getSequenceId();
+        if (producerName.startsWith(replicatorPrefix)) {
+            // Message is coming from replication, we need to use the original producer name and sequence id
+            // for the purpose of deduplication and not rely on the "replicator" name.
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            producerName = md.getProducerName();
+            sequenceId = md.getSequenceId();
+            publishContext.setOriginalProducerName(producerName);
+            publishContext.setOriginalSequenceId(sequenceId);
+            headersAndPayload.readerIndex(readerIndex);
+            md.recycle();
         }
 
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
@@ -277,20 +307,28 @@ public class MessageDeduplication {
                     log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
                             topic.getName(), producerName, sequenceId, lastSequenceIdPushed);
                 }
-                return true;
+                return false;
             }
 
             highestSequencedPushed.put(producerName, sequenceId);
         }
-        return false;
+        return true;
     }
 
     /**
      * Call this method whenever a message is persisted to get the chance to trigger a snapshot
      */
-    public void recordMessagePersisted(String producerName, long sequenceId, PositionImpl position) {
+    public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
         if (!isEnabled()) {
             return;
+        }
+
+        String producerName = publishContext.getProducerName();
+        long sequenceId = publishContext.getSequenceId();
+        if (publishContext.getOriginalProducerName() != null) {
+            // In case of replicated messages, this will be different from the current replicator producer name
+            producerName = publishContext.getOriginalProducerName();
+            sequenceId = publishContext.getOriginalSequenceId();
         }
 
         highestSequencedPersisted.put(producerName, sequenceId);

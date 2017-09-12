@@ -30,9 +30,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
-import org.apache.pulsar.broker.service.Topic.PublishCallback;
+import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -132,7 +131,7 @@ public class Producer {
 
         startPublishOperation();
         topic.publishMessage(headersAndPayload,
-                MessagePublishedCallback.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize));
+                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize));
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
@@ -186,7 +185,7 @@ public class Producer {
         }
     }
 
-    private static final class MessagePublishedCallback implements PublishCallback, Runnable {
+    private static final class MessagePublishContext implements PublishContext, Runnable {
         private Producer producer;
         private long sequenceId;
         private long ledgerId;
@@ -195,14 +194,35 @@ public class Producer {
         private int msgSize;
         private long batchSize;
 
-        @Override
+        private String originalProducerName;
+        private long originalSequenceId;
+
         public String getProducerName() {
             return producer.getProducerName();
         }
 
-        @Override
         public long getSequenceId() {
             return sequenceId;
+        }
+
+        @Override
+        public void setOriginalProducerName(String originalProducerName) {
+            this.originalProducerName = originalProducerName;
+        }
+
+        @Override
+        public void setOriginalSequenceId(long originalSequenceId) {
+            this.originalSequenceId = originalSequenceId;
+        }
+
+        @Override
+        public String getOriginalProducerName() {
+            return originalProducerName;
+        }
+
+        @Override
+        public long getOriginalSequenceId() {
+            return originalSequenceId;
         }
 
         /**
@@ -252,26 +272,28 @@ public class Producer {
             recycle();
         }
 
-        static MessagePublishedCallback get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
+        static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
                 long batchSize) {
-            MessagePublishedCallback callback = RECYCLER.get();
+            MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
             callback.rateIn = rateIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
+            callback.originalProducerName = null;
+            callback.originalSequenceId = -1;
             return callback;
         }
 
         private final Handle recyclerHandle;
 
-        private MessagePublishedCallback(Handle recyclerHandle) {
+        private MessagePublishContext(Handle recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
-        private static final Recycler<MessagePublishedCallback> RECYCLER = new Recycler<MessagePublishedCallback>() {
-            protected MessagePublishedCallback newObject(Recycler.Handle handle) {
-                return new MessagePublishedCallback(handle);
+        private static final Recycler<MessagePublishContext> RECYCLER = new Recycler<MessagePublishContext>() {
+            protected MessagePublishContext newObject(Recycler.Handle handle) {
+                return new MessagePublishContext(handle);
             }
         };
 
