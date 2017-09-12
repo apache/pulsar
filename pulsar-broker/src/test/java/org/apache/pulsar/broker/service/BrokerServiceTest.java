@@ -47,7 +47,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopicConfiguration;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -800,9 +799,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
-        CompletableFuture<PersistentTopicConfiguration> failedPersistentTopicConfig = new CompletableFuture<>();
-        failedPersistentTopicConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
-        doReturn(failedPersistentTopicConfig).when(service).getTopicConfiguration(anyObject());
+        CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
+        failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
 

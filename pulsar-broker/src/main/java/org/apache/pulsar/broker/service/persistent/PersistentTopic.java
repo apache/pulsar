@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -44,7 +45,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
@@ -108,7 +108,6 @@ import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class PersistentTopic implements Topic, AddEntryCallback {
     private final String topic;
@@ -188,11 +187,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
-        this(topic, ledger, brokerService, new PersistentTopicConfiguration(new Policies(), new ManagedLedgerConfig()));
-    }
-
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
-            PersistentTopicConfiguration topicConfiguration) {
         this.topic = topic;
         this.ledger = ledger;
         this.brokerService = brokerService;

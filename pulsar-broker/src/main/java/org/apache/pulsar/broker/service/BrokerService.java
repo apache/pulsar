@@ -74,7 +74,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopicConfiguration;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
@@ -571,15 +570,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return;
         }
 
-        getTopicConfiguration(destinationName).thenAccept(config -> {
+        getManagedLedgerConfig(destinationName).thenAccept(managedLedgerConfig -> {
             // Once we have the configuration, we can proceed with the async open operation
-
-            managedLedgerFactory.asyncOpen(destinationName.getPersistenceNamingEncoding(), config.getManagedLedgerConfig(),
+            managedLedgerFactory.asyncOpen(destinationName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                            PersistentTopic persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this,
-                                    config);
+                            PersistentTopic persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this);
 
                             CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                             replicationFuture.thenCompose(v -> {
@@ -622,8 +619,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    public CompletableFuture<PersistentTopicConfiguration> getTopicConfiguration(DestinationName topicName) {
-        CompletableFuture<PersistentTopicConfiguration> future = new CompletableFuture<>();
+    public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(DestinationName topicName) {
+        CompletableFuture<ManagedLedgerConfig> future = new CompletableFuture<>();
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
         pulsar.getOrderedExecutor().submitOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
@@ -684,7 +681,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            future.complete(new PersistentTopicConfiguration(policies, managedLedgerConfig));
+            future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
 
         return future;
