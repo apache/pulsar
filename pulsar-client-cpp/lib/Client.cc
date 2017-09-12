@@ -95,6 +95,20 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 
+Result Client::createReader(const std::string& topic, const MessageId& startMessageId,
+        const ReaderConfiguration& conf, Reader& reader) {
+    Promise<Result, Reader> promise;
+    createReaderAsync(topic, startMessageId, conf, WaitForCallbackValue<Reader>(promise));
+    Future<Result, Reader> future = promise.getFuture();
+
+    return future.get(reader);
+}
+
+void Client::createReaderAsync(const std::string& topic, const MessageId& startMessageId,
+        const ReaderConfiguration& conf, ReaderCallback callback) {
+    impl_->createReaderAsync(topic, startMessageId, conf, callback);
+}
+
 Result Client::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));
