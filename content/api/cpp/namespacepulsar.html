@@ -124,6 +124,10 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html">Reader</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
 Typedefs</h2></td></tr>
@@ -145,13 +149,16 @@ typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae8531
 <tr class="memitem:ae50c5890614c85d28e110bff23e34ceb"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae50c5890614c85d28e110bff23e34ceb"></a>
 typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>, <a class="el" href="classpulsar_1_1_consumer.html">Consumer</a>)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>SubscribeCallback</b></td></tr>
 <tr class="separator:ae50c5890614c85d28e110bff23e34ceb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab7347e00fd8d138da6e6fe8071deed66"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab7347e00fd8d138da6e6fe8071deed66"></a>
+typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>, <a class="el" href="classpulsar_1_1_reader.html">Reader</a>)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>ReaderCallback</b></td></tr>
+<tr class="separator:ab7347e00fd8d138da6e6fe8071deed66"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5bcda16c06cb89d9e7c5448f24241616"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5bcda16c06cb89d9e7c5448f24241616"></a>
 typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>CloseCallback</b></td></tr>
 <tr class="separator:a5bcda16c06cb89d9e7c5448f24241616"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3bd8c444e391e8b9aff9d73813cf9bd7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a3bd8c444e391e8b9aff9d73813cf9bd7"></a>
-typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> result)&gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a3bd8c444e391e8b9aff9d73813cf9bd7">ResultCallback</a></td></tr>
-<tr class="memdesc:a3bd8c444e391e8b9aff9d73813cf9bd7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback definition for non-data operation. <br /></td></tr>
-<tr class="separator:a3bd8c444e391e8b9aff9d73813cf9bd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a471fb397a128f0e2891d5979f2282e2d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a471fb397a128f0e2891d5979f2282e2d"></a>
+typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> result)&gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a471fb397a128f0e2891d5979f2282e2d">ResultCallback</a></td></tr>
+<tr class="memdesc:a471fb397a128f0e2891d5979f2282e2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback definition for non-data operation. <br /></td></tr>
+<tr class="separator:a471fb397a128f0e2891d5979f2282e2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a64293027dc2f4e9f82b76148328fa191"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a64293027dc2f4e9f82b76148328fa191"></a>
 typedef boost::function&lt; void(<a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> consumer, const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)&gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a64293027dc2f4e9f82b76148328fa191">MessageListener</a></td></tr>
 <tr class="memdesc:a64293027dc2f4e9f82b76148328fa191"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback definition for MessageListener. <br /></td></tr>
@@ -162,6 +169,10 @@ typedef boost::shared_ptr&lt; <a class="el" href="classpulsar_1_1_message_routin
 <tr class="memitem:ae9a2de1061bc27a0037bcc4d0c654d25"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae9a2de1061bc27a0037bcc4d0c654d25"></a>
 typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>, const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>SendCallback</b></td></tr>
 <tr class="separator:ae9a2de1061bc27a0037bcc4d0c654d25"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae3f2c2a80aeefa96b91916ba4929d84a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae3f2c2a80aeefa96b91916ba4929d84a"></a>
+typedef boost::function&lt; void(<a class="el" href="classpulsar_1_1_reader.html">Reader</a> reader, const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)&gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#ae3f2c2a80aeefa96b91916ba4929d84a">ReaderListener</a></td></tr>
+<tr class="memdesc:ae3f2c2a80aeefa96b91916ba4929d84a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback definition for MessageListener. <br /></td></tr>
+<tr class="separator:ae3f2c2a80aeefa96b91916ba4929d84a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
 Enumerations</h2></td></tr>

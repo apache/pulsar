@@ -90,6 +90,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="#friends">Friends</a> &#124;
@@ -113,15 +114,29 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:afa82010567ec14b0a630dbc6c10558ed"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afa82010567ec14b0a630dbc6c10558ed"></a>
 <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;)</td></tr>
 <tr class="separator:afa82010567ec14b0a630dbc6c10558ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2fd177c868b8de86c0e8a65a025f6a09"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2fd177c868b8de86c0e8a65a025f6a09"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;mID) const </td></tr>
-<tr class="separator:a2fd177c868b8de86c0e8a65a025f6a09"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af71c73dad3da25128b662896da9e1ffe"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af71c73dad3da25128b662896da9e1ffe"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;mID) const </td></tr>
-<tr class="separator:af71c73dad3da25128b662896da9e1ffe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7b3db7352c55b5b102e0bb391706ae46"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a7b3db7352c55b5b102e0bb391706ae46">serialize</a> (std::string &amp;result) const </td></tr>
+<tr class="separator:a7b3db7352c55b5b102e0bb391706ae46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a22cddf2d7cfc87cea172c32ebabf2883"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a22cddf2d7cfc87cea172c32ebabf2883"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;other) const </td></tr>
+<tr class="separator:a22cddf2d7cfc87cea172c32ebabf2883"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8d561af01933d9460b1d752f214741bf"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a8d561af01933d9460b1d752f214741bf"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;other) const </td></tr>
+<tr class="separator:a8d561af01933d9460b1d752f214741bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:afc55a20e713be1c415bdc940224b831a"><td class="memItemLeft" align="right" valign="top">static const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#afc55a20e713be1c415bdc940224b831a">earliest</a> ()</td></tr>
+<tr class="separator:afc55a20e713be1c415bdc940224b831a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6c5231ab632b49863c4a227e9cff353d"><td class="memItemLeft" align="right" valign="top">static const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a6c5231ab632b49863c4a227e9cff353d">latest</a> ()</td></tr>
+<tr class="separator:a6c5231ab632b49863c4a227e9cff353d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a56addaa1fba001e08c15e0baa7aba2c4"><td class="memItemLeft" align="right" valign="top">static boost::shared_ptr&lt; <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a56addaa1fba001e08c15e0baa7aba2c4">deserialize</a> (const std::string &amp;serializedMessageId)</td></tr>
+<tr class="separator:a56addaa1fba001e08c15e0baa7aba2c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
+<tr class="memitem:a21b42f945a2197e41f6d69e08e5a5ad2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a21b42f945a2197e41f6d69e08e5a5ad2"></a>
+virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><b>getBatchIndex</b> () const </td></tr>
+<tr class="separator:a21b42f945a2197e41f6d69e08e5a5ad2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae896f1ab06726072ffab1309d584d258"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae896f1ab06726072ffab1309d584d258"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>MessageId</b> (int64_t, int64_t)</td></tr>
 <tr class="separator:ae896f1ab06726072ffab1309d584d258"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -149,6 +164,12 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>Message</b></td></tr
 <tr class="memitem:ae1081eb19e4769a865f00e00bf0573ef"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae1081eb19e4769a865f00e00bf0573ef"></a>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>MessageImpl</b></td></tr>
 <tr class="separator:ae1081eb19e4769a865f00e00bf0573ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae9a2dffe589da1f81fa5c202d18e6551"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae9a2dffe589da1f81fa5c202d18e6551"></a>
+class&#160;</td><td class="memItemRight" valign="bottom"><b>Commands</b></td></tr>
+<tr class="separator:ae9a2dffe589da1f81fa5c202d18e6551"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab5c01f1ee576e9e03724a562dfb3a6c3"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab5c01f1ee576e9e03724a562dfb3a6c3"></a>
+class&#160;</td><td class="memItemRight" valign="bottom"><b>BatchMessageId</b></td></tr>
+<tr class="separator:ab5c01f1ee576e9e03724a562dfb3a6c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a93a73f83d9521ceb15a9adc90042195a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a93a73f83d9521ceb15a9adc90042195a"></a>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>PartitionedProducerImpl</b></td></tr>
 <tr class="separator:a93a73f83d9521ceb15a9adc90042195a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -168,6 +189,107 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;&lt;</b> (std::ostream &amp;s, const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;messageId)</td></tr>
 <tr class="separator:a3c33f73c36b5d34422f775be3362f74f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a56addaa1fba001e08c15e0baa7aba2c4"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static boost::shared_ptr&lt;<a class="el" href="classpulsar_1_1_message_id.html">MessageId</a>&gt; pulsar::MessageId::deserialize </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>serializedMessageId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Deserialize a message id from a binary string </p>
+
+</div>
+</div>
+<a class="anchor" id="afc55a20e713be1c415bdc940224b831a"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a>&amp; pulsar::MessageId::earliest </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p><a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> representing the "earliest" or "oldest available" message stored in the topic </p>
+
+</div>
+</div>
+<a class="anchor" id="a6c5231ab632b49863c4a227e9cff353d"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a>&amp; pulsar::MessageId::latest </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p><a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> representing the "latest" or "last published" message in the topic </p>
+
+</div>
+</div>
+<a class="anchor" id="a7b3db7352c55b5b102e0bb391706ae46"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void pulsar::MessageId::serialize </td>
+          <td>(</td>
+          <td class="paramtype">std::string &amp;&#160;</td>
+          <td class="paramname"><em>result</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Serialize the message id into a binary string for storing </p>
+
+<p>Reimplemented in <a class="el" href="classpulsar_1_1_batch_message_id.html#a501937aaee5298107a656c878a574c80">pulsar::BatchMessageId</a>.</p>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_message_id_8h_source.html">MessageId.h</a></li>
 </ul>

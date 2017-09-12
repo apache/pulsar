@@ -125,6 +125,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>subscribeAsync</b> (c
 <tr class="memitem:aafffa788560a72d560d3eed2e98b2b72"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aafffa788560a72d560d3eed2e98b2b72"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>subscribeAsync</b> (const std::string &amp;topic, const std::string &amp;consumerName, const <a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;conf, SubscribeCallback callback)</td></tr>
 <tr class="separator:aafffa788560a72d560d3eed2e98b2b72"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad2f6404e06200714e1fe82419b7c963a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#ad2f6404e06200714e1fe82419b7c963a">createReader</a> (const std::string &amp;topic, const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;startMessageId, const <a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;conf, <a class="el" href="classpulsar_1_1_reader.html">Reader</a> &amp;reader)</td></tr>
+<tr class="separator:ad2f6404e06200714e1fe82419b7c963a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab837056e2ea59c8c55d83d6451ee7b08"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab837056e2ea59c8c55d83d6451ee7b08"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>createReaderAsync</b> (const std::string &amp;topic, const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;startMessageId, const <a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;conf, ReaderCallback callback)</td></tr>
+<tr class="separator:ab837056e2ea59c8c55d83d6451ee7b08"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac3f0a65b099f88781548d4fad41685ac"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#ac3f0a65b099f88781548d4fad41685ac">close</a> ()</td></tr>
 <tr class="separator:ac3f0a65b099f88781548d4fad41685ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad2701d78fca53d5261616ca53381241d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad2701d78fca53d5261616ca53381241d"></a>
@@ -298,6 +303,63 @@ ResultError if there was an error </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>ResultOk if the producer has been successfully created </dd>
 <dd>
 ResultError if there was an error </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ad2f6404e06200714e1fe82419b7c963a"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Client::createReader </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>topic</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>startMessageId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;&#160;</td>
+          <td class="paramname"><em>conf</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classpulsar_1_1_reader.html">Reader</a> &amp;&#160;</td>
+          <td class="paramname"><em>reader</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Create a topic reader with given</p><div class="fragment"><div class="line">ReaderConfiguration </div></div><!-- fragment --><p> for reading messages from the specified topic. </p>
+<p>The <a class="el" href="classpulsar_1_1_reader.html">Reader</a> provides a low-level abstraction that allows for manual positioning in the topic, without using a subscription. <a class="el" href="classpulsar_1_1_reader.html">Reader</a> can only work on non-partitioned topics. </p>
+<p>The initial reader positioning is done by specifying a message id. The options are: </p><ul>
+<li>
+<code><a class="el" href="classpulsar_1_1_message_id.html#afc55a20e713be1c415bdc940224b831a">MessageId.earliest</a></code> : Start reading from the earliest message available in the topic </li>
+<li>
+<code><a class="el" href="classpulsar_1_1_message_id.html#a6c5231ab632b49863c4a227e9cff353d">MessageId.latest</a></code> : Start reading from the end topic, only getting messages published after the reader was created </li>
+<li>
+<code><a class="el" href="classpulsar_1_1_message_id.html">MessageId</a></code> : When passing a particular message id, the reader will position itself on that specific position. The first message to be read will be the message next to the specified messageId. </li>
+</ul>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>The name of the topic where to read </td></tr>
+    <tr><td class="paramname">startMessageId</td><td>The message id where the reader will position itself. The first message returned will be the one after the specified startMessageId </td></tr>
+    <tr><td class="paramname">conf</td><td>The<div class="fragment"><div class="line">ReaderConfiguration </div></div><!-- fragment --> object </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The<div class="fragment"><div class="line">Reader </div></div><!-- fragment --> object </dd></dl>
 
 </div>
 </div>

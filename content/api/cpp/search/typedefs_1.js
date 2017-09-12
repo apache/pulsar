@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['resultcallback',['ResultCallback',['../namespacepulsar.html#a3bd8c444e391e8b9aff9d73813cf9bd7',1,'pulsar']]]
+  ['readerlistener',['ReaderListener',['../namespacepulsar.html#ae3f2c2a80aeefa96b91916ba4929d84a',1,'pulsar']]],
+  ['resultcallback',['ResultCallback',['../namespacepulsar.html#a471fb397a128f0e2891d5979f2282e2d',1,'pulsar']]]
 ];
