@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -47,6 +46,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 
 public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
@@ -59,7 +59,8 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     private final Serializer<K> keySerializer;
     private final Serializer<V> valueSerializer;
 
-    private final AtomicLong outstandingWrites = new AtomicLong();
+    /** Map that contains the last future for each producer */
+    private final ConcurrentMap<String, CompletableFuture<MessageId>> lastSendFuture = new ConcurrentHashMap<>();
 
     public PulsarKafkaProducer(Map<String, Object> configs) {
         this(configs, null, null);
@@ -126,51 +127,55 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
-        org.apache.pulsar.client.api.Producer producer = producers.computeIfAbsent(record.topic(),
-                topic -> createNewProducer(topic));
+        org.apache.pulsar.client.api.Producer producer;
+
+        try {
+            producer = producers.computeIfAbsent(record.topic(), topic -> createNewProducer(topic));
+        } catch (Exception e) {
+            callback.onCompletion(null, e);
+            CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
 
         Message msg = getMessage(record);
 
         CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
+        CompletableFuture<MessageId> sendFuture = producer.sendAsync(msg);
+        lastSendFuture.put(record.topic(), sendFuture);
 
-        outstandingWrites.incrementAndGet();
-
-        producer.sendAsync(msg).thenAccept((messageId) -> {
-            decreaseOutstandingWrites();
+        sendFuture.thenAccept((messageId) -> {
             future.complete(getRecordMetadata(record.topic(), msg, messageId));
         }).exceptionally(ex -> {
-            decreaseOutstandingWrites();
             future.completeExceptionally(ex);
+            return null;
+        });
+
+        future.handle((recordMetadata, exception) -> {
+            callback.onCompletion(recordMetadata, new Exception(exception));
             return null;
         });
 
         return future;
     }
 
-    private void decreaseOutstandingWrites() {
-        synchronized (outstandingWrites) {
-            if (outstandingWrites.decrementAndGet() == 0L) {
-                outstandingWrites.notifyAll();
-            }
-        }
-    }
-
     @Override
     public void flush() {
-        synchronized (outstandingWrites) {
-            while (outstandingWrites.get() != 0) {
-                try {
-                    outstandingWrites.wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        lastSendFuture.forEach((topic, future) -> {
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
             }
-        }
+
+            // Remove the futures to remove eventually failed operations in order to trigger errors only once
+            lastSendFuture.remove(topic, future);
+        });
     }
 
     @Override
     public List<PartitionInfo> partitionsFor(String topic) {
-        return Collections.emptyList();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -180,11 +185,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     @Override
     public void close() {
-        try {
-            client.close();
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
-        }
+        close(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -205,9 +206,16 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     }
 
     private Message getMessage(ProducerRecord<K, V> record) {
+        if (record.partition() != null) {
+            throw new UnsupportedOperationException("");
+        }
+
         MessageBuilder builder = MessageBuilder.create();
         if (record.key() != null) {
             builder.setKey(getKey(record.topic(), record.key()));
+        }
+        if (record.timestamp() != null) {
+            builder.setEventTime(record.timestamp());
         }
         builder.setContent(valueSerializer.serialize(record.topic(), record.value()));
         return builder.build();
@@ -225,12 +233,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private RecordMetadata getRecordMetadata(String topic, Message msg, MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        long ledgerId = msgId.getLedgerId();
-        long entryId = msgId.getEntryId();
 
         // Combine ledger id and entry id to form offset
-        long offset = (ledgerId << 36) & entryId;
-
+        long offset = MessageIdUtils.getOffset(msgId);
         int partition = msgId.getPartitionIndex();
 
         TopicPartition tp = new TopicPartition(topic, partition);

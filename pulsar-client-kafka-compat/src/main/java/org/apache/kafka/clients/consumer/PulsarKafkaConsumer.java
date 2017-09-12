@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
@@ -76,7 +77,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final ConcurrentMap<String, org.apache.pulsar.client.api.Consumer> consumers = new ConcurrentHashMap<>();
 
-    private final ConcurrentMap<org.apache.pulsar.client.api.Consumer, MessageId> lastMessageId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<org.apache.pulsar.client.api.Consumer, MessageId> lastReceivedMessageId = new ConcurrentHashMap<>();
+
+    private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
+    private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
 
     private static class QueueItem {
         final org.apache.pulsar.client.api.Consumer consumer;
@@ -249,7 +253,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             String topic = item.consumer.getTopic();
             Message msg = item.message;
             MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-            long offset = getOffset(msgId);
+            long offset = MessageIdUtils.getOffset(msgId);
 
             int partition = msgId.getPartitionIndex();
 
@@ -258,15 +262,24 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             K key = getKey(topic, msg);
             V value = valueDeserializer.deserialize(topic, msg.getData());
 
-            ConsumerRecord<K, V> consumerRecord = new ConsumerRecord<>(topic, partition, offset, msg.getPublishTime(),
-                    TimestampType.CREATE_TIME, -1, msg.hasKey() ? msg.getKey().length() : 0, msg.getData().length, key,
-                    value);
+            TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
+            long timestamp = msg.getPublishTime();
+
+            if (msg.getEventTime() > 0) {
+                // If we have Event time, use that in preference
+                timestamp = msg.getEventTime();
+                timestampType = TimestampType.CREATE_TIME;
+            }
+
+            ConsumerRecord<K, V> consumerRecord = new ConsumerRecord<>(topic, partition, offset, timestamp,
+                    timestampType, -1, msg.hasKey() ? msg.getKey().length() : 0, msg.getData().length, key, value);
 
             Map<TopicPartition, List<ConsumerRecord<K, V>>> records = new HashMap<>();
             records.put(tp, Lists.newArrayList(consumerRecord));
 
             // Update last message id seen by application
-            lastMessageId.put(item.consumer, msgId);
+            lastReceivedMessageId.put(item.consumer, msgId);
+            lastReceivedOffset.put(tp, offset);
             return new ConsumerRecords<>(records);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -290,52 +303,31 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void commitSync() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        lastMessageId.forEach((consumer, messageId) -> {
-            futures.add(consumer.acknowledgeCumulativeAsync(messageId));
-        });
-        futures.forEach(CompletableFuture::join);
+        try {
+            doCommitOffsets(getCurrentOffsetsMap()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        offsets.forEach((topicPartition, offsetAndMetadata) -> {
-            String topicName = DestinationName.get(topicPartition.topic()).getPartition(topicPartition.partition())
-                    .toString();
-            org.apache.pulsar.client.api.Consumer consumer = consumers.get(topicName);
-
-            MessageId messageId = getMessageId(offsetAndMetadata.offset());
-            futures.add(consumer.acknowledgeCumulativeAsync(messageId));
-        });
-
-        futures.forEach(CompletableFuture::join);
+        try {
+            doCommitOffsets(offsets).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void commitAsync() {
-        lastMessageId.forEach((consumer, messageId) -> {
-            consumer.acknowledgeCumulativeAsync(messageId);
-        });
+        doCommitOffsets(getCurrentOffsetsMap());
     }
 
     @Override
     public void commitAsync(OffsetCommitCallback callback) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-        lastMessageId.forEach((consumer, messageId) -> {
-            DestinationName dn = DestinationName.get(consumer.getTopic());
-            int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
-
-            TopicPartition tp = new TopicPartition(dn.getPartitionedTopicName(), partition);
-            OffsetAndMetadata om = new OffsetAndMetadata(getOffset(messageId));
-            offsets.put(tp, om);
-
-            futures.add(consumer.acknowledgeCumulativeAsync(messageId));
-        });
-
-        FutureUtil.waitForAll(futures).handle((v, throwable) -> {
+        Map<TopicPartition, OffsetAndMetadata> offsets = getCurrentOffsetsMap();
+        doCommitOffsets(offsets).handle((v, throwable) -> {
             callback.onComplete(offsets, throwable != null ? new Exception(throwable) : null);
             return null;
         });
@@ -343,6 +335,13 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void commitAsync(Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback) {
+        doCommitOffsets(offsets).handle((v, throwable) -> {
+            callback.onComplete(offsets, throwable != null ? new Exception(throwable) : null);
+            return null;
+        });
+    }
+
+    private CompletableFuture<Void> doCommitOffsets(Map<TopicPartition, OffsetAndMetadata> offsets) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         offsets.forEach((topicPartition, offsetAndMetadata) -> {
@@ -350,13 +349,25 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     .toString();
             org.apache.pulsar.client.api.Consumer consumer = consumers.get(topicName);
 
-            futures.add(consumer.acknowledgeCumulativeAsync(getMessageId(offsetAndMetadata.offset())));
+            lastCommittedOffset.put(topicPartition, offsetAndMetadata);
+            futures.add(consumer.acknowledgeCumulativeAsync(MessageIdUtils.getMessageId(offsetAndMetadata.offset())));
         });
 
-        FutureUtil.waitForAll(futures).handle((v, throwable) -> {
-            callback.onComplete(offsets, throwable != null ? new Exception(throwable) : null);
-            return null;
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private Map<TopicPartition, OffsetAndMetadata> getCurrentOffsetsMap() {
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        lastReceivedMessageId.forEach((consumer, messageId) -> {
+            DestinationName dn = DestinationName.get(consumer.getTopic());
+            int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
+
+            TopicPartition tp = new TopicPartition(dn.getPartitionedTopicName(), partition);
+            OffsetAndMetadata om = new OffsetAndMetadata(MessageIdUtils.getOffset(messageId));
+            offsets.put(tp, om);
         });
+
+        return offsets;
     }
 
     @Override
@@ -376,12 +387,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public long position(TopicPartition partition) {
-        throw new UnsupportedOperationException();
+        return lastReceivedOffset.get(partition);
     }
 
     @Override
     public OffsetAndMetadata committed(TopicPartition partition) {
-        throw new UnsupportedOperationException();
+        return lastCommittedOffset.get(partition);
     }
 
     @Override
@@ -431,14 +442,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void close() {
-        try {
-            if (isAutoCommit) {
-                commitAsync();
-            }
-            client.close();
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
-        }
+        close(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -456,27 +460,5 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public void wakeup() {
         throw new UnsupportedOperationException();
-    }
-
-    // Utility methods
-
-    private static final long getOffset(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) messageId;
-        long ledgerId = msgId.getLedgerId();
-        long entryId = msgId.getEntryId();
-
-        // Combine ledger id and entry id to form offset
-        // Use less than 32 bits to represent entry id since it will get
-        // rolled over way before overflowing the max int range
-        long offset = (ledgerId << 28) | entryId;
-        return offset;
-    }
-
-    private static final MessageId getMessageId(long offset) {
-        // Demultiplex ledgerId and entryId from offset
-        long ledgerId = offset >>> 28;
-        long entryId = offset & 0x0F_FF_FF_FFL;
-
-        return new MessageIdImpl(ledgerId, entryId, -1);
     }
 }
