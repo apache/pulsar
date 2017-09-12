@@ -35,6 +35,7 @@ import com.google.common.base.Charsets;
 public class ManagedLedgerConfig {
 
     private int maxUnackedRangesToPersist = 1000;
+    private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
     private int minimumRolloverTimeMs = 0;
@@ -367,5 +368,17 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setMaxUnackedRangesToPersist(int maxUnackedRangesToPersist) {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
+    }
+    
+    /**
+     * @return max unacked message ranges up to which it can store in Zookeeper
+     * 
+     */
+    public int getMaxUnackedRangesToPersistInZk() {
+        return maxUnackedRangesToPersistInZk;
+    }
+
+    public void setMaxUnackedRangesToPersistInZk(int maxUnackedRangesToPersistInZk) {
+        this.maxUnackedRangesToPersistInZk = maxUnackedRangesToPersistInZk;
     }
 }
