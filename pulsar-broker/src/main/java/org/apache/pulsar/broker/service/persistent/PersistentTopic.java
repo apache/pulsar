@@ -1027,6 +1027,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 destStatsStream.writePair("msgRateOut", subMsgRateOut);
                 destStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 destStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
+                destStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage", subscription.getNumberOfEntriesSinceFirstNotAckedMessage());
+                destStatsStream.writePair("totalNonContiguousDeletedMessagesRange", subscription.getTotalNonContiguousDeletedMessagesRange());
                 destStatsStream.writePair("type", subscription.getTypeString());
                 if (SubType.Shared.equals(subscription.getType())) {
                     if(subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
@@ -1176,6 +1178,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
             cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(cursor.getLastLedgerSwitchTimestamp()));
             cs.state = cursor.getState();
+            cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+            cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });

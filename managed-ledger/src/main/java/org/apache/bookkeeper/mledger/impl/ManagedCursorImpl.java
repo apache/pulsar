@@ -623,8 +623,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
     }
 
+    @Override
     public long getNumberOfEntriesSinceFirstNotAckedMessage() {
         return ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition));
+    }
+    
+    @Override
+    public int getTotalNonContiguousDeletedMessagesRange() {
+        return individualDeletedMessages.asRanges().size();
     }
 
     @Override

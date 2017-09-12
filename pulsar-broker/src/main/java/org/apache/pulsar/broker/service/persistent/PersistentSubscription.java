@@ -449,6 +449,14 @@ public class PersistentSubscription implements Subscription {
         return this.dispatcher;
     }
 
+    public long getNumberOfEntriesSinceFirstNotAckedMessage() {
+        return cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+    }
+
+    public int getTotalNonContiguousDeletedMessagesRange() {
+        return cursor.getTotalNonContiguousDeletedMessagesRange();
+    }
+    
     /**
      * Close the cursor ledger for this subscription. Requires that there are no active consumers on the dispatcher
      *
