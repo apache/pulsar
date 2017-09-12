@@ -1180,6 +1180,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.state = cursor.getState();
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+            cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });
         return stats;

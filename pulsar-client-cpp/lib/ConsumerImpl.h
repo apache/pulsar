@@ -63,7 +63,9 @@ enum ConsumerTopicType {
     ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                  const std::string& subscription, const ConsumerConfiguration&,
                  const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(),
-                 const ConsumerTopicType consumerTopicType = NonPartitioned);
+                 const ConsumerTopicType consumerTopicType = NonPartitioned,
+                 Commands::SubscriptionMode = Commands::SubscriptionModeDurable,
+                 Optional<BatchMessageId> startMessageId = Optional<BatchMessageId>::empty());
     ~ConsumerImpl();
     void setPartitionIndex(int partitionIndex);
     int getPartitionIndex();
@@ -117,15 +119,18 @@ private:
     void discardCorruptedMessage(const ClientConnectionPtr& cnx,
                                  const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
-    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx);
+    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
     void drainIncomingMessageQueue(size_t count);
-    unsigned int receiveIndividualMessagesFromBatch(Message &batchedMessage);
+    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx,
+                                                Message &batchedMessage);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     // TODO - Convert these functions to lambda when we move to C++11
     Result receiveHelper(Message& msg);
     Result receiveHelper(Message& msg, int timeout);
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
+
+    Optional<BatchMessageId> clearReceiveQueue();
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -134,6 +139,11 @@ private:
     MessageListener messageListener_;
     ExecutorServicePtr listenerExecutor_;
     ConsumerTopicType consumerTopicType_;
+
+    Commands::SubscriptionMode subscriptionMode_;
+    Optional<BatchMessageId> startMessageId_;
+
+    Optional<BatchMessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     int availablePermits_;
     uint64_t consumerId_;
