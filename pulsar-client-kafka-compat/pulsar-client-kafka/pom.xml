@@ -97,15 +97,6 @@
                   <include>org.apache.kafka:kafka-clients</include>
                 </includes>
               </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>org.apache.kafka:kafka-clients</artifact>
-                  <excludes>
-                    <exclude>org/apache/kafka/clients/producer/internals/**</exclude>
-                    <exclude>org/apache/kafka/clients/consumer/internals/**</exclude>
-                  </excludes>
-                </filter>
-              </filters>
               <relocations>
                 <relocation>
                   <pattern>org.apache.kafka.clients.producer.KafkaProducer</pattern>
