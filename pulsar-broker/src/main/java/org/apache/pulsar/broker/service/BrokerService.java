@@ -1054,20 +1054,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
         // add listener to update message-dispatch-rate in msg
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
-            DispatchRate dispatchRate = new DispatchRate((int) dispatchRatePerTopicInMsg,
-                    pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte(), 1);
-            updateTopicMessageDispatchRate(dispatchRate);
+            updateTopicMessageDispatchRate();
         });
         // add listener to update message-dispatch-rate in byte
         registerConfigurationListener("dispatchThrottlingRatePerTopicInByte", (dispatchRatePerTopicInByte) -> {
-            DispatchRate dispatchRate = new DispatchRate(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
-                    (long) dispatchRatePerTopicInByte, 1);
-            updateTopicMessageDispatchRate(dispatchRate);
+            updateTopicMessageDispatchRate();
         });
         // add more listeners here
     }
 
-    private void updateTopicMessageDispatchRate(final DispatchRate dispatchRate) {
+    private void updateTopicMessageDispatchRate() {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic
             topics.forEach((name, topicFuture) -> {
@@ -1077,14 +1073,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         if (topicFuture.get() instanceof PersistentTopic) {
                             PersistentTopic topic = (PersistentTopic) topicFuture.get();
                             topicName = topicFuture.get().getName();
-                            // update broker-dispatch throttling only if namespace-policy is not configured
-                            DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
-                            if (rateLimiter.getPoliciesDispatchRate() == null) {
-                                rateLimiter.updateDispatchRate(dispatchRate);
-                            }
+                            // it first checks namespace-policy rate and if not present then applies broker-config
+                            topic.getDispatchRateLimiter().updateDispatchRate();
                         }
                     } catch (Exception e) {
-                        log.warn("[{}] failed to update message-dispatch rate {}", topicName, dispatchRate);
+                        log.warn("[{}] failed to update message-dispatch rate {}", topicName, e.getMessage());
                     }
                 }
             });
