@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.Commands;
@@ -130,15 +131,13 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
             // Regenerate data key cipher at fixed interval
             keyGenExecutor = Executors.newSingleThreadScheduledExecutor();
-            keyGenExecutor.scheduleWithFixedDelay(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
-                    } catch (CryptoException e) {
-                        if (!producerCreatedFuture.isDone()) {
-                            producerCreatedFuture.completeExceptionally(e);
-                        }
+            keyGenExecutor.scheduleWithFixedDelay(() -> {
+                try {
+                    msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
+                } catch (CryptoException e) {
+                    if (!producerCreatedFuture.isDone()) {
+                        log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
+                        producerCreatedFuture.completeExceptionally(e);
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
@@ -334,13 +333,16 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             Thread.currentThread().interrupt();
             semaphore.release();
             callback.sendComplete(new PulsarClientException(ie));
+        } catch (PulsarClientException e) {
+            semaphore.release();
+            callback.sendComplete(e);
         } catch (Throwable t) {
             semaphore.release();
             callback.sendComplete(new PulsarClientException(t));
         }
     }
 
-    private ByteBuf encryptMessage(MessageMetadata.Builder msgMetadata, ByteBuf compressedPayload) {
+    private ByteBuf encryptMessage(MessageMetadata.Builder msgMetadata, ByteBuf compressedPayload) throws PulsarClientException {
 
         ByteBuf encryptedPayload = compressedPayload;
         if (!conf.isEncryptionEnabled() || msgCrypto == null) {
@@ -349,8 +351,13 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         try {
             encryptedPayload = msgCrypto.encrypt(conf.getEncryptionKeys(), msgMetadata, compressedPayload);
         } catch (PulsarClientException e) {
-            // TODO: Provide option to fail the request vs. proceed with warning
-            return compressedPayload;
+            // Unless config is set to explicitly publish un-encrypted message upon failure, fail the request
+            if (conf.getCryptoFailureAction() == ProducerCryptoFailureAction.SEND) {
+                log.warn("[{}] [{}] Failed to encrypt message {}. Proceeding with publishing unencrypted message",
+                        topic, producerName, e.getMessage());
+                return compressedPayload;
+            }
+            throw e;
         }
         return encryptedPayload;
     }
@@ -485,6 +492,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         if (timeout != null) {
             timeout.cancel();
             sendTimeout = null;
+        }
+
+        if (keyGenExecutor != null && !keyGenExecutor.isTerminated()) {
+            keyGenExecutor.shutdown();
         }
 
         stats.cancelStatsTimeout();
@@ -1167,6 +1178,12 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             semaphore.release(numMessagesInBatch);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(ie));
+            }
+        } catch (PulsarClientException e) {
+            Thread.currentThread().interrupt();
+            semaphore.release(numMessagesInBatch);
+            if (op != null) {
+                op.callback.sendComplete(e);
             }
         } catch (Throwable t) {
             semaphore.release(numMessagesInBatch);

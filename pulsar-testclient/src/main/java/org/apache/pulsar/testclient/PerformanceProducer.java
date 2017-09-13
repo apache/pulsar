@@ -25,7 +25,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -250,10 +249,15 @@ public class PerformanceProducer {
             }
 
             @Override
-            public byte[] getKey(String keyName) {
-                if (keyName.equals("public-key." + arguments.encKeyName)) {
+            public byte[] getPublicKey(String keyName) {
+                if (keyName.equals(arguments.encKeyName)) {
                     return encKeyValue;
                 }
+                return null;
+            }
+
+            @Override
+            public byte[] getPrivateKey(String keyName) {
                 return null;
             }
 

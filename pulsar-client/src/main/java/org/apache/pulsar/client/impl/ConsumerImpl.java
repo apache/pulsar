@@ -884,7 +884,7 @@ public class ConsumerImpl extends ConsumerBase {
                 PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                         .newBuilder();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                    singleMessageMetadataBuilder, i, batchSize);
+                        singleMessageMetadataBuilder, i, batchSize);
 
                 if (subscriptionMode == SubscriptionMode.NonDurable && startMessageId != null
                         && messageId.getLedgerId() == startMessageId.getLedgerId()
@@ -893,7 +893,8 @@ public class ConsumerImpl extends ConsumerBase {
                     // If we are receiving a batch message, we need to discard messages that were prior
                     // to the startMessageId
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription, consumerName);
+                        log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription,
+                                consumerName);
                     }
 
                     ++skippedMessages;
@@ -979,22 +980,25 @@ public class ConsumerImpl extends ConsumerBase {
             ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
-            return payload;
+            return payload.retain();
         }
 
         // If KeyReader is not configured throw exception based on config param
         if (conf.getCryptoKeyReader() == null) {
 
             if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME) {
-                log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.", topic, subscription, consumerName);
+                log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
+                        topic, subscription, consumerName);
                 return payload.retain();
             } else if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.DISCARD) {
                 log.warn(
-                        "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and config is set to discard", topic, subscription, consumerName);
+                        "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and config is set to discard",
+                        topic, subscription, consumerName);
                 discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
             } else {
                 log.error(
-                        "[{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not implemented to consume encrypted message", topic, subscription, consumerName);
+                        "[{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not implemented to consume encrypted message",
+                        topic, subscription, consumerName);
             }
             return null;
         }
@@ -1004,17 +1008,18 @@ public class ConsumerImpl extends ConsumerBase {
             return decryptedData;
         }
 
-        log.error("[{}][{}] Failed to decrypt message {}", topic, subscription, messageId);
         if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME) {
             // Note, batch message will fail to consume even if config is set to consume
-            log.warn("[{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to consume.", topic, subscription, consumerName);
+            log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to consume.",
+                    topic, subscription, consumerName, messageId);
             return payload.retain();
         } else if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.DISCARD) {
-            log.warn("[{}][{}][{}] Discarding message since decryption failed and config is set to discard", topic, subscription, consumerName);
+            log.warn("[{}][{}][{}][{}] Discarding message since decryption failed and config is set to discard", topic,
+                    subscription, consumerName, messageId);
             discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
         } else {
-            log.error(
-                    "[{}][{}][{}] Message delivery failed since unable to decrypt incoming message", topic, subscription, consumerName);
+            log.error("[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message", topic,
+                    subscription, consumerName, messageId);
         }
         return null;
 

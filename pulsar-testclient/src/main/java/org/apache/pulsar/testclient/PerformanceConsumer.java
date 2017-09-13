@@ -222,13 +222,17 @@ public class PerformanceConsumer {
             }
 
             @Override
-            public byte[] getKey(String keyName) {
-                if (keyName.equals("private-key." + arguments.encKeyName)) {
+            public byte[] getPublicKey(String keyName) {
+                return null;
+            }
+
+            @Override
+            public byte[] getPrivateKey(String keyName) {
+                if (keyName.equals(arguments.encKeyName)) {
                     return encKeyValue;
                 }
                 return null;
             }
-
         }
         List<Future<Consumer>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();

@@ -35,8 +35,6 @@ import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.BadPaddingException;
@@ -52,8 +50,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -121,7 +119,7 @@ public class MessageCrypto {
     public MessageCrypto(boolean keyGenNeeded) {
 
         encryptedDataKeyMap = new ConcurrentHashMap<String, byte[]>();
-        dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS)
+        dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
 
                     @Override
@@ -290,9 +288,8 @@ public class MessageCrypto {
             throw new PulsarClientException.CryptoException("Keyname or KeyReader is null");
         }
 
-        // Prefix "public-key." into key name and read the key value using callback
-        String pubKeyName = "public-key." + keyName;
-        byte[] keyValue = keyReader.getKey(pubKeyName);
+        // Read the public key value using callback
+        byte[] keyValue = keyReader.getPublicKey(keyName);
 
         PublicKey pubKey;
 
@@ -368,8 +365,12 @@ public class MessageCrypto {
 
         // Update message metadata with encrypted data key
         encKeys.forEach(keyName -> {
-            msgMetadata.addEncryptionKeys(KeyByteValue.newBuilder().setKey(keyName)
+            if (encryptedDataKeyMap.get(keyName) != null) {
+                msgMetadata.addEncryptionKeys(KeyByteValue.newBuilder().setKey(keyName)
                     .setValue(ByteString.copyFrom(encryptedDataKeyMap.get(keyName))).build());
+            } else {
+                log.warn("Failed to find encrypted Data key for key {}.", keyName);
+            }
         });
 
         // Create gcm param
@@ -402,15 +403,15 @@ public class MessageCrypto {
             throw new PulsarClientException.CryptoException(e.getMessage());
 
         }
+
         payload.release();
         return targetBuf;
     }
 
     private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, CryptoKeyReader keyReader) {
 
-        // Prefix "private-key." into key name and read the key value using callback
-        String privKeyName = "private-key." + keyName;
-        byte[] keyValue = keyReader.getKey(privKeyName);
+        // Read the private key value using callback
+        byte[] keyValue = keyReader.getPrivateKey(keyName);
 
         // Convert key from byte to PivateKey
         PrivateKey privateKey;
@@ -502,7 +503,7 @@ public class MessageCrypto {
                 storedSecretKey = dataKeyCache.get(ByteBuffer.wrap(keyDigest));
 
                 // Taking a small performance hit here if the hash collides. When it
-                // retruns a different key decryption fails. At this point, we would
+                // retruns a different key, decryption fails. At this point, we would
                 // call decryptDataKey to refresh the cache and come here again to decrypt.
                 decryptedData = decryptData(storedSecretKey, msgMetadata, payload);
                 // If decryption succeeded, data is non null
@@ -545,10 +546,7 @@ public class MessageCrypto {
         KeyByteValue keyByteValue = encKeys.stream().filter(kbv -> {
 
             byte[] encDataKey = kbv.getValue().toByteArray();
-            if (!decryptDataKey(kbv.getKey(), encDataKey, keyReader)) {
-                return false;
-            }
-            return true;
+            return decryptDataKey(kbv.getKey(), encDataKey, keyReader);
 
         }).findFirst().orElse(null);
 

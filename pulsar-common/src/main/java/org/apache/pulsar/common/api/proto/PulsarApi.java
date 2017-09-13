@@ -11002,7 +11002,7 @@ public final class PulsarApi {
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
     
-    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
     boolean hasValidationError();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError getValidationError();
   }
@@ -11162,8 +11162,8 @@ public final class PulsarApi {
       return messageId_;
     }
     
-    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
-    public static final int VALIDATION_ERROR_FIELD_NUMBER = 5;
+    // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
+    public static final int VALIDATION_ERROR_FIELD_NUMBER = 4;
     private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_;
     public boolean hasValidationError() {
       return ((bitField0_ & 0x00000008) == 0x00000008);
@@ -11221,7 +11221,7 @@ public final class PulsarApi {
         output.writeMessage(3, messageId_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeEnum(5, validationError_.getNumber());
+        output.writeEnum(4, validationError_.getNumber());
       }
     }
     
@@ -11245,7 +11245,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(5, validationError_.getNumber());
+          .computeEnumSize(4, validationError_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -11504,7 +11504,7 @@ public final class PulsarApi {
               subBuilder.recycle();
               break;
             }
-            case 40: {
+            case 32: {
               int rawValue = input.readEnum();
               org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError value = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.valueOf(rawValue);
               if (value != null) {
@@ -11607,7 +11607,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional .pulsar.proto.CommandAck.ValidationError validation_error = 5;
+      // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.UncompressedSizeCorruption;
       public boolean hasValidationError() {
         return ((bitField0_ & 0x00000008) == 0x00000008);

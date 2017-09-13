@@ -60,6 +60,8 @@ public class ProducerConfiguration implements Serializable {
         SinglePartition, RoundRobinPartition, CustomPartition
     }
 
+    private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
+
     /**
      * @return the configured custom producer name or null if no custom name was specified
      * @since 1.20.0
@@ -319,9 +321,25 @@ public class ProducerConfiguration implements Serializable {
      */
     public void addEncryptionKey(String key) {
         if (this.encryptionKeys == null) {
-            this.encryptionKeys = new ConcurrentOpenHashSet<String>(); 
+            this.encryptionKeys = new ConcurrentOpenHashSet<String>(16,1);
         }
         this.encryptionKeys.add(key);
+    }
+
+    /**
+     * Sets the ProducerCryptoFailureAction to the value specified
+     *
+     * @param The producer action
+     */
+    public void setCryptoFailureAction(ProducerCryptoFailureAction action) {
+        cryptoFailureAction = action;
+    }
+
+    /**
+     * @return The ProducerCryptoFailureAction
+     */
+    public ProducerCryptoFailureAction getCryptoFailureAction() {
+        return this.cryptoFailureAction;
     }
 
     /**
