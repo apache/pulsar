@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.Metric;
@@ -47,7 +48,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -75,9 +75,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final String groupId;
     private final boolean isAutoCommit;
 
-    private final ConcurrentMap<String, org.apache.pulsar.client.api.Consumer> consumers = new ConcurrentHashMap<>();
-
-    private final ConcurrentMap<org.apache.pulsar.client.api.Consumer, MessageId> lastReceivedMessageId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<TopicPartition, org.apache.pulsar.client.api.Consumer> consumers = new ConcurrentHashMap<>();
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
@@ -176,7 +174,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
      */
     @Override
     public Set<String> subscription() {
-        return consumers.keySet();
+        return consumers.keySet().stream().map(TopicPartition::topic).collect(Collectors.toSet());
     }
 
     @Override
@@ -197,12 +195,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         String partitionName = DestinationName.get(topic).getPartition(i).toString();
                         org.apache.pulsar.client.api.Consumer consumer = client.subscribe(partitionName, groupId, conf);
-                        consumers.put(partitionName, consumer);
+                        consumers.put(new TopicPartition(topic, i), consumer);
                     }
                 } else {
                     // Topic has a single partition
                     org.apache.pulsar.client.api.Consumer consumer = client.subscribe(topic, groupId, conf);
-                    consumers.put(topic, consumer);
+                    consumers.put(new TopicPartition(topic, 0), consumer);
                 }
             } catch (InterruptedException | ExecutionException | PulsarClientException e) {
                 throw new RuntimeException(e);
@@ -250,12 +248,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 commitAsync();
             }
 
-            String topic = item.consumer.getTopic();
+            DestinationName dn = DestinationName.get(item.consumer.getTopic());
+            String topic = dn.getPartitionedTopicName();
+            int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
             Message msg = item.message;
             MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
             long offset = MessageIdUtils.getOffset(msgId);
-
-            int partition = msgId.getPartitionIndex();
 
             TopicPartition tp = new TopicPartition(topic, partition);
 
@@ -277,8 +275,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             Map<TopicPartition, List<ConsumerRecord<K, V>>> records = new HashMap<>();
             records.put(tp, Lists.newArrayList(consumerRecord));
 
-            // Update last message id seen by application
-            lastReceivedMessageId.put(item.consumer, msgId);
+            // Update last offset seen by application
             lastReceivedOffset.put(tp, offset);
             return new ConsumerRecords<>(records);
         } catch (InterruptedException e) {
@@ -345,9 +342,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         offsets.forEach((topicPartition, offsetAndMetadata) -> {
-            String topicName = DestinationName.get(topicPartition.topic()).getPartition(topicPartition.partition())
-                    .toString();
-            org.apache.pulsar.client.api.Consumer consumer = consumers.get(topicName);
+            org.apache.pulsar.client.api.Consumer consumer = consumers.get(topicPartition);
 
             lastCommittedOffset.put(topicPartition, offsetAndMetadata);
             futures.add(consumer.acknowledgeCumulativeAsync(MessageIdUtils.getMessageId(offsetAndMetadata.offset())));
@@ -358,13 +353,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private Map<TopicPartition, OffsetAndMetadata> getCurrentOffsetsMap() {
         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-        lastReceivedMessageId.forEach((consumer, messageId) -> {
-            DestinationName dn = DestinationName.get(consumer.getTopic());
-            int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
-
-            TopicPartition tp = new TopicPartition(dn.getPartitionedTopicName(), partition);
-            OffsetAndMetadata om = new OffsetAndMetadata(MessageIdUtils.getOffset(messageId));
-            offsets.put(tp, om);
+        lastReceivedOffset.forEach((topicPartition, offset) -> {
+            OffsetAndMetadata om = new OffsetAndMetadata(offset);
+            offsets.put(topicPartition, om);
         });
 
         return offsets;

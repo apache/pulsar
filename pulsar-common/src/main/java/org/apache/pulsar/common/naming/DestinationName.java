@@ -200,7 +200,7 @@ public class DestinationName implements ServiceUnitId {
      */
     public String getPartitionedTopicName() {
         if (isPartitioned()) {
-            return destination.substring(0, destination.lastIndexOf('-'));
+            return destination.substring(0, destination.lastIndexOf("-partition-"));
         } else {
             return destination;
         }
