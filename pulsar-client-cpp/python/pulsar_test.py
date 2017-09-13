@@ -21,13 +21,16 @@
 
 from unittest import TestCase, main
 import time
-from pulsar import Client, \
+from pulsar import Client, MessageId, \
             CompressionType, ConsumerType
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
 
 class PulsarTest(TestCase):
+
+    serviceUrl = 'pulsar://localhost:8885'
+
     def test_producer_config(self):
         conf = ProducerConfiguration()
         conf.send_timeout_millis(12)
@@ -51,14 +54,14 @@ class PulsarTest(TestCase):
         self.assertEqual(conf.consumer_name(), "my-name")
 
     def test_simple_producer(self):
-        client = Client('pulsar://localhost:6650/')
+        client = Client(self.serviceUrl)
         producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
         producer.send('hello')
         producer.close()
         client.close()
 
     def test_producer_send_async(self):
-        client = Client('pulsar://localhost:6650/')
+        client = Client(self.serviceUrl)
         producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
 
         sent_messages = []
@@ -75,7 +78,7 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_producer_consumer(self):
-        client = Client('pulsar://localhost:6650/')
+        client = Client(self.serviceUrl)
         consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
@@ -95,7 +98,7 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_message_listener(self):
-        client = Client('pulsar://localhost:6650/')
+        client = Client(self.serviceUrl)
 
         received_messages = []
 
@@ -118,6 +121,111 @@ class PulsarTest(TestCase):
         self.assertEqual(received_messages[0].data(), "hello-1")
         self.assertEqual(received_messages[1].data(), "hello-2")
         self.assertEqual(received_messages[2].data(), "hello-3")
+        client.close()
+
+    def test_reader_simple(self):
+        client = Client(self.serviceUrl)
+        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-simple',
+                                      MessageId.earliest)
+
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-simple')
+        producer.send('hello')
+
+        msg = reader.read_next()
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), 'hello')
+
+        try:
+            msg = reader.read_next(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        reader.close()
+        client.close()
+
+    def test_reader_on_last_message(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message')
+
+        for i in range(10):
+            producer.send('hello-%d' % i)
+
+        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message',
+                                      MessageId.latest)
+
+        for i in range(10, 20):
+            producer.send('hello-%d' % i)
+
+        for i in range(10, 20):
+            msg = reader.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), 'hello-%d' % i)
+
+        reader.close()
+        client.close()
+
+    def test_reader_on_specific_message(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer(
+            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message')
+
+        for i in range(10):
+            producer.send('hello-%d' % i)
+
+        reader1 = client.create_reader(
+                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                MessageId.earliest)
+
+        for i in range(5):
+            msg = reader1.read_next()
+            last_msg_id = msg.message_id()
+
+        reader2 = client.create_reader(
+                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                last_msg_id)
+
+        for i in range(5, 10):
+            msg = reader2.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), 'hello-%d' % i)
+
+        reader1.close()
+        reader2.close()
+        client.close()
+
+    def test_reader_on_specific_message_with_batches(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer(
+            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+            batching_enabled=True,
+            batching_max_publish_delay_ms=1000)
+
+        for i in range(10):
+            producer.send_async('hello-%d' % i, None)
+
+        # Send one sync message to make sure everything was published
+        producer.send('hello-10')
+
+        reader1 = client.create_reader(
+                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                MessageId.earliest)
+
+        for i in range(5):
+            msg = reader1.read_next()
+            last_msg_id = msg.message_id()
+
+        reader2 = client.create_reader(
+                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                last_msg_id)
+
+        for i in range(5, 11):
+            msg = reader2.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), 'hello-%d' % i)
+
+        reader1.close()
+        reader2.close()
         client.close()
 
 
