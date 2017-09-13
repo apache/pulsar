@@ -43,6 +43,20 @@ Consumer Client_subscribe(Client& client, const std::string& topic, const std::s
     return consumer;
 }
 
+Reader Client_createReader(Client& client, const std::string& topic,
+                           const BatchMessageId& startMessageId,
+                           const ReaderConfiguration& conf) {
+    Reader reader;
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+    res = client.createReader(topic, startMessageId, conf, reader);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+    return reader;
+}
+
 void Client_close(Client& client) {
     Result res;
 
@@ -59,6 +73,7 @@ void export_client() {
     class_<Client>("Client", init<const std::string&, const ClientConfiguration& >())
             .def("create_producer", &Client_createProducer)
             .def("subscribe", &Client_subscribe)
+            .def("create_reader", &Client_createReader)
             .def("close", &Client_close)
             .def("shutdown", &Client::shutdown)
             ;
