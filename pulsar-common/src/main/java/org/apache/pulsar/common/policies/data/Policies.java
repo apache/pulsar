@@ -27,32 +27,23 @@ import com.google.common.collect.Maps;
 
 public class Policies {
 
-    public final AuthPolicies auth_policies;
-    public List<String> replication_clusters;
-    public BundlesData bundles;
-    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map;
-    public Map<String, DispatchRate> clusterDispatchRate;
-    public PersistencePolicies persistence;
-    public Map<String, Integer> latency_stats_sample_rate;
-    public int message_ttl_in_seconds;
-    public RetentionPolicies retention_policies;
-    public boolean deleted;
+    public final AuthPolicies auth_policies = new AuthPolicies();
+    public List<String> replication_clusters = Lists.newArrayList();
+    public BundlesData bundles = defaultBundle();
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
+    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
+    public PersistencePolicies persistence = null;
+
+    // If set, it will override the broker settings for enabling deduplication
+    public Boolean deduplicationEnabled = null;
+
+    public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
+    public int message_ttl_in_seconds = 0;
+    public RetentionPolicies retention_policies = null;
+    public boolean deleted = false;
 
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
-
-    public Policies() {
-        auth_policies = new AuthPolicies();
-        replication_clusters = Lists.newArrayList();
-        bundles = defaultBundle();
-        backlog_quota_map = Maps.newHashMap();
-        clusterDispatchRate = Maps.newHashMap();
-        persistence = null;
-        latency_stats_sample_rate = Maps.newHashMap();
-        message_ttl_in_seconds = 0;
-        retention_policies = null;
-        deleted = false;
-    }
 
     @Override
     public boolean equals(Object obj) {
@@ -62,6 +53,7 @@ public class Policies {
                     && Objects.equal(replication_clusters, other.replication_clusters)
                     && Objects.equal(backlog_quota_map, other.backlog_quota_map)
                     && Objects.equal(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equal(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equal(persistence, other.persistence) && Objects.equal(bundles, other.bundles)
                     && Objects.equal(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
@@ -85,10 +77,11 @@ public class Policies {
         return Objects.toStringHelper(this).add("auth_policies", auth_policies)
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
+                .add("deduplicationEnabled", deduplicationEnabled)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted).toString();
     }
-    
 }
+
