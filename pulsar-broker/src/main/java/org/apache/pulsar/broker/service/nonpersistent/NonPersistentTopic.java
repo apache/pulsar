@@ -173,7 +173,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public void publishMessage(ByteBuf data, PublishCallback callback) {
+    public void publishMessage(ByteBuf data, PublishContext callback) {
         AtomicInteger msgDeliveryCount = new AtomicInteger(2);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
 
@@ -243,6 +243,11 @@ public class NonPersistentTopic implements Topic {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    @Override
+    public void checkMessageDeduplicationInfo() {
+        // No-op
     }
 
     private boolean hasLocalProducers() {

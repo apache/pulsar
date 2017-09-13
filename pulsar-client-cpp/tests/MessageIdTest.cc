@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_UNACKEDMESSAGETRACKERDISABLED_H_
-#define LIB_UNACKEDMESSAGETRACKERDISABLED_H_
-#include "lib/UnAckedMessageTrackerInterface.h"
-namespace pulsar {
+#include <pulsar/BatchMessageId.h>
 
-class UnAckedMessageTrackerDisabled : public UnAckedMessageTrackerInterface {
- public:
-    bool add(const MessageId& m) {
-        return false;
-    }
-    bool remove(const MessageId& m) {
-        return false;
-    }
-    void removeMessagesTill(const MessageId& msgId) {
-    }
+#include <gtest/gtest.h>
 
-    void clear() {
-    }
-};
+#include <string>
 
+using namespace pulsar;
+
+TEST(MessageIdTest, testSerialization) {
+    BatchMessageId msgId(1, 2, 3);
+
+    std::string serialized;
+    msgId.serialize(serialized);
+
+    boost::shared_ptr<MessageId> deserialized = MessageId::deserialize(serialized);
+
+    ASSERT_EQ(msgId, static_cast<const BatchMessageId&>(*deserialized));
 }
-#endif /* LIB_UNACKEDMESSAGETRACKERDISABLED_H_ */

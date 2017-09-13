@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -55,6 +56,11 @@ public interface ManagedCursor {
      * @return the cursor name
      */
     public String getName();
+
+    /**
+     * Return any properties that were associated with the last stored position
+     */
+    public Map<String, Long> getProperties();
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
@@ -179,9 +185,24 @@ public interface ManagedCursor {
      *
      * @param position
      *            the last position that have been successfully consumed
+     *
      * @throws ManagedLedgerException
      */
     public void markDelete(Position position) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * This signals that the reader is done with all the entries up to "position" (included). This can potentially
+     * trigger a ledger deletion, if all the other cursors are done too with the underlying ledger.
+     *
+     * @param position
+     *            the last position that have been successfully consumed
+     * @param properties
+     *            additional user-defined properties that can be associated with a particular cursor position
+     *
+     * @throws ManagedLedgerException
+     */
+    public void markDelete(Position position, Map<String, Long> properties)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronous mark delete
@@ -195,6 +216,21 @@ public interface ManagedCursor {
      *            opaque context
      */
     public void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx);
+
+    /**
+     * Asynchronous mark delete
+     *
+     * @see #markDelete(Position)
+     * @param position
+     *            the last position that have been successfully consumed
+     * @param properties
+     *            additional user-defined properties that can be associated with a particular cursor position
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx);
 
     /**
      * Delete a single message
@@ -372,7 +408,7 @@ public interface ManagedCursor {
      *            callback object returning the list of entries
      * @param ctx
      *            opaque context
-     * @return skipped positions 
+     * @return skipped positions
      *              set of positions which are already deleted/acknowledged and skipped while replaying them
      */
     public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
@@ -404,19 +440,19 @@ public interface ManagedCursor {
 
     /**
      * Activate cursor: EntryCacheManager caches entries only for activated-cursors
-     * 
+     *
      */
     public void setActive();
 
     /**
      * Deactivate cursor
-     * 
+     *
      */
     public void setInactive();
 
     /**
      * Checks if cursor is active or not.
-     * 
+     *
      * @return
      */
     public boolean isActive();
@@ -425,4 +461,18 @@ public interface ManagedCursor {
      * Tells whether the cursor is durable or just kept in memory
      */
     public boolean isDurable();
+
+    /**
+     * Returns total number of entries from the first not-acked message to current dispatching position 
+     * 
+     * @return
+     */
+    long getNumberOfEntriesSinceFirstNotAckedMessage();
+
+    /**
+     * Returns number of mark-Delete range
+     * 
+     * @return
+     */
+    int getTotalNonContiguousDeletedMessagesRange();
 }

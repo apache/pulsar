@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.util.Map;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -80,8 +82,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     }
 
     @Override
-    protected void internalAsyncMarkDelete(final PositionImpl newPosition, final MarkDeleteCallback callback,
-            final Object ctx) {
+    protected void internalAsyncMarkDelete(final PositionImpl newPosition, Map<String, Long> properties,
+            final MarkDeleteCallback callback, final Object ctx) {
         // Bypass persistence of mark-delete position and individually deleted messages info
         callback.markDeleteComplete(ctx);
     }
