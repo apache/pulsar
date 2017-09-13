@@ -1718,7 +1718,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
-            MetaStoreCallback<Void> callback) {
+            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
@@ -1726,8 +1726,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
                 .setMarkDeleteEntryId(position.getEntryId()); //
 
-        info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
         info.addAllProperties(buildPropertiesMap(properties));
+        if (persistIndividualDeletedMessageRanges) {
+            info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+        }
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, position);
@@ -1775,7 +1777,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 e.getMessage());
                         callback.closeFailed(e, ctx);
                     }
-                });
+                }, true);
     }
 
     /**
@@ -2035,7 +2037,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}] Failed to update consumer {}", ledger.getName(), name, e);
                 callback.operationFailed(e);
             }
-        });
+        }, false);
     }
 
     /**
