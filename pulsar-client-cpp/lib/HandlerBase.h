@@ -42,7 +42,7 @@ typedef boost::shared_ptr<HandlerBase> HandlerBasePtr;
 class HandlerBase {
 
  public:
-    HandlerBase(const ClientImplPtr& client, const std::string& topic);
+    HandlerBase(const ClientImplPtr&, const std::string&, const Backoff&);
 
     virtual ~HandlerBase();
 
