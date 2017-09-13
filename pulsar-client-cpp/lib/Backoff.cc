@@ -26,7 +26,7 @@ Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const Tim
           next_(initial),
           mandatoryStopMade_(false),
           mandatoryStop_(mandatoryStop),
-          seed_(time(NULL)) {
+          randomSeed_(time(NULL)) {
 }
 
 TimeDuration Backoff::next() {
@@ -34,17 +34,21 @@ TimeDuration Backoff::next() {
     next_ = std::min(next_ * 2, max_);
 
     // Check for mandatory stop
-    if (initial_ == current) {
-        timeElapsedSinceDisconnection_ = boost::posix_time::milliseconds(0);
+    if (!mandatoryStopMade_) {
+        const boost::posix_time::ptime& now = boost::posix_time::microsec_clock::universal_time();
+        TimeDuration timeElapsedSinceFirstBackoffTime = boost::posix_time::milliseconds(0);
+        if (initial_ == current) {
+            firstBackoffTime_ = now;
+        } else {
+            timeElapsedSinceFirstBackoffTime = now - firstBackoffTime_;
+        }
+        if (timeElapsedSinceFirstBackoffTime + current > mandatoryStop_) {
+            current = std::max(initial_, mandatoryStop_ - timeElapsedSinceFirstBackoffTime);
+            mandatoryStopMade_ = true;
+        }
     }
-    if (!mandatoryStopMade_ && timeElapsedSinceDisconnection_ + current > mandatoryStop_) {
-        current = std::max(initial_, mandatoryStop_ - timeElapsedSinceDisconnection_);
-        mandatoryStopMade_ = true;
-    }
-    timeElapsedSinceDisconnection_ += current;
-
     // Add Randomness
-    current = current - (current * (rand_r(&seed_) % 10) / 100);
+    current = current - (current * (rand_r(&randomSeed_) % 10) / 100);
     return std::max(initial_, current);
 }
 

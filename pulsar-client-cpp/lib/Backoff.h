@@ -39,9 +39,10 @@ class Backoff {
     const TimeDuration max_;
     TimeDuration next_;
     TimeDuration mandatoryStop_;
-    TimeDuration timeElapsedSinceDisconnection_;
+    boost::posix_time::ptime firstBackoffTime_;
     bool mandatoryStopMade_;
-    unsigned int seed_;
+    unsigned int randomSeed_;
+    friend class PulsarFriend;
 };
 }
 

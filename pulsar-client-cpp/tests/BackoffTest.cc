@@ -18,95 +18,131 @@
  */
 #include <gtest/gtest.h>
 #include "Backoff.h"
+#include "PulsarFriend.h"
 
 using namespace pulsar;
 using boost::posix_time::milliseconds;
 using boost::posix_time::seconds;
 
-static bool withinTenPercent(const unsigned int& t1, const unsigned int& t2) {
+static bool checkExactAndIncrementTimer(Backoff& backoff, const unsigned int& t2) {
+    const unsigned int& t1 = backoff.next().total_milliseconds();
+    boost::posix_time::ptime& firstBackOffTime = PulsarFriend::getFirstBackoffTime(backoff);
+    firstBackOffTime -= milliseconds(t2);
+    return t1 == t2;
+}
+
+static bool withinTenPercentAndIncrementTimer(Backoff& backoff, const unsigned int& t2) {
+    const unsigned int& t1 = backoff.next().total_milliseconds();
+    boost::posix_time::ptime& firstBackOffTime = PulsarFriend::getFirstBackoffTime(backoff);
+    firstBackOffTime -= milliseconds(t2);
     return (t1 >= t2 * 0.9 && t1 <= t2);
 }
 
+TEST(BackoffTest, mandatoryStopTestNegativeTest) {
+    Backoff backoff(milliseconds(100), seconds(60), milliseconds(1900));
+    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
+    backoff.next().total_milliseconds(); // 200
+    backoff.next().total_milliseconds(); // 400
+    backoff.next().total_milliseconds(); // 800
+    ASSERT_FALSE(withinTenPercentAndIncrementTimer(backoff, 400));
+}
+
+TEST(BackoffTest, firstBackoffTimerTest) {
+    Backoff backoff(milliseconds(100), seconds(60), milliseconds(1900));
+    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
+    boost::posix_time::ptime firstBackOffTime = PulsarFriend::getFirstBackoffTime(backoff);
+    usleep(300 * 1000);
+    TimeDuration diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
+    ASSERT_EQ(diffBackOffTime, milliseconds(0)); // no change since reset not called
+
+    backoff.reset();
+    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
+    diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
+    ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < milliseconds(310));
+}
+
+
 TEST(BackoffTest, basicTest) {
     Backoff backoff(milliseconds(5), seconds(60), seconds(60));
-    ASSERT_EQ(backoff.next().total_milliseconds(), 5);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 10));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 5));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 10));
+
     backoff.reset();
-    ASSERT_EQ(backoff.next().total_milliseconds(), 5);
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 5));
 }
 
 TEST(BackoffTest, maxTest) {
     Backoff backoff(milliseconds(5), milliseconds(20), milliseconds(20));
-    ASSERT_EQ(backoff.next().total_milliseconds(), 5);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 10));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 5));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 20));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 5));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 10));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 5));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 20));
 }
 
 TEST(BackoffTest, mandatoryStopTest) {
     Backoff backoff(milliseconds(100), seconds(60), milliseconds(1900));
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
     // would have been 1600 w/o the mandatory stop
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 3200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 6400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 12800));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 25600));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 51200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 3200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 6400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 12800));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 25600));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 51200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
 
     backoff.reset();
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
     // would have been 1600 w/o the mandatory stop
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
 
     backoff.reset();
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
 
     backoff.reset();
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
 }
 
 TEST(BackoffTest, ignoringMandatoryStopTest) {
     Backoff backoff(milliseconds(100), seconds(60), milliseconds(0));
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 1600));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 3200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 6400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 12800));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 25600));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 51200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 1600));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 3200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 6400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 12800));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 25600));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 51200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
 
     backoff.reset();
-    ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 800));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 1600));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 3200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 6400));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 12800));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 25600));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 51200));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
-    ASSERT_TRUE(withinTenPercent(backoff.next().total_milliseconds(), 60000));
+    ASSERT_TRUE(checkExactAndIncrementTimer(backoff, 100));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 800));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 1600));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 3200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 6400));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 12800));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 25600));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 51200));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
+    ASSERT_TRUE(withinTenPercentAndIncrementTimer(backoff, 60000));
 }
 
