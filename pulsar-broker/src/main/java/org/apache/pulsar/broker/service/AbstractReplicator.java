@@ -45,7 +45,7 @@ public abstract class AbstractReplicator {
     protected static final ProducerConfiguration producerConfiguration = new ProducerConfiguration()
             .setSendTimeout(0, TimeUnit.SECONDS).setBlockIfQueueFull(true);
 
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES);
+    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
     

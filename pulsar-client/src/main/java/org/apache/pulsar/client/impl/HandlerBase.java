@@ -51,10 +51,10 @@ abstract class HandlerBase {
         Failed // Handler is failed
     };
 
-    public HandlerBase(PulsarClientImpl client, String topic) {
+    public HandlerBase(PulsarClientImpl client, String topic, Backoff backoff) {
         this.client = client;
         this.topic = topic;
-        this.backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS);
+        this.backoff = backoff;
         STATE_UPDATER.set(this, State.Uninitialized);
         CLIENT_CNX_UPDATER.set(this, null);
     }

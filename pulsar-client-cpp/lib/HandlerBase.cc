@@ -27,7 +27,7 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
-HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic)
+HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, const Backoff& backoff)
         : client_(client),
           topic_(topic),
           connection_(),
@@ -35,7 +35,7 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic)
           creationTimestamp_(now()),
           operationTimeut_(seconds(client->conf().getOperationTimeoutSeconds())),
           state_(Pending),
-          backoff_(milliseconds(100), seconds(60)),
+          backoff_(backoff),
           timer_(client->getIOExecutorProvider()->get()->createDeadlineTimer()) {
 }
 

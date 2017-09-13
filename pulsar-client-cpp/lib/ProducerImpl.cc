@@ -26,7 +26,6 @@
 #include <boost/bind.hpp>
 #include <boost/date_time/local_time/local_time.hpp>
 
-using namespace pulsar;
 namespace pulsar {
 DECLARE_LOG_OBJECT()
 
@@ -48,9 +47,13 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
 }
 
 ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
-                           const ProducerConfiguration& producerConfiguration)
-        : HandlerBase(client, topic),
-          conf_(producerConfiguration),
+                           const ProducerConfiguration& conf)
+        : HandlerBase(
+                  client,
+                  topic,
+                  Backoff(milliseconds(100), seconds(60),
+                          milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
+          conf_(conf),
           executor_(client->getIOExecutorProvider()->get()),
           pendingMessagesQueue_(conf_.getMaxPendingMessages()),
           producerStr_("[" + topic_ + ", " + producerName_ + "] "),
