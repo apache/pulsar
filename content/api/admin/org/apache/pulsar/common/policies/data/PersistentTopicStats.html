@@ -138,48 +138,52 @@ extends Object</pre>
 </td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#deduplicationStatus">deduplicationStatus</a></span></code>&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateIn">msgRateIn</a></span></code>
 <div class="block">Total rate of messages published on the topic.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateOut">msgRateOut</a></span></code>
 <div class="block">Total rate of messages dispatched for the topic.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputIn">msgThroughputIn</a></span></code>
 <div class="block">Total throughput of messages published on the topic.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputOut">msgThroughputOut</a></span></code>
 <div class="block">Total throughput of messages dispatched for the topic.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#publishers">publishers</a></span></code>
 <div class="block">List of connected publishers on this topic w/ their stats</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#replication">replication</a></span></code>
 <div class="block">Map of replication statistics by remote cluster context</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#storageSize">storageSize</a></span></code>
 <div class="block">Space used to store the messages for the topic.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#subscriptions">subscriptions</a></span></code>
 <div class="block">Map of subscriptions with their individual statistics</div>
@@ -330,11 +334,20 @@ extends Object</pre>
 <a name="replication">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>replication</h4>
 <pre>public&nbsp;Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a>&gt; replication</pre>
 <div class="block">Map of replication statistics by remote cluster context</div>
+</li>
+</ul>
+<a name="deduplicationStatus">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>deduplicationStatus</h4>
+<pre>public&nbsp;String deduplicationStatus</pre>
 </li>
 </ul>
 </li>

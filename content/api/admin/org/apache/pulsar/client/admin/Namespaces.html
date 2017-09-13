@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -283,67 +283,74 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i25" class="rowColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setDeduplicationStatus-java.lang.String-boolean-">setDeduplicationStatus</a></span>(String&nbsp;namespace,
+                      boolean&nbsp;enableDeduplication)</code>
+<div class="block">Set the deduplication status for all topics within a namespace.</div>
+</td>
+</tr>
+<tr id="i26" class="altColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setDispatchRate-java.lang.String-org.apache.pulsar.common.policies.data.DispatchRate-">setDispatchRate</a></span>(String&nbsp;namespace,
                <a href="../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a>&nbsp;dispatchRate)</code>
 <div class="block">Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)</div>
 </td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceMessageTTL-java.lang.String-int-">setNamespaceMessageTTL</a></span>(String&nbsp;namespace,
                       int&nbsp;ttlInSeconds)</code>
-<div class="block">Set the replication clusters for a namespace.</div>
+<div class="block">Set the messages Time to Live for all the topics within a namespace.</div>
 </td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceReplicationClusters-java.lang.String-java.util.List-">setNamespaceReplicationClusters</a></span>(String&nbsp;namespace,
                                List&lt;String&gt;&nbsp;clusterIds)</code>
 <div class="block">Set the replication clusters for a namespace.</div>
 </td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setPersistence-java.lang.String-org.apache.pulsar.common.policies.data.PersistencePolicies-">setPersistence</a></span>(String&nbsp;namespace,
               <a href="../../../../../org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a>&nbsp;persistence)</code>
 <div class="block">Set the persistence configuration for all the destinations on a namespace.</div>
 </td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setRetention-java.lang.String-org.apache.pulsar.common.policies.data.RetentionPolicies-">setRetention</a></span>(String&nbsp;namespace,
             <a href="../../../../../org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a>&nbsp;retention)</code>
 <div class="block">Set the retention configuration for all the destinations on a namespace.</div>
 </td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#splitNamespaceBundle-java.lang.String-java.lang.String-">splitNamespaceBundle</a></span>(String&nbsp;namespace,
                     String&nbsp;bundle)</code>
 <div class="block">Split namespace bundle</div>
 </td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unload-java.lang.String-">unload</a></span>(String&nbsp;namespace)</code>
 <div class="block">Unload a namespace from the current serving broker.</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unloadNamespaceBundle-java.lang.String-java.lang.String-">unloadNamespaceBundle</a></span>(String&nbsp;namespace,
                      String&nbsp;bundle)</code>
 <div class="block">Unload namespace bundle</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespace-java.lang.String-java.lang.String-">unsubscribeNamespace</a></span>(String&nbsp;namespace,
                     String&nbsp;subscription)</code>
 <div class="block">Unsubscribes the given subscription on all destinations on a namespace</div>
 </td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespaceBundle-java.lang.String-java.lang.String-java.lang.String-">unsubscribeNamespaceBundle</a></span>(String&nbsp;namespace,
                           String&nbsp;bundle,
@@ -785,7 +792,7 @@ var activeTableTab = "activeTableTab";
 <pre>void&nbsp;setNamespaceMessageTTL(String&nbsp;namespace,
                             int&nbsp;ttlInSeconds)
                      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
-<div class="block">Set the replication clusters for a namespace.
+<div class="block">Set the messages Time to Live for all the topics within a namespace.
  <p>
  Request example:
 
@@ -796,6 +803,35 @@ var activeTableTab = "activeTableTab";
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>namespace</code> - Namespace name</dd>
 <dd><code>ttlInSeconds</code> - TTL values for all messages for all topics in this namespace</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="setDeduplicationStatus-java.lang.String-boolean-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setDeduplicationStatus</h4>
+<pre>void&nbsp;setDeduplicationStatus(String&nbsp;namespace,
+                            boolean&nbsp;enableDeduplication)
+                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Set the deduplication status for all topics within a namespace.
+ <p>
+ When deduplication is enabled, the broker will prevent to store the same message multiple times.
+ <p>
+ Request example:
+
+ <pre>
+ <code>true</code>
+ </pre></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - Namespace name</dd>
+<dd><code>enableDeduplication</code> - wether to enable or disable deduplication feature</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
@@ -995,7 +1031,7 @@ var activeTableTab = "activeTableTab";
  <p/>
  Request parameter example:
  <p/>
- 
+
  <pre>
  <code>
  {
@@ -1029,7 +1065,7 @@ var activeTableTab = "activeTableTab";
  <p/>
  Response example:
  <p/>
- 
+
  <pre>
  <code>
  {

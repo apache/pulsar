@@ -374,6 +374,10 @@
 <dd>
 <div class="block">data ledger ids</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#deduplicationEnabled">deduplicationEnabled</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#deduplicationStatus">deduplicationStatus</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#defaultBundle--">defaultBundle()</a></span> - Static method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#delete-java.lang.String-">delete(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
@@ -1146,6 +1150,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#numberOfEntries">numberOfEntries</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#numberOfEntriesSinceFirstNotAckedMessage">numberOfEntriesSinceFirstNotAckedMessage</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#numBundles">numBundles</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -1448,6 +1454,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#setBrokerServiceUrlTls-java.lang.String-">setBrokerServiceUrlTls(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setDeduplicationStatus-java.lang.String-boolean-">setDeduplicationStatus(String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set the deduplication status for all topics within a namespace.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/ResourceQuotas.html#setDefaultResourceQuota-org.apache.pulsar.common.policies.data.ResourceQuota-">setDefaultResourceQuota(ResourceQuota)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></dt>
 <dd>
 <div class="block">Set default resource quota for new namespace bundles.</div>
@@ -1484,7 +1494,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setNamespaceMessageTTL-java.lang.String-int-">setNamespaceMessageTTL(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Set the replication clusters for a namespace.</div>
+<div class="block">Set the messages Time to Live for all the topics within a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setNamespaceReplicationClusters-java.lang.String-java.util.List-">setNamespaceReplicationClusters(String, List&lt;String&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -1640,6 +1650,8 @@
 <dd>
 <div class="block">Total number of messages</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#totalNonContiguousDeletedMessagesRange">totalNonContiguousDeletedMessagesRange</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#totalSize">totalSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#type">type</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
