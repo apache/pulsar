@@ -18,41 +18,35 @@
  */
 package org.apache.pulsar.client.kafka.compat.examples;
 
-import java.util.Arrays;
 import java.util.Properties;
 
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
-import org.apache.kafka.common.serialization.IntegerDeserializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConsumerExample {
+public class ProducerExample {
     public static void main(String[] args) {
         String topic = "persistent://sample/standalone/ns/my-topic";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");
-        props.put("group.id", "my-subscription-name");
-        props.put("enable.auto.commit", "false");
-        props.put("key.deserializer", IntegerDeserializer.class.getName());
-        props.put("value.deserializer", StringDeserializer.class.getName());
 
-        Consumer<Integer, String> consumer = new PulsarKafkaConsumer<>(props);
-        consumer.subscribe(Arrays.asList(topic));
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
 
-        while (true) {
-            ConsumerRecords<Integer, String> records = consumer.poll(100);
-            records.forEach(record -> {
-                log.info("Received record: {}", record);
-            });
+        Producer<Integer, String> producer = new KafkaProducer<>(props);
 
-            // Commit last offset
-            consumer.commitSync();
+        for (int i = 0; i < 10; i++) {
+            producer.send(new ProducerRecord<Integer, String>(topic, i, Integer.toString(i)));
+            log.info("Message {} sent successfully", i);
         }
+
+        producer.close();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ConsumerExample.class);
+    private static final Logger log = LoggerFactory.getLogger(ProducerExample.class);
 }

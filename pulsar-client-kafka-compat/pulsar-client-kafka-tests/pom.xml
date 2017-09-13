@@ -31,13 +31,40 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-client-kafka-compat</artifactId>
-  <name>Pulsar Kafka compatibility</name>
+  <artifactId>pulsar-client-kafka-tests</artifactId>
+  <name>Pulsar Kafka compatibility :: Tests</name>
 
-  <packaging>pom</packaging>
+  <description>Tests to verify the correct shading configuration for the pulsar-client-kafka wrapper</description>
 
-  <modules>
-    <module>pulsar-client-kafka</module>
-    <module>pulsar-client-kafka-tests</module>
-  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-kafka</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+  </dependencies>
+
 </project>
