@@ -29,7 +29,7 @@ public class Backoff {
     private final long max;
     private long next;
     private long mandatoryStop;
-    public long timeElapsedSinceDisconnection;
+    long firstBackoffTimeInMillis;
     private boolean mandatoryStopMade = false;
 
     private static final Random random = new Random();
@@ -48,16 +48,21 @@ public class Backoff {
             this.next = Math.min(this.next * 2, this.max);
         }
         
-        if (initial == current) {
-            timeElapsedSinceDisconnection = 0;
+        // Check for mandatory stop
+        if (!mandatoryStopMade) {
+            long now = System.currentTimeMillis();
+            long timeElapsedSinceFirstBackoff = 0;
+            if (initial == current) {
+                firstBackoffTimeInMillis = now;
+            } else {
+                timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
+            }
+    
+            if (timeElapsedSinceFirstBackoff + current > mandatoryStop) {
+                current = Math.max(initial, mandatoryStop - timeElapsedSinceFirstBackoff);
+                mandatoryStopMade = true;
+            }
         }
-
-        if (!mandatoryStopMade && timeElapsedSinceDisconnection + current > mandatoryStop) {
-            current = Math.max(initial, mandatoryStop - timeElapsedSinceDisconnection);
-            mandatoryStopMade = true;
-        }
-        // increment timeElapsedSinceDisconnection
-        timeElapsedSinceDisconnection += current;
         
         // Randomly decrease the timeout up to 10% to avoid simultaneous retries        
         // If current < 10 then current/10 < 1 and we get an exception from Random saying "Bound must be positive"
