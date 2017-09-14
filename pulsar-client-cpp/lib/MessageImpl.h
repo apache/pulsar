@@ -49,6 +49,7 @@ class MessageImpl {
     bool hasPartitionKey() const;
 
     uint64_t getPublishTimestamp() const;
+    uint64_t getEventTimestamp() const;
 
     friend class PulsarWrapper;
     friend class MessageBuilder;
@@ -57,6 +58,7 @@ private:
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
     void setPartitionKey(const std::string& partitionKey);
+    void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };
 
