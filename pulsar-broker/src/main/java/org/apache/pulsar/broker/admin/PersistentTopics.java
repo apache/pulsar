@@ -1017,7 +1017,7 @@ public class PersistentTopics extends AdminResource {
                         DATE_FORMAT.format(Instant.ofEpochMilli(metadata.getPublishTime())));
             }
             if (metadata.hasNumMessagesInBatch()) {
-                responseBuilder.header("X-Pulsar-num-msg-batch", metadata.getNumMessagesInBatch());
+                responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
             }
 
             // Decode if needed

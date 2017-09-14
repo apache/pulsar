@@ -75,7 +75,7 @@ import io.netty.buffer.Unpooled;
 
 public class PersistentTopicsImpl extends BaseResource implements PersistentTopics {
     private final WebTarget persistentTopics;
-    private final String BATCH_HEADER = "X-Pulsar-num-msg-batch";
+    private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     public PersistentTopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
         this.persistentTopics = web.path("/persistent");
@@ -697,7 +697,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
             }
 
-            return new ArrayList<Message>() {{ add(new MessageImpl(msgId, properties, data)); }};
+            return Lists.newArrayList(new MessageImpl(msgId, properties, data));
         } finally {
             if (stream != null) {
                 stream.close();
