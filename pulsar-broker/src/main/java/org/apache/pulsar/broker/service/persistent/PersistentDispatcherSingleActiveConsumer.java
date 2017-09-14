@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
@@ -51,7 +52,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
-    private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+    private final ServiceConfiguration serviceConfig;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic) {
@@ -61,6 +63,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 : ""/* NonDurableCursor doesn't have name */);
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
+        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -121,10 +124,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             final long totalBytesSent = sentMsgInfo.getTotalSentMessageBytes();
             sentMsgInfo.getChannelPromse().addListener(future -> {
                 if (future.isSuccess()) {
+                    // acquire message-dispatch permits for already delivered messages
+                    if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+                        topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);    
+                    }
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                        // acquire message-dispatch permits for already delivered messages
-                        topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
                         Consumer newConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                         if (newConsumer != null && !havePendingRead) {
                             readMoreEntries(newConsumer);
@@ -206,16 +211,16 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
             int messagesToRead = Math.min(availablePermits, readBatchSize);
             
-            // throttle only if: (1) cursor is not active bcz active-cursor reads message from cache rather from
-            // bookkeeper (2) if topic has reached message-rate threshold: then schedule the read after
-            // MESSAGE_RATE_BACKOFF_MS
-            if (!cursor.isActive()) {
+            // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
+            // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
+            // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
+            if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                 DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
                 if (rateLimiter.isDispatchRateLimitingEnabled()) {
                     if (!rateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}",
-                                    name, rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}", name,
+                                    rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
                                     MESSAGE_RATE_BACKOFF_MS);
                         }
                         topic.getBrokerService().executor().schedule(() -> {

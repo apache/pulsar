@@ -52,6 +52,13 @@ else
     RES=$?
 fi
 
+if [ $RES -eq 0 ]; then
+    echo "---- Running Python unit tests"
+    cd ../python
+    python pulsar_test.py
+    RES=$?
+fi
+
 kill -9 $standalone_pid $auth_pid
 
 rm -rf pulsar-dist

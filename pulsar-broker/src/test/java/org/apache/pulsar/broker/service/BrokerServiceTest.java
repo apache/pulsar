@@ -727,7 +727,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     /**
      * Verifies: client side throttling.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -776,11 +776,11 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         }
     }
-    
+
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
-     * 
+     *
      */
     @Test(timeOut = 3000)
     public void testTopicFailureShouldNotHaveDeadLock() {
@@ -827,7 +827,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     /**
      * It verifies that policiesCache() copies global-policy data into local-policy data and returns combined result
-     * 
+     *
      * @throws Exception
      */
     @Test

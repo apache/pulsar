@@ -25,12 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,6 +237,49 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         // Acknowledge the consumption of all messages at once
         reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderOnSpecificMessageWithBatches() throws Exception {
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(true);
+        producerConf.setBatchingMaxPublishDelay(100, TimeUnit.MILLISECONDS);
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", producerConf);
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+
+        // Write one sync message to ensure everything before got persistend
+        producer.send("my-message-10".getBytes());
+        Reader reader1 = pulsarClient.createReader(
+                "persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", MessageId.earliest,
+                new ReaderConfiguration());
+
+        MessageId lastMessageId = null;
+        for (int i = 0; i < 5; i++) {
+            Message msg = reader1.readNext();
+            lastMessageId = msg.getMessageId();
+        }
+
+        assertEquals(lastMessageId.getClass(), BatchMessageIdImpl.class);
+
+        System.out.println("CREATING READER ON MSG ID: " + lastMessageId);
+
+        Reader reader2 = pulsarClient.createReader(
+                "persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", lastMessageId,
+                new ReaderConfiguration());
+
+        for (int i = 5; i < 11; i++) {
+            Message msg = reader2.readNext(1, TimeUnit.SECONDS);
+
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            assertEquals(receivedMessage, expectedMessage);
+        }
+
         producer.close();
     }
 

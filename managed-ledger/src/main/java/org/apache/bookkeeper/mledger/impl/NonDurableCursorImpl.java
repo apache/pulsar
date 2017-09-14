@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.util.Map;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -36,7 +38,10 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             PositionImpl startCursorPosition) {
         super(bookkeeper, config, ledger, cursorName);
 
-        if (startCursorPosition == null || startCursorPosition.equals(PositionImpl.latest)) {
+        // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
+        // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
+        // both ledgerId and entryId to be Long.max()
+        if (startCursorPosition == null || startCursorPosition.getLedgerId() == PositionImpl.latest.getLedgerId()) {
             // Start from last entry
             initializeCursorPosition(ledger.getLastPositionAndCounter());
         } else if (startCursorPosition.equals(PositionImpl.earliest)) {
@@ -77,8 +82,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     }
 
     @Override
-    protected void internalAsyncMarkDelete(final PositionImpl newPosition, final MarkDeleteCallback callback,
-            final Object ctx) {
+    protected void internalAsyncMarkDelete(final PositionImpl newPosition, Map<String, Long> properties,
+            final MarkDeleteCallback callback, final Object ctx) {
         // Bypass persistence of mark-delete position and individually deleted messages info
         callback.markDeleteComplete(ctx);
     }

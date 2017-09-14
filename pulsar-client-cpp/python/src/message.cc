@@ -20,16 +20,26 @@
 
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 
-std::string MessageId_str(const MessageId& msgId) {
+std::string MessageId_str(const BatchMessageId& msgId) {
     std::stringstream ss;
     ss << msgId;
     return ss.str();
+}
+
+std::string MessageId_serialize(const BatchMessageId& msgId) {
+    std::string serialized;
+    msgId.serialize(serialized);
+    return serialized;
 }
 
 std::string Message_str(const Message& msg) {
     std::stringstream ss;
     ss << msg;
     return ss.str();
+}
+
+const BatchMessageId& Message_getMessageId(const Message& msg) {
+    return static_cast<const BatchMessageId&>(msg.getMessageId());
 }
 
 void export_message() {
@@ -52,8 +62,15 @@ void export_message() {
             .def(map_indexing_suite<Message::StringMap>())
             ;
 
-    class_<MessageId>("MessageId")
+    static const BatchMessageId& _MessageId_earliest = static_cast<const BatchMessageId&>(MessageId::earliest());
+    static const BatchMessageId& _MessageId_latest = static_cast<const BatchMessageId&>(MessageId::latest());
+
+    class_<BatchMessageId, boost::shared_ptr<BatchMessageId> >("MessageId")
             .def("__str__", &MessageId_str)
+            .add_static_property("earliest", make_getter(&_MessageId_earliest))
+            .add_static_property("latest", make_getter(&_MessageId_latest))
+            .def("serialize", &MessageId_serialize)
+            .def("deserialize", &MessageId::deserialize).staticmethod("deserialize")
             ;
 
     class_<Message>("Message")
@@ -63,7 +80,7 @@ void export_message() {
             .def("partition_key", &Message::getPartitionKey, return_value_policy<copy_const_reference>())
             .def("publish_timestamp", &Message::getPublishTimestamp)
             .def("event_timestamp", &Message::getEventTimestamp)
-            .def("message_id", &Message::getMessageId, return_value_policy<copy_const_reference>())
+            .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
             ;
 }

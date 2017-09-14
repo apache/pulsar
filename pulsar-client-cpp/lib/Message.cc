@@ -34,7 +34,7 @@ using namespace pulsar;
 namespace pulsar {
 
 const static std::string emptyString;
-const static MessageId invalidMessageId;
+const static BatchMessageId invalidMessageId;
 
 const Message::StringMap& Message::getProperties() const {
     return impl_->properties();

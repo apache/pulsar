@@ -52,6 +52,7 @@ public class ManagedLedgerInfo {
         // Last snapshot of the mark-delete position
         public PositionInfo markDelete;
         public List<MessageRangeInfo> individualDeletedMessages;
+        public Map<String, Long> properties;
     }
 
     public static class PositionInfo {

@@ -212,6 +212,28 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
+    private class SetDeduplication extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable deduplication")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable deduplication")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setDeduplicationStatus(namespace, enable);
+        }
+    }
+
     @Parameters(commandDescription = "Set the retention policy for a namespace")
     private class SetRetention extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
@@ -558,13 +580,15 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
 
+        jcommander.addCommand("set-deduplication", new SetDeduplication());
+
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
 
         jcommander.addCommand("unload", new Unload());
 
         jcommander.addCommand("split-bundle", new SplitBundle());
-        
+
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
 

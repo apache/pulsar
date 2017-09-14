@@ -31,6 +31,11 @@ BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic
     LOG_DEBUG(name_ << "Constructed BatchAcknowledgementTracker");
 }
 
+void BatchAcknowledgementTracker::clear() {
+    trackerMap_.clear();
+    sendList_.clear();
+}
+
 void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
     // ignore message if it is not a batch message
     if (!message.impl_->metadata.has_num_messages_in_batch()) {
@@ -99,8 +104,8 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const BatchMessageId& messa
 bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID, const proto::CommandAck_AckType ackType) {
     Lock lock(mutex_);
     TrackerMap::iterator pos = trackerMap_.find(msgID);
-    if (std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()
-            || pos == trackerMap_.end()) {
+    if (pos == trackerMap_.end() ||
+            std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
         LOG_DEBUG(
                 "Batch is ready since message present in sendList_ or not present in trackerMap_ [message ID = " << msgID << "]");
         return true;

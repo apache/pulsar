@@ -56,6 +56,8 @@ public class PersistentTopicStats {
     /** Map of replication statistics by remote cluster context */
     public Map<String, ReplicatorStats> replication;
 
+    public String deduplicationStatus;
+
     public PersistentTopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -72,6 +74,7 @@ public class PersistentTopicStats {
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
+        this.deduplicationStatus = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current

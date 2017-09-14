@@ -78,6 +78,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerDeleteInactiveTopicsFrequencySeconds = 60;
     // How frequently to proactively check and purge expired messages
     private int messageExpiryCheckIntervalInMinutes = 5;
+
+    // Set the default behavior for message deduplication in the broker
+    // This can be overridden per-namespace. If enabled, broker will reject
+    // messages that were already stored in the topic
+    private boolean brokerDeduplicationEnabled = false;
+
+    // Maximum number of producer information that it's going to be
+    // persisted for deduplication purposes
+    private int brokerDeduplicationMaxNumberOfProducers = 10000;
+
+    // Number of entries after which a dedup info snapshot is taken.
+    // A bigger interval will lead to less snapshots being taken though it would
+    // increase the topic recovery time, when the entries published after the
+    // snapshot need to be replayed
+    private int brokerDeduplicationEntriesInterval = 1000;
+
+    // Time of inactivity after which the broker will discard the deduplication information
+    // relative to a disconnected producer. Default is 6 hours.
+    private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
+
     // Enable check for minimum allowed client library version
     private boolean clientLibraryVersionCheckEnabled = false;
     // Allow client libraries with no version information
@@ -105,13 +125,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     // Default number of message dispatching throttling-limit for every topic. Using a value of 0, is disabling default
-    // message dispatch-throttling 
+    // message dispatch-throttling
     @FieldContext(dynamic = true)
     private int dispatchThrottlingRatePerTopicInMsg = 0;
     // Default number of message-bytes dispatching throttling-limit for every topic. Using a value of 0, is disabling
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
+    // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
+    @FieldContext(dynamic = true)
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
     private int maxConcurrentLookupRequest = 10000;
@@ -120,10 +144,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxConcurrentTopicLoadRequest = 5000;
     // Max concurrent non-persistent message can be processed per connection
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
-    // Number of worker threads to serve non-persistent topic 
+    // Number of worker threads to serve non-persistent topic
     private int numWorkerThreadsForNonPersistentTopic = 8;
+
     // Enable broker to load persistent topics
     private boolean enablePersistentTopics = true;
+
     // Enable broker to load non-persistent topics
     private boolean enableNonPersistentTopics = true;
 
@@ -433,6 +459,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.brokerDeleteInactiveTopicsEnabled = brokerDeleteInactiveTopicsEnabled;
     }
 
+    public int getBrokerDeduplicationMaxNumberOfProducers() {
+        return brokerDeduplicationMaxNumberOfProducers;
+    }
+
+    public void setBrokerDeduplicationMaxNumberOfProducers(int brokerDeduplicationMaxNumberOfProducers) {
+        this.brokerDeduplicationMaxNumberOfProducers = brokerDeduplicationMaxNumberOfProducers;
+    }
+
+    public int getBrokerDeduplicationEntriesInterval() {
+        return brokerDeduplicationEntriesInterval;
+    }
+
+    public void setBrokerDeduplicationEntriesInterval(int brokerDeduplicationEntriesInterval) {
+        this.brokerDeduplicationEntriesInterval = brokerDeduplicationEntriesInterval;
+    }
+
+    public int getBrokerDeduplicationProducerInactivityTimeoutMinutes() {
+        return brokerDeduplicationProducerInactivityTimeoutMinutes;
+    }
+
+    public void setBrokerDeduplicationProducerInactivityTimeoutMinutes(
+            int brokerDeduplicationProducerInactivityTimeoutMinutes) {
+        this.brokerDeduplicationProducerInactivityTimeoutMinutes = brokerDeduplicationProducerInactivityTimeoutMinutes;
+    }
+
     public long getBrokerDeleteInactiveTopicsFrequencySeconds() {
         return brokerDeleteInactiveTopicsFrequencySeconds;
     }
@@ -447,6 +498,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setMessageExpiryCheckIntervalInMinutes(int messageExpiryCheckIntervalInMinutes) {
         this.messageExpiryCheckIntervalInMinutes = messageExpiryCheckIntervalInMinutes;
+    }
+
+    public boolean isBrokerDeduplicationEnabled() {
+        return brokerDeduplicationEnabled;
+    }
+
+    public void setBrokerDeduplicationEnabled(boolean brokerDeduplicationEnabled) {
+        this.brokerDeduplicationEnabled = brokerDeduplicationEnabled;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {
@@ -520,6 +579,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setDispatchThrottlingRatePerTopicInByte(long dispatchThrottlingRatePerTopicInByte) {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
+    }
+
+    public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
+        return dispatchThrottlingOnNonBacklogConsumerEnabled;
+    }
+
+    public void setDispatchThrottlingOnNonBacklogConsumerEnabled(boolean dispatchThrottlingOnNonBacklogConsumerEnabled) {
+        this.dispatchThrottlingOnNonBacklogConsumerEnabled = dispatchThrottlingOnNonBacklogConsumerEnabled;
     }
 
     public int getMaxConcurrentLookupRequest() {

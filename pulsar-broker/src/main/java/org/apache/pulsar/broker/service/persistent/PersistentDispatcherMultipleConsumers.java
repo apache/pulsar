@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -71,7 +72,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     private int totalAvailablePermits = 0;
     private int readBatchSize;
-    private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
     private volatile int totalUnackedMessages = 0;
@@ -79,6 +80,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
+    private final ServiceConfiguration serviceConfig;
 
     enum ReadType {
         Normal, Replay
@@ -92,6 +94,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
+        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
     }
 
     @Override
@@ -173,10 +176,10 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         if (totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
 
-            // throttle only if: (1) cursor is not active bcz active-cursor reads message from cache rather from
-            // bookkeeper (2) if topic has reached message-rate threshold: then schedule the read after
-            // MESSAGE_RATE_BACKOFF_MS
-            if (!cursor.isActive()) {
+            // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
+            // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
+            // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
+            if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                 DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
                 if (rateLimiter.isDispatchRateLimitingEnabled()) {
                     if (!rateLimiter.hasMessageDispatchPermit()) {
@@ -361,8 +364,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             }
         }
 
-        topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
-        
+        // acquire message-dispatch permits for already delivered messages
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+        }
+
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,

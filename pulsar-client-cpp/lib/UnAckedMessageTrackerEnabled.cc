@@ -102,6 +102,11 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
     }
 }
 
+void UnAckedMessageTrackerEnabled::clear() {
+    currentSet_.clear();
+    oldSet_.clear();
+}
+
 UnAckedMessageTrackerEnabled::~UnAckedMessageTrackerEnabled() {
     if (timer_) {
         timer_->cancel();

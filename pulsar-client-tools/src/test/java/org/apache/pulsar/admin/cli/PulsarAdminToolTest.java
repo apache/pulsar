@@ -26,13 +26,6 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
 
-import org.apache.pulsar.admin.cli.CmdBrokers;
-import org.apache.pulsar.admin.cli.CmdClusters;
-import org.apache.pulsar.admin.cli.CmdNamespaces;
-import org.apache.pulsar.admin.cli.CmdPersistentTopics;
-import org.apache.pulsar.admin.cli.CmdProperties;
-import org.apache.pulsar.admin.cli.CmdResourceQuotas;
-import org.apache.pulsar.admin.cli.PulsarAdminTool;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
@@ -44,12 +37,12 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
@@ -70,13 +63,13 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("list use"));
         verify(mockBrokers).getActiveBrokers("use");
-        
+
         brokers.run(split("get-all-dynamic-config"));
         verify(mockBrokers).getAllDynamicConfigurations();
-        
+
         brokers.run(split("list-dynamic-config"));
         verify(mockBrokers).getDynamicConfigurationNames();
-        
+
         brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
     }
@@ -261,6 +254,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
 
+        namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
+        verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
+
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
 
@@ -381,10 +377,10 @@ public class PulsarAdminToolTest {
 
         topics.run(split("skip persistent://myprop/clust/ns1/ds1 -s sub1 -n 100"));
         verify(mockTopics).skipMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
-        
+
         topics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -t 100"));
         verify(mockTopics).expireMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
-        
+
         topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
@@ -421,7 +417,7 @@ public class PulsarAdminToolTest {
                 Matchers.longThat(new TimestampMatcher()));
     }
 
-    
+
     @Test
     void nonPersistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -438,9 +434,9 @@ public class PulsarAdminToolTest {
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
-      
+
     }
-    
+
     @Test
     void tool() throws Exception {
         java.util.Properties properties = new java.util.Properties();

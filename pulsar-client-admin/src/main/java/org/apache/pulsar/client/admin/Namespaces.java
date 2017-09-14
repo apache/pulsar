@@ -398,7 +398,7 @@ public interface Namespaces {
     int getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the replication clusters for a namespace.
+     * Set the messages Time to Live for all the topics within a namespace.
      * <p>
      * Request example:
      *
@@ -419,6 +419,31 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException;
+
+    /**
+     * Set the deduplication status for all topics within a namespace.
+     * <p>
+     * When deduplication is enabled, the broker will prevent to store the same message multiple times.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param enableDeduplication
+     *            wether to enable or disable deduplication feature
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
      * Get the bundles split data.
@@ -603,7 +628,7 @@ public interface Namespaces {
      * <p/>
      * Request parameter example:
      * <p/>
-     * 
+     *
      * <pre>
      * <code>
      * {
@@ -634,7 +659,7 @@ public interface Namespaces {
      * <p/>
      * Response example:
      * <p/>
-     * 
+     *
      * <pre>
      * <code>
      * {
@@ -703,7 +728,7 @@ public interface Namespaces {
      *             Unexpected error
      */
     void splitNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
-    
+
     /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
      *
@@ -714,7 +739,7 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
-    
+
     /** Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
     *
     * @param namespace

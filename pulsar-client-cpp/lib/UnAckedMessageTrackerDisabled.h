@@ -31,6 +31,9 @@ class UnAckedMessageTrackerDisabled : public UnAckedMessageTrackerInterface {
     }
     void removeMessagesTill(const MessageId& msgId) {
     }
+
+    void clear() {
+    }
 };
 
 }
