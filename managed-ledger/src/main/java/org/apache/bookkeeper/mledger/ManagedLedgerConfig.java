@@ -34,7 +34,7 @@ import com.google.common.base.Charsets;
 @Beta
 public class ManagedLedgerConfig {
 
-    private int maxUnackedRangesToPersist = 1000;
+    private int maxUnackedRangesToPersist = 10000;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
