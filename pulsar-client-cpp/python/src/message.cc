@@ -52,6 +52,7 @@ void export_message() {
             .def("property", &MessageBuilder::setProperty, return_self<>())
             .def("properties", &MessageBuilder::setProperties, return_self<>())
             .def("partition_key", &MessageBuilder::setPartitionKey, return_self<>())
+            .def("event_timestamp", &MessageBuilder::setEventTimestamp, return_self<>())
             .def("replication_clusters", &MessageBuilder::setReplicationClusters, return_self<>())
             .def("disable_replication", &MessageBuilder::disableReplication, return_self<>())
             .def("build", &MessageBuilder::build)
@@ -78,6 +79,7 @@ void export_message() {
             .def("length", &Message::getLength)
             .def("partition_key", &Message::getPartitionKey, return_value_policy<copy_const_reference>())
             .def("publish_timestamp", &Message::getPublishTimestamp)
+            .def("event_timestamp", &Message::getEventTimestamp)
             .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
             ;
