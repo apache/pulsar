@@ -19,29 +19,18 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
+import java.util.HashMap;
 
-import org.apache.pulsar.client.api.Authentication;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-
-import java.util.HashMap;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 
 public final class AuthenticationFactory {
 
-    /**
-     * Create an instance of the Authentication-Plugin
-     *
-     * @param authPluginClassName
-     *            name of the Authentication-Plugin you want to use
-     * @param authParamsString
-     *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
-     * @return instance of the Authentication-Plugin
-     * @throws UnsupportedAuthenticationException
-     */
-    public static final Authentication create(String authPluginClassName, String authParamsString)
-            throws UnsupportedAuthenticationException {
-        Map<String, String> authParams = new HashMap<String, String>();
+    private static Map<String, String> parseAuthParamsString(String authParamsString) {
+        Map<String, String> authParams = new HashMap<>();
+
         if (isNotBlank(authParamsString)) {
             String[] params = authParamsString.split(",");
             for (String p : params) {
@@ -51,16 +40,44 @@ public final class AuthenticationFactory {
                 }
             }
         }
-        return AuthenticationFactory.create(authPluginClassName, authParams);
+        return authParams;
     }
 
     /**
      * Create an instance of the Authentication-Plugin
      *
-     * @param authPluginClassName
-     *            name of the Authentication-Plugin you want to use
-     * @param authParams
-     *            map which represents parameters for the Authentication-Plugin
+     * @param authPluginClassName name of the Authentication-Plugin you want to use
+     * @param authParamsString    string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @return instance of the Authentication-Plugin
+     * @throws UnsupportedAuthenticationException
+     */
+    public static final Authentication create(String authPluginClassName, String authParamsString)
+            throws UnsupportedAuthenticationException {
+        try {
+            if (isNotBlank(authPluginClassName)) {
+                Class<?> authClass = Class.forName(authPluginClassName);
+                Authentication auth = (Authentication) authClass.newInstance();
+                if (auth instanceof EncodedAuthenticationParameterSupport) {
+                    // Parse parameters on plugin side.
+                    ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
+                } else {
+                    // Parse parameters by default parse logic.
+                    auth.configure(parseAuthParamsString(authParamsString));
+                }
+                return auth;
+            } else {
+                return new AuthenticationDisabled();
+            }
+        } catch (Throwable t) {
+            throw new UnsupportedAuthenticationException(t);
+        }
+    }
+
+    /**
+     * Create an instance of the Authentication-Plugin
+     *
+     * @param authPluginClassName name of the Authentication-Plugin you want to use
+     * @param authParams          map which represents parameters for the Authentication-Plugin
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
