@@ -255,7 +255,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // that were acknowledged. After the max number of ranges is reached, the information
     // will only be tracked in memory and messages will be redelivered in case of
     // crashes.
-    private int managedLedgerMaxUnackedRangesToPersist = 1000;
+    private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    // Max number of "acknowledgment holes" that can be stored in Zookeeper. If number of unack message range is higher
+    // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
+    // zookeeper.  
+    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -917,6 +921,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerMaxUnackedRangesToPersist(int managedLedgerMaxUnackedRangesToPersist) {
         this.managedLedgerMaxUnackedRangesToPersist = managedLedgerMaxUnackedRangesToPersist;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersistInZooKeeper() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper;
+    }
+
+    public void setManagedLedgerMaxUnackedRangesToPersistInZooKeeper(
+            int managedLedgerMaxUnackedRangesToPersistInZookeeper) {
+        this.managedLedgerMaxUnackedRangesToPersistInZooKeeper = managedLedgerMaxUnackedRangesToPersistInZookeeper;
     }
 
     public boolean isLoadBalancerEnabled() {
