@@ -581,7 +581,8 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             if (ex != null) {
                 // if we get a not found exception, it means that the position for the message we are trying to get        
                 // does not exist. At this point, we can return the already found messages.       
-                if (ex instanceof NotFoundException && ex.getMessage().equals("Message not found")) {    
+                if (ex instanceof NotFoundException) {
+                    log.warn("Exception '{}' occured while trying to peek Messages.", ex.getMessage());
                     future.complete(messages);
                 } else {
                     future.completeExceptionally(ex);
