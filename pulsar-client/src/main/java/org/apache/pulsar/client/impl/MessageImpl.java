@@ -110,9 +110,14 @@ public class MessageImpl implements Message {
     }
 
     public MessageImpl(String msgId, Map<String, String> properties, ByteBuf payload) {
-        long ledgerId = Long.parseLong(msgId.substring(0, msgId.indexOf(':')));
-        long entryId = Long.parseLong(msgId.substring(msgId.indexOf(':') + 1));
-        this.messageId = new MessageIdImpl(ledgerId, entryId, -1);
+        String[] data = msgId.split(":");
+        long ledgerId = Long.parseLong(data[0]);
+        long entryId = Long.parseLong(data[1]);
+        if (data.length == 3) {
+            this.messageId = new BatchMessageIdImpl(ledgerId, entryId, -1, Integer.parseInt(data[2]));
+        } else {
+            this.messageId = new MessageIdImpl(ledgerId, entryId, -1);
+        }
         this.cnx = null;
         this.payload = payload;
         this.properties = Collections.unmodifiableMap(properties);

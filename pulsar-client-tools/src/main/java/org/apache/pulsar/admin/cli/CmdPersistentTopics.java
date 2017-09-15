@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 import com.beust.jcommander.Parameter;
@@ -465,8 +466,13 @@ public class CmdPersistentTopics extends CmdBase {
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
-                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
                 if (msg.getProperties().size() > 0) {
                     System.out.println("Properties:");
                     print(msg.getProperties());
