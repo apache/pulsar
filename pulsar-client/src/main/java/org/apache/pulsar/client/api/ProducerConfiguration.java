@@ -49,7 +49,8 @@ public class ProducerConfiguration implements Serializable {
 
     private CompressionType compressionType = CompressionType.NONE;
 
-    private Optional<Long> initialSequenceId = Optional.empty();
+    // Cannot use Optional<Long> since it's not serializable
+    private Long initialSequenceId = null;
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
@@ -323,7 +324,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     public Optional<Long> getInitialSequenceId() {
-        return initialSequenceId;
+        return initialSequenceId != null ? Optional.of(initialSequenceId) : Optional.empty();
     }
 
     /**
@@ -336,7 +337,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setInitialSequenceId(long initialSequenceId) {
-        this.initialSequenceId = Optional.of(initialSequenceId);
+        this.initialSequenceId = initialSequenceId;
         return this;
     }
 
