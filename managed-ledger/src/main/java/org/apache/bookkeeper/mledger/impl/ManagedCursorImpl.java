@@ -1362,7 +1362,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lastMarkDeleteEntry = mdEntry;
 
-        persistPosition(cursorLedger, mdEntry, new VoidCallback() {
+        persistPositionToLedger(cursorLedger, mdEntry, new VoidCallback() {
             @Override
             public void operationComplete() {
                 if (log.isDebugEnabled()) {
@@ -1717,6 +1717,61 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Persist given markDelete position to cursor-ledger or zk-metaStore based on max number of allowed unack-range
+     * that can be persist in zk-metastore. If current unack-range is higher than configured threshold then broker
+     * persists mark-delete into cursor-ledger else into zk-metastore.
+     * 
+     * @param cursorsLedgerId
+     * @param position
+     * @param properties
+     * @param callback
+     */
+    private void persistPosition(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
+            final AsyncCallbacks.CloseCallback callback, final Object ctx) {
+
+        if (shouldPersistUnackRangesToLedger()) {
+            persistPositionToLedger(cursorLedger, new MarkDeleteEntry(position, properties, null, null),
+                    new VoidCallback() {
+                        @Override
+                        public void operationComplete() {
+                            log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
+                                    markDeletePosition, cursorLedger.getId());
+                            callback.closeComplete(ctx);
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException e) {
+                            log.warn("[{}][{}] Failed to persist mark-delete position into cursor-ledger{}: {}",
+                                    ledger.getName(), name, cursorLedger.getId(), e.getMessage());
+                            callback.closeFailed(e, ctx);
+                        }
+                    });
+        } else {
+            persistPositionMetaStore(cursorsLedgerId, position, properties, new MetaStoreCallback<Void>() {
+                @Override
+                public void operationComplete(Void result, Stat stat) {
+                    log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name, markDeletePosition);
+                    // At this point the position had already been safely stored in the cursor z-node
+                    callback.closeComplete(ctx);
+                    asyncDeleteLedger(cursorLedger);
+                }
+
+                @Override
+                public void operationFailed(MetaStoreException e) {
+                    log.warn("[{}][{}] Failed to update cursor info when closing: {}", ledger.getName(), name,
+                            e.getMessage());
+                    callback.closeFailed(e, ctx);
+                }
+            }, true);
+        }
+    }
+
+    private boolean shouldPersistUnackRangesToLedger() {
+        return cursorLedger != null && config.getMaxUnackedRangesToPersist() > 0
+                && individualDeletedMessages.asRanges().size() > config.getMaxUnackedRangesToPersistInZk();
+    }
+
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
@@ -1757,27 +1812,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.closeComplete(ctx);
             return;
         }
-
-        persistPositionMetaStore(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
-                new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat stat) {
-                        log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name,
-                                markDeletePosition);
-
-                        // At this point the position had already been safely stored in the cursor z-node
-                        callback.closeComplete(ctx);
-
-                        asyncDeleteLedger(cursorLedger);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.warn("[{}][{}] Failed to update cursor info when closing: {}", ledger.getName(), name,
-                                e.getMessage());
-                        callback.closeFailed(e, ctx);
-                    }
-                }, true);
+        persistPosition(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
     }
 
     /**
@@ -1870,7 +1905,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         // Created the ledger, now write the last position
                         // content
                         MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
-                        persistPosition(lh, mdEntry, new VoidCallback() {
+                        persistPositionToLedger(lh, mdEntry, new VoidCallback() {
                             @Override
                             public void operationComplete() {
                                 if (log.isDebugEnabled()) {
@@ -1958,7 +1993,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void persistPosition(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
+    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         PositionImpl position = mdEntry.newPosition;
         PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
