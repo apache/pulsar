@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -182,6 +183,18 @@ public class Producer {
     public void recordMessageDrop(int batchSize) {
         if (this.isNonPersistentTopic) {
             msgDrop.recordEvent(batchSize);
+        }
+    }
+
+    /**
+     * Return the sequence id of
+     * @return
+     */
+    public long getLastSequenceId() {
+        if (isNonPersistentTopic) {
+            return -1;
+        } else {
+            return ((PersistentTopic) topic).getLastPublishedSequenceId(producerName);
         }
     }
 

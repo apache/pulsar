@@ -25,7 +25,7 @@ import org.apache.pulsar.client.impl.ProducerStats;
 
 /**
  * Producer object.
- * 
+ *
  * The producer is used to publish messages on a topic
  *
  *
@@ -36,6 +36,11 @@ public interface Producer extends Closeable {
      * @return the topic which producer is publishing to
      */
     String getTopic();
+
+    /**
+     * @return the producer name which could have been assigned by the system or specified by the client
+     */
+    String getProducerName();
 
     /**
      * Send a message
@@ -82,7 +87,7 @@ public interface Producer extends Closeable {
      * contain the {@link MessageId} assigned by the broker to the published message.
      * <p>
      * Example:
-     * 
+     *
      * <pre>
      * <code>Message msg = MessageBuilder.create().setContent(myContent).build();
      * producer.sendAsync(msg).thenRun(v -> {
@@ -104,24 +109,37 @@ public interface Producer extends Closeable {
     CompletableFuture<MessageId> sendAsync(Message message);
 
     /**
+     * Get the last sequence id that was published by this producer.
+     * <p>
+     * This represent either the automatically assigned or custom sequence id (set on the {@link MessageBuilder}) that
+     * was published and acknowledged by the broker.
+     * <p>
+     * After recreating a producer with the same producer name, this will return the last message that was published in
+     * the previous producer session, or -1 if there no message was ever published.
+     *
+     * @return the last sequence id published by this producer
+     */
+    long getLastSequenceId();
+
+    /**
      * Get statistics for the producer
-     * 
+     *
      * numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
      * interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
      * acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
      * of bytes sent totalSendFailed : Total number of messages failed to send totalAcksReceived: Total number of acks
      * received
-     * 
+     *
      * @return statistic for the producer or null if ProducerStats is disabled.
      */
     ProducerStats getStats();
 
     /**
      * Close the producer and releases resources allocated.
-     * 
+     *
      * No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
      * of errors, pending writes will not be retried.
-     * 
+     *
      * @throws PulsarClientException.AlreadyClosedException
      *             if the producer was already closed
      */
@@ -130,10 +148,10 @@ public interface Producer extends Closeable {
 
     /**
      * Close the producer and releases resources allocated.
-     * 
+     *
      * No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
      * of errors, pending writes will not be retried.
-     * 
+     *
      * @return a future that can used to track when the producer has been closed
      */
     CompletableFuture<Void> closeAsync();

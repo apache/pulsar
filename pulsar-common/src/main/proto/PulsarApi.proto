@@ -310,6 +310,10 @@ message CommandSuccess {
 message CommandProducerSuccess {
 	required uint64 request_id    = 1;
 	required string producer_name = 2;
+	
+	// The last sequence id that was stored by this producer in the previous session
+	// This will only be meaningful if deduplication has been enabled.
+	optional int64  last_sequence_id = 3 [default = -1];
 }
 
 message CommandError {

@@ -173,9 +173,14 @@ public class Commands {
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName) {
+        return newProducerSuccess(requestId, producerName, -1);
+    }
+
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
+        producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));

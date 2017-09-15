@@ -250,11 +250,11 @@ public final class PulsarApi {
   public interface MessageIdDataOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // required uint64 ledgerId = 1;
+    // required int64 ledgerId = 1;
     boolean hasLedgerId();
     long getLedgerId();
     
-    // required uint64 entryId = 2;
+    // required int64 entryId = 2;
     boolean hasEntryId();
     long getEntryId();
     
@@ -301,7 +301,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required uint64 ledgerId = 1;
+    // required int64 ledgerId = 1;
     public static final int LEDGERID_FIELD_NUMBER = 1;
     private long ledgerId_;
     public boolean hasLedgerId() {
@@ -311,7 +311,7 @@ public final class PulsarApi {
       return ledgerId_;
     }
     
-    // required uint64 entryId = 2;
+    // required int64 entryId = 2;
     public static final int ENTRYID_FIELD_NUMBER = 2;
     private long entryId_;
     public boolean hasEntryId() {
@@ -373,10 +373,10 @@ public final class PulsarApi {
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeUInt64(1, ledgerId_);
+        output.writeInt64(1, ledgerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeUInt64(2, entryId_);
+        output.writeInt64(2, entryId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt32(3, partition_);
@@ -394,11 +394,11 @@ public final class PulsarApi {
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeUInt64Size(1, ledgerId_);
+          .computeInt64Size(1, ledgerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeUInt64Size(2, entryId_);
+          .computeInt64Size(2, entryId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -635,12 +635,12 @@ public final class PulsarApi {
             }
             case 8: {
               bitField0_ |= 0x00000001;
-              ledgerId_ = input.readUInt64();
+              ledgerId_ = input.readInt64();
               break;
             }
             case 16: {
               bitField0_ |= 0x00000002;
-              entryId_ = input.readUInt64();
+              entryId_ = input.readInt64();
               break;
             }
             case 24: {
@@ -659,7 +659,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required uint64 ledgerId = 1;
+      // required int64 ledgerId = 1;
       private long ledgerId_ ;
       public boolean hasLedgerId() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -680,7 +680,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required uint64 entryId = 2;
+      // required int64 entryId = 2;
       private long entryId_ ;
       public boolean hasEntryId() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -13618,6 +13618,10 @@ public final class PulsarApi {
     // required string producer_name = 2;
     boolean hasProducerName();
     String getProducerName();
+    
+    // optional int64 last_sequence_id = 3 [default = -1];
+    boolean hasLastSequenceId();
+    long getLastSequenceId();
   }
   public static final class CommandProducerSuccess extends
       com.google.protobuf.GeneratedMessageLite
@@ -13696,9 +13700,20 @@ public final class PulsarApi {
       }
     }
     
+    // optional int64 last_sequence_id = 3 [default = -1];
+    public static final int LAST_SEQUENCE_ID_FIELD_NUMBER = 3;
+    private long lastSequenceId_;
+    public boolean hasLastSequenceId() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public long getLastSequenceId() {
+      return lastSequenceId_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       producerName_ = "";
+      lastSequenceId_ = -1L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -13731,6 +13746,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeBytes(2, getProducerNameBytes());
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeInt64(3, lastSequenceId_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -13746,6 +13764,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(2, getProducerNameBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(3, lastSequenceId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -13864,6 +13886,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         producerName_ = "";
         bitField0_ = (bitField0_ & ~0x00000002);
+        lastSequenceId_ = -1L;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -13905,6 +13929,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.producerName_ = producerName_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.lastSequenceId_ = lastSequenceId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -13916,6 +13944,9 @@ public final class PulsarApi {
         }
         if (other.hasProducerName()) {
           setProducerName(other.getProducerName());
+        }
+        if (other.hasLastSequenceId()) {
+          setLastSequenceId(other.getLastSequenceId());
         }
         return this;
       }
@@ -13962,6 +13993,11 @@ public final class PulsarApi {
             case 18: {
               bitField0_ |= 0x00000002;
               producerName_ = input.readBytes();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              lastSequenceId_ = input.readInt64();
               break;
             }
           }
@@ -14025,6 +14061,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00000002;
         producerName_ = value;
         
+      }
+      
+      // optional int64 last_sequence_id = 3 [default = -1];
+      private long lastSequenceId_ = -1L;
+      public boolean hasLastSequenceId() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public long getLastSequenceId() {
+        return lastSequenceId_;
+      }
+      public Builder setLastSequenceId(long value) {
+        bitField0_ |= 0x00000004;
+        lastSequenceId_ = value;
+        
+        return this;
+      }
+      public Builder clearLastSequenceId() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        lastSequenceId_ = -1L;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandProducerSuccess)
