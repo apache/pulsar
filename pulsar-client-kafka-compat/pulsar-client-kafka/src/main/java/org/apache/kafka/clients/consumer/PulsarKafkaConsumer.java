@@ -192,17 +192,23 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 if (partitionMetadata.partitions > 1) {
                     // Subscribe to each partition
                     conf.setConsumerName(ConsumerName.generateRandomName());
+                    List<CompletableFuture<org.apache.pulsar.client.api.Consumer>> futures = new ArrayList<>();
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         String partitionName = DestinationName.get(topic).getPartition(i).toString();
-                        org.apache.pulsar.client.api.Consumer consumer = client.subscribe(partitionName, groupId, conf);
-                        consumers.put(new TopicPartition(topic, i), consumer);
+                        futures.add(client.subscribeAsync(partitionName, groupId, conf));
                     }
+
+                    // Wait for all consumers to be ready
+                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                        consumers.putIfAbsent(new TopicPartition(topic, i), futures.get(i).get());
+                    }
+
                 } else {
                     // Topic has a single partition
                     org.apache.pulsar.client.api.Consumer consumer = client.subscribe(topic, groupId, conf);
                     consumers.put(new TopicPartition(topic, 0), consumer);
                 }
-            } catch (InterruptedException | ExecutionException | PulsarClientException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });

@@ -18,6 +18,7 @@
  */
 package org.apache.kafka.clients.producer;
 
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -46,6 +48,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 
@@ -114,7 +117,22 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         pulsarProducerConf = new ProducerConfiguration();
         pulsarProducerConf.setBatchingEnabled(true);
-        pulsarProducerConf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+
+        if (properties.containsKey(ProducerConfig.LINGER_MS_CONFIG)) {
+            long lingerMs = Long.parseLong(properties.getProperty(ProducerConfig.LINGER_MS_CONFIG));
+            pulsarProducerConf.setBatchingMaxPublishDelay(lingerMs, TimeUnit.MILLISECONDS);
+        } else {
+            // To mimic the same batching mode as Kafka, we need to wait a very little amount of
+            // time to batch if the client is trying to send messages fast enough
+            pulsarProducerConf.setBatchingMaxPublishDelay(100, TimeUnit.MICROSECONDS);
+        }
+
+        String compressionType = properties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG);
+        if ("gzip".equals(compressionType)) {
+            pulsarProducerConf.setCompressionType(CompressionType.ZLIB);
+        } else if ("lz4".equals(compressionType)) {
+            pulsarProducerConf.setCompressionType(CompressionType.LZ4);
+        }
 
         pulsarProducerConf.setBlockIfQueueFull(
                 Boolean.parseBoolean(properties.getProperty(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "false")));
