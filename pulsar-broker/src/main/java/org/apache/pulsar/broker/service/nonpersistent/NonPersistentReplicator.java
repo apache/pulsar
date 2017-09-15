@@ -34,7 +34,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +52,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             BrokerService brokerService) {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
 
-        producerConfiguration
-                .setMaxPendingMessages(brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize());
         producerConfiguration.setBlockIfQueueFull(false);
 
         startProducer();

@@ -1468,5 +1468,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return this.dispatchRateLimiter;
     }
 
+    public long getLastPublishedSequenceId(String producerName) {
+        return messageDeduplication.getLastPublishedSequenceId(producerName);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }

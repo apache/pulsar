@@ -149,13 +149,7 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(topic, new ProducerConfiguration());
     }
 
-    @Override
     public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf) {
-        return createProducerAsync(topic, conf, null);
-    }
-
-    public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf,
-            String producerName) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -180,8 +174,7 @@ public class PulsarClientImpl implements PulsarClient {
                 producer = new PartitionedProducerImpl(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture);
             } else {
-                producer = new ProducerImpl(PulsarClientImpl.this, topic, producerName, conf, producerCreatedFuture,
-                        -1);
+                producer = new ProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
             }
 
             synchronized (producers) {

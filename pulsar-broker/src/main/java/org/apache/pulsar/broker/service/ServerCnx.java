@@ -509,7 +509,8 @@ public class ServerCnx extends PulsarHandler {
                         if (isActive()) {
                             if (producerFuture.complete(producer)) {
                                 log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName));
+                                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
+                                        producer.getLastSequenceId()));
                                 return;
                             } else {
                                 // The producer's future was completed before by

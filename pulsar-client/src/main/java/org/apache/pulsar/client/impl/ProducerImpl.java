@@ -71,7 +71,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     // Variable is used through the atomic updater
     @SuppressWarnings("unused")
-    private volatile long msgIdGenerator = 0;
+    private volatile long msgIdGenerator;
 
     private final BlockingQueue<OpSendMsg> pendingMessages;
     private final BlockingQueue<OpSendMsg> pendingCallbacks;
@@ -92,20 +92,31 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     private final CompressionCodec compressor;
 
+    private volatile long lastSequenceIdPublished;
+
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
-    public ProducerImpl(PulsarClientImpl client, String topic, String producerName, ProducerConfiguration conf,
+    public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf,
             CompletableFuture<Producer> producerCreatedFuture, int partitionIndex) {
         super(client, topic, conf, producerCreatedFuture);
         this.producerId = client.newProducerId();
-        this.producerName = producerName;
+        this.producerName = conf.getProducerName();
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.semaphore = new Semaphore(conf.getMaxPendingMessages(), true);
         this.compressor = CompressionCodecProvider
                 .getCompressionCodec(convertCompressionType(conf.getCompressionType()));
+
+        if (conf.getInitialSequenceId().isPresent()) {
+            long initialSequenceId = conf.getInitialSequenceId().get();
+            this.lastSequenceIdPublished = initialSequenceId;
+            this.msgIdGenerator = initialSequenceId + 1;
+        } else {
+            this.lastSequenceIdPublished = -1;
+            this.msgIdGenerator = 0;
+        }
 
         if (conf.getSendTimeoutMs() > 0) {
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -130,6 +141,11 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     private boolean isBatchMessagingEnabled() {
         return conf.getBatchingEnabled();
+    }
+
+    @Override
+    public long getLastSequenceId() {
+        return lastSequenceIdPublished;
     }
 
     @Override
@@ -217,7 +233,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                             PulsarDecoder.MaxMessageSize)));
             return;
         }
-        
+
         if (!msg.isReplicated() && msgMetadata.hasProducerName()) {
             callback.sendComplete(new PulsarClientException.InvalidMessageException("Cannot re-use the same message"));
             compressedPayload.release();
@@ -226,15 +242,20 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
         try {
             synchronized (this) {
-                long sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
+                long sequenceId;
+                if (!msgMetadata.hasSequenceId()) {
+                    sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
+                    msgMetadata.setSequenceId(sequenceId);
+                } else {
+                    sequenceId = msgMetadata.getSequenceId();
+                }
                 if (!msgMetadata.hasPublishTime()) {
                     msgMetadata.setPublishTime(System.currentTimeMillis());
 
                     checkArgument(!msgMetadata.hasProducerName());
-                    checkArgument(!msgMetadata.hasSequenceId());
 
                     msgMetadata.setProducerName(producerName);
-                    msgMetadata.setSequenceId(sequenceId);
+
                     if (conf.getCompressionType() != CompressionType.NONE) {
                         msgMetadata.setCompression(convertCompressionType(conf.getCompressionType()));
                         msgMetadata.setUncompressedSize(uncompressedSize);
@@ -533,6 +554,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
+                lastSequenceIdPublished = op.sequenceId + op.numMessagesInBatch - 1;
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -728,7 +750,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         long requestId = client.newRequestId();
 
         cnx.sendRequestWithId(Commands.newProducer(topic, producerId, requestId, producerName), requestId)
-                .thenAccept(producerName -> {
+                .thenAccept(pair -> {
+                    String producerName = pair.getLeft();
+                    long lastSequenceId = pair.getRight();
+
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
                     synchronized (ProducerImpl.this) {
@@ -747,6 +772,11 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
+                        }
+
+                        if (this.lastSequenceIdPublished == -1 && !conf.getInitialSequenceId().isPresent()) {
+                            this.lastSequenceIdPublished = lastSequenceId;
+                            this.msgIdGenerator = lastSequenceId + 1;
                         }
 
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {

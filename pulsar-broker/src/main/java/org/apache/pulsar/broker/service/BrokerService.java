@@ -262,7 +262,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
             }
         };
-        PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
 
     public void start() throws Exception {

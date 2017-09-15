@@ -118,7 +118,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client connected on that connection
      * 6. all namespace-bundles are in "connecting" state and waiting for available broker
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -237,7 +237,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     /**
      * Verifies: 1. Closing of Broker service unloads all bundle gracefully and there must not be any connected bundles
      * after closing broker service
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -294,7 +294,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * 1. broker disconnects that consumer
      * <p>
      * 2. redeliver all those messages to other supported consumer under the same subscription
-     * 
+     *
      * @param subType
      * @throws Exception
      */
@@ -491,7 +491,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * 3. create multiple producer and make lookup-requests simultaneously
      * 4. Client1 receives TooManyLookupException and should close connection
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)
@@ -543,7 +543,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                         return null;
                     });
                 });
-                
+
             }
 
             latch.await(10, TimeUnit.SECONDS);
@@ -562,14 +562,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     /**
      * It verifies that broker throttles down configured concurrent topic loading requests
-     * 
+     *
      * <pre>
-     * 1. Start broker with N maxConcurrentTopicLoadRequest 
+     * 1. Start broker with N maxConcurrentTopicLoadRequest
      * 2. create concurrent producers on different topics which makes broker to load topics concurrently
      * 3. Producer operationtimeout = 1 ms so, if producers creation will fail for throttled topics
      * 4. verify all producers should have connected
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)
@@ -613,8 +613,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                     final String randomTopicName1 = topicName + randomUUID().toString();
                     final String randomTopicName2 = topicName + randomUUID().toString();
                     // pass producer-name to avoid exception: producer is already connected to topic
-                    futures.add(pulsarClient2.createProducerAsync(randomTopicName1, config1, randomTopicName1));
-                    futures.add(pulsarClient.createProducerAsync(randomTopicName2, config1, randomTopicName2));
+                    futures.add(pulsarClient2.createProducerAsync(randomTopicName1, config1));
+                    futures.add(pulsarClient.createProducerAsync(randomTopicName2, config1));
                     latch.countDown();
                 });
             }
@@ -630,7 +630,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
     /**
      * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)

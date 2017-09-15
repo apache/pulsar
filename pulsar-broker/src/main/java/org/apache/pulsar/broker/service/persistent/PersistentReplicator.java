@@ -58,7 +58,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
 
-    private final int producerQueueSize;
+
     private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
 
@@ -97,7 +97,6 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
-        producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         readBatchSize = Math.min(producerQueueSize, MaxReadBatchSize);
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
@@ -139,14 +138,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     protected long getNumberOfEntriesInBacklog() {
         return cursor.getNumberOfEntriesInBacklog();
     }
-    
+
     @Override
     protected void disableReplicatorRead() {
         // deactivate cursor after successfully close the producer
         this.cursor.setInactive();
     }
 
-    
+
     protected void readMoreEntries() {
         int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
 

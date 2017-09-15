@@ -42,17 +42,17 @@ public abstract class AbstractReplicator {
 
     protected volatile ProducerImpl producer;
 
-    protected static final ProducerConfiguration producerConfiguration = new ProducerConfiguration()
-            .setSendTimeout(0, TimeUnit.SECONDS).setBlockIfQueueFull(true);
+    protected final int producerQueueSize;
+    protected final ProducerConfiguration producerConfiguration;
 
     protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
-    
+
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(AbstractReplicator.class, State.class, "state");
     private volatile State state = State.Stopped;
-    
+
     protected enum State {
         Stopped, Starting, Started, Stopping
     }
@@ -66,6 +66,12 @@ public abstract class AbstractReplicator {
         this.remoteCluster = remoteCluster;
         this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
         this.producer = null;
+        this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
+
+        this.producerConfiguration = new ProducerConfiguration();
+        this.producerConfiguration.setSendTimeout(0, TimeUnit.SECONDS);
+        this.producerConfiguration.setMaxPendingMessages(producerQueueSize);
+        this.producerConfiguration.setProducerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);
     }
 
@@ -74,9 +80,13 @@ public abstract class AbstractReplicator {
     protected abstract Position getReplicatorReadPosition();
 
     protected abstract long getNumberOfEntriesInBacklog();
-    
+
     protected abstract void disableReplicatorRead();
-    
+
+    public ProducerConfiguration getProducerConfiguration() {
+        return producerConfiguration;
+    }
+
     public String getRemoteCluster() {
         return remoteCluster;
     }
@@ -111,23 +121,22 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        client.createProducerAsync(topicName, producerConfiguration, getReplicatorName(replicatorPrefix, localCluster))
-                .thenAccept(producer -> {
-                    readEntries(producer);
-                }).exceptionally(ex -> {
-                    if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
-                        long waitTimeMs = backOff.next();
-                        log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
-                                localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+        client.createProducerAsync(topicName, producerConfiguration).thenAccept(producer -> {
+            readEntries(producer);
+        }).exceptionally(ex -> {
+            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+                long waitTimeMs = backOff.next();
+                log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
+                        localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
 
-                        // BackOff before retrying
-                        brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-                    } else {
-                        log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
-                                localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
-                    }
-                    return null;
-                });
+                // BackOff before retrying
+                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+            } else {
+                log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
+                        localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+            }
+            return null;
+        });
 
     }
 
@@ -194,10 +203,6 @@ public abstract class AbstractReplicator {
     protected boolean isWritable() {
         ProducerImpl producer = this.producer;
         return producer != null && producer.isWritable();
-    }
-
-    public static void setReplicatorQueueSize(int queueSize) {
-        producerConfiguration.setMaxPendingMessages(queueSize);
     }
 
     public static String getRemoteCluster(String remoteCursor) {
