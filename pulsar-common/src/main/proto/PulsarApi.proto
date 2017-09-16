@@ -23,8 +23,8 @@ option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
 message MessageIdData {
-	required int64 ledgerId = 1;
-	required int64 entryId  = 2;
+	required uint64 ledgerId = 1;
+	required uint64 entryId  = 2;
 	optional int32 partition = 3 [default = -1];
 	optional int32 batch_index = 4 [default = -1];
 }
@@ -32,6 +32,11 @@ message MessageIdData {
 message KeyValue {
 	required string key = 1;
 	required string value = 2;
+}
+
+message KeyByteValue {
+	required string key = 1;
+	required bytes value = 2;
 }
 
 enum CompressionType {
@@ -64,6 +69,12 @@ message MessageMetadata {
         // the timestamp that this event occurs. it is typically set by applications.
         // if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
         optional uint64 event_time = 12 [default = 0];
+	// Map of encryption key name and encrypted key
+	repeated KeyByteValue encryption_keys = 13;
+	// Algorithm used to encrypt data key
+	optional string encryption_algo = 14;
+	// Additional parameters required by encryption
+	optional bytes encryption_param = 15;
 }
 
 
@@ -262,6 +273,7 @@ message CommandAck {
 		DecompressionError = 1;
 		ChecksumMismatch = 2;
 		BatchDeSerializeError = 3;
+		DecryptionError = 4;
 	}
 
 	optional ValidationError validation_error = 4;
