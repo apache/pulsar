@@ -404,6 +404,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        if (conf.getCryptoKeyReader() != null) {
+            internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
+            internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
+        }
         if (conf.getAckTimeoutMillis() != 0) {
             internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
         }

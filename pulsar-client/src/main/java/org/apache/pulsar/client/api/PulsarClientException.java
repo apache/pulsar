@@ -184,4 +184,10 @@ public class PulsarClientException extends IOException {
             super(msg);
         }
     }
+
+    public static class CryptoException extends PulsarClientException {
+        public CryptoException(String msg) {
+            super(msg);
+        }
+    }
 }

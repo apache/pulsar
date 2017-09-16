@@ -22,6 +22,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Properties;
@@ -32,6 +34,8 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -109,6 +113,13 @@ public class PerformanceConsumer {
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
+
+        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
+        public String encKeyName = null;
+
+        @Parameter(names = { "-v",
+                "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
+        public String encKeyFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -202,11 +213,38 @@ public class PerformanceConsumer {
         clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
+        class EncKeyReader implements CryptoKeyReader {
+
+            byte[] encKeyValue;
+
+            EncKeyReader(byte[] value) {
+                encKeyValue = value;
+            }
+
+            @Override
+            public byte[] getPublicKey(String keyName) {
+                return null;
+            }
+
+            @Override
+            public byte[] getPrivateKey(String keyName) {
+                if (keyName.equals(arguments.encKeyName)) {
+                    return encKeyValue;
+                }
+                return null;
+            }
+        }
         List<Future<Consumer>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
         consumerConfig.setMessageListener(listener);
         consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
         consumerConfig.setSubscriptionType(arguments.subscriptionType);
+
+        if (arguments.encKeyName != null) {
+            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
+            EncKeyReader keyReader = new EncKeyReader(pKey);
+            consumerConfig.setCryptoKeyReader(keyReader);
+        }
 
         for (int i = 0; i < arguments.numDestinations; i++) {
             final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName

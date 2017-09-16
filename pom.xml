@@ -113,6 +113,7 @@ flexible messaging model and an intuitive client API.</description>
     <aspectj.version>1.8.9</aspectj.version>
     <rocksdb.version>5.5.5</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
+    <bouncycastle.version>1.55</bouncycastle.version>
   </properties>
 
   <dependencyManagement>
@@ -523,6 +524,11 @@ flexible messaging model and an intuitive client API.</description>
         <version>1.0.2</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
