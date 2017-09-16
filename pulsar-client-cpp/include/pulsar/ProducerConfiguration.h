@@ -48,8 +48,14 @@ class ProducerConfiguration {
     ProducerConfiguration(const ProducerConfiguration&);
     ProducerConfiguration& operator=(const ProducerConfiguration&);
 
+    ProducerConfiguration& setProducerName(const std::string& producerName);
+    const std::string& getProducerName() const;
+
     ProducerConfiguration& setSendTimeout(int sendTimeoutMs);
     int getSendTimeout() const;
+
+    ProducerConfiguration& setInitialSequenceId(int64_t initialSequenceId);
+    int64_t getInitialSequenceId() const;
 
     ProducerConfiguration& setCompressionType(CompressionType compressionType);
     CompressionType getCompressionType() const;

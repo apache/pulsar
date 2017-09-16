@@ -75,6 +75,10 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
 
     virtual void disconnectProducer();
 
+    const std::string& getProducerName() const;
+
+    int64_t getLastSequenceId() const;
+
     uint64_t getProducerId() const;
 
     virtual void start();
@@ -111,7 +115,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     void printStats();
 
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
-                              const std::string& producerName);
+                              const ResponseData& responseData);
 
     void statsCallBackHandler(Result , const Message& , SendCallback , boost::posix_time::ptime );
 
@@ -130,9 +134,11 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     std::string producerName_;
     std::string producerStr_;
     uint64_t producerId_;
-    uint64_t msgSequenceGenerator_;
+    int64_t msgSequenceGenerator_;
     proto::BaseCommand cmd_;
     BatchMessageContainerPtr batchMessageContainer;
+
+    volatile int64_t lastSequenceIdPublished_;
 
     typedef boost::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr sendTimer_;

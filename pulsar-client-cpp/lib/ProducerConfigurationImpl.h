@@ -22,9 +22,13 @@
 #include <pulsar/ProducerConfiguration.h>
 #include <boost/make_shared.hpp>
 
+#include "Utils.h"
+
 namespace pulsar {
 
 struct ProducerConfigurationImpl {
+    Optional<std::string> producerName;
+    Optional<int64_t> initialSequenceId;
     int sendTimeoutMs;
     CompressionType compressionType;
     int maxPendingMessages;

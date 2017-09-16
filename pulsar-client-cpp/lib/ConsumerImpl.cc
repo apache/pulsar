@@ -701,7 +701,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     // Lock is no longer required
     lock.unlock();
     int requestId = client->newRequestId();
-    Future<Result, std::string> future = cnx->sendRequestWithId(
+    Future<Result, ResponseData> future = cnx->sendRequestWithId(
             Commands::newCloseConsumer(consumerId_, requestId), requestId);
     if (!callback.empty()) {
         future.addListener(

@@ -136,6 +136,19 @@ namespace pulsar {
         lock.unlock();
     }
 
+    const std::string& PartitionedProducerImpl::getProducerName() const {
+        return producers_[0]->getProducerName();
+    }
+
+    int64_t PartitionedProducerImpl::getLastSequenceId() const {
+        int64_t currentMax = -1L;
+        for (int i = 0; i < producers_.size(); i++) {
+            currentMax = std::max(currentMax, producers_[i]->getLastSequenceId());
+        }
+
+        return currentMax;
+    }
+
     /*
      * if createProducerCallback is set, it means the closeAsync is called from CreateProducer API which failed to create
      * one or many producers for partitions. So, we have to notify with ERROR on createProducerFailure
