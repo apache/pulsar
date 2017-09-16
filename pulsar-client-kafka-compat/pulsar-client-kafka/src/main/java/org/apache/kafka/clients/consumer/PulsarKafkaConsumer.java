@@ -179,8 +179,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void subscribe(Collection<String> topics) {
-        topics.forEach(topic -> {
-            try {
+        List<CompletableFuture<org.apache.pulsar.client.api.Consumer>> futures = new ArrayList<>();
+        try {
+            for (String topic : topics) {
                 // Create individual subscription on each partition, that way we can keep using the
                 // acknowledgeCumulative()
                 PartitionedTopicMetadata partitionMetadata = ((PulsarClientImpl) client)
@@ -192,26 +193,40 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 if (partitionMetadata.partitions > 1) {
                     // Subscribe to each partition
                     conf.setConsumerName(ConsumerName.generateRandomName());
-                    List<CompletableFuture<org.apache.pulsar.client.api.Consumer>> futures = new ArrayList<>();
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         String partitionName = DestinationName.get(topic).getPartition(i).toString();
-                        futures.add(client.subscribeAsync(partitionName, groupId, conf));
-                    }
-
-                    // Wait for all consumers to be ready
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        consumers.putIfAbsent(new TopicPartition(topic, i), futures.get(i).get());
+                        CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client
+                                .subscribeAsync(partitionName, groupId, conf);
+                        int partitionIndex = i;
+                        future.thenAccept(
+                                consumer -> consumers.putIfAbsent(new TopicPartition(topic, partitionIndex), consumer));
+                        futures.add(future);
                     }
 
                 } else {
                     // Topic has a single partition
-                    org.apache.pulsar.client.api.Consumer consumer = client.subscribe(topic, groupId, conf);
-                    consumers.put(new TopicPartition(topic, 0), consumer);
+                    CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client.subscribeAsync(topic,
+                            groupId, conf);
+                    future.thenAccept(consumer -> consumers.putIfAbsent(new TopicPartition(topic, 0), consumer));
+                    futures.add(future);
                 }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
-        });
+
+            // Wait for all consumers to be ready
+            futures.forEach(CompletableFuture::join);
+
+        } catch (Exception e) {
+            // Close all consumer that might have been sucessfully created
+            futures.forEach(f -> {
+                try {
+                    f.get().close();
+                } catch (Exception e1) {
+                    // Ignore. Consumer already had failed
+                }
+            });
+
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
