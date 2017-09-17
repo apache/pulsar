@@ -584,6 +584,7 @@ class Producer:
         """
         Close the producer.
         """
+        self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):

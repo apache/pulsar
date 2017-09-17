@@ -26,10 +26,24 @@ from pulsar import Client, MessageId, \
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen, Request
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen, Request
+
+
+def doHttpPost(url, data):
+    req = Request(url, data.encode())
+    req.add_header('Content-Type', 'application/json')
+    urlopen(req)
+
 
 class PulsarTest(TestCase):
 
     serviceUrl = 'pulsar://localhost:8885'
+    adminUrl = 'http://localhost:8765'
 
     def test_producer_config(self):
         conf = ProducerConfiguration()
@@ -227,6 +241,84 @@ class PulsarTest(TestCase):
         reader1.close()
         reader2.close()
         client.close()
+
+    def test_producer_sequence_after_reconnection(self):
+        # Enable deduplication on namespace
+        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+                   'true')
+        client = Client(self.serviceUrl)
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-sequence-after-reconnection-' + str(time.time())
+
+        producer = client.create_producer(topic, producer_name='my-producer-name')
+        self.assertEqual(producer.last_sequence_id(), -1)
+
+        for i in range(10):
+            producer.send('hello-%d' % i)
+            self.assertEqual(producer.last_sequence_id(), i)
+
+        producer.close()
+
+        producer = client.create_producer(topic, producer_name='my-producer-name')
+        self.assertEqual(producer.last_sequence_id(), 9)
+
+        for i in range(10, 20):
+            producer.send('hello-%d' % i)
+            self.assertEqual(producer.last_sequence_id(), i)
+
+    def test_producer_deduplication(self):
+        # Enable deduplication on namespace
+        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+                   'true')
+        client = Client(self.serviceUrl)
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-deduplication-' + str(time.time())
+
+        producer = client.create_producer(topic, producer_name='my-producer-name')
+        self.assertEqual(producer.last_sequence_id(), -1)
+
+        consumer = client.subscribe(topic, 'my-sub')
+
+        producer.send('hello-0', sequence_id=0)
+        producer.send('hello-1', sequence_id=1)
+        producer.send('hello-2', sequence_id=2)
+        self.assertEqual(producer.last_sequence_id(), 2)
+
+        # Repeat the messages and verify they're not received by consumer
+        producer.send('hello-1', sequence_id=1)
+        producer.send('hello-2', sequence_id=2)
+        self.assertEqual(producer.last_sequence_id(), 2)
+
+        for i in range(3):
+            msg = consumer.receive()
+            self.assertEqual(msg.data(), 'hello-%d' % i)
+            consumer.acknowledge(msg)
+
+        try:
+            # No other messages should be received
+            consumer.receive(timeout_millis=1000)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
+
+        producer.close()
+
+        producer = client.create_producer(topic, producer_name='my-producer-name')
+        self.assertEqual(producer.last_sequence_id(), 2)
+
+        # Repeat the messages and verify they're not received by consumer
+        producer.send('hello-1', sequence_id=1)
+        producer.send('hello-2', sequence_id=2)
+        self.assertEqual(producer.last_sequence_id(), 2)
+
+        try:
+            # No other messages should be received
+            consumer.receive(timeout_millis=1000)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
 
 
 if __name__ == '__main__':

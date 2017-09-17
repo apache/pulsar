@@ -98,7 +98,7 @@ void export_config() {
             ;
 
     class_<ProducerConfiguration>("ProducerConfiguration")
-            .def("producer_name", &ProducerConfiguration::getProducerName)
+            .def("producer_name", &ProducerConfiguration::getProducerName, return_value_policy<copy_const_reference>())
             .def("producer_name", &ProducerConfiguration::setProducerName, return_self<>())
             .def("send_timeout_millis", &ProducerConfiguration::getSendTimeout)
             .def("send_timeout_millis", &ProducerConfiguration::setSendTimeout, return_self<>())
