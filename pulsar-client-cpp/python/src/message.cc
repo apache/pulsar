@@ -51,6 +51,7 @@ void export_message() {
             .def("content", MessageBuilderSetContentString, return_self<>())
             .def("property", &MessageBuilder::setProperty, return_self<>())
             .def("properties", &MessageBuilder::setProperties, return_self<>())
+            .def("sequence_id", &MessageBuilder::setSequenceId, return_self<>())
             .def("partition_key", &MessageBuilder::setPartitionKey, return_self<>())
             .def("event_timestamp", &MessageBuilder::setEventTimestamp, return_self<>())
             .def("replication_clusters", &MessageBuilder::setReplicationClusters, return_self<>())
