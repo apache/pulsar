@@ -63,6 +63,7 @@ spec:
                 args:
                   - >
                     bin/apply-config-from-env.py conf/bookkeeper.conf &&
+                    bin/apply-config-from-env.py conf/pulsar_env.sh &&
                     bin/pulsar bookie
                 ports:
                   - containerPort: 3181
@@ -70,6 +71,11 @@ spec:
                 envFrom:
                   - configMapRef:
                         name: bookie-config
+                env:
+                  - name: advertisedAddress
+                    valueFrom:
+                        fieldRef:
+                            fieldPath: status.hostIP
 
                 volumeMounts:
                   - name: journal-disk
