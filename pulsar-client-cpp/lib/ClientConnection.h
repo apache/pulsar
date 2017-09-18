@@ -68,6 +68,8 @@ class LookupDataResult;
 
 struct OpSendMsg;
 
+typedef std::pair<std::string, int64_t> ResponseData;
+
 class ClientConnection : public boost::enable_shared_from_this<ClientConnection> {
     enum State {
         Pending,
@@ -125,7 +127,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
      * Send a request with a specific Id over the connection. The future will be
      * triggered when the response for this request is received
      */
-    Future<Result, std::string> sendRequestWithId(SharedBuffer cmd, int requestId);
+    Future<Result, ResponseData> sendRequestWithId(SharedBuffer cmd, int requestId);
 
     const std::string& brokerAddress() const;
 
@@ -138,7 +140,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId) ;
  private:
     struct PendingRequestData {
-        Promise<Result, std::string> promise;
+        Promise<Result, ResponseData> promise;
         DeadlineTimerPtr timer;
     };
 

@@ -76,6 +76,24 @@ class MessageBuilder {
     MessageBuilder& setEventTimestamp(uint64_t eventTimestamp);
 
     /**
+     * Specify a custom sequence id for the message being published.
+     * <p>
+     * The sequence id can be used for deduplication purposes and it needs to follow these rules:
+     * <ol>
+     * <li><code>sequenceId >= 0</code>
+     * <li>Sequence id for a message needs to be greater than sequence id for earlier messages:
+     * <code>sequenceId(N+1) > sequenceId(N)</code>
+     * <li>It's not necessary for sequence ids to be consecutive. There can be holes between messages. Eg. the
+     * <code>sequenceId</code> could represent an offset or a cumulative size.
+     * </ol>
+     *
+     * @param sequenceId
+     *            the sequence id to assign to the current message
+     * @since 1.20.0
+     */
+    MessageBuilder& setSequenceId(int64_t sequenceId);
+
+    /**
      * override namespace replication clusters.  note that it is the
      * caller's responsibility to provide valid cluster names, and that
      * all clusters have been previously configured as destinations.

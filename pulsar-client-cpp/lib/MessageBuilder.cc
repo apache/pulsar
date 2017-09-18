@@ -106,6 +106,15 @@ MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
     return *this;
 }
 
+MessageBuilder& MessageBuilder::setSequenceId(int64_t sequenceId) {
+    if (sequenceId < 0) {
+        throw "sequenceId needs to be >= 0";
+    }
+    checkMetadata();
+    impl_->metadata.set_sequence_id(sequenceId);
+    return *this;
+}
+
 MessageBuilder& MessageBuilder::setReplicationClusters(const std::vector<std::string>& clusters) {
     checkMetadata();
     google::protobuf::RepeatedPtrField<std::string> r(clusters.begin(), clusters.end());
