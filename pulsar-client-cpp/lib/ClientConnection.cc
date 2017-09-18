@@ -660,7 +660,7 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue("");
+                        requestData.promise.setValue({"", -1});
                         requestData.timer->cancel();
                     }
                     break;
@@ -825,7 +825,8 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue(producerSuccess.producer_name());
+                        requestData.promise.setValue(
+                                { producerSuccess.producer_name(), producerSuccess.last_sequence_id() });
                         requestData.timer->cancel();
                     }
                     break;
@@ -1061,12 +1062,12 @@ void ClientConnection::sendPendingCommands() {
     }
 }
 
-Future<Result, std::string> ClientConnection::sendRequestWithId(SharedBuffer cmd, int requestId) {
+Future<Result, ResponseData> ClientConnection::sendRequestWithId(SharedBuffer cmd, int requestId) {
     Lock lock(mutex_);
 
     if (isClosed()) {
         lock.unlock();
-        Promise<Result, std::string> promise;
+        Promise<Result, ResponseData> promise;
         promise.setFailed(ResultNotConnected);
         return promise.getFuture();
     }

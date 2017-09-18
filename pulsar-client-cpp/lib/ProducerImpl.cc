@@ -56,12 +56,18 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic,
           conf_(conf),
           executor_(client->getIOExecutorProvider()->get()),
           pendingMessagesQueue_(conf_.getMaxPendingMessages()),
+          producerName_(conf_.getProducerName()),
           producerStr_("[" + topic_ + ", " + producerName_ + "] "),
           producerId_(client->newProducerId()),
           msgSequenceGenerator_(0),
           sendTimer_() {
     LOG_DEBUG(
             "ProducerName - " << producerName_ << " Created producer on topic " << topic_ << " id: " << producerId_);
+
+    int64_t initialSequenceId = conf.getInitialSequenceId();
+    lastSequenceIdPublished_ = initialSequenceId;
+    msgSequenceGenerator_ = initialSequenceId + 1;
+
     // boost::ref is used to drop the constantness constraint of make_shared
     if (conf_.getBatchingEnabled()) {
         batchMessageContainer = boost::make_shared<BatchMessageContainer>(boost::ref(*this));
@@ -84,6 +90,14 @@ ProducerImpl::~ProducerImpl() {
 
 const std::string& ProducerImpl::getTopic() const {
     return topic_;
+}
+
+const std::string& ProducerImpl::getProducerName() const {
+    return producerName_;
+}
+
+int64_t ProducerImpl::getLastSequenceId() const {
+    return lastSequenceIdPublished_;
 }
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
@@ -114,12 +128,14 @@ void ProducerImpl::connectionFailed(Result result) {
 }
 
 void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
-                                        const std::string& producerName) {
+                                        const ResponseData& responseData) {
     LOG_DEBUG(getName() << "ProducerImpl::handleCreateProducer res: " << strResult(result));
 
     if (result == ResultOk) {
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
         // set the cnx pointer so that new messages will be sent immediately
+        const std::string& producerName = responseData.first;
+        int64_t lastSequenceId = responseData.second;
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
         Lock lock(mutex_);
@@ -128,6 +144,11 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         producerStr_ = "[" + topic_ + ", " + producerName_ + "] ";
         if (batchMessageContainer) {
             batchMessageContainer->producerName_ = producerName_;
+        }
+
+        if (lastSequenceIdPublished_ == -1 && conf_.getInitialSequenceId() == -1) {
+            lastSequenceIdPublished_ = lastSequenceId;
+            msgSequenceGenerator_ = lastSequenceIdPublished_ + 1;
         }
         resendMessages(cnx);
         connection_ = cnx;
@@ -297,7 +318,13 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         return;
     }
 
-    setMessageMetadata(msg, msgSequenceGenerator_++, uncompressedSize);
+    int64_t sequenceId;
+    if (!msg.impl_->metadata.has_sequence_id()) {
+        sequenceId = msgSequenceGenerator_++;
+    } else {
+        sequenceId = msg.impl_->metadata.sequence_id();
+    }
+    setMessageMetadata(msg, sequenceId, uncompressedSize);
 
     // reserving a spot and going forward - not blocking
     if (!conf_.getBlockIfQueueFull() && !pendingMessagesQueue_.tryReserve(1)) {
@@ -402,7 +429,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
         return;
     }
     int requestId = client->newRequestId();
-    Future<Result, std::string> future = cnx->sendRequestWithId(
+    Future<Result, ResponseData> future = cnx->sendRequestWithId(
             Commands::newCloseProducer(producerId_, requestId), requestId);
     if (!callback.empty()) {
         future.addListener(
@@ -539,6 +566,9 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId) {
             // -1 since the pushing batch message into the queue already released a spot
             pendingMessagesQueue_.release(op.msg_.impl_->metadata.num_messages_in_batch() - 1);
         }
+
+        lastSequenceIdPublished_ = sequenceId + op.msg_.impl_->metadata.num_messages_in_batch() - 1;
+
         lock.unlock();
         if (op.sendCallback_) {
             try {

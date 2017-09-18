@@ -57,6 +57,14 @@ void Producer::sendAsync(const Message& msg, SendCallback callback) {
     impl_->sendAsync(msg, callback);
 }
 
+const std::string& Producer::getProducerName() const {
+    return impl_->getProducerName();
+}
+
+int64_t Producer::getLastSequenceId() const {
+    return impl_->getLastSequenceId();
+}
+
 Result Producer::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));

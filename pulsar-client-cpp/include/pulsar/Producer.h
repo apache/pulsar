@@ -42,6 +42,11 @@ class Producer {
     const std::string& getTopic() const;
 
     /**
+     * @return the producer name which could have been assigned by the system or specified by the client
+     */
+    const std::string& getProducerName() const;
+
+    /**
      * Publish a message on the topic associated with this Producer.
      *
      * This method will block until the message will be accepted and persisted
@@ -74,6 +79,19 @@ class Producer {
      * @param callback the callback to get notification of the completion
      */
     void sendAsync(const Message& msg, SendCallback callback);
+
+    /**
+     * Get the last sequence id that was published by this producer.
+     *
+     * This represent either the automatically assigned or custom sequence id (set on the MessageBuilder) that
+     * was published and acknowledged by the broker.
+     *
+     * After recreating a producer with the same producer name, this will return the last message that was published in
+     * the previous producer session, or -1 if there no message was ever published.
+     *
+     * @return the last sequence id published by this producer
+     */
+    int64_t getLastSequenceId() const;
 
     /**
      * Close the producer and release resources allocated.

@@ -260,6 +260,8 @@ class Client:
         self._consumers = []
 
     def create_producer(self, topic,
+                        producer_name=None,
+                        initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
@@ -278,7 +280,17 @@ class Client:
           The topic name
 
         **Options**
-
+        * `producer_name`:
+           Specify a name for the producer. If not assigned,
+           the system will generate a globally unique name which can be accessed
+           with `Producer.producer_name()`. When specifying a name, it is app to
+           the user to ensure that, for a given topic, the producer name is unique
+           across all Pulsar's clusters.
+        * `initial_sequence_id`:
+           Set the baseline for the sequence ids for messages
+           published by the producer. First message will be using
+           `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+           be assigned incremental sequence ids, if not otherwise specified.
         * `send_timeout_seconds`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
@@ -303,6 +315,10 @@ class Client:
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        if producer_name:
+            conf.producer_name(producer_name)
+        if initial_sequence_id:
+            conf.initial_sequence_id(initial_sequence_id)
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         return p
@@ -452,9 +468,36 @@ class Producer:
     The Pulsar message producer, used to publish messages on a topic.
     """
 
+    def topic(self):
+        """
+        Return the topic which producer is publishing to
+        """
+        return self._producer.topic()
+
+    def producer_name(self):
+        """
+        Return the producer name which could have been assigned by the
+        system or specified by the client
+        """
+        return self._producer.producer_name()
+
+    def last_sequence_id(self):
+        """
+        Get the last sequence id that was published by this producer.
+
+        This represent either the automatically assigned or custom sequence id
+        (set on the `MessageBuilder`) that was published and acknowledged by the broker.
+
+        After recreating a producer with the same producer name, this will return the
+        last message that was published in the previous producer session, or -1 if
+        there no message was ever published.
+        """
+        return self._producer.last_sequence_id()
+
     def send(self, content,
              properties=None,
              partition_key=None,
+             sequence_id=None,
              replication_clusters=None,
              disable_replication=False
              ):
@@ -473,6 +516,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
           to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
@@ -481,13 +526,14 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
                    properties=None,
                    partition_key=None,
+                   sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False
                    ):
@@ -520,6 +566,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
           used to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
           and that all clusters have been previously configured as destinations.
@@ -528,7 +576,7 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         self._producer.send_async(msg, callback)
 
@@ -536,8 +584,9 @@ class Producer:
         """
         Close the producer.
         """
+        self._producer.close()
 
-    def _build_msg(self, content, properties, partition_key,
+    def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -546,6 +595,8 @@ class Producer:
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
+        if sequence_id:
+            mb.sequence_id(sequence_id)
         if replication_clusters:
             mb.replication_clusters(replication_clusters)
         if disable_replication:

@@ -22,6 +22,7 @@
 #include <string>
 
 int makePutRequest(const std::string& url, const std::string& body);
+int makePostRequest(const std::string& url, const std::string& body);
 
 
 #endif /* end of include guard: HTTP_HELPER */

@@ -98,8 +98,12 @@ void export_config() {
             ;
 
     class_<ProducerConfiguration>("ProducerConfiguration")
+            .def("producer_name", &ProducerConfiguration::getProducerName, return_value_policy<copy_const_reference>())
+            .def("producer_name", &ProducerConfiguration::setProducerName, return_self<>())
             .def("send_timeout_millis", &ProducerConfiguration::getSendTimeout)
             .def("send_timeout_millis", &ProducerConfiguration::setSendTimeout, return_self<>())
+            .def("initial_sequence_id", &ProducerConfiguration::getInitialSequenceId)
+            .def("initial_sequence_id", &ProducerConfiguration::setInitialSequenceId, return_self<>())
             .def("compression_type", &ProducerConfiguration::getCompressionType)
             .def("compression_type", &ProducerConfiguration::setCompressionType, return_self<>())
             .def("max_pending_messages", &ProducerConfiguration::getMaxPendingMessages)

@@ -54,6 +54,10 @@ namespace pulsar {
      */
     virtual void closeAsync(CloseCallback closeCallback);
 
+    virtual const std::string& getProducerName() const;
+
+    virtual int64_t getLastSequenceId() const;
+
     virtual void start();
 
     virtual void shutdown();

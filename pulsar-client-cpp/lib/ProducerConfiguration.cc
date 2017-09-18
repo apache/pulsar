@@ -36,6 +36,25 @@ ProducerConfiguration& ProducerConfiguration::operator=(const ProducerConfigurat
     return *this;
 }
 
+ProducerConfiguration& ProducerConfiguration::setProducerName(const std::string& producerName) {
+    impl_->producerName = Optional<std::string>::of(producerName);
+    return *this;
+}
+
+const std::string& ProducerConfiguration::getProducerName() const {
+    static const std::string emptyString;
+    return impl_->producerName.is_present() ? impl_->producerName.value() : emptyString;
+}
+
+ProducerConfiguration& ProducerConfiguration::setInitialSequenceId(int64_t initialSequenceId) {
+    impl_->initialSequenceId = Optional<int64_t>::of(initialSequenceId);
+    return *this;
+}
+
+int64_t ProducerConfiguration::getInitialSequenceId() const {
+    return impl_->initialSequenceId.is_present() ? impl_->initialSequenceId.value() : -1ll;
+}
+
 ProducerConfiguration& ProducerConfiguration::setSendTimeout(int sendTimeoutMs) {
     impl_->sendTimeoutMs = sendTimeoutMs;
     return *this;
