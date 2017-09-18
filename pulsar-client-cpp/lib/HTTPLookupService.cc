@@ -79,7 +79,7 @@ namespace pulsar {
         CURL *handle;
         CURLcode res;
         std::string responseData;
-
+        std::string version = std::string("Pulsar-CPP-v") + _PULSAR_VERSION_;
         handle = curl_easy_init();
 
         if(!handle) {
@@ -104,6 +104,9 @@ namespace pulsar {
 
         // Timer
         curl_easy_setopt(handle, CURLOPT_TIMEOUT, lookupTimeoutInSeconds_);
+
+        // Set User Agent 
+        curl_easy_setopt(handle, CURLOPT_USERAGENT, version.c_str());
 
         // Redirects
         curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);

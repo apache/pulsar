@@ -26,6 +26,7 @@
 #include <json/reader.h>
 #include <boost/bind.hpp>
 #include <curl/curl.h>
+#include <lib/Version.h>
 
 namespace pulsar {
     class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
