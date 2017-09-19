@@ -71,7 +71,7 @@ ledgerManagerType=hierarchical
 
 In Pulsar, you can set *persistence policies*, at the {% popover namespace %} level, that determine how {% popover BookKeeper %} handles persistent storage of messages. Policies determine four things:
 
-* The number of {% popover acks %} (guaranteed copies) to wait for for each ledger entry
+* The number of {% popover acks %} (guaranteed copies) to wait for each ledger entry
 * The number of {% popover bookies %} to use for a topic
 * How many writes to make for each ledger entry
 * The throttling rate for mark-delete operations
