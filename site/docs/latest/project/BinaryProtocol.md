@@ -22,7 +22,7 @@ Since protobuf doesn't provide any sort of message frame, all messages in the Pu
 The Pulsar protocol allows for two types of commands:
 
 1. *Simple commands* that do not carry a message payload.
-2. *Payload commands* that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf [metadata](#metadata-messages) and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.
+2. *Payload commands* that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf [metadata](#message-metadata) and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.
 
 {% include admonition.html type='info' content="Message payloads are passed in raw format rather than protobuf format for efficiency reasons." %}
 
@@ -428,7 +428,7 @@ reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
 Lookup can be done with a REST call as described in the
-[admin API](https://github.com/apache/incubator-pulsar/blob/master/docs/AdminInterface.md#lookup-of-topic)
+[admin API](../admin-api/persistent-topics/#lookup-of-topic)
 docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary

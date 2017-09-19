@@ -275,7 +275,7 @@ needs to be able to publish to other clusters' topics.
 
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1=value1";
+String authParams = "param1:value1";
 boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
@@ -293,7 +293,7 @@ To use TLS:
 
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1=value1";
+String authParams = "param1:value1";
 boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;

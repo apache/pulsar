@@ -63,7 +63,7 @@ The [`pulsar-client`](../CliTools#pulsar-client) CLI tool can be used to publish
 
 {% include config.html id="zookeeper" %}
 
-In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a
+In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding
 a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
 
 ```properties

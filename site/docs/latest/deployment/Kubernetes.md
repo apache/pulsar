@@ -88,7 +88,7 @@ The easiest way to run a Kubernetes cluster is to do so locally. To install a mi
 1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
 
-For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). We'll provided an abridged version of those instructions here.
+For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). We'll provide an abridged version of those instructions here.
 
 
 First, make sure you have [Vagrant](https://www.vagrantup.com/downloads.html) and [VirtualBox](https://www.virtualbox.org/wiki/Downloads) installed. Then clone the repo and start up the cluster:
@@ -205,7 +205,7 @@ To create properties and namespaces, connect to the `pulsar-admin` pod that has 
 $ kubectl exec pulsar-admin -it -- bash
 ```
 
-From there, you can issue all admin commands. Here's an example command that would create a property named `prop` and a namespace within that property named `prop/us-central-ns`.
+From there, you can issue all admin commands. Here's an example command that would create a property named `prop` and a namespace within that property named `prop/us-central/ns`.
 
 ```bash
 export MY_PROPERTY=prop
@@ -248,7 +248,7 @@ The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheu
 
 #### Prometheus
 
-All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometheus.io) instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can the [Grafana interface](#grafana) that displays the data stored in Prometheus.
+All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometheus.io) instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can use the [Grafana interface](#grafana) that displays the data stored in Prometheus.
 
 #### Grafana
 

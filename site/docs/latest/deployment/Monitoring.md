@@ -74,8 +74,6 @@ attached to the data does not explode.
 
 For that reason we only collect time series of metrics aggregated at the namespace level.
 
-The
-
 ### Pulsar per-topic dashboard
 
 The per-topic dashboard instructions are available at [Dashboard](../Dashboard).

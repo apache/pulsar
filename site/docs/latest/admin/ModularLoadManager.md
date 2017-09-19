@@ -8,7 +8,7 @@ The *modular load manager*, implemented in {% javadoc ModularLoadManagerImpl bro
 
 There are two ways that you can enable the modular load manager:
 
-1. Change the value of the `loadManagerClassName` parameter in `conf/broker.con` from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
+1. Change the value of the `loadManagerClassName` parameter in `conf/broker.conf` from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
 2. Using the `pulsar-admin` tool. Here's an example:
 
    ```shell
@@ -87,7 +87,7 @@ There are a few different ways to determine which load manager is being used:
     }
     ```
 
-3. The command-line [broker monitor](../../reference/CliTools/#monitor-brokers) will have a different output format depending on which load manager implementation is being used.
+3. The command-line [broker monitor](../../reference/CliTools/#pulsar-perf-monitor-brokers) will have a different output format depending on which load manager implementation is being used.
 
     Here is an example from the modular load manager:
 
