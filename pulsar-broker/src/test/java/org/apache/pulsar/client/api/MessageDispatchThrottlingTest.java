@@ -114,7 +114,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (1) change to 100
         int messageRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         boolean isDispatchRateUpdate = false;
         int retry = 5;
@@ -133,7 +133,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (1) change to 500
         messageRate = 500;
-        dispatchRate = new DispatchRate(-1, messageRate, 1);
+        dispatchRate = new DispatchRate(-1, messageRate, 360);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         isDispatchRateUpdate = false;
         for (int i = 0; i < retry; i++) {
@@ -169,9 +169,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final int messageRate = 100;
         DispatchRate dispatchRate = null;
         if (DispatchRateType.messageRate.equals(dispatchRateType)) {
-            dispatchRate = new DispatchRate(messageRate, -1, 1);
+            dispatchRate = new DispatchRate(messageRate, -1, 360);
         } else {
-            dispatchRate = new DispatchRate(-1, messageRate, 1);
+            dispatchRate = new DispatchRate(-1, messageRate, 360);
         }
 
         admin.namespaces().createNamespace(namespace);
@@ -237,7 +237,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final String namespace = "my-property/use/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
-        final int messageRate = 100;
+        final int messageRate = 5;
         final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
@@ -278,8 +278,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
+        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
+        Thread.sleep(500);
+
         // consumer should not have received all published message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
+        Assert.assertNotEquals(totalReceived.get(), numMessages);
 
         consumer.close();
         producer.close();
@@ -445,8 +448,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String namespace = "my-property/use/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
-        final int messageRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+        final int messageRate = 5;
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
@@ -493,8 +496,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
+        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
+        Thread.sleep(500);
+
         // consumer should not have received all published message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
+        Assert.assertNotEquals(totalReceived.get(), numProducedMessages);
 
         consumer1.close();
         consumer2.close();
@@ -511,7 +517,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final String namespace = "my-property/use/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
-        final int messageRate = 100;
+        final int messageRate = 5;
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         // (1) Update message-dispatch-rate limit
@@ -550,8 +556,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        // consumer should not have received all publihsed message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
+        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
+        Thread.sleep(500);
+
+        // consumer should not have received all published message due to message-rate throttling
+        Assert.assertNotEquals(totalReceived.get(), numMessages);
 
         consumer.close();
         producer.close();
@@ -572,9 +581,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String namespace = "my-property/use/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
-        final int messageRate = 100; // 100 msgs per second
-        final long byteRate = 100; // 100 bytes per second
-        DispatchRate dispatchRate = new DispatchRate(messageRate, byteRate, 1);
+        final int messageRate = 5; // 5 msgs per second
+        final long byteRate = 10; // 10 bytes per second
+        DispatchRate dispatchRate = new DispatchRate(messageRate, byteRate, 360);
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
@@ -647,8 +656,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         
 
-        final int messageRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+        final int messageRate = 5;
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
 
         admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
         admin.namespaces().createNamespace(namespace);
@@ -695,8 +704,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(new byte[80]);
         }
 
-        // consumer should not have received all publihsed message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
+        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
+        Thread.sleep(500);
+
+        // consumer should not have received all published message due to message-rate throttling
+        Assert.assertNotEquals(totalReceived.get(), numMessages);
 
         consumer.close();
         producer.close();
@@ -717,7 +729,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 10;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
 
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
