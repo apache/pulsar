@@ -204,7 +204,7 @@ elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
 
     # Add instrumentation
-    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
+    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'org.aspectj-aspectjweaver-*.jar'`
     if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
@@ -212,7 +212,7 @@ elif [ $COMMAND == "global-zookeeper" ]; then
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} -Dreadonlymode.enabled=true"
     # Add instrumentation
-    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'aspectjweaver-*.jar'`
+    WEAVER_JAR=`find $PULSAR_HOME/lib -name 'org.aspectj-aspectjweaver-*.jar'`
     if [ -n "$WEAVER_JAR" ]; then OPTS="$OPTS -javaagent:$WEAVER_JAR"; fi
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "discovery" ]; then
