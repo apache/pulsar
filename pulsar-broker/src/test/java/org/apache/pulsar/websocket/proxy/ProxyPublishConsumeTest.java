@@ -129,19 +129,23 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
             log.info("Connecting to : {}", readUri);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             // let it connect
             Assert.assertTrue(consumerFuture1.get().isOpen());
             Assert.assertTrue(consumerFuture2.get().isOpen());
             Assert.assertTrue(readerFuture.get().isOpen());
+
+            // Also make sure subscriptions and reader are already created
+            Thread.sleep(500);
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
             int retry = 0;
             int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10
-            		&& readSocket.getReceivedMessagesCount() < 10) {
+            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
+                    || readSocket.getReceivedMessagesCount() < 10) {
                 Thread.sleep(10);
                 if (retry++ > maxRetry) {
                     final String msg = String.format("Consumer still has not received the message after %s ms",
@@ -256,12 +260,16 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
             log.info("Connecting to : {}", readUri);
 
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(readerFuture.get().isOpen());
+
+            Thread.sleep(500);
+
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             // let it connect
-            Assert.assertTrue(consumerFuture1.get().isOpen());
-            Assert.assertTrue(readerFuture.get().isOpen());
+
             Assert.assertTrue(producerFuture.get().isOpen());
 
             // sleep so, proxy can deliver few messages to consumers for stats
