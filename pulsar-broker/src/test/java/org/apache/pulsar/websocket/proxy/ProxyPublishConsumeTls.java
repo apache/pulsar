@@ -47,9 +47,7 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -60,8 +58,8 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
     private int port;
     private int tlsPort;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";    
-    
+    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+
     private ProxyServer proxyServer;
     private WebSocketService service;
 
@@ -121,13 +119,14 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
             ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
             Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
             log.info("Connecting to : {}", consumeUri);
+            Assert.assertTrue(consumerFuture.get().isOpen());
+
+            Thread.sleep(500);
 
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
-            // let it connect
-            Thread.sleep(1000);
-            Assert.assertTrue(consumerFuture.get().isOpen());
+
             Assert.assertTrue(producerFuture.get().isOpen());
 
             consumeSocket.awaitClose(1, TimeUnit.SECONDS);
