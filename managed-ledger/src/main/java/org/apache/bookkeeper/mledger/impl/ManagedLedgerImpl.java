@@ -99,7 +99,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final BookKeeper bookKeeper;
     private final String name;
 
-    private final ManagedLedgerConfig config;
+    private ManagedLedgerConfig config;
     private final MetaStore store;
 
     private final ConcurrentLongHashMap<CompletableFuture<LedgerHandle>> ledgerCache = new ConcurrentLongHashMap<>();
@@ -2092,8 +2092,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return store;
     }
 
-    ManagedLedgerConfig getConfig() {
+    @Override
+    public ManagedLedgerConfig getConfig() {
         return config;
+    }
+
+    @Override
+    public void setConfig(ManagedLedgerConfig config) {
+        this.config = config;
     }
 
     static interface ManagedLedgerInitializeLedgerCallback {

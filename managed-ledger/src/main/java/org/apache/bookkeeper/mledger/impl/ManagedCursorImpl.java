@@ -2287,5 +2287,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         return STATE_UPDATER.get(this).toString();
     }
 
+    @Override
+    public double getThrottleMarkDelete() {
+        return this.markDeleteLimiter.getRate();
+    }
+
+    @Override
+    public void setThrottleMarkDelete(double throttleMarkDelete) {
+        this.markDeleteLimiter.setRate(throttleMarkDelete);
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
 }

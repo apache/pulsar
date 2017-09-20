@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 
 import java.net.URI;
@@ -48,6 +49,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -1121,10 +1123,12 @@ public class Namespaces extends AdminResource {
     @ApiOperation(value = "Set the persistence configuration for all the destinations on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 400, message = "Invalid persistence policies") })
     public void setPersistence(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, PersistencePolicies persistence) {
         validatePoliciesReadOnlyAccess();
+        validatePersistencePolicies(persistence);
 
         try {
             Stat nodeStat = new Stat();
@@ -1149,6 +1153,26 @@ public class Namespaces extends AdminResource {
             log.error("[{}] Failed to update persistence configuration for namespace {}/{}/{}", clientAppId(), property,
                     cluster, namespace, e);
             throw new RestException(e);
+        }
+    }
+
+    private void validatePersistencePolicies(PersistencePolicies persistence) {
+        try {
+            checkNotNull(persistence);
+            final ServiceConfiguration config = pulsar().getConfiguration();
+            checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
+                    "Bookkeeper-Ensemble must be <= %s", config.getManagedLedgerMaxEnsembleSize());
+            checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
+                    "Bookkeeper-WriteQuorum must be <= %s", config.getManagedLedgerMaxWriteQuorum());
+            checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
+                    "Bookkeeper-AckQuorum must be <= %s", config.getManagedLedgerMaxAckQuorum());
+            checkArgument(
+                    (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
+                            && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
+                    "Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)", persistence.getBookkeeperEnsemble(),
+                    persistence.getBookkeeperWriteQuorum(), persistence.getBookkeeperAckQuorum());            
+        }catch(NullPointerException | IllegalArgumentException e) {
+            throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
         }
     }
 
