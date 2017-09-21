@@ -18,39 +18,36 @@
  */
 package org.apache.pulsar.websocket;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
-import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Splitter;
 
 /**
  *
@@ -67,34 +64,35 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
-    
+
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ReaderHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ReaderHandler.class, "msgDeliveredCounter");
 
-    public ReaderHandler(WebSocketService service, HttpServletRequest request) {
-        super(service, request);
+    public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        super(service, request, response);
         this.subscription = "";
         this.conf = getReaderConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
         this.numMsgsDelivered = new LongAdder();
-        this.numBytesDelivered = new LongAdder();        
-    }
-
-    @Override
-    protected void createClient(Session session) {
+        this.numBytesDelivered = new LongAdder();
 
         try {
             this.reader = service.getPulsarClient().createReader(topic, getMessageId(), conf);
-            this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription(); 
+            this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
             this.service.addReader(this);
             receiveMessage();
         } catch (Exception e) {
-            log.warn("[{}] Failed in creating subscription {} on topic {}", session.getRemoteAddress(), subscription,
-                    topic, e);
-            close(WebSocketError.FailedToSubscribe, e.getMessage());
+            log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
+                    request.getRemotePort(), subscription, topic, e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create reader");
+            } catch (IOException e1) {
+                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                        e1.getMessage(), e1);
+            }
         }
     }
 
@@ -184,7 +182,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             });
         }
     }
-    
+
     public Consumer getConsumer() {
         return ((ReaderImpl)reader).getConsumer();
     }
@@ -192,7 +190,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     public String getSubscription() {
         return subscription;
     }
-    
+
     public SubscriptionType getSubscriptionType() {
         return SubscriptionType.Exclusive;
     }
@@ -208,7 +206,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     public long getMsgDeliveredCounter() {
         return MSG_DELIVERED_COUNTER_UPDATER.get(this);
     }
-    
+
     protected void updateDeliverMsgStat(long msgSize) {
         numMsgsDelivered.increment();
         MSG_DELIVERED_COUNTER_UPDATER.incrementAndGet(this);

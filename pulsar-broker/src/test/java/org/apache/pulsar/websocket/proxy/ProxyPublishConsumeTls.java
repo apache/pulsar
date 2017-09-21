@@ -35,7 +35,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.TlsProducerConsumerTest;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -53,7 +53,7 @@ import org.testng.annotations.Test;
 
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
-public class ProxyPublishConsumeTls extends ProducerConsumerBase {
+public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
     protected String methodName;
     private int port;
     private int tlsPort;
@@ -65,8 +65,9 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+        super.setup();
+
+        this.internalSetupForTls();
 
         port = PortManager.nextFreePort();
         tlsPort = PortManager.nextFreePort();
@@ -87,7 +88,7 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
 
     @AfterMethod
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        super.cleanup();
         service.close();
         proxyServer.stop();
         log.info("Finished Cleaning Up Test setup");
@@ -112,7 +113,6 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
         WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient(sslContextFactory);
-        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         try {
             consumeClient.start();
@@ -121,8 +121,7 @@ public class ProxyPublishConsumeTls extends ProducerConsumerBase {
             log.info("Connecting to : {}", consumeUri);
             Assert.assertTrue(consumerFuture.get().isOpen());
 
-            Thread.sleep(500);
-
+            SimpleProducerSocket produceSocket = new SimpleProducerSocket();
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
