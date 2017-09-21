@@ -37,7 +37,7 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
             + boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1/deduplication";
+    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1";
     int res = makePutRequest(url, "");
     ASSERT_EQ(res, 204);
 
@@ -85,7 +85,7 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
             + boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2/deduplication";
+    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2";
     int res = makePutRequest(url, "");
     ASSERT_EQ(res, 204);
 
