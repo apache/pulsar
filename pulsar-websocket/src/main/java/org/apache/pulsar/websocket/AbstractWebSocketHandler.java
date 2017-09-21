@@ -65,16 +65,17 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
-                log.info("[{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(), authRole,
-                        topic);
+                log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), authRole, topic);
 
             } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
-                        authRole, topic, e.getMessage());
+                log.warn("[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
+                        request.getRemotePort(), authRole, topic, e.getMessage());
                 try {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
                 } catch (IOException e1) {
-                    log.warn("Failed to send error: {}", e1.getMessage());
+                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                            e1.getMessage(), e1);
                 }
                 return;
             }
@@ -83,18 +84,19 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthorizationEnabled()) {
             try {
                 if (!isAuthorized(authRole)) {
-                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
-                            authRole, topic);
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authorized");
+                    log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
+                            request.getRemotePort(), authRole, topic);
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
                     return;
                 }
             } catch (Exception e) {
-                log.warn("[{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
-                        request.getRemoteAddr(), authRole, topic, e.getMessage());
+                log.warn("[{}:{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
+                        request.getRemoteAddr(), request.getRemotePort(), authRole, topic, e.getMessage());
                 try {
                     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server error");
                 } catch (IOException e1) {
-                    log.warn("Failed to send error: {}", e1.getMessage());
+                    log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                            e1.getMessage(), e1);
                 }
                 return;
             }

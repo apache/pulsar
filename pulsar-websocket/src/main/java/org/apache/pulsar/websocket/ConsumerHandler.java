@@ -91,12 +91,13 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             this.service.addConsumer(this);
             receiveMessage();
         } catch (Exception e) {
-            log.warn("[{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(), subscription,
-                    topic, e);
+            log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
+                    request.getRemotePort(), subscription, topic, e);
             try {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to subscribe");
             } catch (IOException e1) {
-                log.warn("Failed to send error: {}", e1);
+                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                        e1.getMessage(), e1);
             }
         }
     }

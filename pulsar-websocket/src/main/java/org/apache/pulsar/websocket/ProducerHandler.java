@@ -89,11 +89,13 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             this.producer = service.getPulsarClient().createProducer(topic, conf);
             this.service.addProducer(this);
         } catch (Exception e) {
-            log.warn("[{}] Failed in creating producer on topic {}", request.getRemoteAddr(), topic, e);
+            log.warn("[{}:{}] Failed in creating producer on topic {}", request.getRemoteAddr(),
+                    request.getRemotePort(), topic, e);
             try {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create producer");
             } catch (IOException e1) {
-                log.warn("Failed to send error: {}", e1);
+                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                        e1.getMessage(), e1);
             }
         }
     }
