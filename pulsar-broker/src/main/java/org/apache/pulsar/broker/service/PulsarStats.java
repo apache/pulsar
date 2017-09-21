@@ -75,8 +75,13 @@ public class PulsarStats implements Closeable {
 
     @Override
     public void close() {
-        ReferenceCountUtil.safeRelease(topicStatsBuf);
-        ReferenceCountUtil.safeRelease(tempTopicStatsBuf);
+        bufferLock.writeLock().lock();
+        try {
+            ReferenceCountUtil.safeRelease(topicStatsBuf);
+            ReferenceCountUtil.safeRelease(tempTopicStatsBuf);
+        } finally {
+            bufferLock.writeLock().unlock();
+        }
     }
 
     public ClusterReplicationMetrics getClusterReplicationMetrics() {
@@ -193,7 +198,7 @@ public class PulsarStats implements Closeable {
             log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
         }
     }
-    
+
     public void recordZkLatencyTimeValue(EventType eventType, long latencyMs) {
         try {
             if (EventType.write.equals(eventType)) {
