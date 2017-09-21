@@ -33,12 +33,16 @@ static std::string adminUrl = "http://localhost:8765/";
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns1/testProducerSequenceAfterReconnect-"
+    std::string topicName = "persistent://sample/standalone/ns-dedup-1/testProducerSequenceAfterReconnect-"
             + boost::lexical_cast<std::string>(time(NULL));
 
-    // call admin api to make enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns1/deduplication";
-    int res = makePostRequest(url, "true");
+    // call admin api to create namespace and enable deduplication
+    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1/deduplication";
+    int res = makePutRequest(url, "");
+    ASSERT_EQ(res, 204);
+
+    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1/deduplication";
+    res = makePostRequest(url, "true");
     ASSERT_EQ(res, 204);
 
     ReaderConfiguration readerConf;
@@ -77,12 +81,16 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns1/testProducerDeduplication-"
+    std::string topicName = "persistent://sample/standalone/ns-dedup-2/testProducerDeduplication-"
             + boost::lexical_cast<std::string>(time(NULL));
 
-    // call admin api to make enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns1/deduplication";
-    int res = makePostRequest(url, "true");
+    // call admin api to create namespace and enable deduplication
+    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2/deduplication";
+    int res = makePutRequest(url, "");
+    ASSERT_EQ(res, 204);
+
+    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2/deduplication";
+    res = makePostRequest(url, "true");
     ASSERT_EQ(res, 204);
 
     ReaderConfiguration readerConf;
@@ -139,4 +147,3 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
 
     client.close();
 }
-
