@@ -87,6 +87,8 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
@@ -545,6 +547,32 @@ public class PersistentTopics extends AdminResource {
         }
     }
 
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{destination}/unload")
+    @ApiOperation(value = "Unload a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
+                destination);
+        validateSuperUserAccess();
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        validateDestinationOwnership(dn, authoritative);
+        try {
+            Topic topic = getTopicReference(dn);
+            topic.close().get();
+            log.info("[{}] Successfully unloaded topic {}", clientAppId(), destination);
+        } catch (NullPointerException e) {
+            log.error("[{}] topic {} not found", clientAppId(), destination);
+            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), destination, e.getCause().getMessage(), e);
+            throw new RestException(e.getCause());
+        }
+    }
+    
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{destination}")
     @ApiOperation(value = "Delete a topic.", notes = "The topic cannot be deleted if there's any active subscription or producer connected to the it.")

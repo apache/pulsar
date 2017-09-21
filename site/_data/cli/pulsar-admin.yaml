@@ -297,6 +297,9 @@ commands:
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
     argument: persistent://property/cluster/namespace/topic
+  - name: unload
+    description: Unload a topic
+    argument: persistent://property/cluster/namespace/topic    
   - name: subscriptions
     description: Get the list of subscriptions on the topic
     argument: persistent://property/cluster/namespace/topic

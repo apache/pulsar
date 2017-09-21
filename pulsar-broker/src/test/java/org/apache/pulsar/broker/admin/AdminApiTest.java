@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
@@ -45,6 +47,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -1878,4 +1881,46 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 pulsar.getNamespaceService().getBundle(DestinationName.get(topicName)).getBundleRange());
     }
 
+    // TODO: move to AdminApiTest2.java
+    /**
+     * Verify unloading topic
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testUnloadTopic() throws Exception {
+
+        final String namespace = "prop-xyz/use/ns2";
+        final String topicName = "persistent://" + namespace + "/topic1";
+        admin.namespaces().createNamespace(namespace);
+
+        // create a topic by creating a producer
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+
+        // unload the topic
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+        admin.persistentTopics().unload(topicName);
+        topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNull(topic);
+
+        // recreation of producer will load the topic again
+        producer = pulsarClient.createProducer(topicName);
+        topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+        // unload the topic
+        admin.persistentTopics().unload(topicName);
+        // producer will retry and recreate the topic
+        for (int i = 0; i < 5; i++) {
+            topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+            if (topic == null || i != 4) {
+                Thread.sleep(200);
+            }
+        }
+        // topic should be loaded by this time
+        topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+    }
+    
 }
