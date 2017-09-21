@@ -25,14 +25,15 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
 
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.common.naming.DestinationName;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final String topic;
     protected final Map<String, String> queryParams;
 
-    public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request) {
+    public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
         this.request = request;
         this.topic = extractTopicName(request);
@@ -55,24 +56,26 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
+
+        checkAuth(response);
     }
 
-    @Override
-    public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
-        log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
-
+    private void checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
-                log.info("[{}] Authenticated WebSocket client {} on topic {}", session.getRemoteAddress(), authRole,
+                log.info("[{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(), authRole,
                         topic);
 
             } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to authenticated WebSocket client {} on topic {}: {}",
-                        session.getRemoteAddress(), authRole, topic, e.getMessage());
-                close(WebSocketError.AuthenticationError);
+                log.warn("[{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
+                        authRole, topic, e.getMessage());
+                try {
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
+                } catch (IOException e1) {
+                    log.warn("Failed to send error: {}", e1.getMessage());
+                }
                 return;
             }
         }
@@ -80,19 +83,29 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (service.isAuthorizationEnabled()) {
             try {
                 if (!isAuthorized(authRole)) {
-                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", session.getRemoteAddress(), authRole,
-                            topic);
-                    close(WebSocketError.NotAuthorizedError);
+                    log.warn("[{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
+                            authRole, topic);
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authorized");
                     return;
                 }
             } catch (Exception e) {
                 log.warn("[{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
-                        session.getRemoteAddress(), authRole, topic, e.getMessage());
-                close(WebSocketError.UnknownError);
+                        request.getRemoteAddr(), authRole, topic, e.getMessage());
+                try {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server error");
+                } catch (IOException e1) {
+                    log.warn("Failed to send error: {}", e1.getMessage());
+                }
                 return;
             }
         }
-        createClient(session);
+
+    }
+
+    @Override
+    public void onWebSocketConnect(Session session) {
+        super.onWebSocketConnect(session);
+        log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
 
     @Override
@@ -152,8 +165,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     }
 
     protected abstract Boolean isAuthorized(String authRole) throws Exception;
-
-    protected abstract void createClient(Session session);
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

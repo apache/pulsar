@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -45,6 +46,8 @@ import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
 import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.UpgradeResponse;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,16 +73,29 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private volatile long msgPublishedCounter = 0;
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
-    
+
     public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000 };
 
-    public ProducerHandler(WebSocketService service, HttpServletRequest request) {
-        super(service, request);
+    public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        super(service, request, response);
         this.numMsgsSent = new LongAdder();
         this.numBytesSent = new LongAdder();
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+
+        try {
+            ProducerConfiguration conf = getProducerConfiguration();
+            this.producer = service.getPulsarClient().createProducer(topic, conf);
+            this.service.addProducer(this);
+        } catch (Exception e) {
+            log.warn("[{}] Failed in creating producer on topic {}", request.getRemoteAddr(), topic, e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create producer");
+            } catch (IOException e1) {
+                log.warn("Failed to send error: {}", e1);
+            }
+        }
     }
 
     @Override
@@ -94,19 +110,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
                 return null;
             });
-        }
-    }
-
-    @Override
-    protected void createClient(Session session) {
-        try {
-            ProducerConfiguration conf = getProducerConfiguration();
-            this.producer = service.getPulsarClient().createProducer(topic, conf);
-            this.service.addProducer(this);
-        } catch (Exception e) {
-            log.warn("[{}] Failed in creating producer on topic {}", session.getRemoteAddress(),
-                    topic, e);
-            close(FailedToCreateProducer, e.getMessage());
         }
     }
 
@@ -201,7 +204,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
         }
     }
-  
+
     private void updateSentMsgStats(long msgSize, long latencyUsec) {
         this.publishLatencyStatsUSec.addValue(latencyUsec);
         this.numBytesSent.add(msgSize);
@@ -214,7 +217,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         conf.setBlockIfQueueFull(false);
-        
+
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }

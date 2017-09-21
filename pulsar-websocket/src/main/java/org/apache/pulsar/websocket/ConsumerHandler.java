@@ -26,13 +26,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -42,8 +42,8 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
-import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +69,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
-    
+
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
     private final LongAdder numMsgsAcked;
@@ -77,27 +77,27 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
-    public ConsumerHandler(WebSocketService service, HttpServletRequest request) {
-        super(service, request);
+    public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        super(service, request, response);
         this.subscription = extractSubscription(request);
         this.conf = getConsumerConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
-        
-    }
 
-    @Override
-    protected void createClient(Session session) {
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             this.service.addConsumer(this);
             receiveMessage();
         } catch (Exception e) {
-            log.warn("[{}] Failed in creating subscription {} on topic {}", session.getRemoteAddress(), subscription,
+            log.warn("[{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(), subscription,
                     topic, e);
-            close(WebSocketError.FailedToSubscribe, e.getMessage());
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to subscribe");
+            } catch (IOException e1) {
+                log.warn("Failed to send error: {}", e1);
+            }
         }
     }
 
@@ -224,7 +224,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     public long getMsgDeliveredCounter() {
         return MSG_DELIVERED_COUNTER_UPDATER.get(this);
     }
-    
+
     protected void updateDeliverMsgStat(long msgSize) {
         numMsgsDelivered.increment();
         MSG_DELIVERED_COUNTER_UPDATER.incrementAndGet(this);

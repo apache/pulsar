@@ -37,6 +37,7 @@ public class WebSocketConsumerServlet extends WebSocketServlet {
     public void configure(WebSocketServletFactory factory) {
         factory.getPolicy().setMaxTextMessageSize(WebSocketService.MaxTextFrameSize);
 
-        factory.setCreator((request, response) -> new ConsumerHandler(service, request.getHttpServletRequest()));
+        factory.setCreator(
+                (request, response) -> new ConsumerHandler(service, request.getHttpServletRequest(), response));
     }
 }
