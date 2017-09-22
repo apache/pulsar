@@ -129,6 +129,18 @@ public class NonPersistentTopics extends PersistentTopics {
             throw new RestException(e);
         }
     }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{destination}/unload")
+    @ApiOperation(value = "Unload a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
+                destination);
+        super.unloadTopic(property, cluster, namespace, destination, authoritative);
+    }
     
     protected void validateAdminOperationOnDestination(DestinationName fqdn, boolean authoritative) {
         validateAdminAccessOnProperty(fqdn.getProperty());
