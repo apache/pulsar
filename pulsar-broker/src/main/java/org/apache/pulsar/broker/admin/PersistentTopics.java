@@ -550,12 +550,12 @@ public class PersistentTopics extends AdminResource {
     @PUT
     @Path("/{property}/{cluster}/{namespace}/{destination}/unload")
     @ApiOperation(value = "Unload a topic")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist") })
     public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
-                destination);
+        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace, destination);
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         unloadTopic(dn, authoritative);
