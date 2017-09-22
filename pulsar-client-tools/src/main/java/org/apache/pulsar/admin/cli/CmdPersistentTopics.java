@@ -57,6 +57,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("lookup", new Lookup());
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
+        jcommander.addCommand("unload", new UnloadCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("stats", new GetStats());
@@ -249,6 +250,18 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             persistentTopics.delete(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Unload a topic. \n")
+    private class UnloadCmd extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            persistentTopics.unload(persistentTopic);
         }
     }
 

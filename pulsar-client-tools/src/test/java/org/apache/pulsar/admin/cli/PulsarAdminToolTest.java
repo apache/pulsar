@@ -351,6 +351,9 @@ public class PulsarAdminToolTest {
         topics.run(split("delete persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1");
 
+        topics.run(split("unload persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
+
         topics.run(split("list myprop/clust/ns1"));
         verify(mockTopics).getList("myprop/clust/ns1");
 
