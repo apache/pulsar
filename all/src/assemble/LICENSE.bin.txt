@@ -363,3 +363,6 @@ Eclipse Public License 1.0 -- licenses/LICENSE-EPL-1.0.txt
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-*.jar
+
+Bouncy Castle License
+ * Bouncy Castle -- org.bouncycastle*.jar -- licenses/LICENSE-bouncycastle.txt
