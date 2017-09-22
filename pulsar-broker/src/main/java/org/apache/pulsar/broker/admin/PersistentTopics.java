@@ -556,23 +556,11 @@ public class PersistentTopics extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
                 destination);
-        validateSuperUserAccess();
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        validateDestinationOwnership(dn, authoritative);
-        try {
-            Topic topic = getTopicReference(dn);
-            topic.close().get();
-            log.info("[{}] Successfully unloaded topic {}", clientAppId(), destination);
-        } catch (NullPointerException e) {
-            log.error("[{}] topic {} not found", clientAppId(), destination);
-            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), destination, e.getCause().getMessage(), e);
-            throw new RestException(e.getCause());
-        }
+        unloadTopic(dn, authoritative);
     }
-    
+
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{destination}")
     @ApiOperation(value = "Delete a topic.", notes = "The topic cannot be deleted if there's any active subscription or producer connected to the it.")
@@ -1407,5 +1395,21 @@ public class PersistentTopics extends AdminResource {
             return null;
         });
         return result;
+    }
+    
+    protected void unloadTopic(DestinationName destination, boolean authoritative) {
+        validateSuperUserAccess();
+        validateDestinationOwnership(destination, authoritative);
+        try {
+            Topic topic = getTopicReference(destination);
+            topic.close().get();
+            log.info("[{}] Successfully unloaded topic {}", clientAppId(), destination);
+        } catch (NullPointerException e) {
+            log.error("[{}] topic {} not found", clientAppId(), destination);
+            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), destination, e.getCause().getMessage(), e);
+            throw new RestException(e.getCause());
+        }
     }
 }

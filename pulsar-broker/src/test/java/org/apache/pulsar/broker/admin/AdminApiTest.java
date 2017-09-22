@@ -68,6 +68,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -167,7 +168,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     
     @DataProvider(name = "topicType")
     public Object[][] topicTypeProvider() {
-        return new Object[][] { { "persistent" }, { "non-persistent" } };
+        return new Object[][] { { DestinationDomain.persistent.value() },
+                { DestinationDomain.non_persistent.value() } };
     }
 
     @Test

@@ -137,9 +137,10 @@ public class NonPersistentTopics extends PersistentTopics {
     public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
-                destination);
-        super.unloadTopic(property, cluster, namespace, destination, authoritative);
+        log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace, destination);
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        unloadTopic(dn, authoritative);
     }
     
     protected void validateAdminOperationOnDestination(DestinationName fqdn, boolean authoritative) {

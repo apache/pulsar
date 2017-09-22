@@ -167,7 +167,7 @@ It unloads a topic.
 
 #### pulsar-admin
 
-Topic can be unloaded using [`unload`](../../reference/CliTools#delete) command.
+Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
 
 ```shell
 $ pulsar-admin persistent unload \
