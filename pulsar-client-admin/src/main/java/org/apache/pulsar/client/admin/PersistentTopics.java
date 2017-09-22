@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -829,4 +830,37 @@ public interface PersistentTopics {
      *            reset subscription to position closest to time in ms since epoch
      */
     CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp);
+    
+    /**
+     * Reset cursor position on a topic subscription
+     *
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param position
+     *            reset subscription to position (or previous nearest position if given position is not valid)
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void resetCursor(String destination, String subName, Position position) throws PulsarAdminException;
+
+    /**
+     * Reset cursor position on a topic subscription
+     *
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param Position
+     *            reset subscription to position (or previous nearest position if given position is not valid)
+     */
+    CompletableFuture<Void> resetCursorAsync(String destination, String subName, Position position);
 }

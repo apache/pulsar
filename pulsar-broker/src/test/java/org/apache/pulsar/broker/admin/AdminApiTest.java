@@ -68,6 +68,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -75,6 +76,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -173,6 +175,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 { DestinationDomain.non_persistent.value() } };
     }
 
+    @DataProvider(name = "namespaceNames")
+    public Object[][] namespaceNameProvider() {
+        return new Object[][] { { "ns1" }, { "global" } };
+    }
+    
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
@@ -1804,6 +1811,104 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } else {
             admin.nonPersistentTopics().unload(topicName);
         }
+    }
+        
+    // TODO: move to AdminApiTest2.java
+    /**
+     * Verifies reset-cursor at specific position using admin-api.
+     * 
+     * <pre>
+     * 1. Publish 50 messages
+     * 2. Consume 20 messages
+     * 3. reset cursor position on 10th message
+     * 4. consume 40 messages from reset position
+     * </pre>
+     * 
+     * @param namespaceName
+     * @throws Exception
+     */
+    @Test(dataProvider = "namespaceNames", timeOut = 10000)
+    public void testResetCursorOnPosition(String namespaceName) throws Exception {
+        final String topicName = "persistent://prop-xyz/use/" + namespaceName + "/resetPosition";
+        final int totalProducedMessages = 50;
+
+        // set retention
+        admin.namespaces().setRetention("prop-xyz/use/ns1", new RetentionPolicies(10, 10));
+
+        // create consumer and subscription
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
+
+        assertEquals(admin.persistentTopics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
+
+        publishMessagesOnPersistentTopic(topicName, totalProducedMessages, 0);
+
+        List<Message> messages = admin.persistentTopics().peekMessages(topicName, "my-sub", 10);
+        assertEquals(messages.size(), 10);
+
+        Message message = null;
+        MessageIdImpl resetMessageId = null;
+        int resetPositionId = 10;
+        for (int i = 0; i < 20; i++) {
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            consumer.acknowledge(message);
+            if (i == resetPositionId) {
+                resetMessageId = (MessageIdImpl) message.getMessageId();
+            }
+        }
+
+        // close consumer which will clean up intenral-receive-queue
+        consumer.close();
+
+        // messages should still be available due to retention
+        Position position = new Position(resetMessageId.getLedgerId(), resetMessageId.getEntryId());
+        // reset position at resetMessageId
+        admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+
+        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
+        MessageIdImpl msgId2 = (MessageIdImpl) consumer.receive(1, TimeUnit.SECONDS).getMessageId();
+        assertEquals(resetMessageId, msgId2);
+
+        int receivedAfterReset = 1; // start with 1 because we have already received 1 msg
+
+        for (int i = 0; i < totalProducedMessages; i++) {
+            message = consumer.receive(500, TimeUnit.MILLISECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+            ++receivedAfterReset;
+        }
+        assertEquals(receivedAfterReset, totalProducedMessages - resetPositionId);
+
+        // invalid topic name
+        try {
+            admin.persistentTopics().resetCursor(topicName + "invalid", "my-sub", position);
+            fail("It should have failed due to invalid topic name");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        // invalid cursor name
+        try {
+            admin.persistentTopics().resetCursor(topicName, "invalid-sub", position);
+            fail("It should have failed due to invalid subscription name");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        // invalid position
+        try {
+            position.setLedgerId(0);
+            position.setEntryId(0);
+            admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+            fail("It should have failed due to invalid subscription name");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // Ok
+        }
+
+        consumer.close();
     }
 
 }

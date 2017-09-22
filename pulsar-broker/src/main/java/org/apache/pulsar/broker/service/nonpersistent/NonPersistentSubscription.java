@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -345,6 +346,11 @@ public class NonPersistentSubscription implements Subscription {
     @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursor(Position position) {
+        return CompletableFuture.completedFuture(null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
