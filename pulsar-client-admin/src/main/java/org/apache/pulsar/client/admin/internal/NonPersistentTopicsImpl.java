@@ -39,11 +39,11 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
-    private final WebTarget persistentTopics;
+    private final WebTarget nonPersistentTopics;
 
     public NonPersistentTopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.persistentTopics = web.path("/non-persistent");
+        this.nonPersistentTopics = web.path("/non-persistent");
     }
 
     @Override
@@ -63,7 +63,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
         DestinationName ds = validateTopic(destination);
         return asyncPutRequest(
-                persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
+                nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -83,7 +83,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String destination) {
         DestinationName ds = validateTopic(destination);
         final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
+        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 new InvocationCallback<PartitionedTopicMetadata>() {
 
                     @Override
@@ -115,7 +115,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String destination) {
         DestinationName ds = validateTopic(destination);
         final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
+        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
                 new InvocationCallback<NonPersistentTopicStats>() {
 
                     @Override
@@ -147,7 +147,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination) {
         DestinationName ds = validateTopic(destination);
         final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internalStats"),
+        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internalStats"),
                 new InvocationCallback<PersistentTopicInternalStats>() {
 
                     @Override
@@ -163,6 +163,25 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
         return future;
     }
 
+    @Override
+    public void unload(String destination) throws PulsarAdminException {
+        try {
+            unloadAsync(destination).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> unloadAsync(String destination) {
+        DestinationName ds = validateTopic(destination);
+        return asyncPutRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
+                Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+    
     /*
      * returns destination name with encoded Local Name
      */

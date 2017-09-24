@@ -206,7 +206,7 @@ Field | Meaning
 #### pulsar-admin
 
 ```shell
-$ pulsar-admin persistent get-partitioned-topic-metadata \
+$ pulsar-admin non-persistent get-partitioned-topic-metadata \
   non-persistent://my-property/my-cluster-my-namespace/my-topic
 {
   "partitions": 4
@@ -223,4 +223,30 @@ $ pulsar-admin persistent get-partitioned-topic-metadata \
 ```java
 String topicName = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
+```
+
+### Unload topic
+
+It unloads a topic.
+
+#### pulsar-admin
+
+Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
+
+```shell
+$ pulsar-admin non-persistent unload \
+  non-persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint PUT /admin/non-persistent/:property/:cluster/:namespace/:destination/unload %}
+
+[More info](../../reference/RestApi#/admin/non-persistent/:property/:cluster/:namespace/:destination/unload)
+
+#### Java
+
+```java
+String destination = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.nonPersistentTopics().unload(destination);
 ```
