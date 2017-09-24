@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -688,7 +689,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * 
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBlockBrokerDispatching() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -788,10 +789,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
              * maxUnAckPerDispatcher limit
              **/
-            consumer1Sub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            ConsumerImpl consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     messages2.add(msg.getMessageId());
                 } else {
@@ -835,21 +836,25 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertEquals(blockedDispatchers.size(), 0);
 
             /** (5) try redelivery on sub2 consumer and verify to consume all messages */
-            consumer1Sub2.redeliverUnacknowledgedMessages();
-            messages2.clear();
+            consumerSub2.redeliverUnacknowledgedMessages();
+            AtomicInteger msgReceivedCount = new AtomicInteger(0);
+            CountDownLatch latch = new CountDownLatch(totalProducedMsgs);
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
-                if (msg != null) {
-                    messages2.add(msg.getMessageId());
-                    consumer1Sub2.acknowledge(msg);
-                } else {
-                    break;
-                }
+                consumerSub2.receiveAsync().thenAccept(m -> {
+                    msgReceivedCount.incrementAndGet();
+                    latch.countDown();
+                    try {
+                        consumerSub2.acknowledge(m);
+                    } catch (PulsarClientException e) {
+                        fail("failed to ack msg", e);
+                    }
+                });
             }
-            assertEquals(messages2.size(), totalProducedMsgs);
+            latch.await();
+            assertEquals(msgReceivedCount.get(), totalProducedMsgs);
 
             consumer1Sub1.close();
-            consumer1Sub2.close();
+            consumerSub2.close();
             consumer1Sub3.close();
 
             log.info("-- Exiting {} test --", methodName);
