@@ -252,6 +252,25 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
+    public void unload(String destination) throws PulsarAdminException {
+        try {
+            unloadAsync(destination).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> unloadAsync(String destination) {
+        DestinationName ds = validateTopic(destination);
+        return asyncPutRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
+                Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public List<String> getSubscriptions(String destination) throws PulsarAdminException {
         try {
             return getSubscriptionsAsync(destination).get();

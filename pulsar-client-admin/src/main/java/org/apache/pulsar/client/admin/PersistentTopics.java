@@ -311,6 +311,33 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the topic is deleted
      */
     CompletableFuture<Void> deleteAsync(String destination);
+    
+    /**
+     * Unload a topic.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Destination does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void unload(String destination) throws PulsarAdminException;
+
+    /**
+     * Unload a topic asynchronously.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     *
+     * @return a future that can be used to track when the topic is unloaded
+     */
+    CompletableFuture<Void> unloadAsync(String destination);
 
     /**
      * Terminate the topic and prevent any more messages being published on it.

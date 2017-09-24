@@ -135,6 +135,58 @@ String role = "test-role";
 admin.persistentTopics().revokePermissions(destination, role);
 ```
 
+### Delete topic
+
+It deletes a topic. The topic cannot be deleted if there's any active subscription or producers connected to it.
+
+#### pulsar-admin
+
+Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
+
+```shell
+$ pulsar-admin persistent delete \
+  persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint DELETE /admin/persistent/:property/:cluster/:namespace/:destination %}
+
+[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination)
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.persistentTopics().delete(destination);
+```
+
+### Unload topic
+
+It unloads a topic.
+
+#### pulsar-admin
+
+Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
+
+```shell
+$ pulsar-admin persistent unload \
+  persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint PUT /admin/persistent/:property/:cluster/:namespace/:destination/unload %}
+
+[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/unload)
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.persistentTopics().unload(destination);
+```
+
 ### Get stats
 
 It shows current statistics of a given non-partitioned topic.

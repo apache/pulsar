@@ -447,6 +447,7 @@ public class NonPersistentTopic implements Topic {
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
             log.info("[{}] Topic closed", topic);
+            brokerService.removeTopicFromCache(topic);
             closeFuture.complete(null);
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
