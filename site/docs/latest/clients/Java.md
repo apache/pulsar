@@ -241,10 +241,18 @@ Map<String, String> authParams = new HashMap<>();
 authParams.put("tenantDomain", "shopping"); // Tenant domain name
 authParams.put("tenantService", "some_app"); // Tenant service name
 authParams.put("providerDomain", "pulsar"); // Provider domain name
-authParams.put("privateKeyPath", "/path/to/private.pem"); // Tenant private key path
+authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
 authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
 conf.setAuthentication(AuthenticationAthenz.class.getName(), authParams);
 
 PulsarClient client = PulsarClient.create(
         "pulsar+ssl://my-broker.com:6651", conf);
+```
+
+**Note**: *`privateKey` parameter supports following three patterns format*.
+
+```
+file:///path/to/file
+file:/path/to/file
+data:application/x-pem-file;base64,<base64-encoded value>
 ```
