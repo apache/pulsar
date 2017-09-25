@@ -200,7 +200,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     }
                 }
             }
-            
+
             if (!messagesToReplay.isEmpty()) {
                 if (havePendingReplayRead) {
                     log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
@@ -230,7 +230,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
+                        totalUnackedMessages, maxUnackedMessages);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -438,7 +438,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     }
 
-   
+
     /**
      * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
      *
@@ -495,17 +495,16 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
                     TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
         } else if (topic.getBrokerService().isBrokerDispatchingBlocked()
-                && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
+                && blockedDispatcherOnUnackedMsgs == TRUE) {
             // unblock dispatcher: if dispatcher is blocked due to broker-unackMsg limit and if it ack back enough
             // messages
-            if (TOTAL_UNACKED_MESSAGES_UPDATER.get(this) < (topic.getBrokerService().maxUnackedMsgsPerDispatcher / 2)) {
+            if (totalUnackedMessages < (topic.getBrokerService().maxUnackedMsgsPerDispatcher / 2)) {
                 if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                     // it removes dispatcher from blocked list and unblocks dispatcher by scheduling read
                     topic.getBrokerService().unblockDispatchersOnUnAckMessages(Lists.newArrayList(this));
                 }
             }
-        } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE
-                && unAckedMessages < maxUnackedMessages / 2) {
+        } else if (blockedDispatcherOnUnackedMsgs == TRUE && unAckedMessages < maxUnackedMessages / 2) {
             // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                 log.info("[{}] Dispatcher is unblocked", name);
@@ -517,24 +516,24 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {
-        return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE;
+        return blockedDispatcherOnUnackedMsgs == TRUE;
     }
-    
+
     public void blockDispatcherOnUnackedMsgs() {
-        BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.set(this, TRUE);
+        blockedDispatcherOnUnackedMsgs = TRUE;
     }
-    
+
     public void unBlockDispatcherOnUnackedMsgs() {
-        BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.set(this, FALSE);
+        blockedDispatcherOnUnackedMsgs = FALSE;
     }
 
     public int getTotalUnackedMessages() {
-        return TOTAL_UNACKED_MESSAGES_UPDATER.get(this);
+        return totalUnackedMessages;
     }
 
     public String getName() {
         return name;
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }
