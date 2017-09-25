@@ -82,7 +82,10 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         try {
             this.reader = service.getPulsarClient().createReader(topic, getMessageId(), conf);
             this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
-            this.service.addReader(this);
+            if (!this.service.addReader(this)) {
+                log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic);
+            }
             receiveMessage();
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
@@ -171,7 +174,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     @Override
     public void close() throws IOException {
         if (reader != null) {
-            this.service.removeReader(this);
+            if (!this.service.removeReader(this)) {
+                log.warn("[{}] Failed to remove reader handler", reader.getTopic());
+            }
             reader.closeAsync().thenAccept(x -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Closed reader asynchronously", reader.getTopic());
