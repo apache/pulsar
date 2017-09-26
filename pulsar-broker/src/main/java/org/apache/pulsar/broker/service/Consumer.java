@@ -354,7 +354,7 @@ public class Consumer {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && UNACKED_MESSAGES_UPDATER.get(this) >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= maxUnackedMessages) {
             blockedConsumerOnUnackedMsgs = true;
         }
         int oldPermits;
@@ -424,13 +424,13 @@ public class Consumer {
 
     public ConsumerStats getStats() {
         stats.availablePermits = getAvailablePermits();
-        stats.unackedMessages = UNACKED_MESSAGES_UPDATER.get(this);
+        stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         return stats;
     }
 
     public int getUnackedMessages() {
-        return UNACKED_MESSAGES_UPDATER.get(this);
+        return unackedMessages;
     }
 
     @Override
@@ -499,7 +499,10 @@ public class Consumer {
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
         if (ackOwnedConsumer != null) {
             int totalAckedMsgs = (int) ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()).first;
-            ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId());
+            if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
+                // Message was already removed by the other consumer
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
             }
@@ -563,7 +566,7 @@ public class Consumer {
             log.debug("[{}-{}] consumer {} received {} msg-redelivery {}", topicName, subscription, consumerId,
                     totalRedeliveryMessages, pendingPositions.size());
         }
-        
+
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
 
@@ -584,7 +587,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         subscription.addUnAckedMessages(ackedMessages);
-        return UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages);
+        return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
     }
 
     private void clearUnAckedMsgs(Consumer consumer) {
@@ -596,7 +599,7 @@ public class Consumer {
         ChannelPromise channelPromse;
         int totalSentMessages;
         long totalSentMessageBytes;
-        
+
         public ChannelPromise getChannelPromse() {
             return channelPromse;
         }
@@ -615,8 +618,8 @@ public class Consumer {
         public void setTotalSentMessageBytes(long totalSentMessageBytes) {
             this.totalSentMessageBytes = totalSentMessageBytes;
         }
-        
+
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 }
