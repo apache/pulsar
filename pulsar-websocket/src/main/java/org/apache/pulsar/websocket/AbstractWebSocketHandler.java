@@ -117,7 +117,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         try {
             close();
         } catch (IOException e) {
-            log.error("Failed in closing producer for topic[{}] with error: [{}]: ", topic, e.getMessage());
+            log.error("Failed in closing WebSocket session for topic {} with error: {}", topic, e.getMessage());
         }
     }
 

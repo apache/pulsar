@@ -88,7 +88,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
-            this.service.addConsumer(this);
+            if (!this.service.addConsumer(this)) {
+                log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic);
+            }
             receiveMessage();
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
@@ -186,7 +189,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     @Override
     public void close() throws IOException {
         if (consumer != null) {
-            this.service.removeConsumer(this);
+            if (!this.service.removeConsumer(this)) {
+                log.warn("[{}] Failed to remove consumer handler", consumer.getTopic());
+            }
             consumer.closeAsync().thenAccept(x -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
