@@ -2100,6 +2100,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void setConfig(ManagedLedgerConfig config) {
         this.config = config;
+        this.cursors.forEach(c -> c.setThrottleMarkDelete(config.getThrottleMarkDelete()));
     }
 
     static interface ManagedLedgerInitializeLedgerCallback {

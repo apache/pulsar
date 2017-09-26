@@ -736,7 +736,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
             // update managed-ledger config and managed-cursor.markDeleteRate
             this.ledger.setConfig(config);
-            this.ledger.getCursors().forEach(c -> c.setThrottleMarkDelete(config.getThrottleMarkDelete()));
             future.complete(null);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to update persistence-policies {}", topic, ex.getMessage());

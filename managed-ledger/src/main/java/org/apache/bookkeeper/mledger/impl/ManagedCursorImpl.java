@@ -121,7 +121,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final RangeSet<PositionImpl> individualDeletedMessages = TreeRangeSet.create();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
-    private final RateLimiter markDeleteLimiter;
+    private RateLimiter markDeleteLimiter;
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -2294,7 +2294,16 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setThrottleMarkDelete(double throttleMarkDelete) {
-        this.markDeleteLimiter.setRate(throttleMarkDelete);
+        if (throttleMarkDelete > 0.0) {
+            if (markDeleteLimiter == null) {
+                markDeleteLimiter = RateLimiter.create(throttleMarkDelete);
+            } else {
+                this.markDeleteLimiter.setRate(throttleMarkDelete);
+            }
+        } else {
+            // Disable mark-delete rate limiter
+            markDeleteLimiter = null;
+        }
     }
     
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
