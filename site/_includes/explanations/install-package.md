@@ -31,12 +31,12 @@ Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
 # Source release
-$ tar xvfz pulsar-{{ site.current_version }}-src.tar.gz
-$ cd pulsar-{{ site.current_version }}
+$ tar xvfz apache-pulsar-{{ site.current_version }}-src.tar.gz
+$ cd apache-pulsar-{{ site.current_version }}
 
 # Binary release
 $ tar xvfz apache-pulsar-{{ site.current_version }}-bin.tar.gz
-$ cd pulsar-{{ site.current_version }}
+$ cd apache-pulsar-{{ site.current_version }}
 ```
 
 ## What your package contains
