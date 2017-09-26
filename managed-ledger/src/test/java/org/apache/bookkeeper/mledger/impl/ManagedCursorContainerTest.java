@@ -263,6 +263,15 @@ public class ManagedCursorContainerTest {
         public int getTotalNonContiguousDeletedMessagesRange() {
             return 0;
         }
+
+        @Override
+        public void setThrottleMarkDelete(double throttleMarkDelete) {
+        }
+
+        @Override
+        public double getThrottleMarkDelete() {
+            return -1;
+        }
     }
 
     @Test

@@ -226,6 +226,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of guaranteed copies (acks to wait before write is complete)
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
+    // Max number of bookies to use when creating a ledger
+    @FieldContext(minValue = 1)
+    private int managedLedgerMaxEnsembleSize = 5;
+    // Max number of copies to store for each message
+    @FieldContext(minValue = 1)
+    private int managedLedgerMaxWriteQuorum = 5;
+    // Max number of guaranteed copies (acks to wait before write is complete)
+    @FieldContext(minValue = 1)
+    private int managedLedgerMaxAckQuorum = 5;
     // Amount of memory to use for caching data payload in managed ledger. This
     // memory
     // is allocated from JVM direct memory and it's shared across all the topics
@@ -849,6 +858,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerDefaultAckQuorum(int managedLedgerDefaultAckQuorum) {
         this.managedLedgerDefaultAckQuorum = managedLedgerDefaultAckQuorum;
+    }
+
+    public int getManagedLedgerMaxEnsembleSize() {
+        return managedLedgerMaxEnsembleSize;
+    }
+
+    public void setManagedLedgerMaxEnsembleSize(int managedLedgerMaxEnsembleSize) {
+        this.managedLedgerMaxEnsembleSize = managedLedgerMaxEnsembleSize;
+    }
+
+    public int getManagedLedgerMaxWriteQuorum() {
+        return managedLedgerMaxWriteQuorum;
+    }
+
+    public void setManagedLedgerMaxWriteQuorum(int managedLedgerMaxWriteQuorum) {
+        this.managedLedgerMaxWriteQuorum = managedLedgerMaxWriteQuorum;
+    }
+
+    public int getManagedLedgerMaxAckQuorum() {
+        return managedLedgerMaxAckQuorum;
+    }
+
+    public void setManagedLedgerMaxAckQuorum(int managedLedgerMaxAckQuorum) {
+        this.managedLedgerMaxAckQuorum = managedLedgerMaxAckQuorum;
     }
 
     public int getManagedLedgerCacheSizeMB() {
