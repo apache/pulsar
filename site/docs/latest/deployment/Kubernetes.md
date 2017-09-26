@@ -262,7 +262,7 @@ You can then access the dashboard in your web browser at [localhost:3000](http:/
 
 #### Pulsar dashboard
 
-While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](../../admin/Dashbaord) reports more detailed current data for individual {% popover topics %}.
+While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](../../admin/Dashboard) reports more detailed current data for individual {% popover topics %}.
 
 For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they've been connected, and much more.
 
