@@ -730,6 +730,21 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return messageDeduplication.checkStatus();
     }
 
+    private CompletableFuture<Void> checkPersistencePolicies() {
+        DestinationName topicName = DestinationName.get(topic);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
+            // update managed-ledger config and managed-cursor.markDeleteRate
+            this.ledger.setConfig(config);
+            future.complete(null);
+        }).exceptionally(ex -> {
+            log.warn("[{}] Failed to update persistence-policies {}", topic, ex.getMessage());
+            future.completeExceptionally(ex);
+            return null;
+        });
+        return future;
+    }
+    
     @Override
     public CompletableFuture<Void> checkReplication() {
         DestinationName name = DestinationName.get(topic);
@@ -1331,7 +1346,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
-        return CompletableFuture.allOf(replicationFuture, dedupFuture);
+        CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
+        return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
     /**

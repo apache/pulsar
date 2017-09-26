@@ -475,4 +475,18 @@ public interface ManagedCursor {
      * @return
      */
     int getTotalNonContiguousDeletedMessagesRange();
+
+    /**
+     * Returns cursor throttle mark-delete rate
+     * 
+     * @return
+     */
+    double getThrottleMarkDelete();
+
+    /**
+     * Update throttle mark delete rate
+     * 
+     */
+    void setThrottleMarkDelete(double throttleMarkDelete);
+
 }

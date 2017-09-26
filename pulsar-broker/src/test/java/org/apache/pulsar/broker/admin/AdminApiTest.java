@@ -43,6 +43,7 @@ import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -132,7 +133,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create otherbroker to test redirect on calls that need
         // namespace ownership
-        mockPulsarSetup = new MockedPulsarService();
+        mockPulsarSetup = new MockedPulsarService(this.conf, this.pulsar, this.admin);
         mockPulsarSetup.setup();
         otherPulsar = mockPulsarSetup.getPulsar();
         otheradmin = mockPulsarSetup.getAdmin();
@@ -1702,111 +1703,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(uriStats.get().subscriptions.size(), 1);
     }
 
-    /**
-     * <pre>
-     * It verifies increasing partitions for partitioned-topic.
-     * 1. create a partitioned-topic
-     * 2. update partitions with larger number of partitions
-     * 3. verify: getPartitionedMetadata and check number of partitions
-     * 4. verify: this api creates existing subscription to new partitioned-topics 
-     *            so, message will not be lost in new partitions 
-     *  a. start producer and produce messages
-     *  b. check existing subscription for new topics and it should have backlog msgs
-     * 
-     * </pre>
-     * 
-     * @param topicName
-     * @throws Exception
-     */
-    @Test
-    public void testIncrementPartitionsOfTopic() throws Exception {
-        final String topicName = "increment-partitionedTopic";
-        final String subName1 = topicName + "-my-sub 1";
-        final String subName2 = topicName + "-my-sub 2";
-        final int startPartitions = 4;
-        final int newPartitions = 8;
-        final String partitionedTopicName = "persistent://prop-xyz/use/ns1/" + topicName;
-
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
-        admin.persistentTopics().createPartitionedTopic(partitionedTopicName, startPartitions);
-        // validate partition topic is created
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                startPartitions);
-
-        // create consumer and subscriptions : check subscriptions
-        PulsarClient client = PulsarClient.create(pulsarUrl.toString());
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer1 = client.subscribe(partitionedTopicName, subName1, conf);
-        assertEquals(admin.persistentTopics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
-        Consumer consumer2 = client.subscribe(partitionedTopicName, subName2, conf);
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(partitionedTopicName)),
-                Sets.newHashSet(subName1, subName2));
-
-        // (1) update partitions
-        admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, newPartitions);
-        // invalidate global-cache to make sure that mock-zk-cache reds fresh data
-        pulsar.getGlobalZkCache().invalidateAll();
-        // verify new partitions have been created
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                newPartitions);
-        // (2) No Msg loss: verify new partitions have the same existing subscription names
-        final String newPartitionTopicName = DestinationName.get(partitionedTopicName).getPartition(startPartitions + 1)
-                .toString();
-
-        // (3) produce messages to all partitions including newly created partitions (RoundRobin)
-        ProducerConfiguration prodConf = new ProducerConfiguration();
-        prodConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = client.createProducer(partitionedTopicName, prodConf);
-        final int totalMessages = newPartitions * 2;
-        for (int i = 0; i < totalMessages; i++) {
-            String message = "message-" + i;
-            producer.send(message.getBytes());
+    static class MockedPulsarService extends MockedPulsarServiceBaseTest {
+        
+        private ServiceConfiguration conf;
+        private PulsarService pulsar;
+        private PulsarAdmin admin;
+        
+        public MockedPulsarService(ServiceConfiguration conf, PulsarService pulsar, PulsarAdmin admin) {
+            super();
+            this.conf = conf;
+            this.pulsar = pulsar;
+            this.admin = admin;
         }
-
-        // (4) verify existing subscription has not lost any message: create new consumer with sub-2: it will load all
-        // newly created partition topics
-        consumer2.close();
-        consumer2 = client.subscribe(partitionedTopicName, subName2, conf);
-        // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(newPartitionTopicName)),
-                Sets.newHashSet(subName1, subName2));
-
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getList("prop-xyz/use/ns1")).size(), newPartitions);
-
-        // test cumulative stats for partitioned topic
-        PartitionedTopicStats topicStats = admin.persistentTopics().getPartitionedStats(partitionedTopicName, false);
-        assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList(subName1, subName2)));
-        assertEquals(topicStats.subscriptions.get(subName2).consumers.size(), 1);
-        assertEquals(topicStats.subscriptions.get(subName2).msgBacklog, totalMessages);
-        assertEquals(topicStats.publishers.size(), 1);
-        assertEquals(topicStats.partitions, Maps.newHashMap());
-
-        // (5) verify: each partition should have backlog
-        topicStats = admin.persistentTopics().getPartitionedStats(partitionedTopicName, true);
-        assertEquals(topicStats.metadata.partitions, newPartitions);
-        Set<String> partitionSet = Sets.newHashSet();
-        for (int i = 0; i < newPartitions; i++) {
-            partitionSet.add(partitionedTopicName + "-partition-" + i);
-        }
-        assertEquals(topicStats.partitions.keySet(), partitionSet);
-        for (int i = 0; i < newPartitions; i++) {
-            PersistentTopicStats partitionStats = topicStats.partitions
-                    .get(DestinationName.get(partitionedTopicName).getPartition(i).toString());
-            assertEquals(partitionStats.publishers.size(), 1);
-            assertEquals(partitionStats.subscriptions.get(subName2).consumers.size(), 1);
-            assertEquals(partitionStats.subscriptions.get(subName2).msgBacklog, 2, 1);
-        }
-
-        producer.close();
-        consumer1.close();
-        consumer2.close();
-        consumer2.close();
-    }
-
-    class MockedPulsarService extends MockedPulsarServiceBaseTest {
+        
         @Override
         protected void setup() throws Exception {
             conf.setLoadBalancerEnabled(false);
@@ -1827,52 +1736,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             return admin;
         }
     }
-    /**
-     * verifies admin api command for non-persistent topic.
-     * It verifies: partitioned-topic, stats
-     * @throws Exception
-     */
-    @Test
-    public void nonPersistentTopics() throws Exception {
-        final String topicName = "nonPersistentTopic";
-
-        final String persistentTopicName = "non-persistent://prop-xyz/use/ns1/" + topicName;
-        // Force to create a destination
-        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0);
-
-        // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient client = PulsarClient.create(pulsarUrl.toString(), clientConf);
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = client.subscribe(persistentTopicName, "my-sub", conf);
-
-        publishMessagesOnPersistentTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10);
-
-        NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
-        assertEquals(topicStats.getSubscriptions().get("my-sub").consumers.size(), 1);
-        assertEquals(topicStats.getPublishers().size(), 0);
-
-        PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
-
-        consumer.close();
-        client.close();
-
-        topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertTrue(topicStats.getSubscriptions().keySet().contains("my-sub"));
-        assertEquals(topicStats.getPublishers().size(), 0);
-
-        // test partitioned-topic
-        final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";
-        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
-        admin.nonPersistentTopics().createPartitionedTopic(partitionedTopicName, 5);
-        assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
-    }
-
+    
     @Test
     public void testDestinationBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterData());

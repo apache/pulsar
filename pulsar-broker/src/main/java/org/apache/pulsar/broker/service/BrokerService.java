@@ -947,7 +947,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void onUpdate(String path, Policies data, Stat stat) {
         final NamespaceName namespace = new NamespaceName(NamespaceBundleFactory.getNamespaceFromPoliciesPath(path));
 
-        log.info("Updated {}", path);
+        log.info("{} updating with {}", path, data);
 
         topics.forEach((name, topicFuture) -> {
             if (namespace.includes(DestinationName.get(name))) {
