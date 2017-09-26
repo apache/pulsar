@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -32,10 +33,15 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.security.PrivateKey;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 
 import com.yahoo.athenz.zts.RoleToken;
@@ -44,7 +50,7 @@ import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
 import com.yahoo.athenz.auth.util.Crypto;
 
-public class AuthenticationAthenz implements Authentication {
+public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
 
     private transient ZTSClient ztsClient = null;
     private String tenantDomain;
@@ -92,7 +98,28 @@ public class AuthenticationAthenz implements Authentication {
     }
 
     @Override
+    public void configure(String encodedAuthParamString) {
+
+        if (isBlank(encodedAuthParamString)) {
+            throw new IllegalArgumentException("authParams must not be empty");
+        }
+
+        // Convert JSON to Map
+        try {
+            ObjectMapper jsonMapper = ObjectMapperFactory.create();
+            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString, new TypeReference<HashMap<String, String>>() {});
+            setAuthParams(authParamsMap);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to parse authParams");
+        }
+    }
+
+    @Override
     public void configure(Map<String, String> authParams) {
+        setAuthParams(authParams);
+    }
+
+    private void setAuthParams(Map<String, String> authParams){
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
@@ -124,7 +151,7 @@ public class AuthenticationAthenz implements Authentication {
     public void close() throws IOException {
     }
 
-    ZTSClient getZtsClient() {
+    private ZTSClient getZtsClient() {
         if (ztsClient == null) {
             ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                     privateKey, keyId);
@@ -133,7 +160,7 @@ public class AuthenticationAthenz implements Authentication {
         return ztsClient;
     }
 
-    PrivateKey loadPrivateKey(String privateKeyURL) {
+    private PrivateKey loadPrivateKey(String privateKeyURL) {
         PrivateKey privateKey = null;
         try {
             URI uri = new URI(privateKeyURL);
