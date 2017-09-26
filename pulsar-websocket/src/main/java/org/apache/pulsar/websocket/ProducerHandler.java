@@ -87,7 +87,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         try {
             ProducerConfiguration conf = getProducerConfiguration();
             this.producer = service.getPulsarClient().createProducer(topic, conf);
-            this.service.addProducer(this);
+            if (!this.service.addProducer(this)) {
+                log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic);
+            }
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating producer on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), topic, e);
@@ -103,7 +106,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     @Override
     public void close() throws IOException {
         if (producer != null) {
-            this.service.removeProducer(this);
+            if (!this.service.removeProducer(this)) {
+                log.warn("[{}] Failed to remove producer handler", producer.getTopic());
+            }
             producer.closeAsync().thenAccept(x -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Closed producer asynchronously", producer.getTopic());
