@@ -198,7 +198,7 @@ configs:
   description: |
     Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When `false`, bookie will use its ipaddress for the registration.
 - name: statsProviderClass
-  default: org.apache.bokkeeper.stats.PrometheusMetricsProvider
+  default: org.apache.bookkeeper.stats.PrometheusMetricsProvider
 - name: prometheusStatsHttpPort
   default: 8000
 - name: dbStorage_writeCacheMaxSizeMb
