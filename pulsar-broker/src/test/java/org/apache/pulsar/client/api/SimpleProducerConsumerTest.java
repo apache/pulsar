@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -2170,12 +2171,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         class EncKeyReader implements CryptoKeyReader {
 
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                     }
@@ -2186,11 +2189,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                     }
@@ -2241,12 +2245,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         class EncKeyReader implements CryptoKeyReader {
 
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                     }
@@ -2257,11 +2263,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
                     }
@@ -2317,12 +2324,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         class EncKeyReader implements CryptoKeyReader {
 
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         log.error("Failed to read certificate from {}", CERT_FILE_PATH);
                     }
@@ -2331,11 +2340,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
-                        return Files.readAllBytes(Paths.get(CERT_FILE_PATH));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
                     } catch (IOException e) {
                         log.error("Failed to read certificate from {}", CERT_FILE_PATH);
                     }
@@ -2379,7 +2389,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 3. KeyReder is not set by consumer
         // Receive should fail since key reader is not setup
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Receive should have failed with no keyreader");
 
         // 4. Set consumer config to consume even if decryption fails
@@ -2391,7 +2401,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int msgNum = 0;
         try {
             // Receive should proceed and deliver encrypted message
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + msgNum++;
             Assert.assertNotEquals(receivedMessage, expectedMessage,
@@ -2410,7 +2420,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 conf);
 
         for (int i = msgNum; i < totalMsg-1; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
@@ -2428,7 +2438,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/myenc-topic1", "my-subscriber-name", conf2);
 
         // Receive should proceed and discard encrypted messages
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         log.info("-- Exiting {} test --", methodName);

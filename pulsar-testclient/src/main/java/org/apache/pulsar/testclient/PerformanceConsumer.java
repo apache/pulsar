@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-
+import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
@@ -215,21 +215,21 @@ public class PerformanceConsumer {
 
         class EncKeyReader implements CryptoKeyReader {
 
-            byte[] encKeyValue;
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             EncKeyReader(byte[] value) {
-                encKeyValue = value;
+                keyInfo.setKey(value);
             }
 
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
                 return null;
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
                 if (keyName.equals(arguments.encKeyName)) {
-                    return encKeyValue;
+                    return keyInfo;
                 }
                 return null;
             }

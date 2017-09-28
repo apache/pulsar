@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -242,25 +243,24 @@ public class PerformanceProducer {
 
         class EncKeyReader implements CryptoKeyReader {
 
-            byte[] encKeyValue;
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             EncKeyReader(byte[] value) {
-                encKeyValue = value;
+                keyInfo.setKey(value);
             }
 
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
                 if (keyName.equals(arguments.encKeyName)) {
-                    return encKeyValue;
+                    return keyInfo;
                 }
                 return null;
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
                 return null;
             }
-
         }
         PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
 

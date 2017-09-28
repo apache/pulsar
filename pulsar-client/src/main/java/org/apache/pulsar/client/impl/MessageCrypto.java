@@ -47,10 +47,11 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -96,8 +97,8 @@ public class MessageCrypto {
     private SecretKey dataKey;
     private LoadingCache<ByteBuffer, SecretKey> dataKeyCache;
 
-    // Map of key name and encrypted gcm key which is sent with encrypted message
-    private ConcurrentHashMap<String, byte[]> encryptedDataKeyMap;
+    // Map of key name and encrypted gcm key, metadata string pair which is sent with encrypted message
+    private ConcurrentHashMap<String, Pair<byte[], String>> encryptedDataKeyMap;
 
     static final SecureRandom secureRandom;
     static {
@@ -118,7 +119,7 @@ public class MessageCrypto {
 
     public MessageCrypto(boolean keyGenNeeded) {
 
-        encryptedDataKeyMap = new ConcurrentHashMap<String, byte[]>();
+        encryptedDataKeyMap = new ConcurrentHashMap<String, Pair<byte[], String>>();
         dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
 
@@ -288,13 +289,13 @@ public class MessageCrypto {
             throw new PulsarClientException.CryptoException("Keyname or KeyReader is null");
         }
 
-        // Read the public key value using callback
-        byte[] keyValue = keyReader.getPublicKey(keyName);
+        // Read the public key and its info using callback
+        EncryptionKeyInfo keyInfo = keyReader.getPublicKey(keyName, "");
 
         PublicKey pubKey;
 
         try {
-            pubKey = loadPublicKey(keyValue);
+            pubKey = loadPublicKey(keyInfo.getKey());
         } catch (Exception e) {
             String msg = "Failed to load public key " + keyName + ". " + e.getMessage();
             log.error(msg);
@@ -324,7 +325,7 @@ public class MessageCrypto {
             log.error("Failed to encrypt data key {}. {}", keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
-        encryptedDataKeyMap.put(keyName, encryptedKey);
+        encryptedDataKeyMap.put(keyName, Pair.of(encryptedKey, keyInfo.getMetada()));
     }
 
     /*
@@ -356,22 +357,37 @@ public class MessageCrypto {
      * 
      * @return encryptedData if success
      */
-    public synchronized ByteBuf encrypt(ConcurrentOpenHashSet<String> encKeys, MessageMetadata.Builder msgMetadata, ByteBuf payload)
-            throws PulsarClientException {
+    public synchronized ByteBuf encrypt(ConcurrentOpenHashSet<String> encKeys, CryptoKeyReader keyReader,
+            MessageMetadata.Builder msgMetadata, ByteBuf payload) throws PulsarClientException {
 
         if (encKeys.isEmpty()) {
             return payload;
         }
 
         // Update message metadata with encrypted data key
-        encKeys.forEach(keyName -> {
-            if (encryptedDataKeyMap.get(keyName) != null) {
-                msgMetadata.addEncryptionKeys(KeyByteValue.newBuilder().setKey(keyName)
-                    .setValue(ByteString.copyFrom(encryptedDataKeyMap.get(keyName))).build());
-            } else {
-                log.warn("Failed to find encrypted Data key for key {}.", keyName);
+        List<String> keyNameList = encKeys.values();
+        for (int i = 0; i < keyNameList.size(); i++) {
+            String keyName = keyNameList.get(i);
+            if (encryptedDataKeyMap.get(keyName) == null) {
+                // Attempt to load the key. This will allow us to load keys as soon as
+                // a new key is added to producer config
+                addPublicKeyCipher(keyName, keyReader);
             }
-        });
+            Pair<byte[], String> keyInfo = encryptedDataKeyMap.get(keyName);
+            if (keyInfo != null) {
+                if (keyInfo.getRight().isEmpty()) {
+                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
+                            .setValue(ByteString.copyFrom(keyInfo.getLeft())).build());
+                } else {
+                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
+                            .setValue(ByteString.copyFrom(keyInfo.getLeft())).setMetadata(keyInfo.getRight()).build());
+                }
+            } else {
+                // We should never reach here.
+                log.error("Failed to find encrypted Data key for key {}.", keyName);
+            }
+
+        }
 
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
@@ -408,15 +424,16 @@ public class MessageCrypto {
         return targetBuf;
     }
 
-    private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, CryptoKeyReader keyReader) {
+    private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, String encKeyMeta,
+            CryptoKeyReader keyReader) {
 
-        // Read the private key value using callback
-        byte[] keyValue = keyReader.getPrivateKey(keyName);
+        // Read the private key info using callback
+        EncryptionKeyInfo keyInfo = keyReader.getPrivateKey(keyName, encKeyMeta);
 
         // Convert key from byte to PivateKey
         PrivateKey privateKey;
         try {
-            privateKey = loadPrivateKey(keyValue);
+            privateKey = loadPrivateKey(keyInfo.getKey());
             if (privateKey == null) {
                 log.error("Failed to load private key {}.", keyName);
                 return false;
@@ -487,14 +504,14 @@ public class MessageCrypto {
         return targetBuf;
     }
 
-    private ByteBuf decryptDataKeyAndData(MessageMetadata msgMetadata, ByteBuf payload, CryptoKeyReader keyReader) {
+    private ByteBuf getKeyAndDecryptData(MessageMetadata msgMetadata, ByteBuf payload) {
 
         ByteBuf decryptedData = null;
 
-        List<KeyByteValue> encKeys = msgMetadata.getEncryptionKeysList();
+        List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
 
         // Go through all keys to retrieve data key from cache
-        for(int i=0; i<encKeys.size(); i++) {
+        for (int i = 0; i < encKeys.size(); i++) {
 
             byte[] msgDataKey = encKeys.get(i).getValue().toByteArray();
             byte[] keyDigest = digest.digest(msgDataKey);
@@ -511,7 +528,7 @@ public class MessageCrypto {
                     break;
                 }
             } catch (Exception e) {
-                // First time, entry won't be present in cache 
+                // First time, entry won't be present in cache
             }
 
         }
@@ -534,7 +551,7 @@ public class MessageCrypto {
 
         // If dataKey is present, attempt to decrypt using the existing key
         if (dataKey != null) {
-            ByteBuf decryptedData = decryptDataKeyAndData(msgMetadata, payload, keyReader);
+            ByteBuf decryptedData = getKeyAndDecryptData(msgMetadata, payload);
             // If decryption succeeded, data is non null
             if (decryptedData != null) {
                 return decryptedData;
@@ -542,20 +559,21 @@ public class MessageCrypto {
         }
 
         // dataKey is null or decryption failed. Attempt to regenerate data key
-        List<KeyByteValue> encKeys = msgMetadata.getEncryptionKeysList();
-        KeyByteValue keyByteValue = encKeys.stream().filter(kbv -> {
+        List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
+        EncryptionKeys encKeyInfo = encKeys.stream().filter(kbv -> {
 
             byte[] encDataKey = kbv.getValue().toByteArray();
-            return decryptDataKey(kbv.getKey(), encDataKey, keyReader);
+            String encKeyMeta = kbv.getMetadata();
+            return decryptDataKey(kbv.getKey(), encDataKey, encKeyMeta, keyReader);
 
         }).findFirst().orElse(null);
 
-        if (keyByteValue == null || dataKey == null) {
+        if (encKeyInfo == null || dataKey == null) {
             // Unable to decrypt data key
             return null;
         }
 
-        return decryptDataKeyAndData(msgMetadata, payload, keyReader);
+        return getKeyAndDecryptData(msgMetadata, payload);
 
     }
 
