@@ -127,7 +127,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         }
 
         if (conf.isEncryptionEnabled()) {
-            this.msgCrypto = new MessageCrypto(true);
+            String logCtx = "[" + topic + "] [" + producerName + "] [" + producerId + "]";
+            this.msgCrypto = new MessageCrypto(logCtx , true);
 
             // Regenerate data key cipher at fixed interval
             keyGenExecutor = Executors.newSingleThreadScheduledExecutor();

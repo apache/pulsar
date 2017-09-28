@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +37,13 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,12 +224,12 @@ public class PerformanceConsumer {
             }
 
             @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 return null;
             }
 
             @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 if (keyName.equals(arguments.encKeyName)) {
                     return keyInfo;
                 }

@@ -37,7 +37,7 @@ message KeyValue {
 message EncryptionKeys {
 	required string key = 1;
 	required bytes value = 2;
-	optional string metadata = 3;
+	repeated KeyValue metadata = 3;
 }
 
 enum CompressionType {

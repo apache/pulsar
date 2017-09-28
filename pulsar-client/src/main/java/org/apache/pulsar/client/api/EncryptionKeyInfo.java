@@ -16,13 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.api;
+
+import java.util.Map;
 
 public class EncryptionKeyInfo {
 
-    private String metadata = "";
+    /* 
+     * This object contains the encryption key and corresponding metadata which contains 
+     * additional information about the key such as version, timestammp
+     */
+    private Map<String,String> metadata = null;
     private byte[] key = null;
-    
+
+    public EncryptionKeyInfo() {
+        this.key = null;
+        this.metadata = null;
+    }
+
+    public EncryptionKeyInfo(byte[] key, Map<String, String> metadata) {
+        this.key = key;
+        this.metadata = metadata;
+    }
+
     public byte[] getKey() {
         return key;
     }
@@ -31,11 +47,11 @@ public class EncryptionKeyInfo {
         this.key = key;
     }
     
-    public String getMetada() {
+    public Map<String, String> getMetadata() {
         return metadata;
     }
     
-    public void setMetadata(String metadata) {
+    public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
     }
 }

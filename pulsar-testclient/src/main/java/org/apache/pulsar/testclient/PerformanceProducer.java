@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,12 +45,13 @@ import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,7 +252,7 @@ public class PerformanceProducer {
             }
 
             @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 if (keyName.equals(arguments.encKeyName)) {
                     return keyInfo;
                 }
@@ -258,7 +260,7 @@ public class PerformanceProducer {
             }
 
             @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 return null;
             }
         }

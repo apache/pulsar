@@ -36,6 +36,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -54,7 +55,6 @@ import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.EncryptionKeyInfo;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -2173,7 +2173,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
@@ -2189,7 +2189,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
@@ -2247,7 +2247,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
@@ -2263,7 +2263,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
@@ -2326,7 +2326,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
             @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {
@@ -2340,7 +2340,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, String keyMeta) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
                 if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
                     try {

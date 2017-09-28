@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.EncryptionKeyInfo;
+import java.util.List;
+import java.util.Map;
 
 public interface CryptoKeyReader {
 
@@ -36,7 +37,7 @@ public interface CryptoKeyReader {
     *            Additional information needed to identify the key
     * @return EncryptionKeyInfo with details about the public key
     * */
-    EncryptionKeyInfo getPublicKey(String keyName, String metadata);
+    EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata);
 
     /*
     * @param keyName
@@ -45,6 +46,6 @@ public interface CryptoKeyReader {
     *            Additional information needed to identify the key
     * @return byte array of the private key value
     */
-    EncryptionKeyInfo getPrivateKey(String keyName, String metadata);
+    EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata);
     
 }
