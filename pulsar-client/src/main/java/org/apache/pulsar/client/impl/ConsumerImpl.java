@@ -157,7 +157,8 @@ public class ConsumerImpl extends ConsumerBase {
 
         // Create msgCrypto if not created already
         if (conf.getCryptoKeyReader() != null) {
-            this.msgCrypto = new MessageCrypto(false);
+            String logCtx = "[" + topic + "] [" + subscription + "]";
+            this.msgCrypto = new MessageCrypto(logCtx , false);
         }
 
         grabCnx();

@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +37,13 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -215,21 +217,21 @@ public class PerformanceConsumer {
 
         class EncKeyReader implements CryptoKeyReader {
 
-            byte[] encKeyValue;
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             EncKeyReader(byte[] value) {
-                encKeyValue = value;
+                keyInfo.setKey(value);
             }
 
             @Override
-            public byte[] getPublicKey(String keyName) {
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 return null;
             }
 
             @Override
-            public byte[] getPrivateKey(String keyName) {
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
                 if (keyName.equals(arguments.encKeyName)) {
-                    return encKeyValue;
+                    return keyInfo;
                 }
                 return null;
             }

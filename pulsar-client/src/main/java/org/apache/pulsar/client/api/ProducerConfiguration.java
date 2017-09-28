@@ -326,6 +326,12 @@ public class ProducerConfiguration implements Serializable {
         this.encryptionKeys.add(key);
     }
 
+    public void removeEncryptionKey(String key) {
+        if (this.encryptionKeys != null) {
+            this.encryptionKeys.remove(key);
+        }
+    }
+
     /**
      * Sets the ProducerCryptoFailureAction to the value specified
      *
