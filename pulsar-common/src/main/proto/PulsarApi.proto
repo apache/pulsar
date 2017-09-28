@@ -34,9 +34,10 @@ message KeyValue {
 	required string value = 2;
 }
 
-message KeyByteValue {
+message EncryptionKeys {
 	required string key = 1;
 	required bytes value = 2;
+	repeated KeyValue metadata = 3;
 }
 
 enum CompressionType {
@@ -69,8 +70,8 @@ message MessageMetadata {
         // the timestamp that this event occurs. it is typically set by applications.
         // if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
         optional uint64 event_time = 12 [default = 0];
-	// Map of encryption key name and encrypted key
-	repeated KeyByteValue encryption_keys = 13;
+	// Contains encryption key name, encrypted key and metadata to describe the key
+	repeated EncryptionKeys encryption_keys = 13;
 	// Algorithm used to encrypt data key
 	optional string encryption_algo = 14;
 	// Additional parameters required by encryption

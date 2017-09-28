@@ -250,11 +250,11 @@ public final class PulsarApi {
   public interface MessageIdDataOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // required int64 ledgerId = 1;
+    // required uint64 ledgerId = 1;
     boolean hasLedgerId();
     long getLedgerId();
     
-    // required int64 entryId = 2;
+    // required uint64 entryId = 2;
     boolean hasEntryId();
     long getEntryId();
     
@@ -301,7 +301,7 @@ public final class PulsarApi {
     }
     
     private int bitField0_;
-    // required int64 ledgerId = 1;
+    // required uint64 ledgerId = 1;
     public static final int LEDGERID_FIELD_NUMBER = 1;
     private long ledgerId_;
     public boolean hasLedgerId() {
@@ -311,7 +311,7 @@ public final class PulsarApi {
       return ledgerId_;
     }
     
-    // required int64 entryId = 2;
+    // required uint64 entryId = 2;
     public static final int ENTRYID_FIELD_NUMBER = 2;
     private long entryId_;
     public boolean hasEntryId() {
@@ -373,10 +373,10 @@ public final class PulsarApi {
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeInt64(1, ledgerId_);
+        output.writeUInt64(1, ledgerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeInt64(2, entryId_);
+        output.writeUInt64(2, entryId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt32(3, partition_);
@@ -394,11 +394,11 @@ public final class PulsarApi {
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(1, ledgerId_);
+          .computeUInt64Size(1, ledgerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(2, entryId_);
+          .computeUInt64Size(2, entryId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -635,12 +635,12 @@ public final class PulsarApi {
             }
             case 8: {
               bitField0_ |= 0x00000001;
-              ledgerId_ = input.readInt64();
+              ledgerId_ = input.readUInt64();
               break;
             }
             case 16: {
               bitField0_ |= 0x00000002;
-              entryId_ = input.readInt64();
+              entryId_ = input.readUInt64();
               break;
             }
             case 24: {
@@ -659,7 +659,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // required int64 ledgerId = 1;
+      // required uint64 ledgerId = 1;
       private long ledgerId_ ;
       public boolean hasLedgerId() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -680,7 +680,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required int64 entryId = 2;
+      // required uint64 entryId = 2;
       private long entryId_ ;
       public boolean hasEntryId() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
@@ -1221,7 +1221,7 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.KeyValue)
   }
   
-  public interface KeyByteValueOrBuilder
+  public interface EncryptionKeysOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
     // required string key = 1;
@@ -1231,19 +1231,25 @@ public final class PulsarApi {
     // required bytes value = 2;
     boolean hasValue();
     com.google.protobuf.ByteString getValue();
+    
+    // repeated .pulsar.proto.KeyValue metadata = 3;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
+        getMetadataList();
+    org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index);
+    int getMetadataCount();
   }
-  public static final class KeyByteValue extends
+  public static final class EncryptionKeys extends
       com.google.protobuf.GeneratedMessageLite
-      implements KeyByteValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
-    // Use KeyByteValue.newBuilder() to construct.
+      implements EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use EncryptionKeys.newBuilder() to construct.
     private io.netty.util.Recycler.Handle handle;
-    private KeyByteValue(io.netty.util.Recycler.Handle handle) {
+    private EncryptionKeys(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
-     private static final io.netty.util.Recycler<KeyByteValue> RECYCLER = new io.netty.util.Recycler<KeyByteValue>() {
-            protected KeyByteValue newObject(Handle handle) {
-              return new KeyByteValue(handle);
+     private static final io.netty.util.Recycler<EncryptionKeys> RECYCLER = new io.netty.util.Recycler<EncryptionKeys>() {
+            protected EncryptionKeys newObject(Handle handle) {
+              return new EncryptionKeys(handle);
             }
           };
         
@@ -1255,14 +1261,14 @@ public final class PulsarApi {
             if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private KeyByteValue(boolean noInit) {}
+    private EncryptionKeys(boolean noInit) {}
     
-    private static final KeyByteValue defaultInstance;
-    public static KeyByteValue getDefaultInstance() {
+    private static final EncryptionKeys defaultInstance;
+    public static EncryptionKeys getDefaultInstance() {
       return defaultInstance;
     }
     
-    public KeyByteValue getDefaultInstanceForType() {
+    public EncryptionKeys getDefaultInstanceForType() {
       return defaultInstance;
     }
     
@@ -1309,9 +1315,31 @@ public final class PulsarApi {
       return value_;
     }
     
+    // repeated .pulsar.proto.KeyValue metadata = 3;
+    public static final int METADATA_FIELD_NUMBER = 3;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> metadata_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getMetadataList() {
+      return metadata_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder> 
+        getMetadataOrBuilderList() {
+      return metadata_;
+    }
+    public int getMetadataCount() {
+      return metadata_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index) {
+      return metadata_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder getMetadataOrBuilder(
+        int index) {
+      return metadata_.get(index);
+    }
+    
     private void initFields() {
       key_ = "";
       value_ = com.google.protobuf.ByteString.EMPTY;
+      metadata_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1325,6 +1353,12 @@ public final class PulsarApi {
       if (!hasValue()) {
         memoizedIsInitialized = 0;
         return false;
+      }
+      for (int i = 0; i < getMetadataCount(); i++) {
+        if (!getMetadata(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -1344,6 +1378,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeBytes(2, value_);
       }
+      for (int i = 0; i < metadata_.size(); i++) {
+        output.writeMessage(3, metadata_.get(i));
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -1360,6 +1397,10 @@ public final class PulsarApi {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(2, value_);
       }
+      for (int i = 0; i < metadata_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, metadata_.get(i));
+      }
       memoizedSerializedSize = size;
       return size;
     }
@@ -1371,40 +1412,40 @@ public final class PulsarApi {
       return super.writeReplace();
     }
     
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(byte[] data)
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         byte[] data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(java.io.InputStream input)
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(java.io.InputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseDelimitedFrom(java.io.InputStream input)
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input)) {
@@ -1413,7 +1454,7 @@ public final class PulsarApi {
         return null;
       }
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseDelimitedFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseDelimitedFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
@@ -1424,12 +1465,12 @@ public final class PulsarApi {
         return null;
       }
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         com.google.protobuf.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue parseFrom(
+    public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
@@ -1439,16 +1480,16 @@ public final class PulsarApi {
     
     public static Builder newBuilder() { return Builder.create(); }
     public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue prototype) {
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys prototype) {
       return newBuilder().mergeFrom(prototype);
     }
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue, Builder>
-        implements org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.newBuilder()
+          org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.newBuilder()
       private final io.netty.util.Recycler.Handle handle;
       private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
@@ -1477,6 +1518,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         value_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
+        metadata_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -1484,21 +1527,21 @@ public final class PulsarApi {
         return create().mergeFrom(buildPartial());
       }
       
-      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getDefaultInstanceForType() {
-        return org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.getDefaultInstance();
+      public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.getDefaultInstance();
       }
       
-      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue build() {
-        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = buildPartial();
+      public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
         return result;
       }
       
-      private org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue buildParsed()
+      private org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys buildParsed()
           throws com.google.protobuf.InvalidProtocolBufferException {
-        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = buildPartial();
+        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
             result).asInvalidProtocolBufferException();
@@ -1506,8 +1549,8 @@ public final class PulsarApi {
         return result;
       }
       
-      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue buildPartial() {
-        org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue result = org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.RECYCLER.get();
+      public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys result = org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.RECYCLER.get();
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -1518,17 +1561,32 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.value_ = value_;
+        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+          metadata_ = java.util.Collections.unmodifiableList(metadata_);
+          bitField0_ = (bitField0_ & ~0x00000004);
+        }
+        result.metadata_ = metadata_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
       
-      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue other) {
-        if (other == org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.getDefaultInstance()) return this;
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.getDefaultInstance()) return this;
         if (other.hasKey()) {
           setKey(other.getKey());
         }
         if (other.hasValue()) {
           setValue(other.getValue());
+        }
+        if (!other.metadata_.isEmpty()) {
+          if (metadata_.isEmpty()) {
+            metadata_ = other.metadata_;
+            bitField0_ = (bitField0_ & ~0x00000004);
+          } else {
+            ensureMetadataIsMutable();
+            metadata_.addAll(other.metadata_);
+          }
+          
         }
         return this;
       }
@@ -1541,6 +1599,12 @@ public final class PulsarApi {
         if (!hasValue()) {
           
           return false;
+        }
+        for (int i = 0; i < getMetadataCount(); i++) {
+          if (!getMetadata(i).isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }
@@ -1575,6 +1639,12 @@ public final class PulsarApi {
             case 18: {
               bitField0_ |= 0x00000002;
               value_ = input.readBytes();
+              break;
+            }
+            case 26: {
+              org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addMetadata(subBuilder.buildPartial());
               break;
             }
           }
@@ -1643,15 +1713,104 @@ public final class PulsarApi {
         return this;
       }
       
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.KeyByteValue)
+      // repeated .pulsar.proto.KeyValue metadata = 3;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> metadata_ =
+        java.util.Collections.emptyList();
+      private void ensureMetadataIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          metadata_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue>(metadata_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getMetadataList() {
+        return java.util.Collections.unmodifiableList(metadata_);
+      }
+      public int getMetadataCount() {
+        return metadata_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index) {
+        return metadata_.get(index);
+      }
+      public Builder setMetadata(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMetadataIsMutable();
+        metadata_.set(index, value);
+        
+        return this;
+      }
+      public Builder setMetadata(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensureMetadataIsMutable();
+        metadata_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addMetadata(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMetadataIsMutable();
+        metadata_.add(value);
+        
+        return this;
+      }
+      public Builder addMetadata(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMetadataIsMutable();
+        metadata_.add(index, value);
+        
+        return this;
+      }
+      public Builder addMetadata(
+          org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensureMetadataIsMutable();
+        metadata_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addMetadata(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensureMetadataIsMutable();
+        metadata_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllMetadata(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> values) {
+        ensureMetadataIsMutable();
+        super.addAll(values, metadata_);
+        
+        return this;
+      }
+      public Builder clearMetadata() {
+        metadata_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        
+        return this;
+      }
+      public Builder removeMetadata(int index) {
+        ensureMetadataIsMutable();
+        metadata_.remove(index);
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.EncryptionKeys)
     }
     
     static {
-      defaultInstance = new KeyByteValue(true);
+      defaultInstance = new EncryptionKeys(true);
       defaultInstance.initFields();
     }
     
-    // @@protoc_insertion_point(class_scope:pulsar.proto.KeyByteValue)
+    // @@protoc_insertion_point(class_scope:pulsar.proto.EncryptionKeys)
   }
   
   public interface MessageMetadataOrBuilder
@@ -1704,10 +1863,10 @@ public final class PulsarApi {
     boolean hasEventTime();
     long getEventTime();
     
-    // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
-    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> 
+    // repeated .pulsar.proto.EncryptionKeys encryption_keys = 13;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> 
         getEncryptionKeysList();
-    org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index);
+    org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys getEncryptionKeys(int index);
     int getEncryptionKeysCount();
     
     // optional string encryption_algo = 14;
@@ -1944,23 +2103,23 @@ public final class PulsarApi {
       return eventTime_;
     }
     
-    // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
+    // repeated .pulsar.proto.EncryptionKeys encryption_keys = 13;
     public static final int ENCRYPTION_KEYS_FIELD_NUMBER = 13;
-    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> encryptionKeys_;
-    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> getEncryptionKeysList() {
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> encryptionKeys_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> getEncryptionKeysList() {
       return encryptionKeys_;
     }
-    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder> 
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeysOrBuilder> 
         getEncryptionKeysOrBuilderList() {
       return encryptionKeys_;
     }
     public int getEncryptionKeysCount() {
       return encryptionKeys_.size();
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index) {
+    public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys getEncryptionKeys(int index) {
       return encryptionKeys_.get(index);
     }
-    public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValueOrBuilder getEncryptionKeysOrBuilder(
+    public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeysOrBuilder getEncryptionKeysOrBuilder(
         int index) {
       return encryptionKeys_.get(index);
     }
@@ -2592,7 +2751,7 @@ public final class PulsarApi {
               break;
             }
             case 106: {
-              org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.newBuilder();
+              org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addEncryptionKeys(subBuilder.buildPartial());
               break;
@@ -2995,27 +3154,27 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.KeyByteValue encryption_keys = 13;
-      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> encryptionKeys_ =
+      // repeated .pulsar.proto.EncryptionKeys encryption_keys = 13;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> encryptionKeys_ =
         java.util.Collections.emptyList();
       private void ensureEncryptionKeysIsMutable() {
         if (!((bitField0_ & 0x00000800) == 0x00000800)) {
-          encryptionKeys_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue>(encryptionKeys_);
+          encryptionKeys_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys>(encryptionKeys_);
           bitField0_ |= 0x00000800;
          }
       }
       
-      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> getEncryptionKeysList() {
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> getEncryptionKeysList() {
         return java.util.Collections.unmodifiableList(encryptionKeys_);
       }
       public int getEncryptionKeysCount() {
         return encryptionKeys_.size();
       }
-      public org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue getEncryptionKeys(int index) {
+      public org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys getEncryptionKeys(int index) {
         return encryptionKeys_.get(index);
       }
       public Builder setEncryptionKeys(
-          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys value) {
         if (value == null) {
           throw new NullPointerException();
         }
@@ -3025,13 +3184,13 @@ public final class PulsarApi {
         return this;
       }
       public Builder setEncryptionKeys(
-          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder builderForValue) {
         ensureEncryptionKeysIsMutable();
         encryptionKeys_.set(index, builderForValue.build());
         
         return this;
       }
-      public Builder addEncryptionKeys(org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+      public Builder addEncryptionKeys(org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys value) {
         if (value == null) {
           throw new NullPointerException();
         }
@@ -3041,7 +3200,7 @@ public final class PulsarApi {
         return this;
       }
       public Builder addEncryptionKeys(
-          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue value) {
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys value) {
         if (value == null) {
           throw new NullPointerException();
         }
@@ -3051,21 +3210,21 @@ public final class PulsarApi {
         return this;
       }
       public Builder addEncryptionKeys(
-          org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+          org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder builderForValue) {
         ensureEncryptionKeysIsMutable();
         encryptionKeys_.add(builderForValue.build());
         
         return this;
       }
       public Builder addEncryptionKeys(
-          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue.Builder builderForValue) {
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder builderForValue) {
         ensureEncryptionKeysIsMutable();
         encryptionKeys_.add(index, builderForValue.build());
         
         return this;
       }
       public Builder addAllEncryptionKeys(
-          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue> values) {
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys> values) {
         ensureEncryptionKeysIsMutable();
         super.addAll(values, encryptionKeys_);
         

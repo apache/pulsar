@@ -33,7 +33,10 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -48,9 +51,11 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyByteValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -91,13 +96,14 @@ public class MessageCrypto {
     private byte[] iv = new byte[ivLen];
     private Cipher cipher;
     MessageDigest digest;
+    private String logCtx;
 
     // Data key which is used to encrypt message
     private SecretKey dataKey;
     private LoadingCache<ByteBuffer, SecretKey> dataKeyCache;
 
-    // Map of key name and encrypted gcm key which is sent with encrypted message
-    private ConcurrentHashMap<String, byte[]> encryptedDataKeyMap;
+    // Map of key name and encrypted gcm key, metadata pair which is sent with encrypted message
+    private ConcurrentHashMap<String, EncryptionKeyInfo> encryptedDataKeyMap;
 
     static final SecureRandom secureRandom;
     static {
@@ -116,9 +122,9 @@ public class MessageCrypto {
         secureRandom.nextBytes(new byte[ivLen]);
     }
 
-    public MessageCrypto(boolean keyGenNeeded) {
+    public MessageCrypto(String logCtx, boolean keyGenNeeded) {
 
-        encryptedDataKeyMap = new ConcurrentHashMap<String, byte[]>();
+        encryptedDataKeyMap = new ConcurrentHashMap<String, EncryptionKeyInfo>();
         dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
 
@@ -146,7 +152,7 @@ public class MessageCrypto {
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
 
             cipher = null;
-            log.error("MessageCrypto initialization Failed {}", e.getMessage());
+            log.error("{} MessageCrypto initialization Failed {}", logCtx, e.getMessage());
 
         }
 
@@ -288,15 +294,15 @@ public class MessageCrypto {
             throw new PulsarClientException.CryptoException("Keyname or KeyReader is null");
         }
 
-        // Read the public key value using callback
-        byte[] keyValue = keyReader.getPublicKey(keyName);
+        // Read the public key and its info using callback
+        EncryptionKeyInfo keyInfo = keyReader.getPublicKey(keyName, null);
 
         PublicKey pubKey;
 
         try {
-            pubKey = loadPublicKey(keyValue);
+            pubKey = loadPublicKey(keyInfo.getKey());
         } catch (Exception e) {
-            String msg = "Failed to load public key " + keyName + ". " + e.getMessage();
+            String msg = logCtx + "Failed to load public key " + keyName + ". " + e.getMessage();
             log.error(msg);
             throw new PulsarClientException.CryptoException(msg);
         }
@@ -312,7 +318,7 @@ public class MessageCrypto {
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
             } else {
-                String msg = "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
+                String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
                 log.error(msg);
                 throw new PulsarClientException.CryptoException(msg);
             }
@@ -321,10 +327,11 @@ public class MessageCrypto {
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
                 | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("Failed to encrypt data key {}. {}", keyName, e.getMessage());
+            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
-        encryptedDataKeyMap.put(keyName, encryptedKey);
+        EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
+        encryptedDataKeyMap.put(keyName, eki);
     }
 
     /*
@@ -356,22 +363,42 @@ public class MessageCrypto {
      * 
      * @return encryptedData if success
      */
-    public synchronized ByteBuf encrypt(ConcurrentOpenHashSet<String> encKeys, MessageMetadata.Builder msgMetadata, ByteBuf payload)
-            throws PulsarClientException {
+    public synchronized ByteBuf encrypt(ConcurrentOpenHashSet<String> encKeys, CryptoKeyReader keyReader,
+            MessageMetadata.Builder msgMetadata, ByteBuf payload) throws PulsarClientException {
 
         if (encKeys.isEmpty()) {
             return payload;
         }
 
         // Update message metadata with encrypted data key
-        encKeys.forEach(keyName -> {
-            if (encryptedDataKeyMap.get(keyName) != null) {
-                msgMetadata.addEncryptionKeys(KeyByteValue.newBuilder().setKey(keyName)
-                    .setValue(ByteString.copyFrom(encryptedDataKeyMap.get(keyName))).build());
-            } else {
-                log.warn("Failed to find encrypted Data key for key {}.", keyName);
+        List<String> keyNameList = encKeys.values();
+        for (int i = 0; i < keyNameList.size(); i++) {
+            String keyName = keyNameList.get(i);
+            if (encryptedDataKeyMap.get(keyName) == null) {
+                // Attempt to load the key. This will allow us to load keys as soon as
+                // a new key is added to producer config
+                addPublicKeyCipher(keyName, keyReader);
             }
-        });
+            EncryptionKeyInfo keyInfo = encryptedDataKeyMap.get(keyName);
+            if (keyInfo != null) {
+                if (keyInfo.getMetadata() != null && !keyInfo.getMetadata().isEmpty()) {
+                    List<KeyValue> kvList = new ArrayList<KeyValue>();
+                    keyInfo.getMetadata().forEach( (key, value) -> {
+                        kvList.add(KeyValue.newBuilder().setKey(key).setValue(value).build());
+                    });
+                    msgMetadata.addEncryptionKeys(
+                            EncryptionKeys.newBuilder().setKey(keyName).setValue(ByteString.copyFrom(keyInfo.getKey()))
+                                    .addAllMetadata(kvList).build());
+                } else {
+                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
+                            .setValue(ByteString.copyFrom(keyInfo.getKey())).build());
+                }
+            } else {
+                // We should never reach here.
+                log.error("{} Failed to find encrypted Data key for key {}.", logCtx, keyName);
+            }
+
+        }
 
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
@@ -399,7 +426,7 @@ public class MessageCrypto {
                 | InvalidAlgorithmParameterException | ShortBufferException e) {
 
             targetBuf.release();
-            log.error("Failed to encrypt message. {}", e);
+            log.error("{} Failed to encrypt message. {}", logCtx, e);
             throw new PulsarClientException.CryptoException(e.getMessage());
 
         }
@@ -408,21 +435,27 @@ public class MessageCrypto {
         return targetBuf;
     }
 
-    private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, CryptoKeyReader keyReader) {
+    private boolean decryptDataKey(String keyName, byte[] encryptedDataKey, List<KeyValue> encKeyMeta,
+            CryptoKeyReader keyReader) {
 
-        // Read the private key value using callback
-        byte[] keyValue = keyReader.getPrivateKey(keyName);
+        Map<String, String> keyMeta = new HashMap<String, String>();
+        encKeyMeta.forEach(kv -> {
+            keyMeta.put(kv.getKey(), kv.getValue());
+        });
+
+        // Read the private key info using callback
+        EncryptionKeyInfo keyInfo = keyReader.getPrivateKey(keyName, keyMeta);
 
         // Convert key from byte to PivateKey
         PrivateKey privateKey;
         try {
-            privateKey = loadPrivateKey(keyValue);
+            privateKey = loadPrivateKey(keyInfo.getKey());
             if (privateKey == null) {
-                log.error("Failed to load private key {}.", keyName);
+                log.error("{} Failed to load private key {}.", logCtx, keyName);
                 return false;
             }
         } catch (Exception e) {
-            log.error("Failed to decrypt data key {} to decrypt messages {}", keyName, e.getMessage());
+            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
         }
 
@@ -449,7 +482,7 @@ public class MessageCrypto {
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
                 | NoSuchPaddingException | InvalidKeyException e) {
-            log.error("Failed to decrypt data key {} to decrypt messages {}", keyName, e.getMessage());
+            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
         }
         dataKey = new SecretKeySpec(dataKeyValue, "AES");
@@ -481,26 +514,25 @@ public class MessageCrypto {
                 | BadPaddingException | ShortBufferException e) {
             targetBuf.release();
             targetBuf = null;
-            log.error("Failed to decrypt message {}", e.getMessage());
+            log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
         }
 
         return targetBuf;
     }
 
-    private ByteBuf decryptDataKeyAndData(MessageMetadata msgMetadata, ByteBuf payload, CryptoKeyReader keyReader) {
+    private ByteBuf getKeyAndDecryptData(MessageMetadata msgMetadata, ByteBuf payload) {
 
         ByteBuf decryptedData = null;
 
-        List<KeyByteValue> encKeys = msgMetadata.getEncryptionKeysList();
+        List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
 
         // Go through all keys to retrieve data key from cache
-        for(int i=0; i<encKeys.size(); i++) {
+        for (int i = 0; i < encKeys.size(); i++) {
 
             byte[] msgDataKey = encKeys.get(i).getValue().toByteArray();
             byte[] keyDigest = digest.digest(msgDataKey);
-            SecretKey storedSecretKey = null;
-            try {
-                storedSecretKey = dataKeyCache.get(ByteBuffer.wrap(keyDigest));
+            SecretKey storedSecretKey = dataKeyCache.getIfPresent(ByteBuffer.wrap(keyDigest));
+            if (storedSecretKey != null) {
 
                 // Taking a small performance hit here if the hash collides. When it
                 // retruns a different key, decryption fails. At this point, we would
@@ -510,8 +542,9 @@ public class MessageCrypto {
                 if (decryptedData != null) {
                     break;
                 }
-            } catch (Exception e) {
-                // First time, entry won't be present in cache 
+            } else {
+                // First time, entry won't be present in cache
+                log.debug("{} Failed to decrypt data or data key is not in cache. Will attempt to refresh", logCtx);
             }
 
         }
@@ -534,7 +567,7 @@ public class MessageCrypto {
 
         // If dataKey is present, attempt to decrypt using the existing key
         if (dataKey != null) {
-            ByteBuf decryptedData = decryptDataKeyAndData(msgMetadata, payload, keyReader);
+            ByteBuf decryptedData = getKeyAndDecryptData(msgMetadata, payload);
             // If decryption succeeded, data is non null
             if (decryptedData != null) {
                 return decryptedData;
@@ -542,20 +575,21 @@ public class MessageCrypto {
         }
 
         // dataKey is null or decryption failed. Attempt to regenerate data key
-        List<KeyByteValue> encKeys = msgMetadata.getEncryptionKeysList();
-        KeyByteValue keyByteValue = encKeys.stream().filter(kbv -> {
+        List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
+        EncryptionKeys encKeyInfo = encKeys.stream().filter(kbv -> {
 
             byte[] encDataKey = kbv.getValue().toByteArray();
-            return decryptDataKey(kbv.getKey(), encDataKey, keyReader);
+            List<KeyValue> encKeyMeta = kbv.getMetadataList();
+            return decryptDataKey(kbv.getKey(), encDataKey, encKeyMeta, keyReader);
 
         }).findFirst().orElse(null);
 
-        if (keyByteValue == null || dataKey == null) {
+        if (encKeyInfo == null || dataKey == null) {
             // Unable to decrypt data key
             return null;
         }
 
-        return decryptDataKeyAndData(msgMetadata, payload, keyReader);
+        return getKeyAndDecryptData(msgMetadata, payload);
 
     }
 
