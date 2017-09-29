@@ -433,4 +433,86 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         admin.persistentTopics().deletePartitionedTopic(topicName);
     }
+
+    @Test
+    public void testActiveConsumerFailoverWithDelay() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
+        final String subName = "sub1";
+        final int numMsgs = 100;
+        List<Message> receivedMessages = Lists.newArrayList();
+
+        ConsumerConfiguration consumerConf1 = new ConsumerConfiguration();
+        consumerConf1.setSubscriptionType(SubscriptionType.Failover);
+        consumerConf1.setConsumerName("1");
+        consumerConf1.setMessageListener((consumer, msg) -> {
+            try {
+                synchronized (receivedMessages) {
+                    receivedMessages.add(msg);
+                }
+                consumer.acknowledge(msg);
+            } catch (Exception e) {
+                fail("Should not fail");
+            }
+        });
+
+        ConsumerConfiguration consumerConf2 = new ConsumerConfiguration();
+        consumerConf2.setSubscriptionType(SubscriptionType.Failover);
+        consumerConf2.setConsumerName("2");
+        consumerConf2.setMessageListener((consumer, msg) -> {
+            try {
+                synchronized (receivedMessages) {
+                    receivedMessages.add(msg);
+                }
+                consumer.acknowledge(msg);
+            } catch (Exception e) {
+                fail("Should not fail");
+            }
+        });
+
+        conf.setActiveConsumerFailoverDelayTimeMillis(500);
+        restartBroker();
+
+        // create subscription
+        Consumer consumer = pulsarClient.subscribe(topicName, subName, consumerConf1);
+        consumer.close();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentSubscription subRef = topicRef.getSubscription(subName);
+
+        // enqueue messages
+        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
+        Producer producer = pulsarClient.createProducer(topicName);
+        for (int i = 0; i < numMsgs; i++) {
+            String message = "my-message-" + i;
+            futures.add(producer.sendAsync(message.getBytes()));
+        }
+        FutureUtil.waitForAll(futures).get();
+        futures.clear();
+        producer.close();
+
+        // two consumers subscribe at almost the same time
+        CompletableFuture<Consumer> subscribeFuture2 = pulsarClient.subscribeAsync(topicName, subName, consumerConf2);
+        CompletableFuture<Consumer> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
+
+        // wait for all messages to be dequeued
+        int retry = 15;
+        for (int i = 0; i < retry && subRef.getNumberOfEntriesInBacklog() > 0; i++) {
+            if (i != retry - 1) {
+                Thread.sleep(100);
+            }
+        }
+
+        // check if message duplication has occurred
+        assertEquals(receivedMessages.size(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        for (int i = 0; i < receivedMessages.size(); i++) {
+            Assert.assertNotNull(receivedMessages.get(i));
+            Assert.assertEquals(new String(receivedMessages.get(i).getData()), "my-message-" + i);
+        }
+
+        subscribeFuture1.get().close();
+        subscribeFuture2.get().unsubscribe();
+        admin.persistentTopics().delete(topicName);
+        resetConfig();
+        restartBroker();
+    }
 }

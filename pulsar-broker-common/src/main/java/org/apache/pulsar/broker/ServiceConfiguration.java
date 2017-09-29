@@ -78,6 +78,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerDeleteInactiveTopicsFrequencySeconds = 60;
     // How frequently to proactively check and purge expired messages
     private int messageExpiryCheckIntervalInMinutes = 5;
+    // How long to delay rewinding cursor and dispatching messages when active consumer is changed
+    private int activeConsumerFailoverDelayTimeMillis = 1000;
 
     // Set the default behavior for message deduplication in the broker
     // This can be overridden per-namespace. If enabled, broker will reject
@@ -519,6 +521,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBrokerDeduplicationEnabled(boolean brokerDeduplicationEnabled) {
         this.brokerDeduplicationEnabled = brokerDeduplicationEnabled;
+    }
+
+    public int getActiveConsumerFailoverDelayTimeMillis() {
+        return activeConsumerFailoverDelayTimeMillis;
+    }
+
+    public void setActiveConsumerFailoverDelayTimeMillis(int activeConsumerFailoverDelayTimeMillis) {
+        this.activeConsumerFailoverDelayTimeMillis = activeConsumerFailoverDelayTimeMillis;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {

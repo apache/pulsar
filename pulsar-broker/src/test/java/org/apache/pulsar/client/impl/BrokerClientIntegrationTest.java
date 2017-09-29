@@ -394,6 +394,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final NavigableMap<Long, TimestampEntryCount> publishTimeIdMap = new ConcurrentSkipListMap<>();
 
+        // set delay time to start dispatching messages to active consumer in order to avoid message duplication
+        conf.setActiveConsumerFailoverDelayTimeMillis(500);
+        restartBroker();
+
         consConfig.setSubscriptionType(subType);
         consConfig.setMessageListener((MessageListener) (Consumer consumer, Message msg) -> {
             try {
@@ -413,7 +417,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         admin.namespaces().setRetention(destName.getNamespace(), policy);
 
-        Consumer consumer = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
+        Consumer consumer1 = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
+        Consumer consumer2 = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
         final Producer producer = pulsarClient.createProducer(destName.toString());
 
         log.info("warm up started for " + destName.toString());
@@ -426,7 +431,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // sleep to ensure receiving of msgs
         for (int n = 0; n < 10 && received.size() < warmup; n++) {
-            Thread.sleep(100);
+            Thread.sleep(200);
         }
 
         // validate received msgs
@@ -465,7 +470,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Assert.assertTrue(subList.contains(subsId));
         admin.persistentTopics().resetCursor(destName.toString(), subsId, timestamp);
 
-        consumer = pulsarClient.subscribe(destName.toString(), subsId, consConfig);
         Thread.sleep(3000);
         int totalExpected = 0;
         for (TimestampEntryCount tec : expectedMessages.values()) {
@@ -473,7 +477,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
         // validate that replay happens after the timestamp
         Assert.assertTrue(publishTimeIdMap.firstEntry().getKey() >= timestamp);
-        consumer.close();
+        consumer1.close();
+        consumer2.close();
         producer.close();
         // validate that expected and received counts match
         int totalReceived = 0;
@@ -481,6 +486,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             totalReceived += tec.numMessages;
         }
         Assert.assertEquals(totalReceived, totalExpected, "did not receive all messages on replay after reset");
+
+        resetConfig();
+        restartBroker();
     }
 
     /**
