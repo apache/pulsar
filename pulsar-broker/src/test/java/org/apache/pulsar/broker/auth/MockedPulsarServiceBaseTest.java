@@ -131,7 +131,10 @@ public abstract class MockedPulsarServiceBaseTest {
     protected final void internalCleanup() throws Exception {
         try {
             admin.close();
-            pulsarClient.close();
+            // There are some test cases where pulsarClient is not initialized.
+            if (pulsarClient != null) {
+                pulsarClient.close();
+            }
             pulsar.close();
             mockBookKeeper.reallyShutdow();
             mockZookKeeper.shutdown();

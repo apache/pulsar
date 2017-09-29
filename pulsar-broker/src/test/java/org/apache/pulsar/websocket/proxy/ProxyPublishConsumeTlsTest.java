@@ -23,19 +23,14 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.client.api.TlsProducerConsumerTest;
+import org.apache.pulsar.client.api.TlsProducerConsumerBase;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -51,14 +46,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
-public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
+public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     protected String methodName;
     private int port;
     private int tlsPort;
-    private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
     private ProxyServer proxyServer;
     private WebSocketService service;
@@ -66,8 +57,7 @@ public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
     @BeforeMethod
     public void setup() throws Exception {
         super.setup();
-
-        this.internalSetupForTls();
+        super.internalSetUpForNamespace();
 
         port = PortManager.nextFreePort();
         tlsPort = PortManager.nextFreePort();
@@ -77,6 +67,7 @@ public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
         config.setTlsEnabled(true);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setClusterName("use");
         config.setGlobalZookeeperServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
@@ -95,20 +86,17 @@ public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
 
     }
 
-    @Test(timeOut=10000)
-    public void socketTest() throws InterruptedException, NoSuchAlgorithmException, KeyManagementException {
-        String consumerUri = "wss://localhost:" + tlsPort + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+    @Test(timeOut = 30000)
+    public void socketTest() throws InterruptedException, GeneralSecurityException {
+        String consumerUri =
+                "wss://localhost:" + tlsPort + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + tlsPort + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
-        KeyManager[] keyManagers = null;
-        TrustManager[] trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
-        sslCtx.init(keyManagers, trustManagers, new SecureRandom());
-
         SslContextFactory sslContextFactory = new SslContextFactory();
-        sslContextFactory.setSslContext(sslCtx);
+        sslContextFactory.setSslContext(SecurityUtility
+                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(TLS_TRUST_CERT_FILE_PATH)));
 
         WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
@@ -134,6 +122,7 @@ public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } catch (Throwable t) {
             log.error(t.getMessage());
+            Assert.fail(t.getMessage());
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
@@ -153,5 +142,5 @@ public class ProxyPublishConsumeTls extends TlsProducerConsumerTest {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTls.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTlsTest.class);
 }
