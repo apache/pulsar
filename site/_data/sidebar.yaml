@@ -97,6 +97,8 @@ groups:
 - title: Adaptors
   dir: adaptors
   docs:
+  - title: Apache Kafka client wrapper
+    endpoint: KafkaWrapper
   - title: Spark Streaming
     endpoint: PulsarSpark
   - title: Apache Storm
