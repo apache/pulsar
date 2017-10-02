@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -31,19 +34,23 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -51,6 +58,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -343,6 +351,166 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
 
+    }
+
+    /**
+     * Verify unloading topic
+     * 
+     * @throws Exception
+     */
+    @Test(dataProvider = "topicType")
+    public void testUnloadTopic(final String topicType) throws Exception {
+
+        final String namespace = "prop-xyz/use/ns2";
+        final String topicName = topicType + "://" + namespace + "/topic1";
+        admin.namespaces().createNamespace(namespace);
+
+        // create a topic by creating a producer
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+
+        Topic topic = pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+        final boolean isPersistentTopic = topic instanceof PersistentTopic;
+
+        // (1) unload the topic
+        unloadTopic(topicName, isPersistentTopic);
+        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        // topic must be removed
+        assertNull(topic);
+
+        // recreation of producer will load the topic again
+        producer = pulsarClient.createProducer(topicName);
+        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+        // unload the topic
+        unloadTopic(topicName, isPersistentTopic);
+        // producer will retry and recreate the topic
+        for (int i = 0; i < 5; i++) {
+            topic = pulsar.getBrokerService().getTopicReference(topicName);
+            if (topic == null || i != 4) {
+                Thread.sleep(200);
+            }
+        }
+        // topic should be loaded by this time
+        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        assertNotNull(topic);
+    }
+
+    private void unloadTopic(String topicName, boolean isPersistentTopic) throws Exception {
+        if (isPersistentTopic) {
+            admin.persistentTopics().unload(topicName);
+        } else {
+            admin.nonPersistentTopics().unload(topicName);
+        }
+    }
+
+    /**
+     * Verifies reset-cursor at specific position using admin-api.
+     * 
+     * <pre>
+     * 1. Publish 50 messages
+     * 2. Consume 20 messages
+     * 3. reset cursor position on 10th message
+     * 4. consume 40 messages from reset position
+     * </pre>
+     * 
+     * @param namespaceName
+     * @throws Exception
+     */
+    @Test(dataProvider = "namespaceNames", timeOut = 10000)
+    public void testResetCursorOnPosition(String namespaceName) throws Exception {
+        final String topicName = "persistent://prop-xyz/use/" + namespaceName + "/resetPosition";
+        final int totalProducedMessages = 50;
+
+        // set retention
+        admin.namespaces().setRetention("prop-xyz/use/ns1", new RetentionPolicies(10, 10));
+
+        // create consumer and subscription
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
+
+        assertEquals(admin.persistentTopics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
+
+        publishMessagesOnPersistentTopic(topicName, totalProducedMessages, 0);
+
+        List<Message> messages = admin.persistentTopics().peekMessages(topicName, "my-sub", 10);
+        assertEquals(messages.size(), 10);
+
+        Message message = null;
+        MessageIdImpl resetMessageId = null;
+        int resetPositionId = 10;
+        for (int i = 0; i < 20; i++) {
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            consumer.acknowledge(message);
+            if (i == resetPositionId) {
+                resetMessageId = (MessageIdImpl) message.getMessageId();
+            }
+        }
+
+        // close consumer which will clean up intenral-receive-queue
+        consumer.close();
+
+        // messages should still be available due to retention
+        Position position = new Position(resetMessageId.getLedgerId(), resetMessageId.getEntryId());
+        // reset position at resetMessageId
+        admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+
+        consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
+        MessageIdImpl msgId2 = (MessageIdImpl) consumer.receive(1, TimeUnit.SECONDS).getMessageId();
+        assertEquals(resetMessageId, msgId2);
+
+        int receivedAfterReset = 1; // start with 1 because we have already received 1 msg
+
+        for (int i = 0; i < totalProducedMessages; i++) {
+            message = consumer.receive(500, TimeUnit.MILLISECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+            ++receivedAfterReset;
+        }
+        assertEquals(receivedAfterReset, totalProducedMessages - resetPositionId);
+
+        // invalid topic name
+        try {
+            admin.persistentTopics().resetCursor(topicName + "invalid", "my-sub", position);
+            fail("It should have failed due to invalid topic name");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        // invalid cursor name
+        try {
+            admin.persistentTopics().resetCursor(topicName, "invalid-sub", position);
+            fail("It should have failed due to invalid subscription name");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        // invalid position
+        try {
+            position.setLedgerId(0);
+            position.setEntryId(0);
+            admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+            fail("It should have failed due to invalid subscription name");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // Ok
+        }
+
+        consumer.close();
+    }
+
+    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
+        Producer producer = pulsarClient.createProducer(topicName);
+
+        for (int i = startIdx; i < (messages + startIdx); i++) {
+            String message = "message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        producer.close();
     }
 
 }

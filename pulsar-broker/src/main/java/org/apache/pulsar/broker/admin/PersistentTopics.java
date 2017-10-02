@@ -905,10 +905,9 @@ public class PersistentTopics extends AdminResource {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}")
-    @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "First fence the cursor and disconnects all active consumers before resetting cursor.")
+    @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for global topics")})
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist") })
     public void resetCursor(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("timestamp") long timestamp,
