@@ -111,6 +111,8 @@ groups:
     endpoint: PartitionedTopics
   - title: Retention and expiry
     endpoint: RetentionExpiry
+  - title: Encryption
+    endpoint: Encryption
 
 - title: Developing Pulsar
   dir: project
