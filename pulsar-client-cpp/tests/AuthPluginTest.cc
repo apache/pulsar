@@ -154,7 +154,7 @@ TEST(AuthPluginTest, testAthenz) {
     params["tenantDomain"] = "pulsar.test.tenant";
     params["tenantService"] = "service";
     params["providerDomain"] = "pulsar.test.provider";
-    params["privateKeyPath"] = "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+    params["privateKey"] = "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
     params["ztsUrl"] = "http://localhost:9999";
     pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthathenz.so", params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");

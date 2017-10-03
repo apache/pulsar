@@ -38,7 +38,7 @@ namespace pulsar {
         std::string tenantDomain_;
         std::string tenantService_;
         std::string providerDomain_;
-        std::string privateKeyPath_;
+        std::string privateKey_;
         std::string ztsUrl_;
         std::string keyId_;
         std::string principalHeader_;
@@ -47,6 +47,7 @@ namespace pulsar {
         static std::map<std::string, RoleToken> roleTokenCache_;
         static std::string getSalt();
         static std::string ybase64Encode(const unsigned char *input, int length);
+        static char* base64Decode(const char *input);
         const std::string getPrincipalToken() const;
     };
 
