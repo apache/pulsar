@@ -732,7 +732,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         try {
             final String topicName = "non-persistent://my-property/use/my-ns/stats-topic";
             // restart broker with lower publish rate limit
-            conf.setMaxConcurrentNonPersistentMessagePerConnection(2);
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
             startBroker();
             ProducerConfiguration producerConf = new ProducerConfiguration();
@@ -771,6 +771,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             producer.close();
             consumer.close();
             consumer2.close();
+            executor.shutdown();
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
