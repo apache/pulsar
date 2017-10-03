@@ -23,8 +23,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
-import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -155,7 +154,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             }
         }
 
-        List<Consumer> successfulConsumers = Lists.newArrayList();
+        List<Consumer> successfulConsumers = Collections.synchronizedList(Lists.newArrayList());
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 20;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
@@ -179,6 +178,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             }
         }
         pulsarClient.close();
+        executor.shutdown();
         assertNotEquals(successfulConsumers.size(), totalConsumers);
     }
 
@@ -209,7 +209,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         upsertLookupPermits(100);
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
         consumerConfig.setSubscriptionType(SubscriptionType.Shared);
-        List<Consumer> consumers = Lists.newArrayList();
+        List<Consumer> consumers = Collections.synchronizedList(Lists.newArrayList());
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
@@ -250,6 +250,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         assertEquals(totalConnectedConsumers, totalConsumers);
 
+        executor.shutdown();
         pulsarClient.close();
     }
 
