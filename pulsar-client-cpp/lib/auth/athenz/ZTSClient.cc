@@ -74,7 +74,7 @@ namespace pulsar {
         tenantDomain_   = params[requiredParams[0]];
         tenantService_  = params[requiredParams[1]];
         providerDomain_ = params[requiredParams[2]];
-        privateKey_     = params[requiredParams[3]];
+        privateKeyUri_  = parseUri(params[requiredParams[3]].c_str());
         ztsUrl_         = params[requiredParams[4]];
 
         // set optional value
@@ -180,24 +180,12 @@ namespace pulsar {
         FILE *fp;
         RSA *privateKey;
 
-        std::string scheme;
-        std::string mediaTypeAndEncodingType;
-
-        // scheme mediatype[;base64] path file
-        static const boost::regex expression("^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
-        boost::cmatch groups;
-        if (boost::regex_match(privateKey_.c_str(), groups, expression)) {
-            scheme                   = groups.str(1);
-            mediaTypeAndEncodingType = groups.str(2);
-        }
-
-        if (scheme == "data") {
-            if(mediaTypeAndEncodingType != "application/x-pem-file;base64") {
-                LOG_ERROR("Unsupported mediaType or encodingType: " << mediaTypeAndEncodingType);
+        if (privateKeyUri_.scheme == "data") {
+            if(privateKeyUri_.mediaTypeAndEncodingType != "application/x-pem-file;base64") {
+                LOG_ERROR("Unsupported mediaType or encodingType: " << privateKeyUri_.mediaTypeAndEncodingType);
                 return "";
             }
-            const std::string& data = groups.str(4);
-            char* decodeStr = base64Decode(data.c_str());
+            char* decodeStr = base64Decode(privateKeyUri_.data.c_str());
 
             BIO *bio = BIO_new_mem_buf( (void*)decodeStr, -1 );
             BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
@@ -211,22 +199,21 @@ namespace pulsar {
                 LOG_ERROR("Failed to load privateKey");
                 return "";
             }
-        } else if (scheme == "file") {
-            std::string privateKeyPath = groups.str(3) + groups.str(4);
-            fp = fopen(privateKeyPath.c_str(), "r");
+        } else if (privateKeyUri_.scheme == "file") {
+            fp = fopen(privateKeyUri_.path.c_str(), "r");
             if (fp == NULL) {
-                LOG_ERROR("Failed to open athenz private key file: " << privateKeyPath);
+                LOG_ERROR("Failed to open athenz private key file: " << privateKeyUri_.path);
                 return "";
             }
 
             privateKey = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
             fclose(fp);
             if (privateKey == NULL) {
-                LOG_ERROR("Failed to read private key: " << privateKeyPath);
+                LOG_ERROR("Failed to read private key: " << privateKeyUri_.path);
                 return "";
             }
         } else {
-            LOG_ERROR("Unsupported URI Scheme: " << scheme);
+            LOG_ERROR("Unsupported URI Scheme: " << privateKeyUri_.scheme);
             return "";
         }
 
@@ -338,4 +325,17 @@ namespace pulsar {
         return roleHeader_;
     }
 
+    PrivateKeyUri ZTSClient::parseUri(const char* uri) {
+        PrivateKeyUri uriSt;
+        // scheme mediatype[;base64] path file
+        static const boost::regex expression("^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
+        boost::cmatch groups;
+        if (boost::regex_match(uri, groups, expression)) {
+           uriSt.scheme = groups.str(1);
+           uriSt.mediaTypeAndEncodingType = groups.str(2);
+           uriSt.data = groups.str(4);
+           uriSt.path = groups.str(3) + groups.str(4);
+        }
+        return uriSt;
+    }
 }
