@@ -39,10 +39,11 @@ import org.testng.annotations.Test;
 
 public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
 
-    private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/cacert.pem";
-    private static final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/proxy-cert.pem";
-    private static final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/proxy-key.pem";
-
+    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
+    
+    
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
