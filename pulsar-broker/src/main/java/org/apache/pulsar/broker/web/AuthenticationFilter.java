@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +43,18 @@ public class AuthenticationFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     private final AuthenticationService authenticationService;
+    private final boolean isBasic;
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
 
     public AuthenticationFilter(PulsarService pulsar) {
         this.authenticationService = pulsar.getBrokerService().getAuthenticationService();
+        if (pulsar.getConfiguration().getAuthenticationProviders()
+                .contains(AuthenticationProviderBasic.class.getName())) {
+            isBasic = true;
+        } else {
+            isBasic = false;
+        }
     }
 
     @Override
@@ -62,6 +70,9 @@ public class AuthenticationFilter implements Filter {
             }
         } catch (AuthenticationException e) {
             HttpServletResponse httpResponse = (HttpServletResponse) response;
+            if (isBasic) {
+                ((HttpServletResponse) response).setHeader("WWW-Authenticate", "Basic realm=\"Pulsar Web Service\"");
+            }
             httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
             return;
