@@ -37,7 +37,7 @@ public class SampleConsumer {
         }
 
         // Acknowledge the consumption of all messages at once
-        consumer.acknowledge(msg);
+        consumer.acknowledgeCumulative(msg);
         pulsarClient.close();
     }
 }
