@@ -38,7 +38,7 @@ std::string Message_str(const Message& msg) {
     return ss.str();
 }
 
-boost::python::object Message_data_bytes(const Message& msg) {
+boost::python::object Message_data(const Message& msg) {
     return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize((const char*)msg.getData(), msg.getLength())));
 }
 
@@ -80,8 +80,7 @@ void export_message() {
 
     class_<Message>("Message")
             .def("properties", &Message::getProperties, return_value_policy<copy_const_reference>())
-            .def("data_bytes", &Message_data_bytes)
-            .def("data", &Message::getDataAsString)
+            .def("data", &Message_data)
             .def("length", &Message::getLength)
             .def("partition_key", &Message::getPartitionKey, return_value_policy<copy_const_reference>())
             .def("publish_timestamp", &Message::getPublishTimestamp)

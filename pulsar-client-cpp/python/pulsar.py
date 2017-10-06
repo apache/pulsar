@@ -139,7 +139,7 @@ class Message:
 
     def data(self):
         """
-        Returns a string with the content of the message.
+        Returns object typed bytes with the content of the message.
         """
         return self._message.data()
 
