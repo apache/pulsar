@@ -201,6 +201,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
 
+    // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
+    private String anonymousUserRole = "";
+
     /**** --- BookKeeper Client --- ****/
     // Authentication plugin to use when connecting to bookies
     private String bookkeeperClientAuthenticationPlugin;
@@ -794,6 +797,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
+    }
+
+    public String getAnonymousUserRole() {
+        return anonymousUserRole;
+    }
+
+    public void setAnonymousUserRole(String anonymousUserRole) {
+        this.anonymousUserRole = anonymousUserRole;
     }
 
     public String getBookkeeperClientAuthenticationPlugin() {
