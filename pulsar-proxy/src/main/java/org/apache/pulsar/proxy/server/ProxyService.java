@@ -24,6 +24,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -97,6 +98,11 @@ public class ProxyService implements Closeable {
         if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
             clientConfiguration.setAuthentication(proxyConfig.getBrokerClientAuthenticationPlugin(),
                     proxyConfig.getBrokerClientAuthenticationParameters());
+        }
+        if (proxyConfig.isTlsEnabledWithBroker()) {
+            clientConfiguration.setUseTls(true);
+            clientConfiguration.setTlsTrustCertsFilePath(proxyConfig.getTlsTrustCertsFilePath());
+            clientConfiguration.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
         }
 
         this.client = new PulsarClientImpl(serviceUrl, clientConfiguration, workerGroup);
