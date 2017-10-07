@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.Objects;
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class PersistencePolicies {
     private int bookkeeperEnsemble;
@@ -32,6 +33,9 @@ public class PersistencePolicies {
 
     public PersistencePolicies(int bookkeeperEnsemble, int bookkeeperWriteQuorum, int bookkeeperAckQuorum,
             double managedLedgerMaxMarkDeleteRate) {
+        checkArgument(bookkeeperEnsemble > 0, "bookkeeperEnsemble must be > 0");
+        checkArgument(bookkeeperWriteQuorum > 0, "bookkeeperWriteQuorum must be > 0");
+        checkArgument(bookkeeperAckQuorum > 0, "bookkeeperAckQuorum must be > 0");
         this.bookkeeperEnsemble = bookkeeperEnsemble;
         this.bookkeeperWriteQuorum = bookkeeperWriteQuorum;
         this.bookkeeperAckQuorum = bookkeeperAckQuorum;

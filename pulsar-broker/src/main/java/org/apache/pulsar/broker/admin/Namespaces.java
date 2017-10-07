@@ -1127,6 +1127,7 @@ public class Namespaces extends AdminResource {
             @ApiResponse(code = 400, message = "Invalid persistence policies") })
     public void setPersistence(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, PersistencePolicies persistence) {
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
