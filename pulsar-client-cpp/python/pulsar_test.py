@@ -101,7 +101,7 @@ class PulsarTest(TestCase):
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
-        self.assertEqual(msg.data(), 'hello')
+        self.assertEqual(msg.data(), b'hello')
 
         try:
             msg = consumer.receive(100)
@@ -132,9 +132,9 @@ class PulsarTest(TestCase):
 
         time.sleep(0.1)
         self.assertEqual(len(received_messages), 3)
-        self.assertEqual(received_messages[0].data(), "hello-1")
-        self.assertEqual(received_messages[1].data(), "hello-2")
-        self.assertEqual(received_messages[2].data(), "hello-3")
+        self.assertEqual(received_messages[0].data(), b"hello-1")
+        self.assertEqual(received_messages[1].data(), b"hello-2")
+        self.assertEqual(received_messages[2].data(), b"hello-3")
         client.close()
 
     def test_reader_simple(self):
@@ -147,7 +147,7 @@ class PulsarTest(TestCase):
 
         msg = reader.read_next()
         self.assertTrue(msg)
-        self.assertEqual(msg.data(), 'hello')
+        self.assertEqual(msg.data(), b'hello')
 
         try:
             msg = reader.read_next(100)
@@ -174,7 +174,7 @@ class PulsarTest(TestCase):
         for i in range(10, 20):
             msg = reader.read_next()
             self.assertTrue(msg)
-            self.assertEqual(msg.data(), 'hello-%d' % i)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
 
         reader.close()
         client.close()
@@ -202,7 +202,7 @@ class PulsarTest(TestCase):
         for i in range(5, 10):
             msg = reader2.read_next()
             self.assertTrue(msg)
-            self.assertEqual(msg.data(), 'hello-%d' % i)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
 
         reader1.close()
         reader2.close()
@@ -236,7 +236,7 @@ class PulsarTest(TestCase):
         for i in range(5, 11):
             msg = reader2.read_next()
             self.assertTrue(msg)
-            self.assertEqual(msg.data(), 'hello-%d' % i)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
 
         reader1.close()
         reader2.close()
@@ -291,7 +291,7 @@ class PulsarTest(TestCase):
 
         for i in range(3):
             msg = consumer.receive()
-            self.assertEqual(msg.data(), 'hello-%d' % i)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
             consumer.acknowledge(msg)
 
         try:
