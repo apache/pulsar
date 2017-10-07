@@ -89,6 +89,7 @@ public class ServerCnx extends PulsarHandler {
     private String clientVersion = null;
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
+    private String originalPrincipal;
 
     enum State {
         Start, Connected
@@ -202,27 +203,28 @@ public class ServerCnx extends PulsarHandler {
         }
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            getPartitionedTopicMetadata(getBrokerService().pulsar(), getRole(), DestinationName.get(topic))
-                    .handle((metadata, ex) -> {
-                        if (ex == null) {
-                            int partitions = metadata.partitions;
-                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
-                        } else {
-                            if (ex instanceof PulsarClientException) {
-                                log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(), remoteAddress,
-                                        topic, ex.getMessage());
-                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
-                                        ex.getMessage(), requestId));
-                            } else {
-                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, topic,
-                                        ex.getMessage(), ex);
-                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
-                                        ex.getMessage(), requestId));
-                            }
-                        }
-                        lookupSemaphore.release();
-                        return null;
-                    });
+            getPartitionedTopicMetadata(getBrokerService().pulsar(),
+                    originalPrincipal != null ? originalPrincipal : authRole, DestinationName.get(topic))
+                            .handle((metadata, ex) -> {
+                                if (ex == null) {
+                                    int partitions = metadata.partitions;
+                                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                } else {
+                                    if (ex instanceof PulsarClientException) {
+                                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                remoteAddress, topic, ex.getMessage());
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                ServerError.AuthorizationError, ex.getMessage(), requestId));
+                                    } else {
+                                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, topic,
+                                                ex.getMessage(), ex);
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                                    }
+                                }
+                                lookupSemaphore.release();
+                                return null;
+                            });
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requets {}", remoteAddress,
@@ -303,6 +305,7 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
+                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 
@@ -332,8 +335,9 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Connected);
         CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
-            authorizationFuture = service.getAuthorizationManager()
-                    .canConsumeAsync(DestinationName.get(subscribe.getTopic()), authRole);
+            authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
+                    DestinationName.get(subscribe.getTopic()),
+                    originalPrincipal != null ? originalPrincipal : authRole);
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }
@@ -434,8 +438,9 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Connected);
         CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
-            authorizationFuture = service.getAuthorizationManager()
-                    .canProduceAsync(DestinationName.get(cmdProducer.getTopic().toString()), authRole);
+            authorizationFuture = service.getAuthorizationManager().canProduceAsync(
+                    DestinationName.get(cmdProducer.getTopic().toString()),
+                    originalPrincipal != null ? originalPrincipal : authRole);
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }

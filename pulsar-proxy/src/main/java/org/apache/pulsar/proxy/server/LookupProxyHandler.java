@@ -75,7 +75,9 @@ public class LookupProxyHandler {
             return;
         }
 
-        performLookup(clientRequestId, topic, availableBroker.getPulsarServiceUrl(), false, 10);
+        performLookup(clientRequestId, topic,
+                this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl(),
+                false, 10);
     }
 
     private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,
