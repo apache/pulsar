@@ -33,6 +33,7 @@
 #include <json/value.h>
 #include <json/reader.h>
 
+#include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
@@ -50,7 +51,7 @@ namespace pulsar {
     const static int MIN_TOKEN_EXPIRATION_TIME_SEC = 900;
     const static int MAX_HTTP_REDIRECTS = 20;
     const static long long FETCH_EPSILON = 60; // if cache expires in 60 seconds, get it from ZTS
-    const static std::string requiredParams[] = {"tenantDomain", "tenantService", "providerDomain", "privateKeyPath", "ztsUrl"};
+    const static std::string requiredParams[] = {"tenantDomain", "tenantService", "providerDomain", "privateKey", "ztsUrl"};
 
     std::map<std::string, RoleToken> ZTSClient::roleTokenCache_;
 
@@ -63,17 +64,18 @@ namespace pulsar {
                 LOG_ERROR(requiredParams[i] << " parameter is required");
             }
         }
+
         if (!valid) {
             LOG_ERROR("Some parameters are missing")
             return;
         }
 
         // set required value
-        tenantDomain_ = params[requiredParams[0]];
-        tenantService_ = params[requiredParams[1]];
+        tenantDomain_   = params[requiredParams[0]];
+        tenantService_  = params[requiredParams[1]];
         providerDomain_ = params[requiredParams[2]];
-        privateKeyPath_ = params[requiredParams[3]];
-        ztsUrl_ = params[requiredParams[4]];
+        privateKeyUri_  = parseUri(params[requiredParams[3]].c_str());
+        ztsUrl_         = params[requiredParams[4]];
 
         // set optional value
         keyId_ = params.find("keyId") == params.end() ? "0" : params["keyId"];
@@ -136,6 +138,22 @@ namespace pulsar {
         return ret;
     }
 
+    char* ZTSClient::base64Decode(const char* input) {
+        BIO *bio, *b64;
+        size_t length = strlen(input);
+        char *result = (char*)malloc(length);
+
+        bio = BIO_new_mem_buf(input, -1);
+        b64 = BIO_new(BIO_f_base64());
+        bio = BIO_push(b64, bio);
+
+        BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+        BIO_read(bio, result, length);
+        BIO_free_all(bio);
+
+        return result;
+    }
+
     const std::string ZTSClient::getPrincipalToken() const {
         // construct unsigned principal token
         std::string unsignedTokenString = "v=S1";
@@ -162,20 +180,42 @@ namespace pulsar {
         FILE *fp;
         RSA *privateKey;
 
-        fp = fopen(privateKeyPath_.c_str(), "r");
-        if (fp == NULL) {
-            LOG_ERROR("Failed to open athenz private key file: " << privateKeyPath_);
-            return "";
-        }
+        if (privateKeyUri_.scheme == "data") {
+            if(privateKeyUri_.mediaTypeAndEncodingType != "application/x-pem-file;base64") {
+                LOG_ERROR("Unsupported mediaType or encodingType: " << privateKeyUri_.mediaTypeAndEncodingType);
+                return "";
+            }
+            char* decodeStr = base64Decode(privateKeyUri_.data.c_str());
 
-        privateKey = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
-        if (privateKey == NULL) {
-            LOG_ERROR("Failed to read private key: " << privateKeyPath_);
+            BIO *bio = BIO_new_mem_buf( (void*)decodeStr, -1 );
+            BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+            if (bio == NULL) {
+                LOG_ERROR("Failed to create key BIO");
+                return "";
+            }
+            privateKey = PEM_read_bio_RSAPrivateKey( bio, NULL, NULL, NULL ) ;
+            BIO_free(bio);
+            if (privateKey == NULL) {
+                LOG_ERROR("Failed to load privateKey");
+                return "";
+            }
+        } else if (privateKeyUri_.scheme == "file") {
+            fp = fopen(privateKeyUri_.path.c_str(), "r");
+            if (fp == NULL) {
+                LOG_ERROR("Failed to open athenz private key file: " << privateKeyUri_.path);
+                return "";
+            }
+
+            privateKey = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
             fclose(fp);
+            if (privateKey == NULL) {
+                LOG_ERROR("Failed to read private key: " << privateKeyUri_.path);
+                return "";
+            }
+        } else {
+            LOG_ERROR("Unsupported URI Scheme: " << privateKeyUri_.scheme);
             return "";
         }
-
-        fclose(fp);
 
         SHA256( (unsigned char *)unsignedToken, unsignedTokenString.length(), hash );
         RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &siglen, privateKey);
@@ -285,4 +325,17 @@ namespace pulsar {
         return roleHeader_;
     }
 
+    PrivateKeyUri ZTSClient::parseUri(const char* uri) {
+        PrivateKeyUri uriSt;
+        // scheme mediatype[;base64] path file
+        static const boost::regex expression("^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
+        boost::cmatch groups;
+        if (boost::regex_match(uri, groups, expression)) {
+           uriSt.scheme = groups.str(1);
+           uriSt.mediaTypeAndEncodingType = groups.str(2);
+           uriSt.data = groups.str(4);
+           uriSt.path = groups.str(3) + groups.str(4);
+        }
+        return uriSt;
+    }
 }

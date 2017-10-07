@@ -25,4 +25,4 @@ add_executable(main ${TEST_SOURCES})
 
 target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/lib)
 
-target_link_libraries(main ${CLIENT_LIBS} ${GTEST_LIBRARY_PATH})
+target_link_libraries(main ${CLIENT_LIBS} ${GTEST_LIBRARY_PATH} ztsClient)

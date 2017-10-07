@@ -28,6 +28,13 @@ namespace pulsar {
         long long expiryTime;
     };
 
+    struct PrivateKeyUri {
+        std::string scheme;
+        std::string mediaTypeAndEncodingType;
+        std::string data;
+        std::string path;
+    };
+
     class ZTSClient {
     public:
         ZTSClient(std::map<std::string, std::string>& params);
@@ -38,7 +45,7 @@ namespace pulsar {
         std::string tenantDomain_;
         std::string tenantService_;
         std::string providerDomain_;
-        std::string privateKeyPath_;
+        PrivateKeyUri privateKeyUri_;
         std::string ztsUrl_;
         std::string keyId_;
         std::string principalHeader_;
@@ -47,7 +54,10 @@ namespace pulsar {
         static std::map<std::string, RoleToken> roleTokenCache_;
         static std::string getSalt();
         static std::string ybase64Encode(const unsigned char *input, int length);
+        static char* base64Decode(const char *input);
         const std::string getPrincipalToken() const;
-    };
+        static PrivateKeyUri parseUri(const char* uri);
 
+        friend class ZTSClientWrapper;
+    };
 }
