@@ -494,9 +494,11 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         CompletableFuture<Consumer> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
 
         // wait for all messages to be dequeued
-        int retry = 15;
-        for (int i = 0; i < retry && subRef.getNumberOfEntriesInBacklog() > 0; i++) {
-            if (i != retry - 1) {
+        int retry = 20;
+        for (int i = 0; i < retry; i++) {
+            if (receivedMessages.size() >= numMsgs && subRef.getNumberOfEntriesInBacklog() == 0) {
+                break;
+            } else if (i != retry - 1) {
                 Thread.sleep(100);
             }
         }
