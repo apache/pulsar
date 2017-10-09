@@ -168,11 +168,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 { DestinationDomain.non_persistent.value() } };
     }
 
-    @DataProvider(name = "namespaceNames")
-    public Object[][] namespaceNameProvider() {
-        return new Object[][] { { "ns1" }, { "global" } };
-    }
-    
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",

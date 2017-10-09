@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -838,8 +837,8 @@ public interface PersistentTopics {
      *            Destination name
      * @param subName
      *            Subscription name
-     * @param position
-     *            reset subscription to position (or previous nearest position if given position is not valid)
+     * @param messageId
+     *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -850,7 +849,7 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void resetCursor(String destination, String subName, Position position) throws PulsarAdminException;
+    void resetCursor(String destination, String subName, MessageId messageId) throws PulsarAdminException;
 
     /**
      * Reset cursor position on a topic subscription
@@ -859,8 +858,8 @@ public interface PersistentTopics {
      *            Destination name
      * @param subName
      *            Subscription name
-     * @param Position
-     *            reset subscription to position (or previous nearest position if given position is not valid)
+     * @param MessageId
+     *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      */
-    CompletableFuture<Void> resetCursorAsync(String destination, String subName, Position position);
+    CompletableFuture<Void> resetCursorAsync(String destination, String subName, MessageId messageId);
 }

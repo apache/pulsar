@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.io.IOException;
@@ -79,6 +80,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -87,7 +89,6 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
@@ -112,7 +113,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  */
@@ -986,17 +986,17 @@ public class PersistentTopics extends AdminResource {
     public void resetCursorOnPosition(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, Position position) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), destination,
-                subName, position);
+                subName, messageId);
 
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
 
         if (partitionMetadata.partitions > 0) {
-            log.error("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), dn, subName);
+            log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), dn, subName);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Reset-cursor at position is not allowed for partitioned-topic");
         } else {
@@ -1008,18 +1008,18 @@ public class PersistentTopics extends AdminResource {
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
                 checkNotNull(sub);
-                sub.resetCursor(PositionImpl.get(position.getLedgerId(), position.getEntryId())).get();
+                sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(), dn,
-                        subName, position);
+                        subName, messageId);
             } catch (Exception e) {
                 Throwable t = e.getCause();
                 log.warn("[{}] [{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), dn,
-                        subName, position, e);
+                        subName, messageId, e);
                 if (e instanceof NullPointerException) {
                     throw new RestException(Status.NOT_FOUND, "Subscription not found");
                 } else if (t instanceof SubscriptionInvalidCursorPosition) {
                     throw new RestException(Status.PRECONDITION_FAILED,
-                            "Unable to find position for position specified -" + t.getMessage());
+                            "Unable to find position for position specified: " + t.getMessage());
                 } else {
                     throw new RestException(e);
                 }

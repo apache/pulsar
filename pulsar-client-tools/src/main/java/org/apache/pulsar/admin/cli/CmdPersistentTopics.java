@@ -30,7 +30,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.Position;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -419,7 +418,7 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp or position")
+    @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp or messageId")
     private class ResetCursor extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
         private java.util.List<String> params;
@@ -432,16 +431,16 @@ public class CmdPersistentTopics extends CmdBase {
                 "-t" }, description = "time in minutes to reset back to (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false)
         private String resetTimeStr;
         
-        @Parameter(names = { "--position",
-                "-p" }, description = "position to reset back to ledgerId:entryId)", required = false)
-        private String resetPosStr;
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+        private String resetMessageIdStr;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            if (isNotBlank(resetPosStr)) {
-                Position position = validatePositionString(resetPosStr);
-                persistentTopics.resetCursor(persistentTopic, subName, position);
+            if (isNotBlank(resetMessageIdStr)) {
+                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                persistentTopics.resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
                 int resetBackTimeInMin = validateTimeString(resetTimeStr);
                 long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
@@ -536,14 +535,14 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
     
-    private Position validatePositionString(String resetPosStr) throws PulsarAdminException {
-        String[] positions = resetPosStr.split(":");
+    private MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
+        String[] messageId = resetMessageIdStr.split(":");
         try {
-            checkArgument(positions.length == 2);
-            return new Position(Long.parseLong(positions[0]), Long.parseLong(positions[1]));
+            checkArgument(messageId.length == 2);
+            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
         } catch (Exception e) {
             throw new PulsarAdminException(
-                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetPosStr);
+                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
         }
     }
 }

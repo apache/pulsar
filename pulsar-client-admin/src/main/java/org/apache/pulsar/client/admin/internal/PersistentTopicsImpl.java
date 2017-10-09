@@ -55,7 +55,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -642,12 +641,12 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public void resetCursor(String destination, String subName, Position position) throws PulsarAdminException {
+    public void resetCursor(String destination, String subName, MessageId messageId) throws PulsarAdminException {
         try {
             DestinationName ds = validateTopic(destination);
             String encodedSubName = Codec.encode(subName);
             request(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
-                    .path(encodedSubName).path("resetcursor")).post(Entity.entity(position, MediaType.APPLICATION_JSON),
+                    .path(encodedSubName).path("resetcursor")).post(Entity.entity(messageId, MediaType.APPLICATION_JSON),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -655,12 +654,12 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public CompletableFuture<Void> resetCursorAsync(String destination, String subName, Position position) {
+    public CompletableFuture<Void> resetCursorAsync(String destination, String subName, MessageId messageId) {
         DestinationName ds = validateTopic(destination);
         String encodedSubName = Codec.encode(subName);
         return asyncPostRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName())
                 .path("subscription").path(encodedSubName).path("resetcursor"),
-                Entity.entity(position, MediaType.APPLICATION_JSON));
+                Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 
     @Override

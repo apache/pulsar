@@ -44,13 +44,13 @@ import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
-import org.apache.pulsar.common.naming.Position;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -63,6 +63,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -109,6 +110,17 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         mockPulsarSetup.cleanup();
+    }
+
+    @DataProvider(name = "topicType")
+    public Object[][] topicTypeProvider() {
+        return new Object[][] { { DestinationDomain.persistent.value() },
+                { DestinationDomain.non_persistent.value() } };
+    }
+
+    @DataProvider(name = "namespaceNames")
+    public Object[][] namespaceNameProvider() {
+        return new Object[][] { { "ns1" }, { "global" } };
     }
 
     /**
@@ -453,9 +465,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         // messages should still be available due to retention
-        Position position = new Position(resetMessageId.getLedgerId(), resetMessageId.getEntryId());
+        MessageIdImpl messageId = new MessageIdImpl(resetMessageId.getLedgerId(), resetMessageId.getEntryId(), -1);
         // reset position at resetMessageId
-        admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+        admin.persistentTopics().resetCursor(topicName, "my-sub", messageId);
 
         consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
         MessageIdImpl msgId2 = (MessageIdImpl) consumer.receive(1, TimeUnit.SECONDS).getMessageId();
@@ -475,7 +487,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // invalid topic name
         try {
-            admin.persistentTopics().resetCursor(topicName + "invalid", "my-sub", position);
+            admin.persistentTopics().resetCursor(topicName + "invalid", "my-sub", messageId);
             fail("It should have failed due to invalid topic name");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
@@ -483,7 +495,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // invalid cursor name
         try {
-            admin.persistentTopics().resetCursor(topicName, "invalid-sub", position);
+            admin.persistentTopics().resetCursor(topicName, "invalid-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
@@ -491,9 +503,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // invalid position
         try {
-            position.setLedgerId(0);
-            position.setEntryId(0);
-            admin.persistentTopics().resetCursor(topicName, "my-sub", position);
+            messageId = new MessageIdImpl(0, 0, -1);
+            admin.persistentTopics().resetCursor(topicName, "my-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.PreconditionFailedException e) {
             // Ok
