@@ -829,4 +829,37 @@ public interface PersistentTopics {
      *            reset subscription to position closest to time in ms since epoch
      */
     CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp);
+    
+    /**
+     * Reset cursor position on a topic subscription
+     *
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param messageId
+     *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void resetCursor(String destination, String subName, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Reset cursor position on a topic subscription
+     *
+     * @param destination
+     *            Destination name
+     * @param subName
+     *            Subscription name
+     * @param MessageId
+     *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
+     */
+    CompletableFuture<Void> resetCursorAsync(String destination, String subName, MessageId messageId);
 }

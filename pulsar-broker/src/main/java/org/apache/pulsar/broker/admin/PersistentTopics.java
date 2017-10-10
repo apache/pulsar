@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.io.IOException;
@@ -79,6 +80,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -87,8 +89,6 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
@@ -113,7 +113,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  */
@@ -906,11 +905,9 @@ public class PersistentTopics extends AdminResource {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}")
-    @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "There should not be any active consumers on the subscription.")
+    @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for global and non-persistent topics"),
-            @ApiResponse(code = 412, message = "Subscription has active consumers") })
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist") })
     public void resetCursor(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subName") String subName, @PathParam("timestamp") long timestamp,
@@ -944,8 +941,8 @@ public class PersistentTopics extends AdminResource {
                 log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), dn, subName,
                         timestamp, partitionException);
                 throw new RestException(Status.PRECONDITION_FAILED, partitionException.getMessage());
-            } else if (numPartException > 0 && log.isDebugEnabled()) {
-                log.debug("[{}][{}] partial errors for reset cursor on subscription {} to time {} - ", clientAppId(),
+            } else if (numPartException > 0) {
+                log.warn("[{}][{}] partial errors for reset cursor on subscription {} to time {} - ", clientAppId(),
                         destination, subName, timestamp, partitionException);
             }
 
@@ -954,6 +951,9 @@ public class PersistentTopics extends AdminResource {
             log.info("[{}][{}] received reset cursor on subscription {} to time {}", clientAppId(), destination,
                     subName, timestamp);
             PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
+            if (topic == null) {
+                throw new RestException(Status.NOT_FOUND, "Topic not found");
+            }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
                 checkNotNull(sub);
@@ -967,8 +967,6 @@ public class PersistentTopics extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Subscription not found");
                 } else if (e instanceof NotAllowedException) {
                     throw new RestException(Status.METHOD_NOT_ALLOWED, e.getMessage());
-                } else if (t instanceof SubscriptionBusyException) {
-                    throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
                 } else if (t instanceof SubscriptionInvalidCursorPosition) {
                     throw new RestException(Status.PRECONDITION_FAILED,
                             "Unable to find position for timestamp specified -" + t.getMessage());
@@ -979,6 +977,56 @@ public class PersistentTopics extends AdminResource {
         }
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor")
+    @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
+    public void resetCursorOnPosition(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @PathParam("subName") String subName,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), destination,
+                subName, messageId);
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+
+        if (partitionMetadata.partitions > 0) {
+            log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), dn, subName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Reset-cursor at position is not allowed for partitioned-topic");
+        } else {
+            validateAdminOperationOnDestination(dn, authoritative);
+            PersistentTopic topic = (PersistentTopic) getTopicReference(dn);
+            if (topic == null) {
+                throw new RestException(Status.NOT_FOUND, "Topic not found");
+            }
+            try {
+                PersistentSubscription sub = topic.getSubscription(subName);
+                checkNotNull(sub);
+                sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
+                log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(), dn,
+                        subName, messageId);
+            } catch (Exception e) {
+                Throwable t = e.getCause();
+                log.warn("[{}] [{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), dn,
+                        subName, messageId, e);
+                if (e instanceof NullPointerException) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                } else if (t instanceof SubscriptionInvalidCursorPosition) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Unable to find position for position specified: " + t.getMessage());
+                } else {
+                    throw new RestException(e);
+                }
+            }
+        }
+    }
+    
     @GET
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")

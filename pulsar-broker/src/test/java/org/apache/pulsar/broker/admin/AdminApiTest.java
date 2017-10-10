@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -48,8 +46,6 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -86,7 +82,6 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -1751,59 +1746,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String bundleRange = admin.lookups().getBundleRange(topicName);
         assertEquals(bundleRange,
                 pulsar.getNamespaceService().getBundle(DestinationName.get(topicName)).getBundleRange());
-    }
-
-    // TODO: move to AdminApiTest2.java
-    /**
-     * Verify unloading topic
-     * 
-     * @throws Exception
-     */
-    @Test(dataProvider = "topicType")
-    public void testUnloadTopic(final String topicType) throws Exception {
-
-        final String namespace = "prop-xyz/use/ns2";
-        final String topicName = topicType + "://" + namespace + "/topic1";
-        admin.namespaces().createNamespace(namespace);
-
-        // create a topic by creating a producer
-        Producer producer = pulsarClient.createProducer(topicName);
-        producer.close();
-
-        Topic topic = pulsar.getBrokerService().getTopicReference(topicName);
-        assertNotNull(topic);
-        final boolean isPersistentTopic = topic instanceof PersistentTopic;
-
-        // (1) unload the topic
-        unloadTopic(topicName, isPersistentTopic);
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
-        // topic must be removed
-        assertNull(topic);
-
-        // recreation of producer will load the topic again
-        producer = pulsarClient.createProducer(topicName);
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
-        assertNotNull(topic);
-        // unload the topic
-        unloadTopic(topicName, isPersistentTopic);
-        // producer will retry and recreate the topic
-        for (int i = 0; i < 5; i++) {
-            topic = pulsar.getBrokerService().getTopicReference(topicName);
-            if (topic == null || i != 4) {
-                Thread.sleep(200);
-            }
-        }
-        // topic should be loaded by this time
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
-        assertNotNull(topic);
-    }
-
-    private void unloadTopic(String topicName, boolean isPersistentTopic) throws Exception {
-        if (isPersistentTopic) {
-            admin.persistentTopics().unload(topicName);
-        } else {
-            admin.nonPersistentTopics().unload(topicName);
-        }
     }
 
 }
