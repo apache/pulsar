@@ -739,6 +739,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
             // Wait until the 2nd message got delivered to consumer
             consumer2.receive(1);
 
+            int retry = 10;
+            for (int i = 0; i < retry && replicator.getStats().replicationBacklog > 0; i++) {
+                if (i != retry - 1) {
+                    Thread.sleep(100);
+                }
+            }
+
             assertEquals(replicator.getStats().replicationBacklog, 0);
 
             producer1.close();

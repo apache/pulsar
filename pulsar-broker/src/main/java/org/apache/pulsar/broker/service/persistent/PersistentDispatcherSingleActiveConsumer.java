@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -54,6 +55,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private final ServiceConfiguration serviceConfig;
+    private ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic) {
@@ -71,12 +73,38 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             havePendingRead = false;
         }
 
-        // When a new consumer is chosen, start delivery from unacked message. If there is any pending read operation,
-        // let it finish and then rewind
-        if (!havePendingRead) {
+        if (havePendingRead) {
+            return;
+        }
+
+        // When a new consumer is chosen, start delivery from unacked message.
+        // If there is any pending read operation, let it finish and then rewind
+
+        if (subscriptionType != SubType.Failover || serviceConfig.getActiveConsumerFailoverDelayTimeMillis() <= 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Rewind cursor and read more entries without delay", name);
+            }
             cursor.rewind();
             readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+            return;
         }
+
+        // If subscription type is Failover, delay rewinding cursor and
+        // reading more entries in order to prevent message duplication
+
+        if (readOnActiveConsumerTask != null) {
+            return;
+        }
+
+        readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
+                        serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
+            }
+            cursor.rewind();
+            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+            readOnActiveConsumerTask = null;
+        }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
     protected void cancelPendingRead() {
@@ -148,35 +176,47 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     @Override
     public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!havePendingRead) {
-            if (ACTIVE_CONSUMER_UPDATER.get(this) == consumer) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Trigger new read after receiving flow control message", name, consumer);
-                }
-                readMoreEntries(consumer);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Ignoring flow control message since consumer is not active partition consumer",
-                            name, consumer);
-                }
+        if (havePendingRead) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name,
+                        consumer);
+            }
+        } else if (ACTIVE_CONSUMER_UPDATER.get(this) != consumer) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring flow control message since consumer is not active partition consumer", name,
+                        consumer);
+            }
+        } else if (readOnActiveConsumerTask != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewinded",
+                        name, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name, consumer);
+                log.debug("[{}-{}] Trigger new read after receiving flow control message", name, consumer);
             }
+            readMoreEntries(consumer);
         }
     }
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
-            log.info("[{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
-                    consumer);
+            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
+                    name, consumer);
             return;
         }
+
+        if (readOnActiveConsumerTask != null) {
+            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded",
+                    name, consumer);
+            return;
+        }
+
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
         }
+
         if (!havePendingRead) {
             cursor.rewind();
             if (log.isDebugEnabled()) {
