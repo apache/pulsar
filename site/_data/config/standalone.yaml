@@ -63,6 +63,9 @@ configs:
 - name: messageExpiryCheckIntervalInMinutes
   default: '5'
   description: How often to proactively check and purged expired messages.
+- name: activeConsumerFailoverDelayTimeMillis
+  default: '1000'
+  description: How long to delay rewinding cursor and dispatching messages when active consumer is changed.
 - name: clientLibraryVersionCheckEnabled
   default: 'false'
   description: Enable checks for minimum allowed client library version.

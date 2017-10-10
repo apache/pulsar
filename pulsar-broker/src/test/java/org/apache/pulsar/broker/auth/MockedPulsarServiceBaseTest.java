@@ -90,6 +90,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setClusterName("test");
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
+        this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
     }
 
     protected final void internalSetup() throws Exception {
