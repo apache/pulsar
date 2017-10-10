@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
@@ -343,62 +344,7 @@ public class PersistentSubscription implements Subscription {
                 } else {
                     finalPosition = position;
                 }
-
-                if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-                    future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
-                    return;
-                }
-
-                final CompletableFuture<Void> disconnectFuture;
-                if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                    disconnectFuture = dispatcher.disconnectAllConsumers();
-                } else {
-                    disconnectFuture = CompletableFuture.completedFuture(null);
-                }
-
-                disconnectFuture.whenComplete((aVoid, throwable) -> {
-                    if (throwable != null) {
-                        log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
-                        return;
-                    }
-                    log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset", topicName, subName);
-
-                    try {
-                        cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
-                            @Override
-                            public void resetComplete(Object ctx) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
-                                            timestamp);
-                                }
-                                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                                future.complete(null);
-                            }
-
-                            @Override
-                            public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
-                                        exception);
-                                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                                // todo - retry on InvalidCursorPositionException
-                                // or should we just ask user to retry one more time?
-                                if (exception instanceof InvalidCursorPositionException) {
-                                    future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                                } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                                    future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
-                                } else {
-                                    future.completeExceptionally(new BrokerServiceException(exception));
-                                }
-                            }
-                        });
-                    } catch (Exception e) {
-                        log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        future.completeExceptionally(new BrokerServiceException(e));
-                    }
-                });
+                resetCursor(finalPosition, future);
             }
 
             @Override
@@ -413,6 +359,73 @@ public class PersistentSubscription implements Subscription {
         });
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursor(Position position) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        resetCursor(position, future);
+        return future;
+    }
+
+    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
+        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
+            return;
+        }
+
+        final CompletableFuture<Void> disconnectFuture;
+        if (dispatcher != null && dispatcher.isConsumerConnected()) {
+            disconnectFuture = dispatcher.disconnectAllConsumers();
+        } else {
+            disconnectFuture = CompletableFuture.completedFuture(null);
+        }
+
+        disconnectFuture.whenComplete((aVoid, throwable) -> {
+            if (throwable != null) {
+                log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                future.completeExceptionally(
+                        new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
+                return;
+            }
+            log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
+                    topicName, subName);
+
+            try {
+                cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
+                    @Override
+                    public void resetComplete(Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
+                                    finalPosition);
+                        }
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        future.complete(null);
+                    }
+
+                    @Override
+                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("[{}][{}] Failed to reset subscription to position {}", topicName, subName,
+                                finalPosition, exception);
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        // todo - retry on InvalidCursorPositionException
+                        // or should we just ask user to retry one more time?
+                        if (exception instanceof InvalidCursorPositionException) {
+                            future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                        } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                            future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                        } else {
+                            future.completeExceptionally(new BrokerServiceException(exception));
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                future.completeExceptionally(new BrokerServiceException(e));
+            }
+        });
     }
 
     @Override

@@ -641,6 +641,28 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
+    public void resetCursor(String destination, String subName, MessageId messageId) throws PulsarAdminException {
+        try {
+            DestinationName ds = validateTopic(destination);
+            String encodedSubName = Codec.encode(subName);
+            request(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
+                    .path(encodedSubName).path("resetcursor")).post(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                            ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursorAsync(String destination, String subName, MessageId messageId) {
+        DestinationName ds = validateTopic(destination);
+        String encodedSubName = Codec.encode(subName);
+        return asyncPostRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName())
+                .path("subscription").path(encodedSubName).path("resetcursor"),
+                Entity.entity(messageId, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public CompletableFuture<MessageId> terminateTopicAsync(String destination) {
         DestinationName ds = validateTopic(destination);
 
