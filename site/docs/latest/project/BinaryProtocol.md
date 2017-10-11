@@ -436,7 +436,7 @@ If the `error_code` or the `error_message` field is set it indicates that the re
 
 ##### Command Unsubscribe
 
-This command is sent by the client to unsubscribe the `consumer_id` from the assosiated topic.
+This command is sent by the client to unsubscribe the `consumer_id` from the associated topic.
 Parameters:
  * `request_id` → Id of the request.
  * `consumer_id` → Id of an already established consumer which needs to unsubscribe.
