@@ -504,12 +504,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     configuration.setAuthentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                String clusterUrl = configuration.isUseTls()
-                        ? (isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
-                                : data.getServiceUrlTls())
-                        : null;
-                clusterUrl = (isNotBlank(clusterUrl)) ? clusterUrl
-                        : (isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
+                String clusterUrl = null;
+                if (pulsar.getConfiguration().isReplicationTlsEnabled()) {
+                    clusterUrl = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                            : data.getServiceUrlTls();
+                    configuration.setUseTls(true);
+                    configuration.setTlsTrustCertsFilePath(pulsar.getConfiguration().getTlsTrustCertsFilePath());
+                    configuration
+                            .setTlsAllowInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                } else {
+                    clusterUrl = isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl()
+                            : data.getServiceUrl();
+                }
                 return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
             } catch (Exception e) {
                 throw new RuntimeException(e);

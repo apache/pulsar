@@ -57,6 +57,8 @@ import com.google.common.collect.Sets;
 
 public class ReplicatorTestBase {
     URL url1;
+    URL urlTls1;
+    ServiceConfiguration config1 = new ServiceConfiguration();
     PulsarService pulsar1;
     BrokerService ns1;
 
@@ -64,14 +66,16 @@ public class ReplicatorTestBase {
     LocalBookkeeperEnsemble bkEnsemble1;
 
     URL url2;
-    ServiceConfiguration config2;
+    URL urlTls2;
+    ServiceConfiguration config2 = new ServiceConfiguration();
     PulsarService pulsar2;
     BrokerService ns2;
     PulsarAdmin admin2;
     LocalBookkeeperEnsemble bkEnsemble2;
 
     URL url3;
-    ServiceConfiguration config3;
+    URL urlTls3;
+    ServiceConfiguration config3 = new ServiceConfiguration();
     PulsarService pulsar3;
     BrokerService ns3;
     PulsarAdmin admin3;
@@ -82,6 +86,9 @@ public class ReplicatorTestBase {
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
+
+    protected final static String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
+    protected final static String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -104,25 +111,32 @@ public class ReplicatorTestBase {
         bkEnsemble1.start();
 
         int webServicePort1 = PortManager.nextFreePort();
+        int webServicePortTls1 = PortManager.nextFreePort();
 
         // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
         // completely
         // independent config objects instead of referring to the same properties object
-        ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setClusterName("r1");
         config1.setWebServicePort(webServicePort1);
+        config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
         config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
         config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(PortManager.nextFreePort());
+        config1.setBrokerServicePortTls(PortManager.nextFreePort());
+        config1.setTlsEnabled(true);
+        config1.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
-        url1 = new URL("http://127.0.0.1:" + webServicePort1);
+        url1 = new URL("http://localhost:" + webServicePort1);
+        urlTls1 = new URL("https://localhost:" + webServicePortTls1);
         admin1 = new PulsarAdmin(url1, (Authentication) null);
 
         // Start region 2
@@ -133,21 +147,28 @@ public class ReplicatorTestBase {
         bkEnsemble2.start();
 
         int webServicePort2 = PortManager.nextFreePort();
-        config2 = new ServiceConfiguration();
+        int webServicePortTls2 = PortManager.nextFreePort();
         config2.setClusterName("r2");
         config2.setWebServicePort(webServicePort2);
+        config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
         config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
         config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(PortManager.nextFreePort());
+        config2.setBrokerServicePortTls(PortManager.nextFreePort());
+        config2.setTlsEnabled(true);
+        config2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
-        url2 = new URL("http://127.0.0.1:" + webServicePort2);
+        url2 = new URL("http://localhost:" + webServicePort2);
+        urlTls2 = new URL("https://localhost:" + webServicePortTls2);
         admin2 = new PulsarAdmin(url2, (Authentication) null);
 
         // Start region 3
@@ -158,31 +179,38 @@ public class ReplicatorTestBase {
         bkEnsemble3.start();
 
         int webServicePort3 = PortManager.nextFreePort();
-        config3 = new ServiceConfiguration();
+        int webServicePortTls3 = PortManager.nextFreePort();
         config3.setClusterName("r3");
         config3.setWebServicePort(webServicePort3);
+        config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
         config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
         config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
         config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config3.setBrokerServicePort(PortManager.nextFreePort());
+        config3.setBrokerServicePortTls(PortManager.nextFreePort());
+        config3.setTlsEnabled(true);
+        config3.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         pulsar3 = new PulsarService(config3);
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
 
-        url3 = new URL("http://127.0.0.1:" + webServicePort3);
+        url3 = new URL("http://localhost:" + webServicePort3);
+        urlTls3 = new URL("https://localhost:" + webServicePortTls3);
         admin3 = new PulsarAdmin(url3, (Authentication) null);
 
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
-                pulsar1.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
-                pulsar1.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
-                pulsar1.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
+                pulsar1.getBrokerServiceUrl(), pulsar1.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
+                pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
 
-        admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));
+        admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
         admin1.properties().createProperty("pulsar",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/global/ns");

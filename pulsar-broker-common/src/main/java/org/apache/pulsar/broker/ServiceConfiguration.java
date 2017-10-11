@@ -325,6 +325,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String replicatorPrefix = "pulsar.repl";
     // Replicator producer queue size;
     private int replicationProducerQueueSize = 1000;
+    // Enable TLS when talking with other clusters to replicate messages
+    private boolean replicationTlsEnabled = false;
+
     // Default message retention time
     private int defaultRetentionTimeInMinutes = 0;
     // Default retention size
@@ -1135,6 +1138,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setReplicationProducerQueueSize(int replicationProducerQueueSize) {
         this.replicationProducerQueueSize = replicationProducerQueueSize;
+    }
+
+    public boolean isReplicationTlsEnabled() {
+        return replicationTlsEnabled;
+    }
+
+    public void setReplicationTlsEnabled(boolean replicationTlsEnabled) {
+        this.replicationTlsEnabled = replicationTlsEnabled;
     }
 
     public List<String> getBootstrapNamespaces() {
