@@ -571,9 +571,7 @@ public class NamespaceService {
                 updateNamespaceBundles(nsname, splittedBundles.getLeft(),
                         (rc, path, zkCtx, stat) -> pulsar.getOrderedExecutor().submit(safeRun(() -> {
                             if (rc == KeeperException.Code.OK.intValue()) {
-                                // disable old bundle
                                 try {
-                                    ownershipCache.disableOwnership(bundle);
                                     // invalidate cache as zookeeper has new split
                                     // namespace bundle
                                     bundleFactory.invalidateBundleCache(nsname);

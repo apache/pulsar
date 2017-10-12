@@ -89,6 +89,15 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             return future;
         });
 
+        // local-policies have been changed which has contains namespace bundles
+        pulsar.getLocalZkCacheService().policiesCache()
+                .registerListener((String path, LocalPolicies data, Stat stat) -> {
+                    String[] paths = path.split(LOCAL_POLICIES_ROOT + "/");
+                    if (paths.length == 2) {
+                        invalidateBundleCache(new NamespaceName(paths[1]));
+                    }
+                });
+
         if (pulsar != null && pulsar.getConfigurationCache() != null) {
             pulsar.getLocalZkCacheService().policiesCache().registerListener(this);
         }

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
@@ -68,6 +69,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
@@ -738,6 +740,105 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
+    /**
+     * 
+     * <pre>
+     * When broker-1's load-manager splits the bundle and update local-policies, broker-2 should get watch of
+     * local-policies and update bundleCache so, new lookup can be redirected properly.
+     * 
+     * (1) Start broker-1 and broker-2
+     * (2) Make sure broker-2 always assign bundle to broker1
+     * (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
+     * (4) Broker-1 will own topic-1
+     * (5) Split the bundle for topic-1
+     * (6) Broker-2 should get the watch and update bundle cache
+     * (7) Make lookup request again to Broker-2 which should succeed.
+     * 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 5000)
+    public void testSplitUnloadLookupTest() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        final String namespace = "my-property/use/my-ns";
+        // (1) Start broker-1
+        ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setBrokerServicePort(PortManager.nextFreePort());
+        conf2.setBrokerServicePortTls(PortManager.nextFreePort());
+        conf2.setWebServicePort(PortManager.nextFreePort());
+        conf2.setWebServicePortTls(PortManager.nextFreePort());
+        conf2.setAdvertisedAddress("localhost");
+        conf2.setClusterName(conf.getClusterName());
+        PulsarService pulsar2 = startBroker(conf2);
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
+
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
+
+        LoadManager loadManager1 = spy(pulsar.getLoadManager().get());
+        LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
+        Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
+        loadManagerField.setAccessible(true);
+
+        // (2) Make sure broker-2 always assign bundle to broker1
+        // mock: redirect request to leader [2]
+        doReturn(true).when(loadManager2).isCentralized();
+        loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
+        // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
+        doReturn(true).when(loadManager1).isCentralized();
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        doReturn(resourceUnit).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
+
+        URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
+        PulsarClient pulsarClient2 = PulsarClient.create(broker2ServiceUrl.toString(), new ClientConfiguration());
+
+        // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
+        final String topic1 = "persistent://" + namespace + "/topic1";
+        Consumer consumer1 = pulsarClient2.subscribe(topic1, "my-subscriber-name", new ConsumerConfiguration());
+
+        Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()
+                .map(nb -> nb.toString()).collect(Collectors.toSet());
+
+        // (4) Broker-1 will own topic-1
+        final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
+        Assert.assertTrue(serviceUnits1.contains(unsplitBundle));
+        // broker-2 should have this bundle into the cache
+        DestinationName destination = DestinationName.get(topic1);
+        NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(destination);
+        Assert.assertEquals(bundleInBroker2.toString(), unsplitBundle);
+
+        // (5) Split the bundle for topic-1
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff");
+
+        // (6) Broker-2 should get the watch and update bundle cache
+        final int retry = 5;
+        for (int i = 0; i < retry; i++) {
+            if (pulsar2.getNamespaceService().getBundle(destination).equals(bundleInBroker2) && i != retry - 1) {
+                Thread.sleep(200);
+            } else {
+                break;
+            }
+        }
+
+        // (7) Make lookup request again to Broker-2 which should succeed.
+        final String topic2 = "persistent://" + namespace + "/topic2";
+        Consumer consumer2 = pulsarClient2.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
+
+        NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
+                .getBundle(DestinationName.get(topic2));
+        Assert.assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+
+        consumer1.close();
+        consumer2.close();
+        pulsarClient2.close();
+        pulsar2.close();
+
+    }
     /**** helper classes ****/
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {

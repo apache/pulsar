@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.cache;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
@@ -90,6 +89,9 @@ public class LocalZooKeeperCacheService {
                         // create new policies node under Local ZK by coping it from Global ZK
                         createPolicies(path, true).thenAccept(p -> {
                             LOG.info("Successfully created local policies for {} -- {}", path, p);
+                            // local-policies have been created but it's not part of policiesCache. so, call
+                            // super.getAsync() which will load it and set the watch on local-policies path
+                            super.getAsync(path);
                             future.complete(p);
                         }).exceptionally(ex -> {
                             future.completeExceptionally(ex);
