@@ -364,7 +364,7 @@ message CommandMessage {
 ```
 
 
-#### Command Ack
+##### Command Ack
 
 An `Ack` is used to signal to the broker that a given message has been
 successfully processed by the application and can be discarded by the broker.
@@ -418,6 +418,29 @@ acknowledged.
 
 The client should use this command to notify the application that no more
 messages are coming from the consumer.
+
+##### Command ConsumerStats
+
+This command is sent by the client to retreive Subscriber and Consumer level 
+stats from the broker.
+Parameters:
+ * `request_id` → Id of the request, used to correlate the request 
+ 		  and the response.
+ * `consumer_id` → Id of an already established consumer.
+
+##### Command ConsumerStatsResponse
+
+This is the broker's response to ConsumerStats request by the client. 
+It contains the Subscriber and Consumer level stats of the `consumer_id` sent in the request.
+If the `error_code` or the `error_message` field is set it indicates that the request has failed.
+
+##### Command Unsubscribe
+
+This command is sent by the client to unsubscribe the `consumer_id` from the associated topic.
+Parameters:
+ * `request_id` → Id of the request.
+ * `consumer_id` → Id of an already established consumer which needs to unsubscribe.
+
 
 ## Service discovery
 
