@@ -593,6 +593,8 @@ flexible messaging model and an intuitive client API.</description>
           </argLine>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
+          <shutdown>kill</shutdown>
+          <forkedProcessExitTimeoutInSeconds>30</forkedProcessExitTimeoutInSeconds>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
       </plugin>
