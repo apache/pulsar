@@ -3,6 +3,27 @@ title: Deploying a Pulsar instance
 tags: [admin, instance]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](../../admin/GeoReplication). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
 * Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks

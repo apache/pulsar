@@ -3,6 +3,27 @@ title: PulsarにおけるWebSocket API
 tags_ja: [websocket, nodejs, python]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsarにおける[WebSocket](https://developer.mozilla.org/ja/docs/Web/API/WebSockets_API) APIは公式の[クライアントライブラリ](../../getting-started/Clients)のない言語からもPulsarとメッセージをやり取りする簡単な方法を提供することを意味します。WebSocketを通してメッセージの送受信と[Java](../Java), [Python](../Python), [C++](../Cpp)クライアントライブラリから利用可能な全機能を利用できます。
 
 {% include admonition.html type="success" content="PulsarのWebSocket APIはどのWebSocketクライアントライブラリからでも利用できます。PythonとNode.jsのサンプルは[こちら](#クライアントの実装例)にあります。" %}

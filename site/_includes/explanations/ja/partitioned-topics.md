@@ -1,3 +1,24 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 通常のトピックは単一の{% popover_ja Broker %}によってのみ提供されるため、トピックの最大スループットが制限されます。*パーティションドトピック*は複数のBrokerによって処理される特殊なトピックであり、より高いスループットの実現を可能にします。
 
 裏側では、パーティションドトピックはN個の内部トピックとして実装されます。ここでのNはパーティションの数です。パーティションドトピックにメッセージを発行すると、それぞれのメッセージは複数のBrokerの内のいずれかにルーティングされます。Broker間のパーティションの分散はPulsarによって自動的に処理されます。

@@ -2,6 +2,27 @@
 title: モジュラロードマネージャ
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 {% javadoc ModularLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl %}として実装されている*モジュラロードマネージャ*は、これまでに実装されていたロードマネージャ{% javadoc SimpleLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl %}のより柔軟な代替手段です。これは複雑な負荷管理戦略を実装できるように抽象化を提供しつつ、負荷管理の方法をより簡単にしようと試みています。
 
 ## 使用方法
