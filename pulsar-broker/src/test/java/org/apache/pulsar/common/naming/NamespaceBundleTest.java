@@ -18,16 +18,24 @@
  */
 package org.apache.pulsar.common.naming;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
@@ -35,7 +43,7 @@ import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 
 public class NamespaceBundleTest {
-    private final NamespaceBundleFactory factory = NamespaceBundleFactory.createFactory(Hashing.crc32());
+    private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
 
     @Test
     public void testConstructor() {
@@ -108,6 +116,16 @@ public class NamespaceBundleTest {
         assertTrue(bundle.getKeyRange().upperEndpoint().equals(1L));
         assertEquals(bundle.getKeyRange().upperBoundType(), BoundType.OPEN);
         assertEquals(bundle.getNamespaceObject().toString(), "pulsar/use/ns");
+    }
+
+    private NamespaceBundleFactory getNamespaceBundleFactory() {
+        PulsarService pulsar = mock(PulsarService.class);
+        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
+        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
+        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
+        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
+        doNothing().when(poilciesCache).registerListener(any());
+        return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
     @Test

@@ -89,6 +89,15 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             return future;
         });
 
+        // local-policies have been changed which has contains namespace bundles
+        pulsar.getLocalZkCacheService().policiesCache()
+                .registerListener((String path, LocalPolicies data, Stat stat) -> {
+                    String[] paths = path.split(LOCAL_POLICIES_ROOT + "/");
+                    if (paths.length == 2) {
+                        invalidateBundleCache(new NamespaceName(paths[1]));
+                    }
+                });
+
         if (pulsar != null && pulsar.getConfigurationCache() != null) {
             pulsar.getLocalZkCacheService().policiesCache().registerListener(this);
         }
@@ -225,8 +234,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         checkArgument(partitions.first().equals(FIRST_BOUNDARY) && partitions.last().equals(LAST_BOUNDARY));
     }
 
-    public static NamespaceBundleFactory createFactory(HashFunction hashFunc) {
-        return new NamespaceBundleFactory(null, hashFunc);
+    public static NamespaceBundleFactory createFactory(PulsarService pulsar, HashFunction hashFunc) {
+        return new NamespaceBundleFactory(pulsar, hashFunc);
     }
 
     public static boolean isFullBundle(String bundleRange) {
