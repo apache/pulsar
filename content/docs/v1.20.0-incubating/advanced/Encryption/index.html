@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>Message retention and expiry</title>
+<title>Pulsar Encryption</title>
 
 <meta charset="utf-8">
 
@@ -710,12 +710,12 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Message retention and expiry</h1>
-        <span class="docs-lead">Manage how long messages remain stored in your Pulsar instance</span><br />
+        <h1 class="docs-title">Pulsar Encryption</h1>
+        <span class="docs-lead">Encrypt messages published to pulsar</span><br />
         <section class="tags">
           
-          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!-- <span class="badge badge-pill badge-primary">crypto</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-crypto">crypto</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -736,11 +736,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-admin">
+<div class="modal fade" id="modal-crypto">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>crypto</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -748,17 +748,6 @@
           
           
           
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
           
@@ -796,7 +785,386 @@
           
           
           
-          <li><a href="/docs/latest/deployment/InstanceSetup/">Deploying a Pulsar instance</a></li>
+          
+          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">encryption</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-encryption">encryption</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-encryption">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>encryption</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">clients</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-clients">clients</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-clients">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>clients</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
+          
           
           
           
@@ -847,568 +1215,6 @@
           
           
           
-          
-          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">expiry</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-expiry">expiry</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-expiry">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>expiry</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">retention</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-retention">retention</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-retention">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>retention</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">backlog</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-backlog">backlog</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-backlog">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>backlog</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
           
           
           
@@ -1474,347 +1280,186 @@
       </section>
 
       <section class="content">
-        <p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> are responsible for handling messages that pass through Pulsar, including <a href="../../getting-started/ConceptsAndArchitecture#persistent-storage">persistent storage</a> of messages. By default, brokers:</p>
+        <h1 id="pulsar-encryption">Pulsar Encryption</h1>
 
+<p>Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.</p>
+
+<h2 id="asymmetric-and-symmetric-encryption">Asymmetric and symmetric encryption</h2>
+
+<p>Pulsar uses dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using application provided ECDSA/RSA key pair, as a result there is no need to share the secret with everyone.</p>
+
+<p>Key is a public/private key pair used for encryption/decryption. The producer key is the public key, and the consumer key is the private key of the key pair.</p>
+
+<p>The application configures the producer with the public  key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.</p>
+
+<p>A message can be encrypted with more than one key.  Any one of the keys used for encrypting the message is sufficient to decrypt the message</p>
+
+<p>Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable</p>
+
+<h2 id="producer">Producer</h2>
+<p><img src="/img/PulsarEncryptionProducer.jpg" alt="alt text" title="Pulsar Encryption Producer" /></p>
+
+<h2 id="consumer">Consumer</h2>
+<p><img src="/img/PulsarEncryptionConsumer.jpg" alt="alt text" title="Pulsar Encryption Consumer" /></p>
+
+<h2 id="here-are-the-steps-to-get-started">Here are the steps to get started:</h2>
+
+<ol>
+  <li>Create your ECDSA or RSA public/private key pair.</li>
+</ol>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>    openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
+    openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
+</code></pre>
+</div>
+<ol>
+  <li>Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.</li>
+  <li>Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.</li>
+  <li>Add encryption key to producer configuration: conf.addEncryptionKey(“myapp.key”)</li>
+  <li>Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)</li>
+  <li>Sample producer application:
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
+
+         <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
+         <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
+
+         <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="n">String</span> <span class="n">pubKeyFile</span><span class="o">,</span> <span class="n">String</span> <span class="n">privKeyFile</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="n">pubKeyFile</span><span class="o">;</span>
+             <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="n">privKeyFile</span><span class="o">;</span>
+         <span class="o">}</span>
+
+         <span class="nd">@Override</span>
+         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPublicKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
+             <span class="k">try</span> <span class="o">{</span>
+                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">publicKeyFile</span><span class="o">)));</span>
+             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read public key from file "</span> <span class="o">+</span> <span class="n">publicKeyFile</span><span class="o">);</span>
+                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+             <span class="o">}</span>
+             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
+         <span class="o">}</span>
+
+         <span class="nd">@Override</span>
+         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPrivateKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
+             <span class="k">try</span> <span class="o">{</span>
+                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">privateKeyFile</span><span class="o">)));</span>
+             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read private key from file "</span> <span class="o">+</span> <span class="n">privateKeyFile</span><span class="o">);</span>
+                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+             <span class="o">}</span>
+             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
+         <span class="o">}</span>
+     <span class="o">}</span>
+     <span class="n">PulsarClient</span> <span class="n">pulsarClient</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+
+     <span class="n">ProducerConfiguration</span> <span class="n">prodConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
+     <span class="n">prodConf</span><span class="o">.</span><span class="na">setCryptoKeyReader</span><span class="o">(</span><span class="k">new</span> <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="s">"test_ecdsa_pubkey.pem"</span><span class="o">,</span> <span class="s">"test_ecdsa_privkey.pem"</span><span class="o">));</span>
+     <span class="n">prodConf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myappkey"</span><span class="o">);</span>
+
+     <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="s">"persistent://my-property/use/my-ns/my-topic"</span><span class="o">,</span> <span class="n">prodConf</span><span class="o">);</span>
+
+     <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+         <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"my-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+     <span class="o">}</span>
+
+     <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre>
+    </div>
+  </li>
+  <li>Sample Consumer Application:
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
+
+         <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
+         <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
+
+         <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="n">String</span> <span class="n">pubKeyFile</span><span class="o">,</span> <span class="n">String</span> <span class="n">privKeyFile</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="n">pubKeyFile</span><span class="o">;</span>
+             <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="n">privKeyFile</span><span class="o">;</span>
+         <span class="o">}</span>
+
+         <span class="nd">@Override</span>
+         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPublicKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
+             <span class="k">try</span> <span class="o">{</span>
+                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">publicKeyFile</span><span class="o">)));</span>
+             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read public key from file "</span> <span class="o">+</span> <span class="n">publicKeyFile</span><span class="o">);</span>
+                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+             <span class="o">}</span>
+             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
+         <span class="o">}</span>
+
+         <span class="nd">@Override</span>
+         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPrivateKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
+             <span class="k">try</span> <span class="o">{</span>
+                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">privateKeyFile</span><span class="o">)));</span>
+             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read private key from file "</span> <span class="o">+</span> <span class="n">privateKeyFile</span><span class="o">);</span>
+                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+             <span class="o">}</span>
+             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
+         <span class="o">}</span>
+     <span class="o">}</span>
+
+     <span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
+     <span class="n">consConf</span><span class="o">.</span><span class="na">setCryptoKeyReader</span><span class="o">(</span><span class="k">new</span> <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="s">"test_ecdsa_pubkey.pem"</span><span class="o">,</span> <span class="s">"test_ecdsa_privkey.pem"</span><span class="o">));</span>
+     <span class="n">PulsarClient</span> <span class="n">pulsarClient</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+     <span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span><span class="s">"persistent://my-property/use/my-ns/my-topic"</span><span class="o">,</span> <span class="s">"my-subscriber-name"</span><span class="o">,</span> <span class="n">consConf</span><span class="o">);</span>
+     <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+     <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+         <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+         <span class="c1">// do something</span>
+         <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Received: "</span> <span class="o">+</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
+     <span class="o">}</span>
+
+     <span class="c1">// Acknowledge the consumption of all messages at once</span>
+     <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledgeCumulative</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
+     <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre>
+    </div>
+    <h2 id="key-rotation">Key rotation</h2>
+    <p>Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.</p>
+  </li>
+</ol>
+
+<h2 id="enabling-encryption-at-the-producer-application">Enabling encryption at the producer application:</h2>
+<p>If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:</p>
+<ol>
+  <li>The consumer application provides you access to their public key, which you add to your producer keys</li>
+  <li>You grant access to one of the private keys from the pairs used by producer</li>
+</ol>
+
+<p>In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumer will be able to decrypt the message, as long as it has access to at least one of the keys.</p>
+
+<p>E.g: If messages needs to be encrypted using 2 keys myapp.messagekey1 and myapp.messagekey2,</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey1"</span><span class="o">);</span>
+<span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey2"</span><span class="o">);</span>
+</code></pre>
+</div>
+<h2 id="decrypting-encrypted-messages-at-the-consumer-application">Decrypting encrypted messages at the consumer application:</h2>
+<p>Consumers require access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.</p>
+
+<h2 id="handling-failures">Handling Failures:</h2>
 <ul>
-  <li>immediately delete all messages that have been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>, and</li>
-  <li>persistently store all <span class="popover-term" tabindex="0" title="What is an unacknowledged message?" data-placement="top" data-content="A message that has been delivered to a consumer for processing but not yet confirmed as processed by the consumer." data-toggle="popover" data-trigger="focus">unacknowledged</span> messages in a <a href="#backlog-quotas">backlog</a>.</li>
+  <li>Producer/ Consumer loses access to the key
+    <ul>
+      <li>Producer action will fail indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call conf.setCryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.</li>
+      <li>If consumption failed due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request.
+Application will never be able to decrypt the messages if the private key is permanently lost.</li>
+    </ul>
+  </li>
+  <li>Batch messaging
+    <ul>
+      <li>If decryption fails and the message contain batch messages, client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.</li>
+    </ul>
+  </li>
+  <li>If decryption fails, the message consumption stops and application will notice backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages.</li>
 </ul>
 
-<p>In Pulsar, you can override both of these default behaviors, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level, in two ways:</p>
-
-<ul>
-  <li>You can persistently store messages that have already been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by setting <a href="#retention-policies">retention policies</a>.</li>
-  <li>You can delete messages that have not been acknowledged within a specified timeframe using <a href="#time-to-live-ttl">time to live</a> (TTL).</li>
-</ul>
-
-<p>Pulsar’s <a href="../../admin-api/overview">admin interface</a> enables you to manage both retention policies and TTL at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level (and thus within a specific <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and either on a specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> or in the <a href="../../getting-started/ConceptsAndArchitecture#global-cluster"><code class="highlighter-rouge">global</code></a> cluster).</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="warning">
-    <span class="admonition-title"><p>Don’t use retention and TTL at the same time</p>
-</span>
-    
-<p>Message retention policies and TTL fulfill similar purposes and should not be used in conjunction. For any given namespace, use one or the other.</p>
-
-  </div>
-</div>
-
-<h2 id="retention-policies">Retention policies</h2>
-
-<p>By default, when a Pulsar message arrives at a <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> it will be stored until it has been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>, at which point it will be deleted. You can override this behavior and retain even messages that have already been acknowledged by setting a <em>retention policy</em> on all the topics in a given <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>. When you set a retention policy you can set either a <em>size limit</em> or a <em>time limit</em>.</p>
-
-<p>When you set a size limit of, say, 10 gigabytes, then messages in all topics in the namespace, <em>even acknowledged messages</em>, will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then messages for all topics in the namespace will be retained for 24 hours.</p>
-
-<h3 id="defaults">Defaults</h3>
-
-<p>There are two configuration parameters that you can use to set <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>-wide defaults for message retention: <a href="../../reference/Configuration#broker-defaultRetentionTimeInMinutes"><code class="highlighter-rouge">defaultRetentionTimeInMinutes</code></a> and <a href="../../reference/Configuration#broker-defaultRetentionSizeInMB"><code class="highlighter-rouge">defaultRetentionSizeInMB</code></a>.</p>
-
-<p>Both of these parameters are in the <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">broker.conf</code></a> configuration file.</p>
-
-<h3 id="set-retention-policy">Set retention policy</h3>
-
-<p>You can set a retention policy for a namespace by specifying the namespace as well as both a size limit <em>and</em> a time limit.</p>
-
-<h4 id="pulsar-admin">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-set-retention"><code class="highlighter-rouge">set-retention</code></a> subcommand and specify a namespace, a size limit using the <code class="highlighter-rouge">-s</code>/<code class="highlighter-rouge">--size</code> flag, and a time limit using the <code class="highlighter-rouge">-t</code>/<code class="highlighter-rouge">--time</code> flag.</p>
-
-<h5 id="examples">Examples</h5>
-
-<p>To set a size limit of 10 gigabytes and a time limit of 3 hours for the <code class="highlighter-rouge">my-prop/my-cluster/my-ns</code> namespace:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-retention my-prop/my-cluster/my-ns <span class="se">\</span>
-  --size 10G <span class="se">\</span>
-  --time 3h
-</code></pre>
-</div>
-
-<h4 id="rest-api">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">More info</a></p>
-
-<h4 id="java">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">retentionTime</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="c1">// 10 minutes</span>
-<span class="kt">int</span> <span class="n">retentionSize</span> <span class="o">=</span> <span class="mi">500</span><span class="o">;</span> <span class="c1">// 500 megabytes</span>
-<span class="n">RetentionPolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTime</span><span class="o">,</span> <span class="n">retentionSize</span><span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="get-retention-policy">Get retention policy</h3>
-
-<p>You can fetch the retention policy for a namespace by specifying the namespace. The output will be a JSON object with two keys: <code class="highlighter-rouge">retentionTimeInMinutes</code> and <code class="highlighter-rouge">retentionSizeInMB</code>.</p>
-
-<h4 id="pulsar-admin-1">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-retention"><code class="highlighter-rouge">get-retention</code></a> subcommand and specify the namespace.</p>
-
-<h5 id="example">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-retention my-prop/my-cluster/my-ns
-<span class="o">{</span>
-  <span class="s2">"retentionTimeInMinutes"</span>: 10,
-  <span class="s2">"retentionSizeInMB"</span>: 0
-<span class="o">}</span>
-</code></pre>
-</div>
-
-<h4 id="rest-api-1">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">More info</a></p>
-
-<h4 id="java-1">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h2 id="backlog-quotas">Backlog quotas</h2>
-
-<p><em>Backlogs</em> are sets of unacknowledged messages for a topic that have been stored by <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.</p>
-
-<p>You can control the allowable size of backlogs, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level, using <em>backlog quotas</em>. Setting a backlog quota involves setting:</p>
-
-<ul>
-  <li>an allowable <em>size threshold</em> for each topic in the namespace</li>
-  <li>a <em>retention policy</em> that determines which action the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> takes if the threshold is exceeded.</li>
-</ul>
-
-<p>The following retention policies are available:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th style="text-align: left">Policy</th>
-      <th style="text-align: left">Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">producer_request_hold</code></td>
-      <td style="text-align: left">The broker will hold and not persist produce request payload</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">producer_exception</code></td>
-      <td style="text-align: left">The broker will disconnect from the client by throwing an exception</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">consumer_backlog_eviction</code></td>
-      <td style="text-align: left">The broker will begin discarding backlog messages</td>
-    </tr>
-  </tbody>
-</table>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="warning">
-    <span class="admonition-title"><p>Beware the distinction between retention policy types</p>
-</span>
-    
-<p>As you may have noticed, there are two definitions of the term “retention policy” in Pulsar, one that applies to persistent storage of already-acknowledged messages and one that applies to backlogs.</p>
-
-  </div>
-</div>
-
-<p>Backlog quotas are handled at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level. They can be managed via:</p>
-
-<h3 id="set-size-thresholds-and-backlog-retention-policies">Set size thresholds and backlog retention policies</h3>
-
-<p>You can set a size threshold and backlog retention policy for all of the topics in a <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> by specifying the namespace, a size limit, and a policy by name.</p>
-
-<h4 id="pulsar-admin-2">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-set-backlog-quota"><code class="highlighter-rouge">set-backlog-quota</code></a> subcommand and specify a namespace, a size limit using the <code class="highlighter-rouge">-l</code>/<code class="highlighter-rouge">--limit</code> flag, and a retention policy using the <code class="highlighter-rouge">-p</code>/<code class="highlighter-rouge">--policy</code> flag.</p>
-
-<h5 id="example-1">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-backlog-quota my-prop/my-cluster/my-ns <span class="se">\</span>
-  --limit 2G <span class="se">\</span>
-  --policy producer_request_hold
-</code></pre>
-</div>
-
-<h4 id="rest-api-2">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
-
-<h4 id="java-2">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">long</span> <span class="n">sizeLimit</span> <span class="o">=</span> <span class="mi">2147483648L</span><span class="o">;</span>
-<span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span> <span class="n">policy</span> <span class="o">=</span>
-  <span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span><span class="o">.</span><span class="na">producer_request_hold</span><span class="o">;</span>
-<span class="n">BacklogQuota</span> <span class="n">quota</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">sizeLimit</span><span class="o">,</span> <span class="n">policy</span><span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">quota</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="get-backlog-threshold-and-backlog-retention-policy">Get backlog threshold and backlog retention policy</h3>
-
-<p>You can see which size threshold and backlog retention policy has been applied to a namespace.</p>
-
-<h4 id="pulsar-admin-3">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-backlog-quotas"><code class="highlighter-rouge">get-backlog-quotas</code></a> subcommand and specify a namespace. Here’s an example:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-backlog-quotas my-prop/my-cluster/my-ns
-<span class="o">{</span>
-  <span class="s2">"destination_storage"</span>: <span class="o">{</span>
-    <span class="s2">"limit"</span> : 2147483648,
-    <span class="s2">"policy"</span> : <span class="s2">"producer_request_hold"</span>
-  <span class="o">}</span>
-<span class="o">}</span>
-</code></pre>
-</div>
-
-<h4 id="rest-api-3">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuotaMap</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
-
-<h4 id="java-3">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">BacklogQuota</span><span class="o">.</span><span class="na">BacklogQuotaType</span><span class="o">,</span><span class="n">BacklogQuota</span><span class="o">&gt;</span> <span class="n">quotas</span> <span class="o">=</span>
-  <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotas</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="remove-backlog-quotas">Remove backlog quotas</h3>
-
-<h4 id="pulsar-admin-4">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-remove-backlog-quota"><code class="highlighter-rouge">remove-backlog-quotas</code></a> subcommand and specify a namespace. Here’s an example:</p>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
-</code></pre>
-</div>
-
-<h4 id="rest-api-4">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
-
-<h4 id="java-4">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="clear-backlog">Clear backlog</h3>
-
-<h4 id="pulsar-admin-5">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-clear-backlog"><code class="highlighter-rouge">clear-backlog</code></a> subcommand.</p>
-
-<h5 id="example-2">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces clear-backlog my-prop/my-cluster/my-ns
-</code></pre>
-</div>
-
-<p>By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the <code class="highlighter-rouge">-f</code>/<code class="highlighter-rouge">--force</code> flag.</p>
-
-<h2 id="time-to-live-ttl">Time to live (TTL)</h2>
-
-<p>By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will</p>
-
-<h3 id="set-the-ttl-for-a-namespace">Set the TTL for a namespace</h3>
-
-<h4 id="pulsar-admin-6">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-set-message-ttl"><code class="highlighter-rouge">set-message-ttl</code></a> subcommand and specify a namespace and a TTL (in seconds) using the <code class="highlighter-rouge">-ttl</code>/<code class="highlighter-rouge">--messageTTL</code> flag.</p>
-
-<h5 id="example-3">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-message-ttl my-prop/my-cluster/my-ns <span class="se">\</span>
-  --messageTTL 120 <span class="c"># TTL of 2 minutes</span>
-</code></pre>
-</div>
-
-<h4 id="rest-api-5">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">More info</a></p>
-
-<h4 id="java-5">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">ttlInSeconds</span><span class="o">);</span>
-</code></pre>
-</div>
-
-<h3 id="get-the-ttl-configuration-for-a-namespace">Get the TTL configuration for a namespace</h3>
-
-<h4 id="pulsar-admin-7">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-message-ttl"><code class="highlighter-rouge">get-message-ttl</code></a> subcommand and specify a namespace.</p>
-
-<h5 id="example-4">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-message-ttl my-prop/my-cluster/my-ns
-60
-</code></pre>
-</div>
-
-<h4 id="rest-api-6">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">More info</a></p>
-
-<h4 id="java-6">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">get</span>
-</code></pre>
-</div>
 
       </section>
     </article>
@@ -1822,7 +1467,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Message retention and expiry</h4>
+        <h4>Pulsar Encryption</h4>
       </div>
       
     </nav>

@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -735,10 +756,6 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -753,7 +770,23 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
+          
+          
+          
+          
           
           
           
@@ -789,7 +822,33 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -881,13 +940,25 @@
           
           
           
-          
-          
-          
-          
-          
-          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -933,6 +1004,22 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
           
           
@@ -940,6 +1027,16 @@
           
           
           <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1011,7 +1108,7 @@
       <section class="content">
         <p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> of messages but also to perform <a href="../../admin-api/overview">administrative tasks</a>.</p>
 
-<p>The current version of the Java client is <strong>1.19.0-incubating</strong>.</p>
+<p>The current version of the Java client is <strong>1.20.0-incubating</strong>.</p>
 
 <p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
 
@@ -1038,14 +1135,14 @@
 
 <h2 id="installation">Installation</h2>
 
-<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.19.0-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.20.0-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
 
 <h3 id="maven">Maven</h3>
 
 <p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
 
 <div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>1.19.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>1.20.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
@@ -1060,7 +1157,7 @@
 
 <p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.19.0-incubating'</span>
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.20.0-incubating'</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
@@ -1086,7 +1183,7 @@
 
 <p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6650
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 </div>
 
@@ -1364,7 +1461,7 @@
 </code></pre>
 </div>
 
-<p>Async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+<p>Async receive operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
 
 <h2 id="authentication">Authentication</h2>
 
@@ -1414,12 +1511,20 @@
 <span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantDomain"</span><span class="o">,</span> <span class="s">"shopping"</span><span class="o">);</span> <span class="c1">// Tenant domain name</span>
 <span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantService"</span><span class="o">,</span> <span class="s">"some_app"</span><span class="o">);</span> <span class="c1">// Tenant service name</span>
 <span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"providerDomain"</span><span class="o">,</span> <span class="s">"pulsar"</span><span class="o">);</span> <span class="c1">// Provider domain name</span>
-<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"privateKeyPath"</span><span class="o">,</span> <span class="s">"/path/to/private.pem"</span><span class="o">);</span> <span class="c1">// Tenant private key path</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"privateKey"</span><span class="o">,</span> <span class="s">"file:///path/to/private.pem"</span><span class="o">);</span> <span class="c1">// Tenant private key path</span>
 <span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"keyId"</span><span class="o">,</span> <span class="s">"v1"</span><span class="o">);</span> <span class="c1">// Key id for the tenant private key (optional, default: "0")</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">AuthenticationAthenz</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
         <span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p><strong>Note</strong>: <em><code class="highlighter-rouge">privateKey</code> parameter supports following three patterns format</em>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>file:///path/to/file
+file:/path/to/file
+data:application/x-pem-file;base64,&lt;base64-encoded value&gt;
 </code></pre>
 </div>
 

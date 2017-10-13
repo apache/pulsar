@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -723,6 +744,44 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -941,6 +1000,44 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
           
           
@@ -1079,7 +1176,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1337,7 +1472,7 @@
 
 <h3 id="consumer-endpoint">Consumer endpoint</h3>
 
-<p>The producer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, as well as a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span>, in the URL:</p>
+<p>The consumer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, as well as a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span>, in the URL:</p>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
 
@@ -1349,8 +1484,7 @@
   </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
   </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
   </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
-  </span><span class="nt">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+  </span><span class="nt">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre>
 </div>
@@ -1388,12 +1522,6 @@
       <td style="text-align: left">key-value pairs</td>
       <td style="text-align: left">no</td>
       <td style="text-align: left">Application-defined properties</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
-      <td style="text-align: left">string</td>
-      <td style="text-align: left">no</td>
-      <td style="text-align: left">Application-defined request identifier</td>
     </tr>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">key</code></td>

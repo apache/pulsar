@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -727,12 +748,6 @@
           
           
           
-          
-          
-          
-          
-          
-          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -741,7 +756,23 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -779,6 +810,20 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -795,7 +840,21 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
           
           
           
@@ -893,11 +952,49 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1043,10 +1140,6 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1061,7 +1154,23 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1097,7 +1206,33 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1197,11 +1332,49 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1345,11 +1518,49 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1493,11 +1704,49 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1607,7 +1856,7 @@
       <section class="content">
         <p>Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, and more.</p>
 
-<p>All Pulsar command-line tools can be run from the <code class="highlighter-rouge">bin</code> directory of your <a href="../../getting-started/LocalCluster#installing">installed Pulsar package</a>. The following tools are currently documented:</p>
+<p>All Pulsar command-line tools can be run from the <code class="highlighter-rouge">bin</code> directory of your <a href="../../getting-started/LocalCluster#installing-pulsar">installed Pulsar package</a>. The following tools are currently documented:</p>
 
 <ul>
   <li><a href="#pulsar"><code class="highlighter-rouge">pulsar</code></a></li>
@@ -2637,6 +2886,12 @@
       <li>
         <a href="#pulsar-admin-persistent">
           <code class="highlighter-rouge">persistent</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-admin-non-persistent">
+          <code class="highlighter-rouge">non-persistent</code>
         </a>
       </li>
       
@@ -4453,6 +4708,12 @@
           </li>
           
           <li>
+            <a href="#pulsar-admin-persistent-unload">
+              <code class="highlighter-rouge">unload</code>
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar-admin-persistent-subscriptions">
               <code class="highlighter-rouge">subscriptions</code>
             </a>
@@ -4661,6 +4922,17 @@
             <p>Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent delete <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-persistent-unload"><code class="highlighter-rouge">unload</code></h4>
+          <div class="card-content">
+            <p>Unload a topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent unload <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5183,6 +5455,97 @@
                 </tbody>
               </thead>
             </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+       <!-- for subcommand in subcommands -->
+      
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-admin-non-persistent">
+        <code class="highlighter-rouge">non-persistent</code>
+      </h3>
+      <div class="card-content">
+        <p>Operations on persistent topics</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent <span class="command">subcommand</span></code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+        <h5>Subcommands</h5>
+        <ul>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-stats">
+              <code class="highlighter-rouge">stats</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-stats-internal">
+              <code class="highlighter-rouge">stats-internal</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-get-partitioned-topic-metadata">
+              <code class="highlighter-rouge">get-partitioned-topic-metadata</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-unload">
+              <code class="highlighter-rouge">unload</code>
+            </a>
+          </li>
+           <!-- for subcommand in subcommands -->
+        </ul>
+
+        
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-stats"><code class="highlighter-rouge">stats</code></h4>
+          <div class="card-content">
+            <p>Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent stats <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-stats-internal"><code class="highlighter-rouge">stats-internal</code></h4>
+          <div class="card-content">
+            <p>Get the internal stats for the topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent stats-internal <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-get-partitioned-topic-metadata"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></h4>
+          <div class="card-content">
+            <p>Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent get-partitioned-topic-metadata <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-unload"><code class="highlighter-rouge">unload</code></h4>
+          <div class="card-content">
+            <p>Unload a topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent unload <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6947,7 +7310,7 @@
                   
                    <!-- for flag in option.flags -->
                 </td>
-                <td><p>A connection string for one or more brokers</p>
+                <td><p>A connection string for one or more ZooKeeper servers</p>
 </td>
                 <td>
                   
