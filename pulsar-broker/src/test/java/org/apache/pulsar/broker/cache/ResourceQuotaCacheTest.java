@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.cache;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import java.util.concurrent.Executors;
@@ -32,9 +35,11 @@ import org.apache.pulsar.broker.cache.ResourceQuotaCache;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
+import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.MockZooKeeper;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -58,6 +63,13 @@ public class ResourceQuotaCacheTest {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
+
+        // set mock pulsar localzkcache
+        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
+        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
+        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
+        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
+        doNothing().when(poilciesCache).registerListener(any());
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();

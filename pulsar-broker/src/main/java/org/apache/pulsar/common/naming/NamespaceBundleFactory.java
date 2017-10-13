@@ -234,8 +234,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         checkArgument(partitions.first().equals(FIRST_BOUNDARY) && partitions.last().equals(LAST_BOUNDARY));
     }
 
-    public static NamespaceBundleFactory createFactory(HashFunction hashFunc) {
-        return new NamespaceBundleFactory(null, hashFunc);
+    public static NamespaceBundleFactory createFactory(PulsarService pulsar, HashFunction hashFunc) {
+        return new NamespaceBundleFactory(pulsar, hashFunc);
     }
 
     public static boolean isFullBundle(String bundleRange) {
