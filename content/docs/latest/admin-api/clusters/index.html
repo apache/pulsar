@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -706,7 +727,7 @@
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">clusters</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
   <li>The <code class="highlighter-rouge">/admin/clusters</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
-  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
+  <li>The <code class="highlighter-rouge">clusters</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../clients/Java">Java API</a></li>
 </ul>
 
 <h2 id="clusters-resources">Clusters resources</h2>
@@ -784,7 +805,7 @@
   <li>A broker service URL enabling interaction with the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in the cluster</li>
 </ul>
 
-<p>You must initialize cluster metadata <em>before</em> starting up any <a href="#managing-brokers">brokers</a> that will belong to the cluster.</p>
+<p>You must initialize cluster metadata <em>before</em> starting up any <a href="../brokers">brokers</a> that will belong to the cluster.</p>
 
 <!--
 
@@ -830,8 +851,6 @@
 </div>
 
 <p>You’ll need to use <code class="highlighter-rouge">--*-tls</code> flags only if you’re using <a href="../../admin/Authz#tls-client-auth">TLS authentication</a> in your instance.</p>
-
-<p>Make sure to initialize</p>
 
 <h3 id="get-configuration">Get configuration</h3>
 

@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":17,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
+var methods = {"i0":6,"i1":17,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -188,6 +188,12 @@ var activeTableTab = "activeTableTab";
 <div class="block">Override the replication clusters for this message.</div>
 </td>
 </tr>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setSequenceId-long-">setSequenceId</a></span>(long&nbsp;sequenceId)</code>
+<div class="block">Specify a custom sequence id for the message being published.</div>
+</td>
+</tr>
 </table>
 </li>
 </ul>
@@ -333,6 +339,31 @@ var activeTableTab = "activeTableTab";
  <p>Note: currently pulsar doesn't support event-time based index. so the subscribers can't
  seek the messages by event time.</div>
 <dl>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>1.20.0</dd>
+</dl>
+</li>
+</ul>
+<a name="setSequenceId-long-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setSequenceId</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&nbsp;setSequenceId(long&nbsp;sequenceId)</pre>
+<div class="block">Specify a custom sequence id for the message being published.
+ <p>
+ The sequence id can be used for deduplication purposes and it needs to follow these rules:
+ <ol>
+ <li><code>sequenceId >= 0</code>
+ <li>Sequence id for a message needs to be greater than sequence id for earlier messages:
+ <code>sequenceId(N+1) > sequenceId(N)</code>
+ <li>It's not necessary for sequence ids to be consecutive. There can be holes between messages. Eg. the
+ <code>sequenceId</code> could represent an offset or a cumulative size.
+ </ol></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>sequenceId</code> - the sequence id to assign to the current message</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
 <dd>1.20.0</dd>
 </dl>

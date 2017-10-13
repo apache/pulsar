@@ -122,6 +122,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a44d4f29591490129f10e370fc379fc55"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a44d4f29591490129f10e370fc379fc55"></a>
 <a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setPartitionKey</b> (const std::string &amp;partitionKey)</td></tr>
 <tr class="separator:a44d4f29591490129f10e370fc379fc55"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a445ac7f5cac5282ef8248df399995338"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338">setEventTimestamp</a> (uint64_t eventTimestamp)</td></tr>
+<tr class="separator:a445ac7f5cac5282ef8248df399995338"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae1c62a5fb7a064714b615be585d5bf92"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92">setSequenceId</a> (int64_t sequenceId)</td></tr>
+<tr class="separator:ae1c62a5fb7a064714b615be585d5bf92"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4debd882e7450dee0b83ac0bdfdee775"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a4debd882e7450dee0b83ac0bdfdee775">setReplicationClusters</a> (const std::vector&lt; std::string &gt; &amp;clusters)</td></tr>
 <tr class="separator:a4debd882e7450dee0b83ac0bdfdee775"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a944858b932548411d9f4f6305134cee7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a944858b932548411d9f4f6305134cee7">disableReplication</a> (bool flag)</td></tr>
@@ -244,6 +248,23 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 
 </div>
 </div>
+<a class="anchor" id="a445ac7f5cac5282ef8248df399995338"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>&amp; pulsar::MessageBuilder::setEventTimestamp </td>
+          <td>(</td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>eventTimestamp</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the event timestamp for the message. </p>
+
+</div>
+</div>
 <a class="anchor" id="a648ad88a75f576abb87dcab5fcb04e07"></a>
 <div class="memitem">
 <div class="memproto">
@@ -315,6 +336,38 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a class="anchor" id="ae1c62a5fb7a064714b615be585d5bf92"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>&amp; pulsar::MessageBuilder::setSequenceId </td>
+          <td>(</td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>sequenceId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Specify a custom sequence id for the message being published. </p>
+<p>The sequence id can be used for deduplication purposes and it needs to follow these rules: </p><ol>
+<li>
+<code>sequenceId &gt;= 0</code> </li>
+<li>
+Sequence id for a message needs to be greater than sequence id for earlier messages: <code>sequenceId(N+1) &gt; sequenceId(N)</code> </li>
+<li>
+It's not necessary for sequence ids to be consecutive. There can be holes between messages. Eg. the <code>sequenceId</code> could represent an offset or a cumulative size. </li>
+</ol>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">sequenceId</td><td>the sequence id to assign to the current message </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section since"><dt>Since</dt><dd>1.20.0 </dd></dl>
 
 </div>
 </div>

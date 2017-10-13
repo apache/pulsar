@@ -127,6 +127,8 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasPartitionKey</b> (
 <tr class="separator:ab7351918adb33172cdf2400390888532"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a33301ac60c27d6f4a7c25b5d1bdb0132"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a33301ac60c27d6f4a7c25b5d1bdb0132">getPublishTimestamp</a> () const </td></tr>
 <tr class="separator:a33301ac60c27d6f4a7c25b5d1bdb0132"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e87338a9b4ebd3b41d53826664f900c"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a0e87338a9b4ebd3b41d53826664f900c">getEventTimestamp</a> () const </td></tr>
+<tr class="separator:a0e87338a9b4ebd3b41d53826664f900c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -196,6 +198,22 @@ std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operato
 </div><div class="memdoc">
 <p>Get string representation of the message</p>
 <dl class="section return"><dt>Returns</dt><dd>the string representation of the message payload </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a0e87338a9b4ebd3b41d53826664f900c"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t pulsar::Message::getEventTimestamp </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the event timestamp associated with this message. It is set by the client producer. </p>
 
 </div>
 </div>

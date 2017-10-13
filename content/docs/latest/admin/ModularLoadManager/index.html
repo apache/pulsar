@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -706,7 +727,7 @@
 <p>There are two ways that you can enable the modular load manager:</p>
 
 <ol>
-  <li>Change the value of the <code class="highlighter-rouge">loadManagerClassName</code> parameter in <code class="highlighter-rouge">conf/broker.con</code> from <code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</code> to <code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl</code>.</li>
+  <li>Change the value of the <code class="highlighter-rouge">loadManagerClassName</code> parameter in <code class="highlighter-rouge">conf/broker.conf</code> from <code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</code> to <code class="highlighter-rouge">org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl</code>.</li>
   <li>
     <p>Using the <code class="highlighter-rouge">pulsar-admin</code> tool. Here’s an example:</p>
 
@@ -792,7 +813,7 @@
     </div>
   </li>
   <li>
-    <p>The command-line <a href="../../reference/CliTools/#monitor-brokers">broker monitor</a> will have a different output format depending on which load manager implementation is being used.</p>
+    <p>The command-line <a href="../../reference/CliTools/#pulsar-perf-monitor-brokers">broker monitor</a> will have a different output format depending on which load manager implementation is being used.</p>
 
     <p>Here is an example from the modular load manager:</p>
 

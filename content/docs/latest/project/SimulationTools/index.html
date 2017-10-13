@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -789,7 +810,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/project/SimulationTools/">Simulation tools</a></li>
+          
+          
+          
+          
           
           
           
@@ -883,7 +942,7 @@ command with.</p>
 <p>The clients should already be started before the controller is started. You will then be presented with a simple prompt,
 where you can issue commands to simulation clients. Arguments often refer to tenant names, namespace names, and topic
 names. In all cases, the BASE name of the tenants, namespaces, and topics are used. For example, for the topic
-<code class="highlighter-rouge">persistent://my_cluster/my_tenant/my_namespace/my_topic</code>, the tenant name is <code class="highlighter-rouge">my_tenant</code>, the namespace name is
+<code class="highlighter-rouge">persistent://my_tenant/my_cluster/my_namespace/my_topic</code>, the tenant name is <code class="highlighter-rouge">my_tenant</code>, the namespace name is
 <code class="highlighter-rouge">my_namespace</code>, and the topic name is <code class="highlighter-rouge">my_topic</code>. The controller can perform the following actions:</p>
 
 <ul>

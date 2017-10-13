@@ -171,9 +171,17 @@
 <h4>ackTimeoutMillis</h4>
 <pre>long ackTimeoutMillis</pre>
 </li>
-<li class="blockListLast">
+<li class="blockList">
 <h4>priorityLevel</h4>
 <pre>int priorityLevel</pre>
+</li>
+<li class="blockList">
+<h4>cryptoKeyReader</h4>
+<pre><a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a> cryptoKeyReader</pre>
+</li>
+<li class="blockListLast">
+<h4>cryptoFailureAction</h4>
+<pre><a href="org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a> cryptoFailureAction</pre>
 </li>
 </ul>
 </li>
@@ -191,6 +199,10 @@
 <li class="blockList">
 <h3>Serialized Fields</h3>
 <ul class="blockList">
+<li class="blockList">
+<h4>producerName</h4>
+<pre>String producerName</pre>
+</li>
 <li class="blockList">
 <h4>sendTimeoutMs</h4>
 <pre>long sendTimeoutMs</pre>
@@ -223,9 +235,25 @@
 <h4>batchingEnabled</h4>
 <pre>boolean batchingEnabled</pre>
 </li>
-<li class="blockListLast">
+<li class="blockList">
+<h4>cryptoKeyReader</h4>
+<pre><a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a> cryptoKeyReader</pre>
+</li>
+<li class="blockList">
+<h4>encryptionKeys</h4>
+<pre>&lt;any&gt; encryptionKeys</pre>
+</li>
+<li class="blockList">
 <h4>compressionType</h4>
 <pre><a href="org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a> compressionType</pre>
+</li>
+<li class="blockList">
+<h4>initialSequenceId</h4>
+<pre>Long initialSequenceId</pre>
+</li>
+<li class="blockListLast">
+<h4>cryptoFailureAction</h4>
+<pre><a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a> cryptoFailureAction</pre>
 </li>
 </ul>
 </li>
@@ -275,6 +303,11 @@
 <!--   -->
 </a>
 <h3>Class <a href="org/apache/pulsar/client/api/PulsarClientException.ConsumerBusyException.html" title="class in org.apache.pulsar.client.api">org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException</a> extends <a href="org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a> implements Serializable</h3>
+</li>
+<li class="blockList"><a name="org.apache.pulsar.client.api.PulsarClientException.CryptoException">
+<!--   -->
+</a>
+<h3>Class <a href="org/apache/pulsar/client/api/PulsarClientException.CryptoException.html" title="class in org.apache.pulsar.client.api">org.apache.pulsar.client.api.PulsarClientException.CryptoException</a> extends <a href="org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a> implements Serializable</h3>
 </li>
 <li class="blockList"><a name="org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException">
 <!--   -->

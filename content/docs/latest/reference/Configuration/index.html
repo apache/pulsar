@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -1121,7 +1142,7 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>statsProviderClass</td>
       <td>
 </td>
-      <td>org.apache.bokkeeper.stats.PrometheusMetricsProvider</td>
+      <td>org.apache.bookkeeper.stats.PrometheusMetricsProvider</td>
     </tr>
     
     <tr id="bookkeeper-prometheusStatsHttpPort">
@@ -1370,6 +1391,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>How frequently to proactively check and purge expired messages
 </td>
       <td>5</td>
+    </tr>
+    
+    <tr id="broker-activeConsumerFailoverDelayTimeMillis">
+      <td>activeConsumerFailoverDelayTimeMillis</td>
+      <td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+</td>
+      <td>1000</td>
     </tr>
     
     <tr id="broker-clientLibraryVersionCheckEnabled">
@@ -2554,6 +2582,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>5</td>
     </tr>
     
+    <tr id="standalone-activeConsumerFailoverDelayTimeMillis">
+      <td>activeConsumerFailoverDelayTimeMillis</td>
+      <td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+</td>
+      <td>1000</td>
+    </tr>
+    
     <tr id="standalone-clientLibraryVersionCheckEnabled">
       <td>clientLibraryVersionCheckEnabled</td>
       <td>Enable checks for minimum allowed client library version.
@@ -3240,7 +3275,7 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
   </tbody>
 </table>
 
-<p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a
+<p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding
 a <code class="highlighter-rouge">server.N</code> line to the <code class="highlighter-rouge">conf/zookeeper.conf</code> file for each node in the ZooKeeper cluster, where <code class="highlighter-rouge">N</code> is the number of the ZooKeeper node. Here’s an example for a three-node ZooKeeper cluster:</p>
 
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>

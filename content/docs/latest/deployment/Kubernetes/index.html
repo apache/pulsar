@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -765,7 +786,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -913,7 +972,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1112,7 +1209,7 @@
   <li>Create a local cluster running on multiple VMs on the same machine</li>
 </ol>
 
-<p>For the second option, follow the <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">instructions</a> for running Kubernetes using <a href="https://coreos.com/">CoreOS</a> on <a href="https://www.vagrantup.com/">Vagrant</a>. We’ll provided an abridged version of those instructions here.</p>
+<p>For the second option, follow the <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">instructions</a> for running Kubernetes using <a href="https://coreos.com/">CoreOS</a> on <a href="https://www.vagrantup.com/">Vagrant</a>. We’ll provide an abridged version of those instructions here.</p>
 
 <p>First, make sure you have <a href="https://www.vagrantup.com/downloads.html">Vagrant</a> and <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a> installed. Then clone the repo and start up the cluster:</p>
 
@@ -1253,7 +1350,7 @@ zk-2      0/1       Running            6          15m
 </code></pre>
 </div>
 
-<p>From there, you can issue all admin commands. Here’s an example command that would create a property named <code class="highlighter-rouge">prop</code> and a namespace within that property named <code class="highlighter-rouge">prop/us-central-ns</code>.</p>
+<p>From there, you can issue all admin commands. Here’s an example command that would create a property named <code class="highlighter-rouge">prop</code> and a namespace within that property named <code class="highlighter-rouge">prop/us-central/ns</code>.</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
 <span class="nb">export </span><span class="nv">MY_NAMESPACE</span><span class="o">=</span>prop/us-central/ns
@@ -1296,7 +1393,7 @@ zk-2      0/1       Running            6          15m
 
 <h4 id="prometheus">Prometheus</h4>
 
-<p>All Pulsar metrics in Kubernetes are collected by a <a href="https://prometheus.io">Prometheus</a> instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can the <a href="#grafana">Grafana interface</a> that displays the data stored in Prometheus.</p>
+<p>All Pulsar metrics in Kubernetes are collected by a <a href="https://prometheus.io">Prometheus</a> instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can use the <a href="#grafana">Grafana interface</a> that displays the data stored in Prometheus.</p>
 
 <h4 id="grafana">Grafana</h4>
 
@@ -1310,7 +1407,7 @@ zk-2      0/1       Running            6          15m
 
 <h4 id="pulsar-dashboard">Pulsar dashboard</h4>
 
-<p>While Grafana and Prometheus are used to provide graphs with historical data, <a href="../../admin/Dashbaord">Pulsar dashboard</a> reports more detailed current data for individual <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
+<p>While Grafana and Prometheus are used to provide graphs with historical data, <a href="../../admin/Dashboard">Pulsar dashboard</a> reports more detailed current data for individual <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>.</p>
 
 <p>For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they’ve been connected, and much more.</p>
 

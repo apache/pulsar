@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -773,7 +794,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -921,7 +980,45 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1023,12 +1120,6 @@
           
           
           
-          
-          
-          
-          
-          
-          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1037,7 +1128,23 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1075,6 +1182,20 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -1091,7 +1212,21 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1219,6 +1354,32 @@
           
           
           
+          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1228,6 +1389,20 @@
           
           
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1544,7 +1719,7 @@
     <span class="admonition-title"><p>Global partitioned topics</p>
 </span>
     
-<p>If you’d like to create a <a href="">global</a> partitioned topic, you need to create a partitioned topic using the instructions here and specify <code class="highlighter-rouge">global</code> as the cluster in the topic name.</p>
+<p>If you’d like to create a global partitioned topic, you need to create a partitioned topic using the instructions here and specify <code class="highlighter-rouge">global</code> as the cluster in the topic name.</p>
 
   </div>
 </div>
@@ -1594,7 +1769,7 @@
 
 <h4 id="pulsar-admin-2">pulsar-admin</h4>
 
-<p>You can see the see number of partitions in a partitioned topic using the <a href="../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></a> subcommand. Here’s an example:</p>
+<p>You can see the number of partitions in a partitioned topic using the <a href="../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></a> subcommand. Here’s an example:</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent get-partitioned-topic-metadata <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic
@@ -1627,7 +1802,7 @@
 
 <h4 id="pulsar-admin-3">pulsar-admin</h4>
 
-<p>Partitioned topics can be deleted using the <a href="../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic"><code class="highlighter-rouge">update-partitioned-topic</code></a> command.</p>
+<p>Partitioned topics can be updated using the <a href="../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic"><code class="highlighter-rouge">update-partitioned-topic</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent update-partitioned-topic <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic <span class="se">\</span>

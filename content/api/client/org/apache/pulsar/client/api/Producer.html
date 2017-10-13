@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -106,7 +106,7 @@ var activeTableTab = "activeTableTab";
 <pre>public interface <span class="typeNameLabel">Producer</span>
 extends Closeable</pre>
 <div class="block">Producer object.
- 
+
  The producer is used to publish messages on a topic</div>
 </li>
 </ul>
@@ -139,10 +139,20 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>long</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getLastSequenceId--">getLastSequenceId</a></span>()</code>
+<div class="block">Get the last sequence id that was published by this producer.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getProducerName--">getProducerName</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>ProducerStats</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getStats--">getStats</a></span>()</code>
 <div class="block">Get statistics for the producer
- 
+
  numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
  interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
  acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
@@ -150,29 +160,29 @@ extends Closeable</pre>
  received</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getTopic--">getTopic</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-">send</a></span>(byte[]&nbsp;message)</code>
 <div class="block">Send a message</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
 <div class="block">Send a message</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-">sendAsync</a></span>(byte[]&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
@@ -203,6 +213,19 @@ extends Closeable</pre>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the topic which producer is publishing to</dd>
+</dl>
+</li>
+</ul>
+<a name="getProducerName--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getProducerName</h4>
+<pre>String&nbsp;getProducerName()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the producer name which could have been assigned by the system or specified by the client</dd>
 </dl>
 </li>
 </ul>
@@ -281,7 +304,7 @@ extends Closeable</pre>
  contain the <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api"><code>MessageId</code></a> assigned by the broker to the published message.
  <p>
  Example:
- 
+
  <pre>
  <code>Message msg = MessageBuilder.create().setContent(myContent).build();
  producer.sendAsync(msg).thenRun(v -> {
@@ -303,6 +326,26 @@ extends Closeable</pre>
 </dl>
 </li>
 </ul>
+<a name="getLastSequenceId--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getLastSequenceId</h4>
+<pre>long&nbsp;getLastSequenceId()</pre>
+<div class="block">Get the last sequence id that was published by this producer.
+ <p>
+ This represent either the automatically assigned or custom sequence id (set on the <a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>MessageBuilder</code></a>) that
+ was published and acknowledged by the broker.
+ <p>
+ After recreating a producer with the same producer name, this will return the last message that was published in
+ the previous producer session, or -1 if there no message was ever published.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the last sequence id published by this producer</dd>
+</dl>
+</li>
+</ul>
 <a name="getStats--">
 <!--   -->
 </a>
@@ -311,7 +354,7 @@ extends Closeable</pre>
 <h4>getStats</h4>
 <pre>ProducerStats&nbsp;getStats()</pre>
 <div class="block">Get statistics for the producer
- 
+
  numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
  interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
  acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
@@ -332,7 +375,7 @@ extends Closeable</pre>
 <pre>void&nbsp;close()
     throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Close the producer and releases resources allocated.
- 
+
  No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
  of errors, pending writes will not be retried.</div>
 <dl>
@@ -354,7 +397,7 @@ extends Closeable</pre>
 <h4>closeAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;closeAsync()</pre>
 <div class="block">Close the producer and releases resources allocated.
- 
+
  No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
  of errors, pending writes will not be retried.</div>
 <dl>

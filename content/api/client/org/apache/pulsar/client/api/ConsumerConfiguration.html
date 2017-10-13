@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -48,7 +48,7 @@ var activeTableTab = "activeTableTab";
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?org/apache/pulsar/client/api/ConsumerConfiguration.html" target="_top">Frames</a></li>
@@ -165,54 +165,74 @@ implements Serializable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerName--">getConsumerName</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getCryptoFailureAction--">getCryptoFailureAction</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getCryptoKeyReader--">getCryptoKeyReader</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getMessageListener--">getMessageListener</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getPriorityLevel--">getPriorityLevel</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getReceiverQueueSize--">getReceiverQueueSize</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#getSubscriptionType--">getSubscriptionType</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setAckTimeout-long-java.util.concurrent.TimeUnit-">setAckTimeout</a></span>(long&nbsp;ackTimeout,
              TimeUnit&nbsp;timeUnit)</code>
 <div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-">setConsumerName</a></span>(String&nbsp;consumerName)</code>
 <div class="block">Set the consumer name.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setCryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">setCryptoFailureAction</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</code>
+<div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
+</td>
+</tr>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">setCryptoKeyReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</code>
+<div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
+</td>
+</tr>
+<tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setMessageListener-org.apache.pulsar.client.api.MessageListener-">setMessageListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&nbsp;messageListener)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-">setPriorityLevel</a></span>(int&nbsp;priorityLevel)</code>
 <div class="block">Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
  messages.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-">setReceiverQueueSize</a></span>(int&nbsp;receiverQueueSize)</code>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html#setSubscriptionType-org.apache.pulsar.client.api.SubscriptionType-">setSubscriptionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</code>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
@@ -361,6 +381,60 @@ implements Serializable</pre>
 </dl>
 </li>
 </ul>
+<a name="getCryptoKeyReader--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getCryptoKeyReader</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;getCryptoKeyReader()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the CryptoKeyReader</dd>
+</dl>
+</li>
+</ul>
+<a name="setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setCryptoKeyReader</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;setCryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
+<div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cryptoKeyReader</code> - CryptoKeyReader object</dd>
+</dl>
+</li>
+</ul>
+<a name="setCryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setCryptoFailureAction</h4>
+<pre>public&nbsp;void&nbsp;setCryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</pre>
+<div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>The</code> - consumer action</dd>
+</dl>
+</li>
+</ul>
+<a name="getCryptoFailureAction--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getCryptoFailureAction</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;getCryptoFailureAction()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The ConsumerCryptoFailureAction</dd>
+</dl>
+</li>
+</ul>
 <a name="setReceiverQueueSize-int-">
 <!--   -->
 </a>
@@ -488,7 +562,7 @@ implements Serializable</pre>
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?org/apache/pulsar/client/api/ConsumerConfiguration.html" target="_top">Frames</a></li>

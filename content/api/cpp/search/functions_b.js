@@ -9,6 +9,7 @@ var searchData=
   ['setconcurrentlookuprequest',['setConcurrentLookupRequest',['../classpulsar_1_1_client_configuration.html#a0b9226918b57122b0ceb446657746e1c',1,'pulsar::ClientConfiguration']]],
   ['setconsumertype',['setConsumerType',['../classpulsar_1_1_consumer_configuration.html#ace6b2f1da486fcffacc4e877e5533268',1,'pulsar::ConsumerConfiguration']]],
   ['setcontent',['setContent',['../classpulsar_1_1_message_builder.html#ab88fc9caf6c2406ba7b34a1770484df8',1,'pulsar::MessageBuilder']]],
+  ['seteventtimestamp',['setEventTimestamp',['../classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338',1,'pulsar::MessageBuilder']]],
   ['setiothreads',['setIOThreads',['../classpulsar_1_1_client_configuration.html#a5081ce72cb0eb615fc209decdea7ca7a',1,'pulsar::ClientConfiguration']]],
   ['setlogconffilepath',['setLogConfFilePath',['../classpulsar_1_1_client_configuration.html#afffc25fc6be9f26221a206c49154b4cf',1,'pulsar::ClientConfiguration']]],
   ['setmessagelistener',['setMessageListener',['../classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d',1,'pulsar::ConsumerConfiguration']]],
@@ -19,5 +20,6 @@ var searchData=
   ['setreaderlistener',['setReaderListener',['../classpulsar_1_1_reader_configuration.html#aa0d6dc39f30014d4d37872e9ddc85590',1,'pulsar::ReaderConfiguration']]],
   ['setreceiverqueuesize',['setReceiverQueueSize',['../classpulsar_1_1_consumer_configuration.html#a265d2cd1e9d1d329eff9b98346f245c2',1,'pulsar::ConsumerConfiguration::setReceiverQueueSize()'],['../classpulsar_1_1_reader_configuration.html#a0574cedc0bc7ccf457071df866830abe',1,'pulsar::ReaderConfiguration::setReceiverQueueSize()']]],
   ['setreplicationclusters',['setReplicationClusters',['../classpulsar_1_1_message_builder.html#a4debd882e7450dee0b83ac0bdfdee775',1,'pulsar::MessageBuilder']]],
+  ['setsequenceid',['setSequenceId',['../classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92',1,'pulsar::MessageBuilder']]],
   ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration']]]
 ];

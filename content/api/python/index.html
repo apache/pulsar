@@ -991,6 +991,7 @@ table {
     <li class="mono"><a href="#pulsar.Client.__init__">__init__</a></li>
     <li class="mono"><a href="#pulsar.Client.close">close</a></li>
     <li class="mono"><a href="#pulsar.Client.create_producer">create_producer</a></li>
+    <li class="mono"><a href="#pulsar.Client.create_reader">create_reader</a></li>
     <li class="mono"><a href="#pulsar.Client.subscribe">subscribe</a></li>
   </ul>
 
@@ -1027,13 +1028,37 @@ table {
 
         </li>
         <li class="mono">
+        <span class="class_name"><a href="#pulsar.MessageId">MessageId</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.MessageId.deserialize">deserialize</a></li>
+    <li class="mono"><a href="#pulsar.MessageId.serialize">serialize</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
         <span class="class_name"><a href="#pulsar.Producer">Producer</a></span>
         
           
   <ul>
     <li class="mono"><a href="#pulsar.Producer.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Producer.last_sequence_id">last_sequence_id</a></li>
+    <li class="mono"><a href="#pulsar.Producer.producer_name">producer_name</a></li>
     <li class="mono"><a href="#pulsar.Producer.send">send</a></li>
     <li class="mono"><a href="#pulsar.Producer.send_async">send_async</a></li>
+    <li class="mono"><a href="#pulsar.Producer.topic">topic</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.Reader">Reader</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.Reader.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Reader.read_next">read_next</a></li>
+    <li class="mono"><a href="#pulsar.Reader.topic">topic</a></li>
   </ul>
 
         </li>
@@ -1230,6 +1255,33 @@ import _pulsar
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
 
+class MessageId:
+    """
+    Represents a message id
+    """
+
+    'Represents the earliest message stored in a topic'
+    earliest = _pulsar.MessageId.earliest
+
+    'Represents the latest message published on a topic'
+    latest = _pulsar.MessageId.latest
+
+    def serialize(self):
+        """
+        Returns a string representation of the message id.
+        This string can be stored and later deserialized.
+        """
+        return self._msg_id.serialize()
+
+    @staticmethod
+    def deserialize(message_id_str):
+        """
+        Deserialize a message id object from a previously
+        serialized string.
+        """
+        return _pulsar.MessageId.deserialize(message_id_str)
+
+
 class Message:
     """
     Message objects are returned by a consumer, either by calling `receive` or
@@ -1238,7 +1290,7 @@ class Message:
 
     def data(self):
         """
-        Returns a string with the content of the message.
+        Returns object typed bytes with the content of the message.
         """
         return self._message.data()
 
@@ -1359,6 +1411,8 @@ class Client:
         self._consumers = []
 
     def create_producer(self, topic,
+                        producer_name=None,
+                        initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
@@ -1377,7 +1431,17 @@ class Client:
           The topic name
 
         **Options**
-
+        * `producer_name`:
+           Specify a name for the producer. If not assigned,
+           the system will generate a globally unique name which can be accessed
+           with `Producer.producer_name()`. When specifying a name, it is app to
+           the user to ensure that, for a given topic, the producer name is unique
+           across all Pulsar's clusters.
+        * `initial_sequence_id`:
+           Set the baseline for the sequence ids for messages
+           published by the producer. First message will be using
+           `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+           be assigned incremental sequence ids, if not otherwise specified.
         * `send_timeout_seconds`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
@@ -1402,6 +1466,10 @@ class Client:
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        if producer_name:
+            conf.producer_name(producer_name)
+        if initial_sequence_id:
+            conf.initial_sequence_id(initial_sequence_id)
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         return p
@@ -1479,6 +1547,66 @@ class Client:
         self._consumers.append(c)
         return c
 
+    def create_reader(self, topic, start_message_id,
+                      reader_listener=None,
+                      receiver_queue_size=1000,
+                      reader_name=None
+                      ):
+        """
+        Create a reader on a particular topic
+
+        **Args**
+
+        * `topic`: The name of the topic.
+        * `start_message_id`: The initial reader positioning is done by specifying a message id.
+           The options are:
+            * `MessageId.earliest`: Start reading from the earliest message available in the topic
+            * `MessageId.latest`: Start reading from the end topic, only getting messages published
+               after the reader was created
+            * `MessageId`: When passing a particular message id, the reader will position itself on
+               that specific position. The first message to be read will be the message next to the
+               specified messageId. Message id can be serialized into a string and deserialized
+               back into a `MessageId` object:
+
+                   # Serialize to string
+                   s = msg.message_id().serialize()
+
+                   # Deserialize from string
+                   msg_id = MessageId.deserialize(s)
+
+        **Options**
+
+        * `reader_listener`:
+          Sets a message listener for the reader. When the listener is set,
+          the application will receive messages through it. Calls to
+          `reader.read_next()` will not be allowed. The listener function needs
+          to accept (reader, message), for example:
+
+                def my_listener(reader, message):
+                    # process message
+                    pass
+
+        * `receiver_queue_size`:
+          Sets the size of the reader receive queue. The reader receive
+          queue controls how many messages can be accumulated by the reader
+          before the application calls `read_next()`. Using a higher value could
+          potentially increase the reader throughput at the expense of higher
+          memory utilization.
+        * `reader_name`:
+          Sets the reader name.
+        """
+        conf = _pulsar.ReaderConfiguration()
+        if reader_listener:
+            conf.reader_listener(reader_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        if reader_name:
+            conf.reader_name(reader_name)
+        c = Reader()
+        c._reader = self._client.create_reader(topic, start_message_id, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -1491,9 +1619,36 @@ class Producer:
     The Pulsar message producer, used to publish messages on a topic.
     """
 
+    def topic(self):
+        """
+        Return the topic which producer is publishing to
+        """
+        return self._producer.topic()
+
+    def producer_name(self):
+        """
+        Return the producer name which could have been assigned by the
+        system or specified by the client
+        """
+        return self._producer.producer_name()
+
+    def last_sequence_id(self):
+        """
+        Get the last sequence id that was published by this producer.
+
+        This represent either the automatically assigned or custom sequence id
+        (set on the `MessageBuilder`) that was published and acknowledged by the broker.
+
+        After recreating a producer with the same producer name, this will return the
+        last message that was published in the previous producer session, or -1 if
+        there no message was ever published.
+        """
+        return self._producer.last_sequence_id()
+
     def send(self, content,
              properties=None,
              partition_key=None,
+             sequence_id=None,
              replication_clusters=None,
              disable_replication=False
              ):
@@ -1512,6 +1667,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
           to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
@@ -1520,13 +1677,14 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
                    properties=None,
                    partition_key=None,
+                   sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False
                    ):
@@ -1559,6 +1717,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
           used to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
           and that all clusters have been previously configured as destinations.
@@ -1567,7 +1727,7 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         self._producer.send_async(msg, callback)
 
@@ -1575,8 +1735,9 @@ class Producer:
         """
         Close the producer.
         """
+        self._producer.close()
 
-    def _build_msg(self, content, properties, partition_key,
+    def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -1585,6 +1746,8 @@ class Producer:
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
+        if sequence_id:
+            mb.sequence_id(sequence_id)
         if replication_clusters:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
@@ -1699,6 +1862,43 @@ class Consumer:
         Close the consumer.
         """
         self._consumer.close()
+        self._client._consumers.remove(self)
+
+
+class Reader:
+    """
+    Pulsar topic reader.
+    """
+
+    def topic(self):
+        """
+        Return the topic this reader is reading from.
+        """
+        return self._reader.topic()
+
+    def read_next(self, timeout_millis=None):
+        """
+        Read a single message.
+
+        If a message is not immediately available, this method will block until
+        a new message is available.
+
+        **Options**
+
+        * `timeout_millis`:
+          If specified, the receive will raise an exception if a message is not
+          available within the timeout.
+        """
+        if timeout_millis is None:
+            return self._reader.read_next()
+        else:
+            return self._reader.read_next(timeout_millis)
+
+    def close(self):
+        """
+        Close the reader.
+        """
+        self._reader.close()
         self._client._consumers.remove(self)
 </code></pre>
   </div>
@@ -1878,6 +2078,8 @@ producers and consumers.</p></div>
         self._consumers = []
 
     def create_producer(self, topic,
+                        producer_name=None,
+                        initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
@@ -1896,7 +2098,17 @@ producers and consumers.</p></div>
           The topic name
 
         **Options**
-
+        * `producer_name`:
+           Specify a name for the producer. If not assigned,
+           the system will generate a globally unique name which can be accessed
+           with `Producer.producer_name()`. When specifying a name, it is app to
+           the user to ensure that, for a given topic, the producer name is unique
+           across all Pulsar's clusters.
+        * `initial_sequence_id`:
+           Set the baseline for the sequence ids for messages
+           published by the producer. First message will be using
+           `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+           be assigned incremental sequence ids, if not otherwise specified.
         * `send_timeout_seconds`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
@@ -1921,6 +2133,10 @@ producers and consumers.</p></div>
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        if producer_name:
+            conf.producer_name(producer_name)
+        if initial_sequence_id:
+            conf.initial_sequence_id(initial_sequence_id)
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         return p
@@ -1994,6 +2210,66 @@ producers and consumers.</p></div>
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
         c = Consumer()
         c._consumer = self._client.subscribe(topic, subscription_name, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
+    def create_reader(self, topic, start_message_id,
+                      reader_listener=None,
+                      receiver_queue_size=1000,
+                      reader_name=None
+                      ):
+        """
+        Create a reader on a particular topic
+
+        **Args**
+
+        * `topic`: The name of the topic.
+        * `start_message_id`: The initial reader positioning is done by specifying a message id.
+           The options are:
+            * `MessageId.earliest`: Start reading from the earliest message available in the topic
+            * `MessageId.latest`: Start reading from the end topic, only getting messages published
+               after the reader was created
+            * `MessageId`: When passing a particular message id, the reader will position itself on
+               that specific position. The first message to be read will be the message next to the
+               specified messageId. Message id can be serialized into a string and deserialized
+               back into a `MessageId` object:
+
+                   # Serialize to string
+                   s = msg.message_id().serialize()
+
+                   # Deserialize from string
+                   msg_id = MessageId.deserialize(s)
+
+        **Options**
+
+        * `reader_listener`:
+          Sets a message listener for the reader. When the listener is set,
+          the application will receive messages through it. Calls to
+          `reader.read_next()` will not be allowed. The listener function needs
+          to accept (reader, message), for example:
+
+                def my_listener(reader, message):
+                    # process message
+                    pass
+
+        * `receiver_queue_size`:
+          Sets the size of the reader receive queue. The reader receive
+          queue controls how many messages can be accumulated by the reader
+          before the application calls `read_next()`. Using a higher value could
+          potentially increase the reader throughput at the expense of higher
+          memory utilization.
+        * `reader_name`:
+          Sets the reader name.
+        """
+        conf = _pulsar.ReaderConfiguration()
+        if reader_listener:
+            conf.reader_listener(reader_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        if reader_name:
+            conf.reader_name(reader_name)
+        c = Reader()
+        c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
         self._consumers.append(c)
         return c
@@ -2149,7 +2425,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
     </div>
     
 
@@ -2161,27 +2437,36 @@ producers and consumers.</p></div>
 <li><code>topic</code>:
   The topic name</li>
 </ul>
-<p><strong>Options</strong></p>
-<ul>
-<li><code>send_timeout_seconds</code>:
-  If a message is not acknowledged by the server before the
-  <code>send_timeout</code> expires, an error will be reported.</li>
-<li><code>compression_type</code>:
+<p><strong>Options</strong>
+<em> <code>producer_name</code>:
+   Specify a name for the producer. If not assigned,
+   the system will generate a globally unique name which can be accessed
+   with <code>Producer.producer_name()</code>. When specifying a name, it is app to
+   the user to ensure that, for a given topic, the producer name is unique
+   across all Pulsar's clusters.
+</em> <code>initial_sequence_id</code>:
+   Set the baseline for the sequence ids for messages
+   published by the producer. First message will be using
+   <code>(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+   be assigned incremental sequence ids, if not otherwise specified.
+*</code>send_timeout_seconds<code>:
+  If a message is not acknowledged by the server before the</code>send_timeout<code>expires, an error will be reported.
+*</code>compression_type<code>:
   Set the compression type for the producer. By default, message
-  payloads are not compressed. Supported compression types are
-  <code>CompressionType.LZ4</code> and <code>CompressionType.ZLib</code>.</li>
-<li><code>max_pending_messages</code>:
+  payloads are not compressed. Supported compression types are</code>CompressionType.LZ4<code>and</code>CompressionType.ZLib<code>.
+*</code>max_pending_messages<code>:
   Set the max size of the queue holding the messages pending to receive
-  an acknowledgment from the broker.</li>
-<li><code>block_if_queue_full</code>: Set whether <code>send_async</code> operations should
-  block when the outgoing message queue is full.</li>
-<li><code>message_routing_mode</code>:
-  Set the message routing mode for the partitioned producer.</li>
-</ul></div>
+  an acknowledgment from the broker.
+*</code>block_if_queue_full<code>: Set whether</code>send_async<code>operations should
+  block when the outgoing message queue is full.
+*</code>message_routing_mode`:
+  Set the message routing mode for the partitioned producer.</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_producer', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.Client.create_producer" class="source">
     <pre><code>def create_producer(self, topic,
+                    producer_name=None,
+                    initial_sequence_id=None,
                     send_timeout_millis=30000,
                     compression_type=CompressionType.NONE,
                     max_pending_messages=1000,
@@ -2197,6 +2482,17 @@ producers and consumers.</p></div>
     * `topic`:
       The topic name
     **Options**
+    * `producer_name`:
+       Specify a name for the producer. If not assigned,
+       the system will generate a globally unique name which can be accessed
+       with `Producer.producer_name()`. When specifying a name, it is app to
+       the user to ensure that, for a given topic, the producer name is unique
+       across all Pulsar's clusters.
+    * `initial_sequence_id`:
+       Set the baseline for the sequence ids for messages
+       published by the producer. First message will be using
+       `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+       be assigned incremental sequence ids, if not otherwise specified.
     * `send_timeout_seconds`:
       If a message is not acknowledged by the server before the
       `send_timeout` expires, an error will be reported.
@@ -2221,9 +2517,128 @@ producers and consumers.</p></div>
     conf.batching_max_messages(batching_max_messages)
     conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
     conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+    if producer_name:
+        conf.producer_name(producer_name)
+    if initial_sequence_id:
+        conf.initial_sequence_id(initial_sequence_id)
     p = Producer()
     p._producer = self._client.create_producer(topic, conf)
     return p
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.create_reader">
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, reader_listener=None, receiver_queue_size=1000, reader_name=None)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Create a reader on a particular topic</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>topic</code>: The name of the topic.</li>
+<li><code>start_message_id</code>: The initial reader positioning is done by specifying a message id.
+   The options are:<ul>
+<li><code>MessageId.earliest</code>: Start reading from the earliest message available in the topic</li>
+<li><code>MessageId.latest</code>: Start reading from the end topic, only getting messages published
+   after the reader was created</li>
+<li>
+<p><code>MessageId</code>: When passing a particular message id, the reader will position itself on
+   that specific position. The first message to be read will be the message next to the
+   specified messageId. Message id can be serialized into a string and deserialized
+   back into a <code>MessageId</code> object:</p>
+<p># Serialize to string
+   s = msg.message_id().serialize()</p>
+<p># Deserialize from string
+   msg_id = MessageId.deserialize(s)</p>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>Options</strong></p>
+<ul>
+<li>
+<p><code>reader_listener</code>:
+  Sets a message listener for the reader. When the listener is set,
+  the application will receive messages through it. Calls to
+  <code>reader.read_next()</code> will not be allowed. The listener function needs
+  to accept (reader, message), for example:</p>
+<pre><code>def my_listener(reader, message):
+    # process message
+    pass
+</code></pre>
+</li>
+<li>
+<p><code>receiver_queue_size</code>:
+  Sets the size of the reader receive queue. The reader receive
+  queue controls how many messages can be accumulated by the reader
+  before the application calls <code>read_next()</code>. Using a higher value could
+  potentially increase the reader throughput at the expense of higher
+  memory utilization.</p>
+</li>
+<li><code>reader_name</code>:
+  Sets the reader name.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_reader', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.create_reader" class="source">
+    <pre><code>def create_reader(self, topic, start_message_id,
+                  reader_listener=None,
+                  receiver_queue_size=1000,
+                  reader_name=None
+                  ):
+    """
+    Create a reader on a particular topic
+    **Args**
+    * `topic`: The name of the topic.
+    * `start_message_id`: The initial reader positioning is done by specifying a message id.
+       The options are:
+        * `MessageId.earliest`: Start reading from the earliest message available in the topic
+        * `MessageId.latest`: Start reading from the end topic, only getting messages published
+           after the reader was created
+        * `MessageId`: When passing a particular message id, the reader will position itself on
+           that specific position. The first message to be read will be the message next to the
+           specified messageId. Message id can be serialized into a string and deserialized
+           back into a `MessageId` object:
+               # Serialize to string
+               s = msg.message_id().serialize()
+               # Deserialize from string
+               msg_id = MessageId.deserialize(s)
+    **Options**
+    * `reader_listener`:
+      Sets a message listener for the reader. When the listener is set,
+      the application will receive messages through it. Calls to
+      `reader.read_next()` will not be allowed. The listener function needs
+      to accept (reader, message), for example:
+            def my_listener(reader, message):
+                # process message
+                pass
+    * `receiver_queue_size`:
+      Sets the size of the reader receive queue. The reader receive
+      queue controls how many messages can be accumulated by the reader
+      before the application calls `read_next()`. Using a higher value could
+      potentially increase the reader throughput at the expense of higher
+      memory utilization.
+    * `reader_name`:
+      Sets the reader name.
+    """
+    conf = _pulsar.ReaderConfiguration()
+    if reader_listener:
+        conf.reader_listener(reader_listener)
+    conf.receiver_queue_size(receiver_queue_size)
+    if reader_name:
+        conf.reader_name(reader_name)
+    c = Reader()
+    c._reader = self._client.create_reader(topic, start_message_id, conf)
+    c._client = self
+    self._consumers.append(c)
+    return c
 </code></pre>
   </div>
 </div>
@@ -2822,7 +3237,7 @@ through a listener.</p></div>
 
     def data(self):
         """
-        Returns a string with the content of the message.
+        Returns object typed bytes with the content of the message.
         """
         return self._message.data()
 
@@ -2871,13 +3286,13 @@ through a listener.</p></div>
 
     
   
-    <div class="desc"><p>Returns a string with the content of the message.</p></div>
+    <div class="desc"><p>Returns object typed bytes with the content of the message.</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Message.data', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.Message.data" class="source">
     <pre><code>def data(self):
     """
-    Returns a string with the content of the message.
+    Returns object typed bytes with the content of the message.
     """
     return self._message.data()
 </code></pre>
@@ -2990,6 +3405,129 @@ message.</p></div>
       </div>
       
       <div class="item">
+      <p id="pulsar.MessageId" class="name">class <span class="ident">MessageId</span></p>
+      
+  
+    <div class="desc"><p>Represents a message id</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.MessageId', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.MessageId" class="source">
+    <pre><code>class MessageId:
+    """
+    Represents a message id
+    """
+
+    'Represents the earliest message stored in a topic'
+    earliest = _pulsar.MessageId.earliest
+
+    'Represents the latest message published on a topic'
+    latest = _pulsar.MessageId.latest
+
+    def serialize(self):
+        """
+        Returns a string representation of the message id.
+        This string can be stored and later deserialized.
+        """
+        return self._msg_id.serialize()
+
+    @staticmethod
+    def deserialize(message_id_str):
+        """
+        Deserialize a message id object from a previously
+        serialized string.
+        """
+        return _pulsar.MessageId.deserialize(message_id_str)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.MessageId">MessageId</a></li>
+          </ul>
+          <h3>Class variables</h3>
+            <div class="item">
+            <p id="pulsar.MessageId.earliest" class="name">var <span class="ident">earliest</span></p>
+            
+
+            
+  
+    <div class="desc"><p>Represents the latest message published on a topic</p></div>
+  <div class="source_cont">
+</div>
+
+            </div>
+            <div class="item">
+            <p id="pulsar.MessageId.latest" class="name">var <span class="ident">latest</span></p>
+            
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Static methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.MessageId.deserialize">
+    <p>def <span class="ident">deserialize</span>(</p><p>message_id_str)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Deserialize a message id object from a previously
+serialized string.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.MessageId.deserialize', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.MessageId.deserialize" class="source">
+    <pre><code>@staticmethod
+def deserialize(message_id_str):
+    """
+    Deserialize a message id object from a previously
+    serialized string.
+    """
+    return _pulsar.MessageId.deserialize(message_id_str)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.MessageId.serialize">
+    <p>def <span class="ident">serialize</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns a string representation of the message id.
+This string can be stored and later deserialized.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.MessageId.serialize', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.MessageId.serialize" class="source">
+    <pre><code>def serialize(self):
+    """
+    Returns a string representation of the message id.
+    This string can be stored and later deserialized.
+    """
+    return self._msg_id.serialize()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
       <p id="pulsar.Producer" class="name">class <span class="ident">Producer</span></p>
       
   
@@ -3002,9 +3540,36 @@ message.</p></div>
     The Pulsar message producer, used to publish messages on a topic.
     """
 
+    def topic(self):
+        """
+        Return the topic which producer is publishing to
+        """
+        return self._producer.topic()
+
+    def producer_name(self):
+        """
+        Return the producer name which could have been assigned by the
+        system or specified by the client
+        """
+        return self._producer.producer_name()
+
+    def last_sequence_id(self):
+        """
+        Get the last sequence id that was published by this producer.
+
+        This represent either the automatically assigned or custom sequence id
+        (set on the `MessageBuilder`) that was published and acknowledged by the broker.
+
+        After recreating a producer with the same producer name, this will return the
+        last message that was published in the previous producer session, or -1 if
+        there no message was ever published.
+        """
+        return self._producer.last_sequence_id()
+
     def send(self, content,
              properties=None,
              partition_key=None,
+             sequence_id=None,
              replication_clusters=None,
              disable_replication=False
              ):
@@ -3023,6 +3588,8 @@ message.</p></div>
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
           to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
@@ -3031,13 +3598,14 @@ message.</p></div>
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
                    properties=None,
                    partition_key=None,
+                   sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False
                    ):
@@ -3070,6 +3638,8 @@ message.</p></div>
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
           used to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
           and that all clusters have been previously configured as destinations.
@@ -3078,7 +3648,7 @@ message.</p></div>
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         self._producer.send_async(msg, callback)
 
@@ -3086,8 +3656,9 @@ message.</p></div>
         """
         Close the producer.
         """
+        self._producer.close()
 
-    def _build_msg(self, content, properties, partition_key,
+    def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -3096,6 +3667,8 @@ message.</p></div>
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
+        if sequence_id:
+            mb.sequence_id(sequence_id)
         if replication_clusters:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
@@ -3129,6 +3702,67 @@ message.</p></div>
     """
     Close the producer.
     """
+    self._producer.close()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.last_sequence_id">
+    <p>def <span class="ident">last_sequence_id</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Get the last sequence id that was published by this producer.</p>
+<p>This represent either the automatically assigned or custom sequence id
+(set on the <code>MessageBuilder</code>) that was published and acknowledged by the broker.</p>
+<p>After recreating a producer with the same producer name, this will return the
+last message that was published in the previous producer session, or -1 if
+there no message was ever published.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.last_sequence_id', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.last_sequence_id" class="source">
+    <pre><code>def last_sequence_id(self):
+    """
+    Get the last sequence id that was published by this producer.
+    This represent either the automatically assigned or custom sequence id
+    (set on the `MessageBuilder`) that was published and acknowledged by the broker.
+    After recreating a producer with the same producer name, this will return the
+    last message that was published in the previous producer session, or -1 if
+    there no message was ever published.
+    """
+    return self._producer.last_sequence_id()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.producer_name">
+    <p>def <span class="ident">producer_name</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the producer name which could have been assigned by the
+system or specified by the client</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.producer_name', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.producer_name" class="source">
+    <pre><code>def producer_name(self):
+    """
+    Return the producer name which could have been assigned by the
+    system or specified by the client
+    """
+    return self._producer.producer_name()
 </code></pre>
   </div>
 </div>
@@ -3138,7 +3772,7 @@ message.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Producer.send">
-    <p>def <span class="ident">send</span>(</p><p>self, content, properties=None, partition_key=None, replication_clusters=None, disable_replication=False)</p>
+    <p>def <span class="ident">send</span>(</p><p>self, content, properties=None, partition_key=None, sequence_id=None, replication_clusters=None, disable_replication=False)</p>
     </div>
     
 
@@ -3157,6 +3791,8 @@ message.</p></div>
 <li><code>partition_key</code>:
   Sets the partition key for message routing. A hash of this key is used
   to determine the message's destination partition.</li>
+<li><code>sequence_id</code>:
+  Specify a custom sequence id for the message being published.</li>
 <li><code>replication_clusters</code>:
   Override namespace replication clusters. Note that it is the caller's
   responsibility to provide valid cluster names and that all clusters
@@ -3171,6 +3807,7 @@ message.</p></div>
     <pre><code>def send(self, content,
          properties=None,
          partition_key=None,
+         sequence_id=None,
          replication_clusters=None,
          disable_replication=False
          ):
@@ -3185,6 +3822,8 @@ message.</p></div>
     * `partition_key`:
       Sets the partition key for message routing. A hash of this key is used
       to determine the message's destination partition.
+    * `sequence_id`:
+      Specify a custom sequence id for the message being published.
     * `replication_clusters`:
       Override namespace replication clusters. Note that it is the caller's
       responsibility to provide valid cluster names and that all clusters
@@ -3193,7 +3832,7 @@ message.</p></div>
     * `disable_replication`:
       Do not replicate this message.
     """
-    msg = self._build_msg(content, properties, partition_key,
+    msg = self._build_msg(content, properties, partition_key, sequence_id,
                           replication_clusters, disable_replication)
     return self._producer.send(msg)
 </code></pre>
@@ -3205,7 +3844,7 @@ message.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Producer.send_async">
-    <p>def <span class="ident">send_async</span>(</p><p>self, content, callback, properties=None, partition_key=None, replication_clusters=None, disable_replication=False)</p>
+    <p>def <span class="ident">send_async</span>(</p><p>self, content, callback, properties=None, partition_key=None, sequence_id=None, replication_clusters=None, disable_replication=False)</p>
     </div>
     
 
@@ -3235,6 +3874,8 @@ and the callback invoked with an error code.</p>
 <li><code>partition_key</code>:
   Sets the partition key for the message routing. A hash of this key is
   used to determine the message's destination partition.</li>
+<li><code>sequence_id</code>:
+  Specify a custom sequence id for the message being published.</li>
 <li><code>replication_clusters</code>: Override namespace replication clusters. Note
   that it is the caller's responsibility to provide valid cluster names
   and that all clusters have been previously configured as destinations.
@@ -3249,6 +3890,7 @@ and the callback invoked with an error code.</p>
     <pre><code>def send_async(self, content, callback,
                properties=None,
                partition_key=None,
+               sequence_id=None,
                replication_clusters=None,
                disable_replication=False
                ):
@@ -3272,6 +3914,8 @@ and the callback invoked with an error code.</p>
     * `partition_key`:
       Sets the partition key for the message routing. A hash of this key is
       used to determine the message's destination partition.
+    * `sequence_id`:
+      Specify a custom sequence id for the message being published.
     * `replication_clusters`: Override namespace replication clusters. Note
       that it is the caller's responsibility to provide valid cluster names
       and that all clusters have been previously configured as destinations.
@@ -3280,9 +3924,180 @@ and the callback invoked with an error code.</p>
     * `disable_replication`:
       Do not replicate this message.
     """
-    msg = self._build_msg(content, properties, partition_key,
+    msg = self._build_msg(content, properties, partition_key, sequence_id,
                           replication_clusters, disable_replication)
     self._producer.send_async(msg, callback)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Producer.topic">
+    <p>def <span class="ident">topic</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the topic which producer is publishing to</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Producer.topic', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Producer.topic" class="source">
+    <pre><code>def topic(self):
+    """
+    Return the topic which producer is publishing to
+    """
+    return self._producer.topic()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.Reader" class="name">class <span class="ident">Reader</span></p>
+      
+  
+    <div class="desc"><p>Pulsar topic reader.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Reader', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Reader" class="source">
+    <pre><code>class Reader:
+    """
+    Pulsar topic reader.
+    """
+
+    def topic(self):
+        """
+        Return the topic this reader is reading from.
+        """
+        return self._reader.topic()
+
+    def read_next(self, timeout_millis=None):
+        """
+        Read a single message.
+
+        If a message is not immediately available, this method will block until
+        a new message is available.
+
+        **Options**
+
+        * `timeout_millis`:
+          If specified, the receive will raise an exception if a message is not
+          available within the timeout.
+        """
+        if timeout_millis is None:
+            return self._reader.read_next()
+        else:
+            return self._reader.read_next(timeout_millis)
+
+    def close(self):
+        """
+        Close the reader.
+        """
+        self._reader.close()
+        self._client._consumers.remove(self)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.Reader">Reader</a></li>
+          </ul>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Reader.close">
+    <p>def <span class="ident">close</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Close the reader.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Reader.close', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Reader.close" class="source">
+    <pre><code>def close(self):
+    """
+    Close the reader.
+    """
+    self._reader.close()
+    self._client._consumers.remove(self)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Reader.read_next">
+    <p>def <span class="ident">read_next</span>(</p><p>self, timeout_millis=None)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Read a single message.</p>
+<p>If a message is not immediately available, this method will block until
+a new message is available.</p>
+<p><strong>Options</strong></p>
+<ul>
+<li><code>timeout_millis</code>:
+  If specified, the receive will raise an exception if a message is not
+  available within the timeout.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Reader.read_next', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Reader.read_next" class="source">
+    <pre><code>def read_next(self, timeout_millis=None):
+    """
+    Read a single message.
+    If a message is not immediately available, this method will block until
+    a new message is available.
+    **Options**
+    * `timeout_millis`:
+      If specified, the receive will raise an exception if a message is not
+      available within the timeout.
+    """
+    if timeout_millis is None:
+        return self._reader.read_next()
+    else:
+        return self._reader.read_next(timeout_millis)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Reader.topic">
+    <p>def <span class="ident">topic</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the topic this reader is reading from.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Reader.topic', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Reader.topic" class="source">
+    <pre><code>def topic(self):
+    """
+    Return the topic this reader is reading from.
+    """
+    return self._reader.topic()
 </code></pre>
   </div>
 </div>

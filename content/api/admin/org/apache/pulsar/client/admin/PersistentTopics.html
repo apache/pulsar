@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -327,6 +327,14 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i31" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#resetCursor-java.lang.String-java.lang.String-MessageId-">resetCursor</a></span>(String&nbsp;destination,
+           String&nbsp;subName,
+           MessageId&nbsp;messageId)</code>
+<div class="block">Reset cursor position on a topic subscription</div>
+</td>
+</tr>
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#resetCursorAsync-java.lang.String-java.lang.String-long-">resetCursorAsync</a></span>(String&nbsp;destination,
                 String&nbsp;subName,
@@ -334,28 +342,36 @@ var activeTableTab = "activeTableTab";
 <div class="block">Reset cursor position on a topic subscription</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#resetCursorAsync-java.lang.String-java.lang.String-MessageId-">resetCursorAsync</a></span>(String&nbsp;destination,
+                String&nbsp;subName,
+                MessageId&nbsp;messageId)</code>
+<div class="block">Reset cursor position on a topic subscription</div>
+</td>
+</tr>
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#revokePermissions-java.lang.String-java.lang.String-">revokePermissions</a></span>(String&nbsp;destination,
                  String&nbsp;role)</code>
 <div class="block">Revoke permissions on a destination.</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#skipAllMessages-java.lang.String-java.lang.String-">skipAllMessages</a></span>(String&nbsp;destination,
                String&nbsp;subName)</code>
 <div class="block">Skip all messages on a topic subscription.</div>
 </td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#skipAllMessagesAsync-java.lang.String-java.lang.String-">skipAllMessagesAsync</a></span>(String&nbsp;destination,
                     String&nbsp;subName)</code>
 <div class="block">Skip all messages on a topic subscription asynchronously.</div>
 </td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#skipMessages-java.lang.String-java.lang.String-long-">skipMessages</a></span>(String&nbsp;destination,
             String&nbsp;subName,
@@ -363,7 +379,7 @@ var activeTableTab = "activeTableTab";
 <div class="block">Skip messages on a topic subscription.</div>
 </td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#skipMessagesAsync-java.lang.String-java.lang.String-long-">skipMessagesAsync</a></span>(String&nbsp;destination,
                  String&nbsp;subName,
@@ -371,20 +387,32 @@ var activeTableTab = "activeTableTab";
 <div class="block">Skip messages on a topic subscription asynchronously.</div>
 </td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;MessageId&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#terminateTopicAsync-java.lang.String-">terminateTopicAsync</a></span>(String&nbsp;destination)</code>
 <div class="block">Terminate the topic and prevent any more messages being published on it.</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i40" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;destination)</code>
+<div class="block">Unload a topic.</div>
+</td>
+</tr>
+<tr id="i41" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;destination)</code>
+<div class="block">Unload a topic asynchronously.</div>
+</td>
+</tr>
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopic-java.lang.String-int-">updatePartitionedTopic</a></span>(String&nbsp;destination,
                       int&nbsp;numPartitions)</code>
 <div class="block">Update number of partitions of a non-global partitioned topic.</div>
 </td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopicAsync-java.lang.String-int-">updatePartitionedTopicAsync</a></span>(String&nbsp;destination,
                            int&nbsp;numPartitions)</code>
@@ -762,6 +790,43 @@ var activeTableTab = "activeTableTab";
 <dd><code>destination</code> - Destination name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the topic is deleted</dd>
+</dl>
+</li>
+</ul>
+<a name="unload-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>unload</h4>
+<pre>void&nbsp;unload(String&nbsp;destination)
+     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Unload a topic.
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>destination</code> - Destination name</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Destination does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="unloadAsync-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>unloadAsync</h4>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;unloadAsync(String&nbsp;destination)</pre>
+<div class="block">Unload a topic asynchronously.
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>destination</code> - Destination name</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a future that can be used to track when the topic is unloaded</dd>
 </dl>
 </li>
 </ul>
@@ -1379,7 +1444,7 @@ var activeTableTab = "activeTableTab";
 <a name="resetCursorAsync-java.lang.String-java.lang.String-long-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>resetCursorAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;resetCursorAsync(String&nbsp;destination,
@@ -1391,6 +1456,48 @@ var activeTableTab = "activeTableTab";
 <dd><code>destination</code> - Destination name</dd>
 <dd><code>subName</code> - Subscription name</dd>
 <dd><code>timestamp</code> - reset subscription to position closest to time in ms since epoch</dd>
+</dl>
+</li>
+</ul>
+<a name="resetCursor-java.lang.String-java.lang.String-MessageId-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>resetCursor</h4>
+<pre>void&nbsp;resetCursor(String&nbsp;destination,
+                 String&nbsp;subName,
+                 MessageId&nbsp;messageId)
+          throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Reset cursor position on a topic subscription</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>destination</code> - Destination name</dd>
+<dd><code>subName</code> - Subscription name</dd>
+<dd><code>messageId</code> - reset subscription to messageId (or previous nearest messageId if given messageId is not valid)</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Topic or subscription does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAllowedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAllowedException</a></code> - Command disallowed for requested resource</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="resetCursorAsync-java.lang.String-java.lang.String-MessageId-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>resetCursorAsync</h4>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;resetCursorAsync(String&nbsp;destination,
+                                         String&nbsp;subName,
+                                         MessageId&nbsp;messageId)</pre>
+<div class="block">Reset cursor position on a topic subscription</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>destination</code> - Destination name</dd>
+<dd><code>subName</code> - Subscription name</dd>
+<dd><code>MessageId</code> - reset subscription to messageId (or previous nearest messageId if given messageId is not valid)</dd>
 </dl>
 </li>
 </ul>

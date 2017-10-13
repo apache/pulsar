@@ -103,10 +103,14 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a013069fbb382f7f3c7dd58522765698b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4af83fb29b1f4835a0a28597f70e195"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#ab4af83fb29b1f4835a0a28597f70e195">getTopic</a> () const </td></tr>
 <tr class="separator:ab4af83fb29b1f4835a0a28597f70e195"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6a43751abd70ca64a1c0f84103a502bf"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a6a43751abd70ca64a1c0f84103a502bf">getProducerName</a> () const </td></tr>
+<tr class="separator:a6a43751abd70ca64a1c0f84103a502bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad4737186cf798acfb24a167796259443"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#ad4737186cf798acfb24a167796259443">send</a> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)</td></tr>
 <tr class="separator:ad4737186cf798acfb24a167796259443"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b31f92eb0362bdff32316fc9ab70fd7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a7b31f92eb0362bdff32316fc9ab70fd7">sendAsync</a> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg, SendCallback callback)</td></tr>
 <tr class="separator:a7b31f92eb0362bdff32316fc9ab70fd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5f958205d95c8a556bfbc1dc7b7596c"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#ad5f958205d95c8a556bfbc1dc7b7596c">getLastSequenceId</a> () const </td></tr>
+<tr class="separator:ad5f958205d95c8a556bfbc1dc7b7596c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0b4a93617a0c0f8d172633a7bf8ba06b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a0b4a93617a0c0f8d172633a7bf8ba06b">close</a> ()</td></tr>
 <tr class="separator:a0b4a93617a0c0f8d172633a7bf8ba06b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40f5268e6754c9e61e2406d432cffe2f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a40f5268e6754c9e61e2406d432cffe2f">closeAsync</a> (CloseCallback callback)</td></tr>
@@ -175,6 +179,41 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 </div><div class="memdoc">
 <p>Close the producer and release resources allocated.</p>
 <p>No more writes will be accepted from this producer. The provided callback will be triggered when all pending write requests are persisted. In case of errors, pending writes will not be retried. </p>
+
+</div>
+</div>
+<a class="anchor" id="ad5f958205d95c8a556bfbc1dc7b7596c"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int64_t pulsar::Producer::getLastSequenceId </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the last sequence id that was published by this producer.</p>
+<p>This represent either the automatically assigned or custom sequence id (set on the <a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>) that was published and acknowledged by the broker.</p>
+<p>After recreating a producer with the same producer name, this will return the last message that was published in the previous producer session, or -1 if there no message was ever published.</p>
+<dl class="section return"><dt>Returns</dt><dd>the last sequence id published by this producer </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a6a43751abd70ca64a1c0f84103a502bf"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const std::string&amp; pulsar::Producer::getProducerName </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the producer name which could have been assigned by the system or specified by the client </dd></dl>
 
 </div>
 </div>

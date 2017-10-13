@@ -116,8 +116,15 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
 
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
           
         </div>
       </li>
@@ -558,6 +565,13 @@
           
           
           <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../adaptors/PulsarSpark">
               Spark Streaming
             </a>
@@ -598,6 +612,13 @@
           <li>
             <a href="../../advanced/RetentionExpiry">
               Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
             </a>
           </li>
           
@@ -935,7 +956,7 @@ persisting messages.</p>
 
 <h4 id="pulsar-admin-3">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent get-partitioned-topic-metadata <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin non-persistent get-partitioned-topic-metadata <span class="se">\</span>
   non-persistent://my-property/my-cluster-my-namespace/my-topic
 <span class="o">{</span>
   <span class="s2">"partitions"</span>: 4
@@ -951,6 +972,32 @@ persisting messages.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"non-persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">getPartitionedTopicMetadata</span><span class="o">(</span><span class="n">topicName</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="unload-topic">Unload topic</h3>
+
+<p>It unloads a topic.</p>
+
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
+
+<p>Topic can be unloaded using <a href="../../reference/CliTools#unload"><code class="highlighter-rouge">unload</code></a> command.</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin non-persistent unload <span class="se">\</span>
+  non-persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+</code></pre>
+</div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/non-persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/unload</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/non-persistent/:property/:cluster/:namespace/:destination/unload">More info</a></p>
+
+<h4 id="java-4">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"non-persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre>
 </div>
 
