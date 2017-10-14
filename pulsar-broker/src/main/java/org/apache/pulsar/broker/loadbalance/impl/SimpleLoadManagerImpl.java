@@ -175,7 +175,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     // update LoadReport at most every 5 seconds
     public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
     // last LoadReport stored in ZK
-    private LoadReport lastLoadReport;
+    private volatile LoadReport lastLoadReport;
     // last timestamp resource usage was checked
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report

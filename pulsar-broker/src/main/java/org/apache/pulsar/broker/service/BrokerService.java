@@ -720,6 +720,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // remove old bundle from the map
                 synchronized (multiLayerTopicsMap) {
                     multiLayerTopicsMap.get(oldBundle.getNamespaceObject().toString()).remove(oldBundle.toString());
+                    pulsarStats.invalidBundleStats(oldBundle.toString());
                 }
             }
         } catch (Exception e) {
