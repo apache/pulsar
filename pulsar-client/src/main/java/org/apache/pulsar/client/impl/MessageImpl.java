@@ -103,6 +103,10 @@ public class MessageImpl implements Message {
         } else {
             properties = Collections.emptyMap();
         }
+
+        if (singleMessageMetadata.hasPartitionKey()) {
+            msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
+        }
     }
 
     public MessageImpl(String msgId, Map<String, String> properties, byte[] payload) {
