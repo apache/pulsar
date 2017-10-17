@@ -6,6 +6,27 @@ tags_ja:
 - binary protocol
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsarは{% popover_ja Producer %}/{% popover_ja Consumer %}と{% popover_ja Broker %}の通信に独自バイナリプロトコルを利用しています。プロトコルは転送と実装の最大効率を保証しながら、{% popover_ja Ack %} (確認応答) やフロー制御のような要求される全ての機能をサポートするようにデザインされています。
 
 クライアントとBrokerは互いに*コマンド*を交換します。コマンドは[Protocol Buffers](https://developers.google.com/protocol-buffers/) (*protobuf*) によるバイナリメッセージの形式です。protobufによるコマンドの仕様は[`PulsarApi.proto`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto) に記述されています。また、本ドキュメントの[Protobufインターフェース](#protobufインターフェース)セクションにも記述されています。

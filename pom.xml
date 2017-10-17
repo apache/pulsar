@@ -608,7 +608,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>LICENSE</exclude>
             <exclude>NOTICE</exclude>
             <exclude>**/*.txt</exclude>
-            <exclude>**/*.md</exclude>
+            <exclude>**/*.pem</exclude>
+            <exclude>**/*.crt</exclude>
+            <exclude>**/*.key</exclude>
+            <exclude>**/*.csr</exclude>
             <exclude>**/proto/*.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
@@ -635,11 +638,18 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site/vendor/**</exclude>
             <exclude>site/scripts/doxygen/**</exclude>
             <exclude>site/api/**</exclude>
-            <exclude>site/api/**</exclude>
             <exclude>site/.sass-cache/**</exclude>
             <exclude>site/generated/**</exclude>
             <exclude>site/js/jquery.tocify.min.js</exclude>
             <exclude>site/js/jquery.scrollTo.min.js</exclude>
+            <exclude>site/Gemfile.lock</exclude>
+            <exclude>site/VERSIONS</exclude>
+            <exclude>site/_sass/bootstrap-sass/**</exclude>
+            <exclude>site/_sass/font-awesome/**</exclude>
+            <exclude>site/fonts/**</exclude>
+            <exclude>site/img/**</exclude>
+            <exclude>generated-site/**</exclude>
+            <exclude>.github/*.md</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -647,6 +657,8 @@ flexible messaging model and an intuitive client API.</description>
             <ini>SCRIPT_STYLE</ini>
             <yaml>SCRIPT_STYLE</yaml>
             <cc>JAVADOC_STYLE</cc>
+            <md>XML_STYLE</md>
+            <scss>JAVADOC_STYLE</scss>
           </mapping>
         </configuration>
       </plugin>
@@ -682,11 +694,20 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
 
-            <!-- Exclude site since it's not released -->
-            <exclude>**/site/**</exclude>
+            <!-- Exclude site files -->
+            <exclude>site/Gemfile.lock</exclude>
+            <exclude>site/VERSIONS</exclude>
+            <exclude>site/_sass/bootstrap-sass/**</exclude>
+            <exclude>site/_sass/font-awesome/**</exclude>
+            <exclude>site/.sass-cache/**</exclude>
+            <exclude>site/fonts/**</exclude>
+            <exclude>site/img/**</exclude>
+            <exclude>site/js/jquery.scrollTo.min.js</exclude>
+            <exclude>site/js/jquery.tocify.min.js</exclude>
+            <exclude>generated-site/**</exclude>
 
             <exclude>**/*.patch</exclude>
-            <exclude>**/*.md</exclude>
+            <exclude>.github/*.md</exclude>
 
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
