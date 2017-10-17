@@ -178,10 +178,8 @@ namespace pulsar {
         // create consumer on each partition
         for (unsigned int i = 0; i < numPartitions_; i++ ) {
             std::string topicPartitionName = destinationName_->getTopicPartitionName(i);
-            std::stringstream partitionSubName;
-            partitionSubName << subscriptionName_ << i;
             consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName,
-                                                        partitionSubName.str(), config,
+                                                        subscriptionName_, config,
                                                         internalListenerExecutor, Partitioned);
             consumer->getConsumerCreatedFuture().addListener(boost::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerCreated,
                                                                          shared_from_this(), _1, _2, i));
