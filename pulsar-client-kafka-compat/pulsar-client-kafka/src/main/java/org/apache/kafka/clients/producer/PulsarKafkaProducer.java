@@ -18,7 +18,6 @@
  */
 package org.apache.kafka.clients.producer;
 
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,7 +47,6 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 
@@ -146,27 +144,33 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         try {
             producer = producers.computeIfAbsent(record.topic(), topic -> createNewProducer(topic));
         } catch (Exception e) {
-            callback.onCompletion(null, e);
+            if (callback != null) {
+                callback.onCompletion(null, e);
+            }
             CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
             future.completeExceptionally(e);
             return future;
         }
 
         Message msg = getMessage(record);
+        int messageSize = msg.getData().length;
 
         CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
         CompletableFuture<MessageId> sendFuture = producer.sendAsync(msg);
         lastSendFuture.put(record.topic(), sendFuture);
 
         sendFuture.thenAccept((messageId) -> {
-            future.complete(getRecordMetadata(record.topic(), msg, messageId));
+            future.complete(getRecordMetadata(record.topic(), msg, messageId, messageSize));
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
         });
 
-        future.handle((recordMetadata, exception) -> {
-            callback.onCompletion(recordMetadata, new Exception(exception));
+        future.handle((recordMetadata, throwable) -> {
+            if (callback != null) {
+                Exception exception = throwable != null ? new Exception(throwable) : null;
+                callback.onCompletion(recordMetadata, exception);
+            }
             return null;
         });
 
@@ -245,7 +249,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
     }
 
-    private RecordMetadata getRecordMetadata(String topic, Message msg, MessageId messageId) {
+    private RecordMetadata getRecordMetadata(String topic, Message msg, MessageId messageId, int size) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
         // Combine ledger id and entry id to form offset
@@ -255,7 +259,6 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         TopicPartition tp = new TopicPartition(topic, partition);
 
         return new RecordMetadata(tp, offset, 0, msg.getPublishTime(), 0, msg.hasKey() ? msg.getKey().length() : 0,
-                msg.getData().length);
-
+                size);
     }
 }

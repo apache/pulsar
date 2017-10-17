@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.kafka.compat.tests;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.producer.Producer;
@@ -74,5 +76,41 @@ public class KafkaProducerTest extends BrokerTestBase {
             assertEquals(new String(msg.getData()), "hello-" + i);
             pulsarConsumer.acknowledge(msg);
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testProducerCallback() throws Exception {
+        String topic = "persistent://sample/standalone/ns/testProducerCallback";
+
+        Consumer pulsarConsumer = pulsarClient.subscribe(topic, "my-subscription");
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", brokerUrl.toString());
+
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+
+        Producer<Integer, String> producer = new PulsarKafkaProducer<>(props);
+
+        CountDownLatch counter = new CountDownLatch(10);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i), (metadata, exception) -> {
+                assertEquals(metadata.topic(), topic);
+                assertNull(exception);
+
+                counter.countDown();
+            });
+        }
+
+        counter.await();
+
+        for (int i = 0; i < 10; i++) {
+            Message msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            assertEquals(new String(msg.getData()), "hello-" + i);
+            pulsarConsumer.acknowledge(msg);
+        }
+
+        producer.close();
     }
 }
