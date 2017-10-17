@@ -8,6 +8,27 @@ tags_ja:
 - clients
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 デフォルトでは、Pulsarの{% popover_ja トピック %}は単一の{% popover_ja Broker %}によって提供されます。しかし単一のBrokerを使用すると、トピックの最大スループットが制限されてしまいます。*パーティションドトピック*は複数のBrokerに跨らせる事のできる特殊なトピックであり、より高いスループットの実現を可能にします。パーティションドトピックがどのように動作するかの説明は下記の[コンセプト](#コンセプト)のセクションを参照してください。
 
 Pulsarのクライアントライブラリを使用する事でパーティションドトピックにメッセージを[発行](#パーティションドトピックへのメッセージの発行)できます。また、Pulsarの[admin API](../../admin/AdminInterface)を使用する事でパーティションドトピックの[作成と管理](#パーティションドトピックの管理)ができます。

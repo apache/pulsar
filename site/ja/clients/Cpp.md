@@ -3,6 +3,27 @@ title: Pulsar C++クライアント
 tags_ja: [client, cpp]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 <!-- source: https://github.com/apache/incubator-Âpulsar/tree/master/pulsar-client-cpp -->
 
 {% include admonition.html type='info' content="オープンソースコミュニティからの貢献を歓迎します。変更はgcc-4.4.7およびBoost 1.41と下位互換性を持たせてください。" %}

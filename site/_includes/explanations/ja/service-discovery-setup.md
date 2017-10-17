@@ -1,3 +1,24 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsar {% popover_ja Broker %}と接続する[クライアント](../../getting-started/Clients)は単一のURLを使用してPulsar{% popover_ja インスタンス %}全体と通信できる必要があります。Pulsarには[すぐ下にある](#サービスディスカバリのセットアップ)手順に従って設定できる組み込みのサービスディスカバリ機構が用意されています。
 
 必要に応じて、独自のサービスディスカバリシステムを使用することもできます。独自のシステムを使用する場合、クライアントが`http://pulsar.us-west.example.com:8080`のようなPulsar{% popover_ja クラスタ %}の[エンドポイント](../../reference/Configuration)にHTTPリクエストを送る際に、DNS, HTTP, IPリダイレクト、その他の手段を介して目的のクラスタ内のアクティブなBrokerの*どれか1つ*にリダイレクトされる必要があります。
