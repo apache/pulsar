@@ -174,6 +174,10 @@ public class PulsarStats implements Closeable {
         }
     }
 
+    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+        return bundleStats.remove(bundleName);
+    }
+    
     public void getDimensionMetrics(Consumer<ByteBuf> consumer) {
         bufferLock.readLock().lock();
         try {
