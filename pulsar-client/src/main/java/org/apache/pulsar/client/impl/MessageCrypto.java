@@ -383,12 +383,11 @@ public class MessageCrypto {
             if (keyInfo != null) {
                 if (keyInfo.getMetadata() != null && !keyInfo.getMetadata().isEmpty()) {
                     List<KeyValue> kvList = new ArrayList<KeyValue>();
-                    keyInfo.getMetadata().forEach( (key, value) -> {
+                    keyInfo.getMetadata().forEach((key, value) -> {
                         kvList.add(KeyValue.newBuilder().setKey(key).setValue(value).build());
                     });
-                    msgMetadata.addEncryptionKeys(
-                            EncryptionKeys.newBuilder().setKey(keyName).setValue(ByteString.copyFrom(keyInfo.getKey()))
-                                    .addAllMetadata(kvList).build());
+                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
+                            .setValue(ByteString.copyFrom(keyInfo.getKey())).addAllMetadata(kvList).build());
                 } else {
                     msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
                             .setValue(ByteString.copyFrom(keyInfo.getKey())).build());
@@ -512,9 +511,11 @@ public class MessageCrypto {
 
         } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
                 | BadPaddingException | ShortBufferException e) {
-            targetBuf.release();
-            targetBuf = null;
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
+            if (targetBuf != null) {
+                targetBuf.release();
+                targetBuf = null;
+            }
         }
 
         return targetBuf;
