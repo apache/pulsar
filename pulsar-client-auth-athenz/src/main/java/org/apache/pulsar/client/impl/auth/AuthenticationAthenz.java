@@ -141,6 +141,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (authParams.containsKey("principalHeader")) {
             System.setProperty("athenz.auth.principal.header", authParams.get("principalHeader"));
         }
+        if (authParams.containsKey("roleHeader")) {
+            System.setProperty("athenz.auth.role.header", authParams.get("roleHeader"));
+        }
     }
 
     @Override
