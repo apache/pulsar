@@ -175,7 +175,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     // update LoadReport at most every 5 seconds
     public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
     // last LoadReport stored in ZK
-    private LoadReport lastLoadReport;
+    private volatile LoadReport lastLoadReport;
     // last timestamp resource usage was checked
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report
@@ -1098,11 +1098,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public LoadReport generateLoadReport() throws Exception {
+        if (!isLoadReportGenerationIntervalPassed()) {
+            return lastLoadReport;
+        }
+        return generateLoadReportForcefully();
+    }
+    
+    private LoadReport generateLoadReportForcefully() throws Exception {    
         synchronized (bundleGainsCache) {
-            long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
-            if (timeSinceLastGenMillis <= LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL) {
-                return lastLoadReport;
-            }
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
@@ -1262,7 +1265,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
 
         if (needUpdate) {
-            LoadReport lr = generateLoadReport();
+            LoadReport lr = generateLoadReportForcefully();
             pulsar.getZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
                     -1);
             this.lastLoadReport = lr;
@@ -1270,6 +1273,17 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             // split-bundle if requires
             doNamespaceBundleSplit();
         }
+    }
+
+    /**
+     * Check if last generated load-report time passed the minimum time for load-report update.
+     * 
+     * @return true: if last load-report generation passed the minimum interval and load-report can be generated false:
+     *         if load-report generation has not passed minimum interval to update load-report again
+     */
+    private boolean isLoadReportGenerationIntervalPassed() {
+        long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
+        return timeSinceLastGenMillis > LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
     }
 
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
