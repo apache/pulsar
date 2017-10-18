@@ -86,7 +86,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
-        if (serviceUrl == null || conf == null || eventLoopGroup == null) {
+        if (isBlank(serviceUrl) || conf == null || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
         this.eventLoopGroup = eventLoopGroup;
