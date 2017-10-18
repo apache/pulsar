@@ -826,7 +826,28 @@
       </section>
 
       <section class="content">
-        <p><span class="popover-term" tabindex="0" title="Pulsarとは？" data-placement="top" data-content="Yahooによって独自に開発された分散メッセージングシステムです。現在はApache Software Foundationの管理下にあります。" data-toggle="popover" data-trigger="focus">Pulsar</span>は<a href="http://yahoo.github.io/">Yahoo</a>で開発され、現在は<a href="https://www.apache.org/">Apache Software Foundation</a>の管理下にある、サーバからサーバへメッセージングを行うためのマルチテナント、ハイパフォーマンスなソリューションです。</p>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><span class="popover-term" tabindex="0" title="Pulsarとは？" data-placement="top" data-content="Yahooによって独自に開発された分散メッセージングシステムです。現在はApache Software Foundationの管理下にあります。" data-toggle="popover" data-trigger="focus">Pulsar</span>は<a href="http://yahoo.github.io/">Yahoo</a>で開発され、現在は<a href="https://www.apache.org/">Apache Software Foundation</a>の管理下にある、サーバからサーバへメッセージングを行うためのマルチテナント、ハイパフォーマンスなソリューションです。</p>
 
 <p>Pulsarの主要な特徴:</p>
 
@@ -1074,6 +1095,27 @@
 
 <h3 id="パーティションドトピック">パーティションドトピック</h3>
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 <p>通常のトピックは単一の<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>によってのみ提供されるため、トピックの最大スループットが制限されます。<em>パーティションドトピック</em>は複数のBrokerによって処理される特殊なトピックであり、より高いスループットの実現を可能にします。</p>
 
 <p>裏側では、パーティションドトピックはN個の内部トピックとして実装されます。ここでのNはパーティションの数です。パーティションドトピックにメッセージを発行すると、それぞれのメッセージは複数のBrokerの内のいずれかにルーティングされます。Broker間のパーティションの分散はPulsarによって自動的に処理されます。</p>
@@ -1128,6 +1170,27 @@
 <p>これらデフォルトのモードに加えて、もし<a href="../../clients/Java">Javaクライアント</a>を使用しているなら<a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a>インターフェースを実装する事で独自のルーティングモードを作成可能です。</p>
 
 <h3 id="ノンパーシステントトピック">ノンパーシステントトピック</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
 
 <!--
 
@@ -1478,6 +1541,27 @@ Ledgerは単一のプロセスによってのみ書き込み可能なので、�
 <p>このように、プロパティはトピックの分類の最も基本的な単位です (<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>よりもさらに基本的です)。</p>
 
 <h3 id="プロパティとネームスペース">プロパティとネームスペース</h3>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
 
 <p>Pulsarは<span class="popover-term" tabindex="0" title="マルチテナントとは？" data-placement="top" data-content="ネームスペースの隔離、リソースの割り当て、プロパティごとの認証・認可を設定する機能です。" data-toggle="popover" data-trigger="focus">マルチテナント</span>のシステムとして新規にデザインされました。Pulsarでは<span class="popover-term" tabindex="0" title="テナントとは？" data-placement="top" data-content="キャパシティの割り当てと認証/認可スキームを実施するための管理単位です。Pulsarのテナントはプロパティレベルで管理されます。" data-toggle="popover" data-trigger="focus">テナント</span>は<a href="#プロパティ">プロパティ</a>によって識別されます。プロパティはPulsar<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内の最も上位の管理単位です。</p>
 
