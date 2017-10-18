@@ -168,7 +168,7 @@ public abstract class PulsarWebResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to get property admin data for property");
+            log.error("Failed to get property admin data for property {}", property);
             throw new RestException(e);
         }
     }
