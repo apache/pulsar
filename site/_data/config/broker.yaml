@@ -269,6 +269,9 @@ configs:
 - name: replicatorPrefix
   default: pulsar.repl
   description: Replicator prefix used for replicator producer name and cursor name
+- name: replicationTlsEnabled
+  default: 'false'
+  description: Enable TLS when talking with other clusters to replicate messages
 - name: defaultRetentionTimeInMinutes
   default: '0'
   description: Default message retention time
