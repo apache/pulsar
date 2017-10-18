@@ -186,7 +186,7 @@ namespace pulsar {
             consumer->setPartitionIndex(i);
             consumers_.push_back(consumer);
 
-            LOG_DEBUG("Creating Consumer for single Partition - " << topicPartitionName << "SubName - " << partitionSubName.str());
+            LOG_DEBUG("Creating Consumer for single Partition - " << topicPartitionName << "SubName - " << subscriptionName_);
         }
         for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end(); consumer++) {
             (*consumer)->start();
