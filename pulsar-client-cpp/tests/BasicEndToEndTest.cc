@@ -442,12 +442,12 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName)
     ASSERT_FALSE(res != 204 && res != 409);
 
     Consumer partitionedConsumer;
-    Result result = client.subscribe(topicName, "subscription-A", consumer);
+    Result result = client.subscribe(topicName, "subscription-A", partitionedConsumer);
     ASSERT_EQ(ResultOk, result);
 
     // The consumer should be already be registered "subscription-A" for all the partitions
     Consumer individualPartitionConsumer;
-    result = client.subscribe(topicName + "-partition-0", "subscription-A", consumer);
+    result = client.subscribe(topicName + "-partition-0", "subscription-A", individualPartitionConsumer);
     ASSERT_EQ(ResultConsumerBusy, result);
 
     client.shutdown();
