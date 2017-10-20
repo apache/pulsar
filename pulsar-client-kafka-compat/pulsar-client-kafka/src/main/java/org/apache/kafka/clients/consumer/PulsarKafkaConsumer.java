@@ -184,16 +184,15 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             for (String topic : topics) {
                 // Create individual subscription on each partition, that way we can keep using the
                 // acknowledgeCumulative()
-                PartitionedTopicMetadata partitionMetadata = ((PulsarClientImpl) client)
-                        .getPartitionedTopicMetadata(topic).get();
+                int numberOfPartitions = ((PulsarClientImpl) client).getNumberOfPartitions(topic).get();
 
                 ConsumerConfiguration conf = new ConsumerConfiguration();
                 conf.setSubscriptionType(SubscriptionType.Failover);
                 conf.setMessageListener(this);
-                if (partitionMetadata.partitions > 1) {
+                if (numberOfPartitions > 1) {
                     // Subscribe to each partition
                     conf.setConsumerName(ConsumerName.generateRandomName());
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    for (int i = 0; i < numberOfPartitions; i++) {
                         String partitionName = DestinationName.get(topic).getPartition(i).toString();
                         CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client
                                 .subscribeAsync(partitionName, groupId, conf);

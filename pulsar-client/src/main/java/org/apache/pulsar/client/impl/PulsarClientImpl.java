@@ -443,6 +443,10 @@ public class PulsarClientImpl implements PulsarClient {
         return eventLoopGroup;
     }
 
+    public CompletableFuture<Integer> getNumberOfPartitions(String topic) {
+        return getPartitionedTopicMetadata(topic).thenApply(metadata -> metadata.partitions);
+    }
+
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture;
