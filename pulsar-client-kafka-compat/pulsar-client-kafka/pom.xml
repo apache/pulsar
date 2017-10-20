@@ -95,6 +95,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.kafka:kafka-clients</include>
+                  <include>org.apache.pulsar:pulsar-client</include>
                 </includes>
               </artifactSet>
               <relocations>

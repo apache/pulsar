@@ -59,7 +59,8 @@ import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
@@ -179,7 +180,14 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void subscribe(Collection<String> topics) {
+        subscribe(topics, null);
+    }
+
+    @Override
+    public void subscribe(Collection<String> topics, ConsumerRebalanceListener callback) {
         List<CompletableFuture<org.apache.pulsar.client.api.Consumer>> futures = new ArrayList<>();
+
+        List<TopicPartition> topicPartitions = new ArrayList<>();
         try {
             for (String topic : topics) {
                 // Create individual subscription on each partition, that way we can keep using the
@@ -197,25 +205,33 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                         CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client
                                 .subscribeAsync(partitionName, groupId, conf);
                         int partitionIndex = i;
+                        TopicPartition tp = new TopicPartition(topic, partitionIndex);
                         future.thenAccept(
-                                consumer -> consumers.putIfAbsent(new TopicPartition(topic, partitionIndex), consumer));
+                                consumer -> consumers.putIfAbsent(tp, consumer));
                         futures.add(future);
+                        topicPartitions.add(tp);
                     }
-
                 } else {
                     // Topic has a single partition
                     CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client.subscribeAsync(topic,
                             groupId, conf);
-                    future.thenAccept(consumer -> consumers.putIfAbsent(new TopicPartition(topic, 0), consumer));
+                    TopicPartition tp = new TopicPartition(topic, 0);
+                    future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));
                     futures.add(future);
+                    topicPartitions.add(tp);
                 }
             }
 
             // Wait for all consumers to be ready
             futures.forEach(CompletableFuture::join);
 
+            // Notify the listener is now owning all topics/partitions
+            if (callback != null) {
+                callback.onPartitionsAssigned(topicPartitions);
+            }
+
         } catch (Exception e) {
-            // Close all consumer that might have been sucessfully created
+            // Close all consumer that might have been successfully created
             futures.forEach(f -> {
                 try {
                     f.get().close();
@@ -226,11 +242,6 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public void subscribe(Collection<String> topics, ConsumerRebalanceListener callback) {
-        throw new UnsupportedOperationException("ConsumerRebalanceListener is not supported");
     }
 
     @Override
@@ -388,12 +399,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void seekToBeginning(Collection<TopicPartition> partitions) {
-        throw new UnsupportedOperationException();
+//        throw new UnsupportedOperationException();
     }
 
     @Override
     public void seekToEnd(Collection<TopicPartition> partitions) {
-        throw new UnsupportedOperationException();
+//        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -472,4 +483,6 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     public void wakeup() {
         throw new UnsupportedOperationException();
     }
+
+    private static final Logger log = LoggerFactory.getLogger(PulsarKafkaConsumer.class);
 }
