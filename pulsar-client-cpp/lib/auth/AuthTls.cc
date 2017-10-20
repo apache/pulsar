@@ -61,7 +61,7 @@ namespace pulsar {
         return ResultOk;
     }
 
-    extern "C" Authentication* create(ParamMap& params) {
+    extern "C" Authentication* createFromMap(ParamMap& params) {
         AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
         return new AuthTls(authDataTls);
     }
