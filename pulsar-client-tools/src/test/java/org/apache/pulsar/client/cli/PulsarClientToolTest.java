@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -26,6 +27,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.cli.PulsarClientTool;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -72,6 +75,18 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
+
+        // Make sure subscription has been created
+        while (true) {
+            try {
+                List<String> subscriptions = admin.persistentTopics().getSubscriptions(topicName);
+                if(subscriptions.size() == 1){
+                    break;
+                }
+            } catch (Exception e){
+            }
+            Thread.sleep(200);
+        }
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
