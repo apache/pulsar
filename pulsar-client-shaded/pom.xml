@@ -111,10 +111,6 @@
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.pulsar.common</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.pulsar.checksum</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
                 </relocation>
