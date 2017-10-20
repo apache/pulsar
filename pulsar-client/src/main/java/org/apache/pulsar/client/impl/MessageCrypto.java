@@ -89,9 +89,14 @@ public class MessageCrypto {
     private static final String ECDSA = "ECDSA";
     private static final String RSA = "RSA";
     private static final String ECIES = "ECIES";
+
+    // Ideally the transformation should also be part of the message property. This will prevent client
+    // from assuming hardcoded value. However, it will increase the size of the message even further.
+    private static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
     private static final String AESGCM = "AES/GCM/NoPadding";
 
     private static KeyGenerator keyGenerator;
+    private static final int tagLen = 16 * 8;
     private static final int ivLen = 12;
     private byte[] iv = new byte[ivLen];
     private Cipher cipher;
@@ -147,7 +152,15 @@ public class MessageCrypto {
                 return;
             }
             keyGenerator = KeyGenerator.getInstance("AES");
-            keyGenerator.init(128, secureRandom);
+            int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
+            if (aesKeyLength <= 128) {
+                log.warn(
+                        "{} AES Cryptographic strength is limited to {} bits. Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
+                        logCtx, aesKeyLength);
+                keyGenerator.init(aesKeyLength, secureRandom);
+            } else {
+                keyGenerator.init(256, secureRandom);
+            }
 
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
 
@@ -314,7 +327,7 @@ public class MessageCrypto {
 
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
             } else {
@@ -402,7 +415,7 @@ public class MessageCrypto {
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
         secureRandom.nextBytes(iv);
-        GCMParameterSpec gcmParam = new GCMParameterSpec(ivLen * 8, iv);
+        GCMParameterSpec gcmParam = new GCMParameterSpec(tagLen, iv);
 
         // Update message metadata with encryption param
         msgMetadata.setEncryptionParam(ByteString.copyFrom(iv));
@@ -467,7 +480,7 @@ public class MessageCrypto {
 
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
             } else {
@@ -495,7 +508,7 @@ public class MessageCrypto {
         ByteString ivString = msgMetadata.getEncryptionParam();
         ivString.copyTo(iv, 0);
 
-        GCMParameterSpec gcmParams = new GCMParameterSpec(ivLen * 8, iv);
+        GCMParameterSpec gcmParams = new GCMParameterSpec(tagLen, iv);
         ByteBuf targetBuf = null;
         try {
             cipher.init(Cipher.DECRYPT_MODE, dataKeySecret, gcmParams);
