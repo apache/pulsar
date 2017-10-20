@@ -128,19 +128,41 @@ namespace pulsar {
     }
 
     AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, const std::string& authParamsString) {
-        ParamMap paramMap;
-        if(!authParamsString.empty()) {
-            std::vector<std::string> params;
-            boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
-            for(int i = 0; i<params.size(); i++) {
-		std::vector<std::string> kv;
-                boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
-                if (kv.size() == 2) {
-                    paramMap[kv[0]] = kv[1];
-                }
+        {
+            boost::lock_guard<boost::mutex> lock(mutex);
+            if (!AuthFactory::isShutdownHookRegistered_) {
+                atexit(release_handles);
+                AuthFactory::isShutdownHookRegistered_ = true;
             }
         }
-        return AuthFactory::create(dynamicLibPath, paramMap);
+        Authentication *auth = NULL;
+        void *handle = dlopen(dynamicLibPath.c_str(), RTLD_LAZY);
+        if (handle != NULL) {
+            {
+                boost::lock_guard<boost::mutex> lock(mutex);
+                loadedLibrariesHandles_.push_back(handle);
+            }
+            Authentication *(*createAuthentication)(const std::string&);
+            *(void **) (&createAuthentication) = dlsym(handle, "create");
+            if (createAuthentication != NULL) {
+                auth = createAuthentication(authParamsString);
+            } else {
+                ParamMap paramMap;
+                if(!authParamsString.empty()) {
+                    std::vector<std::string> params;
+                    boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
+                    for(int i = 0; i<params.size(); i++) {
+                        std::vector<std::string> kv;
+                        boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
+                        if (kv.size() == 2) {
+                            paramMap[kv[0]] = kv[1];
+                        }
+                    }
+                }
+                return AuthFactory::create(dynamicLibPath, paramMap);
+            }
+        }
+        return AuthenticationPtr(auth);
     }
 
     AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, ParamMap& params) {
@@ -157,12 +179,12 @@ namespace pulsar {
             boost::lock_guard<boost::mutex> lock(mutex);
             loadedLibrariesHandles_.push_back(handle);
             Authentication *(*createAuthentication)(ParamMap&);
-            *(void **) (&createAuthentication) = dlsym(handle, "create");
+            *(void **) (&createAuthentication) = dlsym(handle, "createFromMap");
             if (createAuthentication != NULL) {
                 auth = createAuthentication(params);
             }
         }
-        return boost::shared_ptr<Authentication>(auth);
+        return AuthenticationPtr(auth);
     }
 
 }
