@@ -118,6 +118,7 @@
                   <include>org.apache.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>org.bouncycastle:*</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -168,6 +169,10 @@
                 <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.bouncycastle</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.bouncycastle</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
