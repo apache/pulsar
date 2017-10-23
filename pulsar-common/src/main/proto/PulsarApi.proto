@@ -293,6 +293,14 @@ message CommandUnsubscribe {
 	required uint64 request_id  = 2;
 }
 
+// Reset an existing consumer to a particular message id
+message CommandSeek {
+	required uint64 consumer_id = 1;
+	required uint64 request_id  = 2;
+	
+	optional MessageIdData message_id = 3;
+}
+
 // Message sent by broker to client when a topic
 // has been forcefully terminated and there are no more
 // messages left to consume
@@ -434,6 +442,7 @@ message BaseCommand {
 
 		REACHED_END_OF_TOPIC = 27;
 
+		SEEK = 28;
 	}
 
 	required Type type = 1;
@@ -472,4 +481,6 @@ message BaseCommand {
 	optional CommandConsumerStatsResponse consumerStatsResponse         = 26;
 
 	optional CommandReachedEndOfTopic reachedEndOfTopic  = 27;
+	
+	optional CommandSeek seek = 28;
 }

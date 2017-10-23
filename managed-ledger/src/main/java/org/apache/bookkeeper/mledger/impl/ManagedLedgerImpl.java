@@ -1910,6 +1910,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("IsValid position: {} -- last: {}", position, last);
         }
 
+//        if (position.equals(PositionImpl.earliest || position.equals(PositionImpl)))
         if (position.getEntryId() < 0) {
             return false;
         } else if (position.getLedgerId() > last.getLedgerId()) {

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -435,6 +436,20 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             });
             c.redeliverUnacknowledgedMessages(consumerMessageIds);
         }
+    }
+
+    @Override
+    public void seek(MessageId messageId) throws PulsarClientException {
+        try {
+            seekAsync(messageId).get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(MessageId messageId) {
+        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
     }
 
     /**

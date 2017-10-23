@@ -33,9 +33,12 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -52,10 +55,12 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -671,6 +676,43 @@ public class ServerCnx extends PulsarHandler {
         } else {
             ctx.writeAndFlush(
                     Commands.newError(unsubscribe.getRequestId(), ServerError.MetadataError, "Consumer not found"));
+        }
+    }
+
+    @Override
+    protected void handleSeek(CommandSeek seek) {
+        checkArgument(state == State.Connected);
+
+        CompletableFuture<Consumer> consumerFuture = consumers.get(seek.getConsumerId());
+
+        // Currently only seeking on a message id is supported
+        if (!seek.hasMessageId()) {
+            ctx.writeAndFlush(
+                    Commands.newError(seek.getRequestId(), ServerError.MetadataError, "Message id was not present"));
+            return;
+        }
+
+        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+            Consumer consumer = consumerFuture.getNow(null);
+            Subscription subscription = consumer.getSubscription();
+            MessageIdData msgIdData = seek.getMessageId();
+//            MessageIdImpl msgId = MessageIdImpl.earliest
+
+            Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
+            long requestId = seek.getRequestId();
+
+            subscription.resetCursor(position).thenRun(() -> {
+                log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
+                        subscription.getTopic().getName(), subscription.getName(), position);
+                ctx.writeAndFlush(Commands.newSuccess(requestId));
+            }).exceptionally(ex -> {
+                log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
+                ctx.writeAndFlush(Commands.newError(seek.getRequestId(), ServerError.UnknownError,
+                        "Error when resetting subscription: " + ex.getMessage()));
+                return null;
+            });
+        } else {
+            ctx.writeAndFlush(Commands.newError(seek.getRequestId(), ServerError.MetadataError, "Consumer not found"));
         }
     }
 

@@ -28,7 +28,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
@@ -38,14 +37,15 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositio
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -86,6 +86,11 @@ public class PersistentSubscription implements Subscription {
     @Override
     public String getName() {
         return this.subName;
+    }
+
+    @Override
+    public Topic getTopic() {
+        return topic;
     }
 
     @Override
@@ -469,7 +474,7 @@ public class PersistentSubscription implements Subscription {
     public int getTotalNonContiguousDeletedMessagesRange() {
         return cursor.getTotalNonContiguousDeletedMessagesRange();
     }
-    
+
     /**
      * Close the cursor ledger for this subscription. Requires that there are no active consumers on the dispatcher
      *
