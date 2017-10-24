@@ -75,7 +75,7 @@ TEST(BasicEndToEndTest, testBatchMessages)
     // Enable batching on producer side
     int batchSize = 2;
     int numOfMessages = 1000;
-    
+
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
     conf.setBatchingMaxMessages(batchSize);
@@ -395,12 +395,12 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
     std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumer";
 
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-test/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumer/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = "<<res);
     ASSERT_FALSE(res != 204 && res != 409);
-    
+
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -426,6 +426,30 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer)
         consumer.receive(m, 10000);
         consumer.acknowledge(m);
     }
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName)
+{
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumerSubscriptionName";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumerSubscriptionName/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = "<<res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Consumer partitionedConsumer;
+    Result result = client.subscribe(topicName, "subscription-A", partitionedConsumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // The consumer should be already be registered "subscription-A" for all the partitions
+    Consumer individualPartitionConsumer;
+    result = client.subscribe(topicName + "-partition-0", "subscription-A", individualPartitionConsumer);
+    ASSERT_EQ(ResultConsumerBusy, result);
+
     client.shutdown();
 }
 
@@ -819,7 +843,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
     consumer.resumeMessageListener();
     // Sleeping for 2 seconds
     usleep(2 * 1000 * 1000);
-    
+
     ASSERT_EQ(globalCount, 10000);
     consumer.close();
     producer.close();
