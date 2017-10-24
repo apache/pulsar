@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -244,11 +244,23 @@ extends Closeable</pre>
 </tr>
 <tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#seek-org.apache.pulsar.client.api.MessageId-">seek</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code>
+<div class="block">Reset the subscription associated with this consumer to a specific message id.</div>
+</td>
+</tr>
+<tr id="i19" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#seekAsync-org.apache.pulsar.client.api.MessageId-">seekAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code>
+<div class="block">Reset the subscription associated with this consumer to a specific message id.</div>
+</td>
+</tr>
+<tr id="i20" class="altColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#unsubscribe--">unsubscribe</a></span>()</code>
 <div class="block">Unsubscribe the consumer</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#unsubscribeAsync--">unsubscribeAsync</a></span>()</code>
 <div class="block">Asynchronously unsubscribe the consumer</div>
@@ -618,7 +630,7 @@ extends Closeable</pre>
 <a name="redeliverUnacknowledgedMessages--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
 <pre>void&nbsp;redeliverUnacknowledgedMessages()</pre>
@@ -626,6 +638,61 @@ extends Closeable</pre>
  active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
  the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
  breaks, the messages are redelivered after reconnect.</div>
+</li>
+</ul>
+<a name="seek-org.apache.pulsar.client.api.MessageId-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>seek</h4>
+<pre>void&nbsp;seek(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)
+   throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block">Reset the subscription associated with this consumer to a specific message id.
+ <p>
+
+ The message id can either be a specific message or represent the first or last messages in the topic.
+ <p>
+ <ul>
+ <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
+ <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
+ </ul>
+
+ Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+ the individual partitions.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>messageId</code> - the message id where to reposition the subscription</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="seekAsync-org.apache.pulsar.client.api.MessageId-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>seekAsync</h4>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;seekAsync(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</pre>
+<div class="block">Reset the subscription associated with this consumer to a specific message id.
+ <p>
+
+ The message id can either be a specific message or represent the first or last messages in the topic.
+ <p>
+ <ul>
+ <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
+ <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
+ </ul>
+
+ Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+ the individual partitions.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>messageId</code> - the message id where to reposition the subscription</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a future to track the completion of the seek operation</dd>
+</dl>
 </li>
 </ul>
 </li>
