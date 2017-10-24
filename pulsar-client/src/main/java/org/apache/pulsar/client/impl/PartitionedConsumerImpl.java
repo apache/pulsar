@@ -442,7 +442,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     public void seek(MessageId messageId) throws PulsarClientException {
         try {
             seekAsync(messageId).get();
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
+            throw new PulsarClientException(e.getCause());
+        } catch (InterruptedException e) {
             throw new PulsarClientException(e);
         }
     }

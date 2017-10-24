@@ -696,7 +696,6 @@ public class ServerCnx extends PulsarHandler {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
-//            MessageIdImpl msgId = MessageIdImpl.earliest
 
             Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
             long requestId = seek.getRequestId();
@@ -708,7 +707,7 @@ public class ServerCnx extends PulsarHandler {
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
                 ctx.writeAndFlush(Commands.newError(seek.getRequestId(), ServerError.UnknownError,
-                        "Error when resetting subscription: " + ex.getMessage()));
+                        "Error when resetting subscription: " + ex.getCause().getMessage()));
                 return null;
             });
         } else {
