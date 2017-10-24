@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -232,4 +233,109 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
         consumers.forEach(Consumer::close);
     }
+
+    @Test
+    public void testConsumerSeek() throws Exception {
+        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        Producer pulsarProducer = pulsarClient.createProducer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
+                    .build();
+            pulsarProducer.send(msg);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            ConsumerRecords<String, String> records = consumer.poll(100);
+            assertEquals(records.count(), 1);
+            int idx = i;
+            records.forEach(record -> {
+                assertEquals(record.key(), Integer.toString(idx));
+                assertEquals(record.value(), "hello-" + idx);
+            });
+
+            consumer.commitSync();
+        }
+
+        consumer.seekToBeginning(Collections.emptyList());
+
+        Thread.sleep(500);
+
+        // Messages should be available again
+        for (int i = 0; i < 10; i++) {
+            ConsumerRecords<String, String> records = consumer.poll(100);
+            assertEquals(records.count(), 1);
+            int idx = i;
+            records.forEach(record -> {
+                assertEquals(record.key(), Integer.toString(idx));
+                assertEquals(record.value(), "hello-" + idx);
+            });
+
+            consumer.commitSync();
+        }
+
+        consumer.close();
+    }
+
+    @Test
+    public void testConsumerSeekToEnd() throws Exception {
+        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        Producer pulsarProducer = pulsarClient.createProducer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
+                    .build();
+            pulsarProducer.send(msg);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            ConsumerRecords<String, String> records = consumer.poll(100);
+            assertEquals(records.count(), 1);
+            int idx = i;
+            records.forEach(record -> {
+                assertEquals(record.key(), Integer.toString(idx));
+                assertEquals(record.value(), "hello-" + idx);
+            });
+
+            consumer.commitSync();
+        }
+
+        consumer.seekToEnd(Collections.emptyList());
+        Thread.sleep(500);
+
+        consumer.close();
+
+        // Recreate the consumer
+        consumer = new PulsarKafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        ConsumerRecords<String, String> records = consumer.poll(100);
+        // Since we are at the end of the topic, there should be no messages
+        assertEquals(records.count(), 0);
+
+        consumer.close();
+    }
+
 }
