@@ -627,7 +627,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public long getNumberOfEntriesSinceFirstNotAckedMessage() {
         return ledger.getNumberOfEntries(Range.openClosed(markDeletePosition, readPosition));
     }
-    
+
     @Override
     public int getTotalNonContiguousDeletedMessagesRange() {
         return individualDeletedMessages.asRanges().size();
@@ -731,21 +731,28 @@ public class ManagedCursorImpl implements ManagedCursor {
         return firstLedgerId == null ? null : new PositionImpl(firstLedgerId, 0);
     }
 
-    protected void internalResetCursor(final PositionImpl newPosition,
-            AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
-        log.info("[{}] Initiate reset position to {} on cursor {}", ledger.getName(), newPosition, name);
+    protected void internalResetCursor(PositionImpl position, AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
+        if (position.equals(PositionImpl.earliest)) {
+            position = ledger.getFirstPosition();
+        } else if (position.equals(PositionImpl.latest)) {
+            position = ledger.getLastPosition().getNext();
+        }
+
+        log.info("[{}] Initiate reset position to {} on cursor {}", ledger.getName(), position, name);
 
         synchronized (pendingMarkDeleteOps) {
             if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 log.error("[{}] reset requested - position [{}], previous reset in progress - cursor {}",
-                        ledger.getName(), newPosition, name);
+                        ledger.getName(), position, name);
                 resetCursorCallback.resetFailed(
                         new ManagedLedgerException.ConcurrentFindCursorPositionException("reset already in progress"),
-                        newPosition);
+                        position);
             }
         }
 
         final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
+
+        final PositionImpl newPosition = position;
 
         VoidCallback finalCallback = new VoidCallback() {
             @Override
@@ -825,7 +832,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // order trim and reset operations on a ledger
         ledger.getExecutor().submitOrdered(ledger.getName(), safeRun(() -> {
-            if (ledger.isValidPosition(newPosition)) {
+            if (ledger.isValidPosition(newPosition) || newPosition.equals(PositionImpl.earliest)
+                    || newPosition.equals(PositionImpl.latest)) {
                 internalResetCursor(newPosition, callback);
             } else {
                 // caller (replay) should handle this error and retry cursor reset
@@ -1721,7 +1729,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Persist given markDelete position to cursor-ledger or zk-metaStore based on max number of allowed unack-range
      * that can be persist in zk-metastore. If current unack-range is higher than configured threshold then broker
      * persists mark-delete into cursor-ledger else into zk-metastore.
-     * 
+     *
      * @param cursorsLedgerId
      * @param position
      * @param properties
@@ -2305,6 +2313,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             markDeleteLimiter = null;
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
 }

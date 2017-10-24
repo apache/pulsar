@@ -41,6 +41,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
@@ -211,6 +212,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getUnsubscribe().recycle();
                 break;
 
+            case SEEK:
+                checkArgument(cmd.hasSeek());
+                handleSeek(cmd.getSeek());
+                cmd.getSeek().recycle();
+                break;
+
             case PING:
                 checkArgument(cmd.hasPing());
                 handlePing(cmd.getPing());
@@ -323,6 +330,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleUnsubscribe(CommandUnsubscribe unsubscribe) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleSeek(CommandSeek seek) {
         throw new UnsupportedOperationException();
     }
 
