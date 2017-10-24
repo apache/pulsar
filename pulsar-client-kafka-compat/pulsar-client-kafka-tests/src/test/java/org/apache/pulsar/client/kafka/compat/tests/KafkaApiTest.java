@@ -44,6 +44,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class KafkaApiTest extends BrokerTestBase {
+
+    public KafkaApiTest() {
+        super.isTcpLookup = true;
+    }
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {

@@ -66,6 +66,8 @@ public abstract class MockedPulsarServiceBaseTest {
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
+    protected URI lookupUrl;
+
     protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     protected final int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
     protected final int BROKER_PORT = PortManager.nextFreePort();
@@ -97,11 +99,11 @@ public abstract class MockedPulsarServiceBaseTest {
         init();
         org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        String lookupUrl = brokerUrl.toString();
+        lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
-            lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT);
         }
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        pulsarClient = PulsarClient.create(lookupUrl.toString(), clientConf);
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
