@@ -120,7 +120,7 @@ abstract class HandlerBase {
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s", topic, getHandlerName(), cnx.channel(),
                     delayMs / 1000.0);
             client.timer().newTimeout(timeout -> {
-                log.warn("[{}] [{}] Reconnecting after timeout", topic, getHandlerName());
+                log.info("[{}] [{}] Reconnecting after timeout", topic, getHandlerName());
                 grabCnx();
             }, delayMs, TimeUnit.MILLISECONDS);
         }
