@@ -847,7 +847,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // split bundles
         try {
             namespaces.splitNamespaceBundle(testProperty, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
-                    false);
+                    false, true);
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testProperty, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);

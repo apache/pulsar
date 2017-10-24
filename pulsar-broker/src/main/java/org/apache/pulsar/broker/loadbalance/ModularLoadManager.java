@@ -47,7 +47,7 @@ public interface ModularLoadManager {
     /**
      * As the leader broker, attempt to automatically detect and split hot namespace bundles.
      */
-    void doNamespaceBundleSplit();
+    void checkNamespaceBundleSplit();
 
     /**
      * Initialize this load manager using the given pulsar service.

@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -52,6 +53,9 @@ public class LoadManagerShared {
 
     // Cache for shard brokers according to policies.
     private static final Set<String> sharedCache = new HashSet<>();
+    
+    // update LoadReport at most every 5 seconds
+    public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
     // Don't allow construction: static method namespace only.
     private LoadManagerShared() {
