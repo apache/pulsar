@@ -22,6 +22,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -75,7 +76,6 @@ public class WebService implements AutoCloseable {
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
-    public static final String HANDLER_REQUEST_LOG_TZ = "GMT";
     public static final int NUM_ACCEPTORS = 32; // make it configurable?
     public static final int MAX_CONCURRENT_REQUESTES = 1024; // make it configurable?
 
@@ -195,7 +195,7 @@ public class WebService implements AutoCloseable {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             Slf4jRequestLog requestLog = new Slf4jRequestLog();
             requestLog.setExtended(true);
-            requestLog.setLogTimeZone(WebService.HANDLER_REQUEST_LOG_TZ);
+            requestLog.setLogTimeZone(TimeZone.getDefault().getID());
             requestLog.setLogLatency(true);
             requestLogHandler.setRequestLog(requestLog);
             handlers.add(0, new ContextHandlerCollection());
