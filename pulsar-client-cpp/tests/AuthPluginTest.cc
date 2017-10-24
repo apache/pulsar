@@ -132,7 +132,7 @@ namespace testAthenz {
             if (kv[0]=="Athenz-Principal-Auth:") {
                 principalToken = kv[1];
             }
-            
+
             if (headerLine == "\r" || headerLine == "\n" || headerLine == "\r\n") {
                 std::string mockToken = "{\"token\":\"mockToken\",\"expiryTime\":4133980800}";
                 stream << "HTTP/1.1 200 OK" << std::endl;
@@ -150,12 +150,13 @@ namespace testAthenz {
 TEST(AuthPluginTest, testAthenz) {
     boost::thread zts(&testAthenz::mockZTS);
     pulsar::AuthenticationDataPtr data;
-    ParamMap params;
-    params["tenantDomain"] = "pulsar.test.tenant";
-    params["tenantService"] = "service";
-    params["providerDomain"] = "pulsar.test.provider";
-    params["privateKey"] = "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
-    params["ztsUrl"] = "http://localhost:9999";
+    std::string params = R"({
+        "tenantDomain": "pulsar.test.tenant",
+        "tenantService": "service",
+        "providerDomain": "pulsar.test.provider",
+        "privateKey": "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem",
+        "ztsUrl": "http://localhost:9999"
+    })";
     pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthathenz.so", params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);

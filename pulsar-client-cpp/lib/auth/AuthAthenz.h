@@ -46,6 +46,7 @@ namespace pulsar {
         AuthAthenz(AuthenticationDataPtr&);
         ~AuthAthenz();
         static AuthenticationPtr create(ParamMap& params);
+        static AuthenticationPtr create(const std::string& authParamsString);
         const std::string getAuthMethodName() const;
         Result getAuthData(AuthenticationDataPtr& authDataAthenz) const;
     private:
