@@ -50,6 +50,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
@@ -87,7 +88,7 @@ public class Commands {
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null);
     }
-    
+
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker, String originalPrincipal) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, originalPrincipal);
     }
@@ -113,11 +114,11 @@ public class Commands {
         if (authData != null) {
             connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
         }
-        
+
         if (originalPrincipal != null) {
             connectBuilder.setOriginalPrincipal(originalPrincipal);
         }
-        
+
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
@@ -346,6 +347,26 @@ public class Commands {
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.UNSUBSCRIBE).setUnsubscribe(unsubscribe));
         unsubscribeBuilder.recycle();
         unsubscribe.recycle();
+        return res;
+    }
+
+    public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId) {
+        CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
+        seekBuilder.setConsumerId(consumerId);
+        seekBuilder.setRequestId(requestId);
+
+        MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
+        messageIdBuilder.setLedgerId(ledgerId);
+        messageIdBuilder.setEntryId(entryId);
+        MessageIdData messageId = messageIdBuilder.build();
+        seekBuilder.setMessageId(messageId);
+
+        CommandSeek seek = seekBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SEEK).setSeek(seek));
+        messageId.recycle();
+        messageIdBuilder.recycle();
+        seekBuilder.recycle();
+        seek.recycle();
         return res;
     }
 

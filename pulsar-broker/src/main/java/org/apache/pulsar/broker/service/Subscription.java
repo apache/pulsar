@@ -28,8 +28,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 public interface Subscription {
+
+    Topic getTopic();
+
     String getName();
-    
+
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
@@ -59,7 +62,7 @@ public interface Subscription {
     CompletableFuture<Void> skipMessages(int numMessagesToSkip);
 
     CompletableFuture<Void> resetCursor(long timestamp);
-    
+
     CompletableFuture<Void> resetCursor(Position position);
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
@@ -71,11 +74,11 @@ public interface Subscription {
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
     void markTopicWithBatchMessagePublished();
-    
+
     double getExpiredMessageRate();
-    
+
     SubType getType();
-    
+
     String getTypeString();
 
     void addUnAckedMessages(int unAckMessages);

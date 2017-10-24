@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -55,7 +56,7 @@ public class NonPersistentSubscription implements Subscription {
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentSubscription.class, "isFenced");
     private volatile int isFenced = FALSE;
-    
+
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
         this.topic = topic;
         this.topicName = topic.getName();
@@ -66,6 +67,11 @@ public class NonPersistentSubscription implements Subscription {
     @Override
     public String getName() {
         return this.subName;
+    }
+
+    @Override
+    public Topic getTopic() {
+        return topic;
     }
 
     @Override
@@ -342,7 +348,7 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
         return 0;
     }
-    
+
     @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
