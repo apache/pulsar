@@ -60,8 +60,6 @@ import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
@@ -81,6 +79,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
+
+    private volatile boolean closed = false;
 
     private static class QueueItem {
         final org.apache.pulsar.client.api.Consumer consumer;
@@ -159,7 +159,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         try {
             receivedMessages.put(new QueueItem(consumer, msg));
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            if (closed) {
+                // Consumer was closed and the thread was interrupted. Nothing to worry about here
+            } else {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -512,6 +517,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public void close(long timeout, TimeUnit unit) {
         try {
+            closed = true;
+
             if (isAutoCommit) {
                 commitAsync();
             }
@@ -526,5 +533,4 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         throw new UnsupportedOperationException();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarKafkaConsumer.class);
 }
