@@ -80,6 +80,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client</module>
+    <module>pulsar-client-shaded</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>

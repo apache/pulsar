@@ -95,6 +95,8 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.kafka:kafka-clients</include>
+                  <include>org.apache.pulsar:pulsar-client</include>
+                  <include>org.apache.pulsar:pulsar-common</include>
                 </includes>
               </artifactSet>
               <relocations>
@@ -113,6 +115,14 @@
                 <relocation>
                   <pattern>org.apache.kafka.clients.consumer.PulsarKafkaConsumer</pattern>
                   <shadedPattern>org.apache.kafka.clients.consumer.KafkaConsumer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.pulsar.common</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.pulsar.policies</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

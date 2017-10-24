@@ -56,7 +56,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -326,7 +326,7 @@
         <pluginManagement>
           <plugins>
             <plugin>
-              <!--This plugin's configuration is used to store Eclipse m2e settings only. 
+              <!--This plugin's configuration is used to store Eclipse m2e settings only.
                   It has no influence on the Maven build itself.-->
               <groupId>org.eclipse.m2e</groupId>
               <artifactId>lifecycle-mapping</artifactId>
