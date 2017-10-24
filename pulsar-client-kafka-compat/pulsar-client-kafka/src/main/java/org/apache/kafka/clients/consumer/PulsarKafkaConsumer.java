@@ -418,10 +418,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer c = consumers.get(tp);
             if (c == null) {
-                throw new IllegalArgumentException("Cannot seek on a partition where we are not subscribed");
+                futures.add(FutureUtil.failedFuture(
+                        new IllegalArgumentException("Cannot seek on a partition where we are not subscribed")));
+            } else {
+                futures.add(c.seekAsync(MessageId.earliest));
             }
-
-            c.seekAsync(MessageId.earliest);
         }
 
         FutureUtil.waitForAll(futures).join();
@@ -438,10 +439,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer c = consumers.get(tp);
             if (c == null) {
-                throw new IllegalArgumentException("Cannot seek on a partition where we are not subscribed");
+                futures.add(FutureUtil.failedFuture(
+                        new IllegalArgumentException("Cannot seek on a partition where we are not subscribed")));
+            } else {
+                futures.add(c.seekAsync(MessageId.latest));
             }
-
-            c.seekAsync(MessageId.latest);
         }
 
         FutureUtil.waitForAll(futures).join();
