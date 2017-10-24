@@ -594,6 +594,7 @@ flexible messaging model and an intuitive client API.</description>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>
 
