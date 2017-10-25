@@ -237,7 +237,7 @@ $ bin/pulsar-admin properties create $MY_PROPERTY \
   --admin-roles admin \
   --allowed-clusters us-central
 
-# 16のBrokerを横断しうるネームスペースの作成
+# 4のBrokerを横断しうるネームスペースの作成
 $ bin/pulsar-admin namespaces create $MY_NAMESPACE
 ```
 

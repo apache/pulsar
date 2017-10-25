@@ -102,7 +102,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // When a namespace is created without specifying the number of bundle, this
     // value will be used as the default
-    private int defaultNumberOfNamespaceBundles = 16;
+    private int defaultNumberOfNamespaceBundles = 4;
 
     // Enable check for minimum allowed client library version
     private boolean clientLibraryVersionCheckEnabled = false;
