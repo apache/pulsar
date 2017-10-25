@@ -448,7 +448,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private boolean getLoadBalancerAutoBundleSplitEnabled() {
         return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED,
                 SETTING_NAME_AUTO_BUNDLE_SPLIT_ENABLED,
-                pulsar.getConfiguration().getLoadBalancerAutoBundleSplitEnabled());
+                pulsar.getConfiguration().isLoadBalancerAutoBundleSplitEnabled());
     }
 
     /*

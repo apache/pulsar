@@ -592,7 +592,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void checkNamespaceBundleSplit() {
         
-        if (!conf.getLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
+        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
                 || !pulsar.getLeaderElectionService().isLeader()) {
             return;
         }
