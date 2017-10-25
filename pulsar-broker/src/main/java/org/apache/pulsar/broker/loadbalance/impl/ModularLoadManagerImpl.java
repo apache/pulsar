@@ -592,35 +592,33 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void checkNamespaceBundleSplit() {
         
-        if (pulsar.getLeaderElectionService() == null || !pulsar.getLeaderElectionService().isLeader()) {
+        if (!conf.getLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
+                || !pulsar.getLeaderElectionService().isLeader()) {
             return;
         }
-        // Value may be changed dynamically.
-        if (conf.getLoadBalancerAutoBundleSplitEnabled()) {
-            log.info("Check bundle-split");// TODO: remove this check
-            final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
-            synchronized (bundleSplitStrategy) {
-                final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
-                for (String bundleName : bundlesToBeSplit) {
-                    try {
-                        log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
-                        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
-                        pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName,
-                                LoadManagerShared.getBundleRangeFromBundleName(bundleName), unloadSplitBundles);
-                        // Make sure the same bundle is not selected again.
-                        loadData.getBundleData().remove(bundleName);
-                        localData.getLastStats().remove(bundleName);
-                        // Clear namespace bundle-cache
-                        this.pulsar.getNamespaceService().getNamespaceBundleFactory()
-                                .invalidateBundleCache(new NamespaceName(namespaceName));
-                        deleteBundleDataFromZookeeper(bundleName);
-                        log.info("Successfully split namespace bundle {}", bundleName);
-                    } catch (Exception e) {
-                        log.error("Failed to split namespace bundle {}", bundleName, e);
-                    }
+        final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
+        synchronized (bundleSplitStrategy) {
+            final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
+            for (String bundleName : bundlesToBeSplit) {
+                try {
+                    log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
+                    final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
+                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName,
+                            LoadManagerShared.getBundleRangeFromBundleName(bundleName), unloadSplitBundles);
+                    // Make sure the same bundle is not selected again.
+                    loadData.getBundleData().remove(bundleName);
+                    localData.getLastStats().remove(bundleName);
+                    // Clear namespace bundle-cache
+                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .invalidateBundleCache(new NamespaceName(namespaceName));
+                    deleteBundleDataFromZookeeper(bundleName);
+                    log.info("Successfully split namespace bundle {}", bundleName);
+                } catch (Exception e) {
+                    log.error("Failed to split namespace bundle {}", bundleName, e);
                 }
             }
         }
+    
     }
 
     /**
