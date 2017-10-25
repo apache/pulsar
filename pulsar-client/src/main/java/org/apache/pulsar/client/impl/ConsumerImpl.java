@@ -309,8 +309,14 @@ public class ConsumerImpl extends ConsumerBase {
             return message;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            stats.incrementNumReceiveFailed();
-            throw new PulsarClientException(e);
+
+            State state = getState();
+            if (state != State.Closing && state != State.Closed) {
+                stats.incrementNumReceiveFailed();
+                throw new PulsarClientException(e);
+            } else {
+                return null;
+            }
         }
     }
 
