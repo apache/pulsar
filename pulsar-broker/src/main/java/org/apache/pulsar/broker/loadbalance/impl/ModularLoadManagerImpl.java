@@ -827,7 +827,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private void deleteBundleDataFromZookeeper(String bundle) {
         final String zooKeeperPath = getBundleDataZooKeeperPath(bundle);
         try {
-            zkClient.delete(zooKeeperPath, -1);
+            if (zkClient.exists(zooKeeperPath, null) != null) {
+                zkClient.delete(zooKeeperPath, -1);
+            }
         } catch (Exception e) {
             log.warn("Failed to delete bundle-data {} from zookeeper", bundle, e);
         }
