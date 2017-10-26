@@ -879,7 +879,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // split bundles
         try {
             namespaces.splitNamespaceBundle(testProperty, testLocalCluster, bundledNsLocal, "0x08375b1a_0x08375b1b",
-                    false);
+                    false, false);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }

@@ -832,7 +832,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // (7) Make lookup request again to Broker-2 which should succeed.
         final String topic2 = "persistent://" + namespace + "/topic2";
-        Consumer consumer2 = pulsarClient2.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
+        Consumer consumer2 = pulsarClient.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
                 .getBundle(DestinationName.get(topic2));
@@ -848,7 +848,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     /**
      * 
      * <pre>
-     * When broker-1's Modula-rload-manager splits the bundle and update local-policies, broker-2 should get watch of
+     * When broker-1's Modular-load-manager splits the bundle and update local-policies, broker-2 should get watch of
      * local-policies and update bundleCache so, new lookup can be redirected properly.
      * 
      * (1) Start broker-1 and broker-2
@@ -958,7 +958,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             // (7) Make lookup request again to Broker-2 which should succeed.
             final String topic2 = "persistent://" + namespace + "/topic2";
-            Consumer consumer2 = pulsarClient2.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
+            Consumer consumer2 = pulsarClient.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
 
             NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
                     .getBundle(DestinationName.get(topic2));

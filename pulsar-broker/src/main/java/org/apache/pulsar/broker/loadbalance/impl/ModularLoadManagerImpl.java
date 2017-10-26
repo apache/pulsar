@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -599,12 +600,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
             final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
+            NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
             for (String bundleName : bundlesToBeSplit) {
                 try {
-                    log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
-                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName,
-                            LoadManagerShared.getBundleRangeFromBundleName(bundleName), unloadSplitBundles);
+                    final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
+                    if (!namespaceBundleFactory
+                            .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
+                        continue;
+                    }
+                    log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
+                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
+                            unloadSplitBundles);
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
