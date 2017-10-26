@@ -192,6 +192,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      */
     public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles)
             throws Exception {
+        checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
@@ -202,8 +203,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
         int pos = 0;
         int splitPartition = -1;
+        final Range<Long> range = targetBundle.getKeyRange();
         for (int i = 0; i < lastIndex; i++) {
-            final Range<Long> range = targetBundle.getKeyRange();
             if (sourceBundle.partitions[i] == range.lowerEndpoint()
                     && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                 splitPartition = i;
@@ -228,6 +229,11 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             return new ImmutablePair<NamespaceBundles, List<NamespaceBundle>>(splittedNsBundles, splittedBundles);
         }
         return null;
+    }
+
+    private boolean canSplitBundle(NamespaceBundle bundle) {
+        Range<Long> range = bundle.getKeyRange();
+        return range.upperEndpoint() - range.lowerEndpoint() > 1;
     }
 
     public static void validateFullRange(SortedSet<String> partitions) {
