@@ -52,6 +52,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
+import static com.google.common.base.Preconditions.checkArgument;
 
 
 /**
@@ -94,8 +96,12 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating producer on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), topic, e);
+            boolean configError = e instanceof IllegalArgumentException;
+            int errorCode = configError ? HttpServletResponse.SC_BAD_REQUEST
+                    : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            String errorMsg = configError ? "Invalid query-param " + e.getMessage() : "Failed to create producer";
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create producer");
+                response.sendError(errorCode, errorMsg);
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
@@ -247,10 +253,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("messageRoutingMode")) {
-            conf.setMessageRoutingMode(MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode")));
+            checkArgument(
+                    Enums.getIfPresent(MessageRoutingMode.class, queryParams.get("messageRoutingMode")).isPresent(),
+                    "Invalid messageRoutingMode %s", queryParams.get("messageRoutingMode"));
+            MessageRoutingMode routingMode = MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode"));
+            if (!MessageRoutingMode.CustomPartition.equals(routingMode)) {
+                conf.setMessageRoutingMode(routingMode);
+            }
         }
 
         if (queryParams.containsKey("compressionType")) {
+            checkArgument(Enums.getIfPresent(CompressionType.class, queryParams.get("compressionType")).isPresent(),
+                    "Invalid compressionType %s", queryParams.get("compressionType"));
             conf.setCompressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 

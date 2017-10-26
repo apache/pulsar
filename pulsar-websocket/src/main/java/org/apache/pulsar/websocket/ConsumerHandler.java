@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 
 /**
@@ -96,8 +97,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
+            boolean configError = e instanceof IllegalArgumentException;
+            int errorCode = configError ? HttpServletResponse.SC_BAD_REQUEST
+                    : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            String errorMsg = configError ? "Invalid query-param " + e.getMessage() : "Failed to subscribe";
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to subscribe");
+                response.sendError(errorCode, errorMsg);
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
@@ -245,6 +250,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("subscriptionType")) {
+            checkArgument(Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType")).isPresent(),
+                    "Invalid subscriptionType %s", queryParams.get("subscriptionType"));
             conf.setSubscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
         }
 
