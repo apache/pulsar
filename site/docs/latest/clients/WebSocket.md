@@ -81,6 +81,19 @@ The producer endpoint requires you to specify a {% popover property %}, {% popov
 
 {% endpoint ws://broker-service-url:8080/ws/producer/persistent/:property/:cluster/:namespace/:topic %}
 
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`sendTimeoutMillis` | long | no | Send timeout (default: 30 secs)
+`batchingEnabled` | boolean | no | Enable batching of messages (default: false)
+`batchingMaxMessages` | int | no | Maximum number of messages permitted in a batch (default: 1000)
+`maxPendingMessages` | int | no | Set the max size of the internal-queue holding the messages (default: 1000)
+`batchingMaxPublishDelay` | long | no | Time period within which the messages will be batched (default: 10ms)
+`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer: SinglePartition/RoundRobinPartition
+`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html): LZ4/ZLIB
+
+
 #### Publishing a message
 
 ```json
@@ -132,6 +145,15 @@ The consumer endpoint requires you to specify a {% popover property %}, {% popov
 
 {% endpoint ws://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
 
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 0)
+`subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): Exclusive/Failover/Shared
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
+`consumerName` | string | no | Consumer name
+
 ##### Receiving messages
 
 Server will push messages on the WebSocket session:
@@ -174,6 +196,13 @@ Key | Type | Required? | Explanation
 The reader endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
 
 {% endpoint ws://broker-service-url:8080/ws/reader/persistent/:property/:cluster/:namespace/:topic %}
+
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`readerName` | string | no | Reader name
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 
 ##### Receiving messages
 
