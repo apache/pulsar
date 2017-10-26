@@ -85,13 +85,13 @@ The producer endpoint requires you to specify a {% popover property %}, {% popov
 
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
-`sendTimeoutMillis` | string | no | Send timeout (default: 30 secs)
-`batchingEnabled` | string | no | Enable batching of messages(default:disable)
-`batchingMaxMessages` | string | no | Maximum number of messages permitted in a batch
-`maxPendingMessages` | string | no | Set the max size of the internal-queue holding the messages
-`batchingMaxPublishDelay` | string | no | Time period within which the messages will be batched
-`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer
-`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html)
+`sendTimeoutMillis` | long | no | Send timeout (default: 30 secs)
+`batchingEnabled` | boolean | no | Enable batching of messages (default: false)
+`batchingMaxMessages` | int | no | Maximum number of messages permitted in a batch (default: 1000)
+`maxPendingMessages` | int | no | Set the max size of the internal-queue holding the messages (default: 1000)
+`batchingMaxPublishDelay` | long | no | Time period within which the messages will be batched (default: 10ms)
+`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer: SinglePartition/RoundRobinPartition
+`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html): LZ4/ZLIB
 
 
 #### Publishing a message
@@ -149,9 +149,9 @@ The consumer endpoint requires you to specify a {% popover property %}, {% popov
 
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
-`ackTimeoutMillis` | string | no | Set the timeout for unacked messages.
+`ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 1000)
 `subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): Exclusive/Failover/Shared
-`receiverQueueSize` | string | no | Size of the consumer receive queue
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
 
 ##### Receiving messages
@@ -202,7 +202,7 @@ The reader endpoint requires you to specify a {% popover property %}, {% popover
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `readerName` | string | no | Reader name
-`receiverQueueSize` | string | no | Size of the consumer receive queue
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 
 ##### Receiving messages
 
