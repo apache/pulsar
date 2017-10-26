@@ -100,6 +100,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // relative to a disconnected producer. Default is 6 hours.
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
+    // When a namespace is created without specifying the number of bundle, this
+    // value will be used as the default
+    private int defaultNumberOfNamespaceBundles = 4;
+
     // Enable check for minimum allowed client library version
     private boolean clientLibraryVersionCheckEnabled = false;
     // Allow client libraries with no version information
@@ -269,7 +273,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
     // Max number of "acknowledgment holes" that can be stored in Zookeeper. If number of unack message range is higher
     // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
-    // zookeeper.  
+    // zookeeper.
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
 
     /*** --- Load balancer --- ****/
@@ -500,6 +504,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setBrokerDeduplicationProducerInactivityTimeoutMinutes(
             int brokerDeduplicationProducerInactivityTimeoutMinutes) {
         this.brokerDeduplicationProducerInactivityTimeoutMinutes = brokerDeduplicationProducerInactivityTimeoutMinutes;
+    }
+
+    public int getDefaultNumberOfNamespaceBundles() {
+        return defaultNumberOfNamespaceBundles;
+    }
+
+    public void setDefaultNumberOfNamespaceBundles(int defaultNumberOfNamespaceBundles) {
+        this.defaultNumberOfNamespaceBundles = defaultNumberOfNamespaceBundles;
     }
 
     public long getBrokerDeleteInactiveTopicsFrequencySeconds() {

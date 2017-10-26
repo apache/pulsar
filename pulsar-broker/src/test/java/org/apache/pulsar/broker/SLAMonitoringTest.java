@@ -91,6 +91,7 @@ public class SLAMonitoringTest {
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setDefaultNumberOfNamespaceBundles(1);
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
