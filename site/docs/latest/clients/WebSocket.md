@@ -149,7 +149,7 @@ The consumer endpoint requires you to specify a {% popover property %}, {% popov
 
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
-`ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 1000)
+`ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 0)
 `subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): Exclusive/Failover/Shared
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
