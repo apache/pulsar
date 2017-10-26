@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
@@ -42,7 +44,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -74,7 +76,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  * Main class for Pulsar broker service
@@ -428,7 +429,7 @@ public class PulsarService implements AutoCloseable {
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = SimpleLoadManagerImpl.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
+                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);

@@ -885,7 +885,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.persistentTopics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff");
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }

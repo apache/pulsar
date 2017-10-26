@@ -355,11 +355,13 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void splitNamespaceBundle(String namespace, String bundle) throws PulsarAdminException {
+    public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles)
+            throws PulsarAdminException {
         try {
             NamespaceName ns = new NamespaceName(namespace);
             request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle)
-                    .path("split")).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("split").queryParam("unload", Boolean.toString(unloadSplitBundles)))
+                            .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

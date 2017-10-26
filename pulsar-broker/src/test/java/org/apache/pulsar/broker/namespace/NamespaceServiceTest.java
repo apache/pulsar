@@ -112,7 +112,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(dn);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
 
         try {
             result.get();
@@ -192,7 +192,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
         try {
             result.get();
         } catch (Exception e) {
