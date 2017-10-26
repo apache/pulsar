@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -552,11 +553,11 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle) throws Exception {
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, final boolean unload) throws Exception {
 
-        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
 
-        Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
+        final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
                 2 /* by default split into 2 */);
         if (splittedBundles != null) {
             checkNotNull(splittedBundles.getLeft());
@@ -580,34 +581,49 @@ public class NamespaceService {
                                     // update bundled_topic cache for load-report-generation
                                     pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                                     loadManager.get().setLoadReportForceUpdateFlag();
-                                    future.complete(null);
+                                    unloadFuture.complete(null);
                                 } catch (Exception e) {
                                     String msg1 = format(
                                             "failed to disable bundle %s under namespace [%s] with error %s",
                                             nsname.toString(), bundle.toString(), e.getMessage());
                                     LOG.warn(msg1, e);
-                                    future.completeExceptionally(new ServiceUnitNotReadyException(msg1));
+                                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                                 }
                             } else {
                                 String msg2 = format("failed to update namespace [%s] policies due to %s",
                                         nsname.toString(),
                                         KeeperException.create(KeeperException.Code.get(rc)).getMessage());
                                 LOG.warn(msg2);
-                                future.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
                             }
                         })));
             } catch (Exception e) {
                 String msg = format("failed to aquire ownership of split bundle for namespace [%s], %s",
                         nsname.toString(), e.getMessage());
                 LOG.warn(msg, e);
-                future.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
             }
 
         } else {
             String msg = format("bundle %s not found under namespace", bundle.toString());
-            future.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
         }
-        return future;
+        
+        return unloadFuture.thenApply(res -> {
+            if (!unload) {
+                return null;
+            }
+            // unload new split bundles
+            splittedBundles.getRight().forEach(splitBundle -> {
+                try {
+                    unloadNamespaceBundle(splitBundle);
+                } catch (Exception e) {
+                    LOG.warn("Failed to unload split bundle {}", splitBundle, e);
+                    throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+                }
+            });
+            return null;
+        });
     }
 
     /**
@@ -634,6 +650,8 @@ public class NamespaceService {
         policies.get().bundles = getBundlesData(nsBundles);
         this.pulsar.getLocalZkCache().getZooKeeper().setData(path,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
+        // invalidate namespace's local-policies
+        this.pulsar.getLocalZkCacheService().policiesCache().invalidate(path);
     }
 
     public OwnershipCache getOwnershipCache() {

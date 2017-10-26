@@ -724,10 +724,11 @@ public interface Namespaces {
      *
      * @param namespace
      * @param range of bundle to split
+     * @param unload newly split bundles from the broker
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void splitNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles) throws PulsarAdminException;
 
     /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)

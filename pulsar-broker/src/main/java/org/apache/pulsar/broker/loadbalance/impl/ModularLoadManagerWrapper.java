@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -55,7 +54,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public void doNamespaceBundleSplit() {
-        loadManager.doNamespaceBundleSplit();
+        loadManager.checkNamespaceBundleSplit();
     }
 
     @Override
@@ -113,5 +112,9 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
         return loadManager.getLoadReportDeserializer();
+    }
+    
+    public ModularLoadManager getLoadManager() {
+        return loadManager;
     }
 }

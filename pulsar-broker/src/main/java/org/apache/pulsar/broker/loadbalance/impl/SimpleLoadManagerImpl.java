@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -172,8 +173,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private ZooKeeperChildrenCache availableActiveBrokers;
 
     private static final long MBytes = 1024 * 1024;
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
     // last LoadReport stored in ZK
     private volatile LoadReport lastLoadReport;
     // last timestamp resource usage was checked
@@ -449,7 +448,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private boolean getLoadBalancerAutoBundleSplitEnabled() {
         return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED,
                 SETTING_NAME_AUTO_BUNDLE_SPLIT_ENABLED,
-                pulsar.getConfiguration().getLoadBalancerAutoBundleSplitEnabled());
+                pulsar.getConfiguration().isLoadBalancerAutoBundleSplitEnabled());
     }
 
     /*
@@ -1463,7 +1462,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 try {
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
                             LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
-                            LoadManagerShared.getBundleRangeFromBundleName(bundleName));
+                            LoadManagerShared.getBundleRangeFromBundleName(bundleName),
+                            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled());
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);

@@ -50,6 +50,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 
@@ -147,6 +148,16 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return new NamespaceBundle(nsname, hashRange, this);
     }
 
+    public NamespaceBundle getBundle(String namespace, String bundleRange) {
+        checkArgument(bundleRange.contains("_"), "Invalid bundle range");
+        String[] boundaries = bundleRange.split("_");
+        Long lowerEndpoint = Long.decode(boundaries[0]);
+        Long upperEndpoint = Long.decode(boundaries[1]);
+        Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
+                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
+        return getBundle(new NamespaceName(namespace), hashRange);
+    }
+    
     public NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
@@ -231,7 +242,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return null;
     }
 
-    private boolean canSplitBundle(NamespaceBundle bundle) {
+    public boolean canSplitBundle(NamespaceBundle bundle) {
         Range<Long> range = bundle.getKeyRange();
         return range.upperEndpoint() - range.lowerEndpoint() > 1;
     }

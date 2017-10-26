@@ -308,11 +308,15 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
         private String bundle;
+        
+        @Parameter(names = { "--unload",
+                "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
+        private boolean unload;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().splitNamespaceBundle(namespace, bundle);
+            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload);
         }
     }
 
