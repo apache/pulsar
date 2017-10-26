@@ -857,6 +857,10 @@ public class Namespaces extends AdminResource {
         try {
             pulsar().getNamespaceService().splitAndOwnBundle(nsBundle).get();
             log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), fqnn.toString(),
+                    bundleRange, e.getMessage());
+            throw new RestException(Status.PRECONDITION_FAILED, "Split bundle failed due to invalid request");
         } catch (Exception e) {
             log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);
