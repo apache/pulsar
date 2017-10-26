@@ -1388,6 +1388,63 @@
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
+<h5 id="query-param">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">sendTimeoutMillis</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Send timeout (default: 30 secs)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingEnabled</code></td>
+      <td style="text-align: left">boolean</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Enable batching of messages (default: false)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingMaxMessages</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Maximum number of messages permitted in a batch (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">maxPendingMessages</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Set the max size of the internal-queue holding the messages (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingMaxPublishDelay</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Time period within which the messages will be batched (default: 10ms)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageRoutingMode</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Message <a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html">routing mode</a> for the partitioned producer: SinglePartition/RoundRobinPartition</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">compressionType</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Compression <a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html">type</a>: LZ4/ZLIB</td>
+    </tr>
+  </tbody>
+</table>
+
 <h4 id="publishing-a-message">Publishing a message</h4>
 
 <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
@@ -1497,6 +1554,45 @@
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
 
+<h5 id="query-param-1">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">ackTimeoutMillis</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Set the timeout for unacked messages (default: 0)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">subscriptionType</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left"><a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html">Subscription type</a>: Exclusive/Failover/Shared</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">receiverQueueSize</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Size of the consumer receive queue (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">consumerName</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Consumer name</td>
+    </tr>
+  </tbody>
+</table>
+
 <h5 id="receiving-messages">Receiving messages</h5>
 
 <p>Server will push messages on the WebSocket session:</p>
@@ -1588,6 +1684,33 @@ have the Pulsar broker delete it.</p>
 <p>The reader endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/reader/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+
+<h5 id="query-param-2">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">readerName</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Reader name</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">receiverQueueSize</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Size of the consumer receive queue (default: 1000)</td>
+    </tr>
+  </tbody>
+</table>
 
 <h5 id="receiving-messages-1">Receiving messages</h5>
 
