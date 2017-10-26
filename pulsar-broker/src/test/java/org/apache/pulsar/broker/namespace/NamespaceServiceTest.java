@@ -333,6 +333,71 @@ public class NamespaceServiceTest extends BrokerTestBase {
         System.out.println(result2);
     }
 
+    @Test
+    public void testCreateNamespaceWithDefaultNumberOfBundles() throws Exception {
+        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = new NamespaceName("pulsar/global/ns1");
+        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+        NamespaceBundle originalBundle = bundles.findBundle(dn);
+
+        // Split bundle and take ownership of split bundles
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle);
+
+        try {
+            result.get();
+        } catch (Exception e) {
+            // make sure: no failure
+            fail("split bundle faild", e);
+        }
+        NamespaceBundleFactory bundleFactory = this.pulsar.getNamespaceService().getNamespaceBundleFactory();
+        NamespaceBundles updatedNsBundles = bundleFactory.getBundles(nsname);
+
+        // new updated bundles shouldn't be null
+        assertNotNull(updatedNsBundles);
+        List<NamespaceBundle> bundleList = updatedNsBundles.getBundles();
+        assertNotNull(bundles);
+
+        NamespaceBundleFactory utilityFactory = NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+
+        // (1) validate bundleFactory-cache has newly split bundles and removed old parent bundle
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = splitBundles(utilityFactory, nsname, bundles,
+                originalBundle);
+        assertNotNull(splitBundles);
+        Set<NamespaceBundle> splitBundleSet = new HashSet<>(splitBundles.getRight());
+        splitBundleSet.removeAll(bundleList);
+        assertTrue(splitBundleSet.isEmpty());
+
+        // (2) validate LocalZookeeper policies updated with newly created split
+        // bundles
+        String path = joinPath(LOCAL_POLICIES_ROOT, nsname.toString());
+        byte[] content = this.pulsar.getLocalZkCache().getZooKeeper().getData(path, null, new Stat());
+        Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+        NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
+        assertTrue(updatedNsBundles.equals(localZkBundles));
+        log.info("Policies: {}", policies);
+
+        // (3) validate ownership of new split bundles by local owner
+        bundleList.stream().forEach(b -> {
+            try {
+                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
+                        new Stat());
+                NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
+                        NamespaceEphemeralData.class);
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
+            } catch (Exception e) {
+                fail("failed to setup ownership", e);
+            }
+        });
+
+    }
+
+
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,
             NamespaceName nsname, NamespaceBundles bundles, NamespaceBundle targetBundle) throws Exception {

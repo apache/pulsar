@@ -237,8 +237,8 @@ $ bin/pulsar-admin properties create $MY_PROPERTY \
   --admin-roles admin \
   --allowed-clusters us-central
 
-# Create a namespace that can be spread across up to 16 brokers
-$ bin/pulsar-admin namespaces create $MY_NAMESPACE --bundles 16
+# Create a namespace
+$ bin/pulsar-admin namespaces create $MY_NAMESPACE
 ```
 
 #### Experimenting with your cluster

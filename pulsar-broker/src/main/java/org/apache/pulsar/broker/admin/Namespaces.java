@@ -217,6 +217,9 @@ public class Namespaces extends AdminResource {
                 } else {
                     policies.bundles = validateBundlesData(initialBundles);
                 }
+            } else {
+                int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                policies.bundles = getBundles(defaultNumberOfBundles);
             }
 
             zkCreateOptimistic(path(POLICIES, property, cluster, namespace),
@@ -1174,7 +1177,7 @@ public class Namespaces extends AdminResource {
                     (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
                             && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
                     "Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)", persistence.getBookkeeperEnsemble(),
-                    persistence.getBookkeeperWriteQuorum(), persistence.getBookkeeperAckQuorum());            
+                    persistence.getBookkeeperWriteQuorum(), persistence.getBookkeeperAckQuorum());
         }catch(NullPointerException | IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
         }
