@@ -8665,6 +8665,10 @@ public final class PulsarApi {
     // optional string producer_name = 4;
     boolean hasProducerName();
     String getProducerName();
+    
+    // optional bool encrypted = 5 [default = false];
+    boolean hasEncrypted();
+    boolean getEncrypted();
   }
   public static final class CommandProducer extends
       com.google.protobuf.GeneratedMessageLite
@@ -8787,11 +8791,22 @@ public final class PulsarApi {
       }
     }
     
+    // optional bool encrypted = 5 [default = false];
+    public static final int ENCRYPTED_FIELD_NUMBER = 5;
+    private boolean encrypted_;
+    public boolean hasEncrypted() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public boolean getEncrypted() {
+      return encrypted_;
+    }
+    
     private void initFields() {
       topic_ = "";
       producerId_ = 0L;
       requestId_ = 0L;
       producerName_ = "";
+      encrypted_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -8834,6 +8849,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeBytes(4, getProducerNameBytes());
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeBool(5, encrypted_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -8857,6 +8875,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(4, getProducerNameBytes());
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(5, encrypted_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -8979,6 +9001,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         producerName_ = "";
         bitField0_ = (bitField0_ & ~0x00000008);
+        encrypted_ = false;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -9028,6 +9052,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000008;
         }
         result.producerName_ = producerName_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.encrypted_ = encrypted_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9045,6 +9073,9 @@ public final class PulsarApi {
         }
         if (other.hasProducerName()) {
           setProducerName(other.getProducerName());
+        }
+        if (other.hasEncrypted()) {
+          setEncrypted(other.getEncrypted());
         }
         return this;
       }
@@ -9105,6 +9136,11 @@ public final class PulsarApi {
             case 34: {
               bitField0_ |= 0x00000008;
               producerName_ = input.readBytes();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              encrypted_ = input.readBool();
               break;
             }
           }
@@ -9225,6 +9261,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00000008;
         producerName_ = value;
         
+      }
+      
+      // optional bool encrypted = 5 [default = false];
+      private boolean encrypted_ ;
+      public boolean hasEncrypted() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public boolean getEncrypted() {
+        return encrypted_;
+      }
+      public Builder setEncrypted(boolean value) {
+        bitField0_ |= 0x00000010;
+        encrypted_ = value;
+        
+        return this;
+      }
+      public Builder clearEncrypted() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        encrypted_ = false;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandProducer)
