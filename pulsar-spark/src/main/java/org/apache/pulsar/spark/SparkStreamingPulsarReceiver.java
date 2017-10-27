@@ -18,16 +18,20 @@
  */
 package org.apache.pulsar.spark;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class SparkStreamingPulsarReceiver extends Receiver<byte[]> {
 
@@ -46,6 +50,8 @@ public class SparkStreamingPulsarReceiver extends Receiver<byte[]> {
     public SparkStreamingPulsarReceiver(StorageLevel storageLevel, ClientConfiguration clientConfiguration,
             ConsumerConfiguration consumerConfiguration, String url, String topic, String subscription) {
         super(storageLevel);
+        checkNotNull(clientConfiguration, "ClientConfiguration must not be null");
+        checkNotNull(consumerConfiguration, "ConsumerConfiguration must not be null");
         this.clientConfiguration = clientConfiguration;
         this.url = url;
         this.topic = topic;
@@ -53,7 +59,7 @@ public class SparkStreamingPulsarReceiver extends Receiver<byte[]> {
         if (consumerConfiguration.getAckTimeoutMillis() == 0) {
             consumerConfiguration.setAckTimeout(60, TimeUnit.SECONDS);
         }
-        consumerConfiguration.setMessageListener((consumer, msg) -> {
+        consumerConfiguration.setMessageListener((MessageListener & Serializable) (consumer, msg) -> {
             try {
                 store(msg.getData());
                 consumer.acknowledgeAsync(msg);
