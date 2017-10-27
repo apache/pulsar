@@ -325,8 +325,9 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i31" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#splitNamespaceBundle-java.lang.String-java.lang.String-">splitNamespaceBundle</a></span>(String&nbsp;namespace,
-                    String&nbsp;bundle)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#splitNamespaceBundle-java.lang.String-java.lang.String-boolean-">splitNamespaceBundle</a></span>(String&nbsp;namespace,
+                    String&nbsp;bundle,
+                    boolean&nbsp;unloadSplitBundles)</code>
 <div class="block">Split namespace bundle</div>
 </td>
 </tr>
@@ -1142,20 +1143,22 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="splitNamespaceBundle-java.lang.String-java.lang.String-">
+<a name="splitNamespaceBundle-java.lang.String-java.lang.String-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>splitNamespaceBundle</h4>
 <pre>void&nbsp;splitNamespaceBundle(String&nbsp;namespace,
-                          String&nbsp;bundle)
+                          String&nbsp;bundle,
+                          boolean&nbsp;unloadSplitBundles)
                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Split namespace bundle</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>namespace</code> - </dd>
 <dd><code>range</code> - of bundle to split</dd>
+<dd><code>unload</code> - newly split bundles from the broker</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
