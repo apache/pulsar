@@ -279,7 +279,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /*** --- Load balancer --- ****/
     // Enable load balancer
     private boolean loadBalancerEnabled = false;
-    // load placement strategy
+    // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
+    @Deprecated
     private String loadBalancerPlacementStrategy = "weightedRandomSelection"; // weighted random selection
     // Percentage of change to trigger load report update
     @FieldContext(dynamic = true)
@@ -289,37 +290,42 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
-    // Load shedding interval. Broker periodically checks whether some traffic
-    // should be offload from
-    // some over-loaded broker to other under-loaded brokers
-    private int loadBalancerSheddingIntervalMinutes = 30;
+    // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
+    // broker to other under-loaded brokers
+    private int loadBalancerSheddingIntervalMinutes = 10;
     // Prevent the same topics to be shed and moved to other broker more that
     // once within this timeframe
-    private long loadBalancerSheddingGracePeriodMinutes = 30;
-    // Usage threshold to determine a broker as under-loaded
+    private long loadBalancerSheddingGracePeriodMinutes = 20;
+    // Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)
+    @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
-    // Usage threshold to determine a broker as over-loaded
+    // Usage threshold to determine a broker as over-loaded (only used by SimpleLoadManagerImpl)
+    @Deprecated
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
-    // interval to flush dynamic resource quota to ZooKeeper
+    // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
-    // Usage threshold to defermine a broker is having just right level of load
+    // Usage threshold to determine a broker is having just right level of load (only used by SimpleLoadManagerImpl)
+    @Deprecated
     private int loadBalancerBrokerComfortLoadLevelPercentage = 65;
     // enable/disable automatic namespace bundle split
     @FieldContext(dynamic = true)
-    private boolean loadBalancerAutoBundleSplitEnabled = false;
+    private boolean loadBalancerAutoBundleSplitEnabled = true;
     // enable/disable automatic unloading of split bundles
     @FieldContext(dynamic = true)
-    private boolean loadBalancerAutoUnloadSplitBundlesEnabled = false;
+    private boolean loadBalancerAutoUnloadSplitBundlesEnabled = true;
     // maximum topics in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxTopics = 1000;
     // maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     // maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered
-    private int loadBalancerNamespaceBundleMaxMsgRate = 1000;
+    private int loadBalancerNamespaceBundleMaxMsgRate = 5000;
     // maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes = 100;
     // maximum number of bundles in a namespace
     private int loadBalancerNamespaceMaximumBundles = 128;
+    // Name of load manager to use
+    @FieldContext(dynamic = true)
+    private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -346,9 +352,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     private List<String> bootstrapNamespaces = new ArrayList<String>();
     private Properties properties = new Properties();
-    // Name of load manager to use
-    @FieldContext(dynamic = true)
-    private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl";
     // If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to
     // use only brokers running the latest software version (to minimize impact to bundles)
     @FieldContext(dynamic = true)
