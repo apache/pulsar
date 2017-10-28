@@ -23,7 +23,7 @@ kind: ConfigMap
 metadata:
     name: proxy-config
 data:
-    PULSAR_MEM: "\" -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
+    PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
     zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
     globalZookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
     clusterName: us-central
