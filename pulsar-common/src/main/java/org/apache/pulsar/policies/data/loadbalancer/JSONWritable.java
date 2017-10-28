@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.policies.data.loadbalancer;
 
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 

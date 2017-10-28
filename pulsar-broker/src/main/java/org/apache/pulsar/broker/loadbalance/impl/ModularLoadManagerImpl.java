@@ -38,7 +38,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.LocalBrokerData;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -58,6 +57,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
@@ -797,6 +797,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public Deserializer<LocalBrokerData> getLoadReportDeserializer() {
         return loadReportDeserializer;
+    }
+
+    @Override
+    public LocalBrokerData getLocalBrokerData() {
+        return localData;
     }
 
     /**

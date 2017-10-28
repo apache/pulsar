@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
@@ -100,4 +101,11 @@ public interface ModularLoadManager {
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
+
+    /**
+     * Return current broker's load-report
+     * 
+     * @return
+     */
+    LocalBrokerData getLocalBrokerData();
 }

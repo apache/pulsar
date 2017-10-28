@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,15 +24,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
 /**
  * Contains all the data that is maintained locally on each broker.
  */
-public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
+public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
     private final String webServiceUrl;
@@ -201,6 +197,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
                 / 100;
     }
 
+    @Override
     public ResourceUsage getCpu() {
         return cpu;
     }
@@ -209,6 +206,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.cpu = cpu;
     }
 
+    @Override
     public ResourceUsage getMemory() {
         return memory;
     }
@@ -217,6 +215,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.memory = memory;
     }
 
+    @Override
     public ResourceUsage getDirectMemory() {
         return directMemory;
     }
@@ -225,6 +224,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.directMemory = directMemory;
     }
 
+    @Override
     public ResourceUsage getBandwidthIn() {
         return bandwidthIn;
     }
@@ -233,6 +233,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.bandwidthIn = bandwidthIn;
     }
 
+    @Override
     public ResourceUsage getBandwidthOut() {
         return bandwidthOut;
     }
@@ -257,6 +258,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.lastBundleLosses = lastBundleLosses;
     }
 
+    @Override
     public long getLastUpdate() {
         return lastUpdate;
     }
@@ -281,6 +283,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.lastStats = lastStats;
     }
 
+    @Override
     public int getNumTopics() {
         return numTopics;
     }
@@ -289,6 +292,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.numTopics = numTopics;
     }
 
+    @Override
     public int getNumBundles() {
         return numBundles;
     }
@@ -297,6 +301,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.numBundles = numBundles;
     }
 
+    @Override
     public int getNumConsumers() {
         return numConsumers;
     }
@@ -305,6 +310,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.numConsumers = numConsumers;
     }
 
+    @Override
     public int getNumProducers() {
         return numProducers;
     }
@@ -313,6 +319,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.numProducers = numProducers;
     }
 
+    @Override
     public double getMsgThroughputIn() {
         return msgThroughputIn;
     }
@@ -321,6 +328,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.msgThroughputIn = msgThroughputIn;
     }
 
+    @Override
     public double getMsgThroughputOut() {
         return msgThroughputOut;
     }
@@ -329,6 +337,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.msgThroughputOut = msgThroughputOut;
     }
 
+    @Override
     public double getMsgRateIn() {
         return msgRateIn;
     }
@@ -337,6 +346,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.msgRateIn = msgRateIn;
     }
 
+    @Override
     public double getMsgRateOut() {
         return msgRateOut;
     }
@@ -349,6 +359,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.brokerVersionString = brokerVersionString;
     }
 
+    @Override
     public String getBrokerVersionString() {
         return brokerVersionString;
     }
@@ -373,6 +384,7 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         return pulsarServiceUrlTls;
     }
     
+    @Override
     public boolean isPersistentTopicsEnabled() {
         return persistentTopicsEnabled;
     }
@@ -381,12 +393,18 @@ public class LocalBrokerData extends JSONWritable implements ServiceLookupData {
         this.persistentTopicsEnabled = persistentTopicsEnabled;
     }
 
+    @Override
     public boolean isNonPersistentTopicsEnabled() {
         return nonPersistentTopicsEnabled;
     }
 
     public void setNonPersistentTopicsEnabled(boolean nonPersistentTopicsEnabled) {
         this.nonPersistentTopicsEnabled = nonPersistentTopicsEnabled;
+    }
+
+    @Override
+    public Map<String, NamespaceBundleStats> getBundleStats() {
+        return getLastStats();
     }
 
 }

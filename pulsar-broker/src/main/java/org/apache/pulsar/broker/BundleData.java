@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**

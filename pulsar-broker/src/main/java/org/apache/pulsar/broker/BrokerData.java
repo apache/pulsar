@@ -21,6 +21,8 @@ package org.apache.pulsar.broker;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+
 /**
  * Data class containing three components comprising all the data available for the leader broker about other brokers: -
  * The local broker data which is written to ZooKeeper by each individual broker (LocalBrokerData). - The time average

@@ -27,10 +27,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.pulsar.broker.LocalBrokerData;
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.testclient.utils.FixedColumnLengthTableMaker;
