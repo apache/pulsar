@@ -281,7 +281,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerEnabled = false;
     // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
     @Deprecated
-    private String loadBalancerPlacementStrategy = "weightedRandomSelection"; // weighted random selection
+    private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
     // Percentage of change to trigger load report update
     @FieldContext(dynamic = true)
     private int loadBalancerReportUpdateThresholdPercentage = 10;
@@ -292,10 +292,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
-    private int loadBalancerSheddingIntervalMinutes = 10;
+    private int loadBalancerSheddingIntervalMinutes = 5;
     // Prevent the same topics to be shed and moved to other broker more that
     // once within this timeframe
-    private long loadBalancerSheddingGracePeriodMinutes = 20;
+    private long loadBalancerSheddingGracePeriodMinutes = 30;
     // Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)
     @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
@@ -318,7 +318,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     // maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered
-    private int loadBalancerNamespaceBundleMaxMsgRate = 5000;
+    private int loadBalancerNamespaceBundleMaxMsgRate = 30000;
     // maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes = 100;
     // maximum number of bundles in a namespace
