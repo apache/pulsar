@@ -83,7 +83,7 @@ public interface ModularLoadManager {
     /**
      * As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.
      */
-    void updateLocalBrokerData();
+    LocalBrokerData updateLocalBrokerData();
 
     /**
      * As any broker, write the local broker data to ZooKeeper.
@@ -101,11 +101,4 @@ public interface ModularLoadManager {
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
-
-    /**
-     * Return current broker's load-report
-     * 
-     * @return
-     */
-    LocalBrokerData getLocalBrokerData();
 }

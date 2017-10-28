@@ -59,8 +59,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public LoadManagerReport generateLoadReport() {
-        loadManager.updateLocalBrokerData();
-        return loadManager.getLocalBrokerData();
+        return loadManager.updateLocalBrokerData();
     }
 
     @Override
