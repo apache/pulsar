@@ -103,7 +103,9 @@ public class ClientCnx extends PulsarHandler {
         super.channelActive(ctx);
 
         if (proxyToTargetBrokerAddress == null) {
-            log.info("{} Connected to broker", ctx.channel());
+            if (log.isDebugEnabled()) {
+                log.debug("{} Connected to broker", ctx.channel());
+            }
         } else {
             log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
@@ -159,7 +161,9 @@ public class ClientCnx extends PulsarHandler {
     protected void handleConnected(CommandConnected connected) {
         checkArgument(state == State.SentConnectFrame);
 
-        log.info("{} Connection is ready", ctx.channel());
+        if (log.isDebugEnabled()) {
+            log.debug("{} Connection is ready", ctx.channel());
+        }
         connectionFuture.complete(null);
         remoteEndpointProtocolVersion = connected.getProtocolVersion();
         state = State.Ready;
@@ -239,7 +243,9 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
-        log.info("Received Broker lookup response: {}", lookupResult.getResponse());
+        if (log.isDebugEnabled()) {
+            log.debug("Received Broker lookup response: {}", lookupResult.getResponse());
+        }
 
         long requestId = lookupResult.getRequestId();
         CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
@@ -266,7 +272,9 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
-        log.info("Received Broker Partition response: {}", lookupResult.getPartitions());
+        if (log.isDebugEnabled()) {
+            log.debug("Received Broker Partition response: {}", lookupResult.getPartitions());
+        }
 
         long requestId = lookupResult.getRequestId();
         CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
