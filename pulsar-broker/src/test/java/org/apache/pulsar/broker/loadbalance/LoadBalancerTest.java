@@ -101,8 +101,6 @@ import com.google.common.collect.Sets;
 public class LoadBalancerTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
@@ -202,7 +200,7 @@ public class LoadBalancerTest {
                 assert (loadReportData.length > 0);
                 log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
 
-                LoadReport loadReport = objectMapper.readValue(loadReportData, LoadReport.class);
+                LoadReport loadReport = ObjectMapperFactory.getThreadLocal().readValue(loadReportData, LoadReport.class);
                 assert (loadReport.getName().equals(lookupAddresses[i]));
 
                 // Check Initial Ranking is populated in both the brokers
@@ -247,7 +245,7 @@ public class LoadBalancerTest {
 
             String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
                     lookupAddresses[i]);
-            String loadReportJson = objectMapper.writeValueAsString(lr);
+            String loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
 
@@ -318,7 +316,7 @@ public class LoadBalancerTest {
 
             String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
                     lookupAddresses[i]);
-            String loadReportJson = objectMapper.writeValueAsString(lr);
+            String loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
 
@@ -379,7 +377,7 @@ public class LoadBalancerTest {
 
             String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
                     lookupAddresses[i]);
-            String loadReportJson = objectMapper.writeValueAsString(lr);
+            String loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
 
@@ -454,7 +452,7 @@ public class LoadBalancerTest {
     private void printResourceQuotas(Map<String, ResourceQuota> resourceQuotas) throws Exception {
         log.info("Realtime Resource Quota:");
         for (Map.Entry<String, ResourceQuota> entry : resourceQuotas.entrySet()) {
-            String quotaStr = objectMapper.writeValueAsString(entry.getValue());
+            String quotaStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(entry.getValue());
             log.info(" {}, {}", entry.getKey(), quotaStr);
         }
     }
@@ -488,7 +486,7 @@ public class LoadBalancerTest {
 
             String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
                     lookupAddresses[i]);
-            String loadReportJson = objectMapper.writeValueAsString(lr);
+            String loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(lr);
             bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
         }
     }
@@ -660,7 +658,7 @@ public class LoadBalancerTest {
 
         setObjectField(SimpleLoadManagerImpl.class, pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr);
         String znodePath = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT, lookupAddresses[0]);
-        String loadReportJson = objectMapper.writeValueAsString(lr);
+        String loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(lr);
         bkEnsemble.getZkClient().setData(znodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
 
         // sleep to wait load ranking be triggered and trigger bundle split

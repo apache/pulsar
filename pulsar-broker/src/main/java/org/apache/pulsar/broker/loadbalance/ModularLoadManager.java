@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
@@ -82,7 +83,7 @@ public interface ModularLoadManager {
     /**
      * As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.
      */
-    void updateLocalBrokerData();
+    LocalBrokerData updateLocalBrokerData();
 
     /**
      * As any broker, write the local broker data to ZooKeeper.

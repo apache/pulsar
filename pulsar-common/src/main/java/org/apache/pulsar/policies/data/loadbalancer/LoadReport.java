@@ -24,17 +24,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.apache.pulsar.common.util.NamespaceBundleStatsComparator;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
 
-
 /**
  * This class represents the overall load of the broker - it includes overall {@link SystemResourceUsage} and
  * {@link NamespaceUsage} for all the namespaces hosted by this broker.
  */
-public class LoadReport implements ServiceLookupData {
+public class LoadReport implements LoadManagerReport {
     private String name;
     private String brokerVersionString;
 
@@ -42,24 +42,25 @@ public class LoadReport implements ServiceLookupData {
     private final String webServiceUrlTls;
     private final String pulsarServiceUrl;
     private final String pulsarServiceUrlTls;
-    private boolean persistentTopicsEnabled=true;
-    private boolean nonPersistentTopicsEnabled=true;
-    
+    private boolean persistentTopicsEnabled = true;
+    private boolean nonPersistentTopicsEnabled = true;
+
     private boolean isUnderLoaded;
     private boolean isOverLoaded;
     private long timestamp;
     private double msgRateIn;
     private double msgRateOut;
-    private long numTopics;
-    private long numConsumers;
-    private long numProducers;
-    private long numBundles;
+    private int numTopics;
+    private int numConsumers;
+    private int numProducers;
+    private int numBundles;
 
     public LoadReport() {
-       this(null, null, null, null);
+        this(null, null, null, null);
     }
 
-    public LoadReport(String webServiceUrl,  String webServiceUrlTls, String pulsarServiceUrl, String pulsarServiceUrlTls) {
+    public LoadReport(String webServiceUrl, String webServiceUrlTls, String pulsarServiceUrl,
+            String pulsarServiceUrlTls) {
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
@@ -192,7 +193,8 @@ public class LoadReport implements ServiceLookupData {
         return msgRateOut;
     }
 
-    public long getNumTopics() {
+    @Override
+    public int getNumTopics() {
         numTopics = 0;
         if (this.bundleStats != null) {
             this.bundleStats.forEach((bundle, stats) -> {
@@ -202,7 +204,8 @@ public class LoadReport implements ServiceLookupData {
         return numTopics;
     }
 
-    public long getNumConsumers() {
+    @Override
+    public int getNumConsumers() {
         numConsumers = 0;
         if (this.bundleStats != null) {
             for (Map.Entry<String, NamespaceBundleStats> entry : this.bundleStats.entrySet()) {
@@ -212,7 +215,8 @@ public class LoadReport implements ServiceLookupData {
         return numConsumers;
     }
 
-    public long getNumProducers() {
+    @Override
+    public int getNumProducers() {
         numProducers = 0;
         if (this.bundleStats != null) {
             for (Map.Entry<String, NamespaceBundleStats> entry : this.bundleStats.entrySet()) {
@@ -222,7 +226,8 @@ public class LoadReport implements ServiceLookupData {
         return numProducers;
     }
 
-    public long getNumBundles() {
+    @Override
+    public int getNumBundles() {
         numBundles = 0;
         if (this.bundleStats != null) {
             numBundles = this.bundleStats.size();
@@ -405,5 +410,45 @@ public class LoadReport implements ServiceLookupData {
 
     public void setNonPersistentTopicsEnabled(boolean nonPersistentTopicsEnabled) {
         this.nonPersistentTopicsEnabled = nonPersistentTopicsEnabled;
+    }
+
+    @Override
+    public ResourceUsage getCpu() {
+        return systemResourceUsage != null ? systemResourceUsage.cpu : null;
+    }
+
+    @Override
+    public ResourceUsage getMemory() {
+        return systemResourceUsage != null ? systemResourceUsage.memory : null;
+    }
+
+    @Override
+    public ResourceUsage getDirectMemory() {
+        return systemResourceUsage != null ? systemResourceUsage.directMemory : null;
+    }
+
+    @Override
+    public ResourceUsage getBandwidthIn() {
+        return systemResourceUsage != null ? systemResourceUsage.bandwidthIn : null;
+    }
+
+    @Override
+    public ResourceUsage getBandwidthOut() {
+        return systemResourceUsage != null ? systemResourceUsage.bandwidthOut : null;
+    }
+
+    @Override
+    public long getLastUpdate() {
+        return timestamp;
+    }
+
+    @Override
+    public double getMsgThroughputIn() {
+        return msgRateIn;
+    }
+
+    @Override
+    public double getMsgThroughputOut() {
+        return msgRateOut;
     }
 }

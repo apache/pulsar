@@ -34,6 +34,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -59,8 +61,10 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -70,6 +74,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+import com.google.gson.JsonObject;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
@@ -77,11 +82,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
-    private PulsarService otherPulsar;
-
-    private PulsarAdmin otheradmin;
-
-    private NamespaceBundleFactory bundleFactory;
 
     @BeforeMethod
     @Override
@@ -89,14 +89,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
-        bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-
         // create otherbroker to test redirect on calls that need
         // namespace ownership
-        mockPulsarSetup = new MockedPulsarService(this.conf, this.pulsar, this.admin);
+        mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
-        otherPulsar = mockPulsarSetup.getPulsar();
-        otheradmin = mockPulsarSetup.getAdmin();
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
@@ -524,4 +520,34 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
+    /**
+     * It verifies that pulsar with different load-manager generates different load-report and returned by admin-api
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testLoadReportApi() throws Exception {
+
+        this.conf.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+        MockedPulsarService mockPulsarSetup1 = new MockedPulsarService(this.conf);
+        mockPulsarSetup1.setup();
+        PulsarService simpleLoadManager = mockPulsarSetup1.getPulsar();
+        PulsarAdmin simpleLoadManagerAdmin = mockPulsarSetup1.getAdmin();
+        assertNotNull(simpleLoadManagerAdmin.brokerStats().getLoadReport());
+
+        this.conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        MockedPulsarService mockPulsarSetup2 = new MockedPulsarService(this.conf);
+        mockPulsarSetup2.setup();
+        PulsarService modularLoadManager = mockPulsarSetup2.getPulsar();
+        PulsarAdmin modularLoadManagerAdmin = mockPulsarSetup2.getAdmin();
+        assertNotNull(modularLoadManagerAdmin.brokerStats().getLoadReport());
+
+        simpleLoadManagerAdmin.close();
+        simpleLoadManager.close();
+        modularLoadManagerAdmin.close();
+        modularLoadManager.close();
+        mockPulsarSetup1.cleanup();
+        mockPulsarSetup2.cleanup();
+    }
+    
 }

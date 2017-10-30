@@ -28,7 +28,7 @@ import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
@@ -58,9 +58,8 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public LoadReport generateLoadReport() {
-        loadManager.updateLocalBrokerData();
-        return null;
+    public LoadManagerReport generateLoadReport() {
+        return loadManager.updateLocalBrokerData();
     }
 
     @Override
