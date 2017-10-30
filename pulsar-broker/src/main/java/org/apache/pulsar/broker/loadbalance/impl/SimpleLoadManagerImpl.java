@@ -408,16 +408,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return strategy;
     }
 
-    private double getCpuLoadFactorFromZK(double defaultValue) {
-        return getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH,
-                SETTING_NAME_LOAD_FACTOR_CPU, defaultValue);
-    }
-
-    private double getMemoryLoadFactorFromZK(double defaultValue) {
-        return getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH,
-                SETTING_NAME_LOAD_FACTOR_MEM, defaultValue);
-    }
-
     @Override
     public boolean isCentralized() {
         String strategy = this.getLoadBalancerPlacementStrategy();

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -47,13 +48,6 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.admin.BrokerStats;
-import org.apache.pulsar.broker.admin.Brokers;
-import org.apache.pulsar.broker.admin.Clusters;
-import org.apache.pulsar.broker.admin.Namespaces;
-import org.apache.pulsar.broker.admin.PersistentTopics;
-import org.apache.pulsar.broker.admin.Properties;
-import org.apache.pulsar.broker.admin.ResourceQuotas;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -71,7 +65,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
@@ -82,7 +76,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Test
 public class AdminTest extends MockedPulsarServiceBaseTest {
@@ -563,9 +556,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("client-id").when(brokerStats).clientAppId();
         Collection<Metrics> metrics = brokerStats.getMetrics();
         assertNotNull(metrics);
-        LoadReport loadReport = (LoadReport) brokerStats.getLoadReport();
+        LocalBrokerData loadReport = (LocalBrokerData) brokerStats.getLoadReport();
         assertNotNull(loadReport);
-        assertEquals(loadReport.isOverLoaded(), false);
+        assertNotNull(loadReport.getCpu());
         Collection<Metrics> mBeans = brokerStats.getMBeans();
         assertTrue(!mBeans.isEmpty());
         AllocatorStats allocatorStats = brokerStats.getAllocatorStats("default");
@@ -574,9 +567,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(bookieOpsStats.isEmpty());
         StreamingOutput destination = brokerStats.getDestinations2();
         assertNotNull(destination);
-        Map<Long, Collection<ResourceUnit>> resource = brokerStats.getBrokerResourceAvailability("prop", "use", "ns2");
-        // size should be 1 with default resourceUnit
-        assertTrue(resource.size() == 1);
+        try {
+            Map<Long, Collection<ResourceUnit>> resource = brokerStats.getBrokerResourceAvailability("prop", "use",
+                    "ns2");
+            fail("should have failed as ModularLoadManager doesn't support it");
+        } catch (RestException re) {
+            // Ok
+        }
     }
 
     @Test

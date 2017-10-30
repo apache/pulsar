@@ -138,6 +138,7 @@ public class LoadBalancerTest {
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();
@@ -665,27 +666,28 @@ public class LoadBalancerTest {
         Thread.sleep(5000);
         pulsarServices[0].getLoadManager().get().doNamespaceBundleSplit();
 
+        boolean isAutoUnooadSplitBundleEnabled = pulsarServices[0].getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         // verify bundles are split
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-01", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-02", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-03", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-04", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-05", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-06", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-07", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-08", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-09", "0x00000000_0x80000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-10", "0x00000000_0x02000000",
-                false);
+                isAutoUnooadSplitBundleEnabled);
     }
 
     /*
