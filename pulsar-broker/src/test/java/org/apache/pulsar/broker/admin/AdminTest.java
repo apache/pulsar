@@ -563,7 +563,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("client-id").when(brokerStats).clientAppId();
         Collection<Metrics> metrics = brokerStats.getMetrics();
         assertNotNull(metrics);
-        LoadReport loadReport = brokerStats.getLoadReport();
+        LoadReport loadReport = (LoadReport) brokerStats.getLoadReport();
         assertNotNull(loadReport);
         assertEquals(loadReport.isOverLoaded(), false);
         Collection<Metrics> mBeans = brokerStats.getMBeans();

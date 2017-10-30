@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
 
+import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
@@ -74,6 +75,27 @@ public class PulsarAdminToolTest {
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
     }
 
+    @Test
+    void brokerStats() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        BrokerStats mockBrokerStats = mock(BrokerStats.class);
+        doReturn(mockBrokerStats).when(admin).brokerStats();
+
+        CmdBrokerStats brokerStats = new CmdBrokerStats(admin);
+
+        brokerStats.run(split("destinations"));
+        verify(mockBrokerStats).getDestinations();
+
+        brokerStats.run(split("load-report"));
+        verify(mockBrokerStats).getLoadReport();
+
+        brokerStats.run(split("mbeans"));
+        verify(mockBrokerStats).getMBeans();
+
+        brokerStats.run(split("monitoring-metrics"));
+        verify(mockBrokerStats).getMetrics();
+    }
+    
     @Test
     void getOwnedNamespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);

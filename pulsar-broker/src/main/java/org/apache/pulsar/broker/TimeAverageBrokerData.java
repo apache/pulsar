@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
