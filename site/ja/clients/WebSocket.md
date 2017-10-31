@@ -70,7 +70,7 @@ $ bin/pulsar-daemon start websocket
 
 ## APIリファレンス
 
-PulsarのWebSocket APIは2つのエンドポイントを提供します。メッセージを[produce](#producerエンドポイント)するためのエンドポイントと[consume](#consumerエンドポイント)するためのエンドポイントです。 
+PulsarのWebSocket APIは2つのエンドポイントを提供します。メッセージを[produce](#producerエンドポイント)するためのエンドポイントと[consume](#consumerエンドポイント)するためのエンドポイントです。
 
 WebSocket APIを介した全てのやり取りはJSONで行われます。
 
@@ -240,7 +240,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])
+    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
 
     # 正常に処理できた事を応答します
     ws.send(json.dumps({'messageId' : msg['messageId']}))
