@@ -25,7 +25,10 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.time.Instant;
+import java.util.NoSuchElementException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.util.Rate;
@@ -38,6 +41,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +76,7 @@ public class Producer {
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
+    protected final BlockingQueue<Long> nonPersistentDropMessageIds;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
         this.topic = topic;
@@ -93,6 +98,11 @@ public class Producer {
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+        if (this.isNonPersistentTopic) {
+            this.nonPersistentDropMessageIds = new GrowableArrayBlockingQueue<>();
+        } else {
+            this.nonPersistentDropMessageIds = null;
+        }
     }
 
     @Override
@@ -252,16 +262,68 @@ public class Producer {
                             exception.getMessage()));
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
                     producer.publishOperationCompleted();
+                    sendPendingAckForDroppedNonPersistentMessage();
                 });
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] [{}] triggered send callback. cnx {}, sequenceId {}", producer.topic,
                             producer.producerName, producer.producerId, producer.cnx.clientAddress(), sequenceId);
                 }
-
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
                 producer.cnx.ctx().channel().eventLoop().execute(this);
+            }
+        }
+
+        /**
+         * It tries to send ack for all the previous messages which have been dropped because max concurrent message
+         * limit reached. Therefore, last successfully-processed concurrent message-callback will send ack for previous
+         * dropped messages.
+         * 
+         * <pre>
+         * eg:
+         * nonPersistentDropMessageIds = [2,3,4,6,7]
+         * a. when msgId=0 completes then broker should wait for msgId=1 until it sends ack for 2,3,4
+         * b. when msgId=1 completes then broker can send ack for all messages from [2 -> 4] 
+         *    It should not ack [6,7] because it should be done after 5 is processed
+         * </pre>
+         * 
+         */
+        private void sendPendingAckForDroppedNonPersistentMessage() {
+            synchronized (producer) {
+                Long droppedSequenceId = producer.nonPersistentDropMessageIds.peek();
+                // Only last successfully processed message can send ack for dropped message to maintain ack-ordering.
+                if (droppedSequenceId == null || (droppedSequenceId - sequenceId) > 1 || producer.cnx == null) {
+                    return;
+                }
+                Long lastDroppedSequenceId = producer.nonPersistentDropMessageIds.peek();
+                while (!producer.nonPersistentDropMessageIds.isEmpty()) {
+                    try {
+                        droppedSequenceId = producer.nonPersistentDropMessageIds.peek();
+                        if ((droppedSequenceId - lastDroppedSequenceId) > 1) {
+                            // Dropped sequenceId is not in sequence it means missing sequenceId is not dropped and
+                            // being processed. So, further dropped-msg ack will be triggered by that in-process
+                            // message
+                            break;
+                        }
+                        droppedSequenceId = producer.nonPersistentDropMessageIds.poll(0, TimeUnit.SECONDS);
+                        if (sequenceId > droppedSequenceId) {
+                            log.warn("[{}] [{}] [{}] Ignoring sequenceId {} as it should have acked before ",
+                                    producer.topic, producer.producerName, producer.producerId, droppedSequenceId);
+                            continue;
+                        }
+                        producer.cnx.ctx().writeAndFlush(
+                                Commands.newSendReceipt(producer.producerId, droppedSequenceId, -1, -1),
+                                producer.cnx.ctx().voidPromise());
+                        lastDroppedSequenceId = droppedSequenceId;
+                    } catch (NoSuchElementException | InterruptedException e) {
+                        log.warn("[{}] [{}] [{}] Failed to retrieve dropped message from the queue  {}", producer.topic,
+                                producer.producerName, producer.producerId, e.getMessage());
+                    } catch (Exception e) {
+                        log.warn("[{}] [{}] [{}] Failed to send ack for dropped messages  {}", producer.topic,
+                                producer.producerName, producer.producerId, e.getMessage());
+                    }
+                }
             }
         }
 
@@ -282,6 +344,7 @@ public class Producer {
                     producer.cnx.ctx().voidPromise());
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
             producer.publishOperationCompleted();
+            sendPendingAckForDroppedNonPersistentMessage();
             recycle();
         }
 
