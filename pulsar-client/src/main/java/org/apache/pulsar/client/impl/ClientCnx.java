@@ -183,8 +183,8 @@ public class ClientCnx extends PulsarHandler {
         }
 
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("[{}] Message has been dropped for non-persistent topic producer-id {}", ctx.channel(),
-                    producerId);
+            log.warn("[{}] Message has been dropped for non-persistent topic producer-id {}-{}", ctx.channel(),
+                    producerId, sequenceId);
         }
 
         if (log.isDebugEnabled()) {

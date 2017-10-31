@@ -50,16 +50,15 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -743,7 +742,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             consumerConfig2.setReceiverQueueSize(1);
             consumerConfig2.setSubscriptionType(SubscriptionType.Shared);
             Consumer consumer2 = pulsarClient.subscribe(topicName, "subscriber-2", consumerConfig2);
-            Producer producer = pulsarClient.createProducer(topicName, producerConf);
+            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName, producerConf);
+            String firstTimeConnected = producer.getConnectedSince();
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 200;
@@ -767,6 +767,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertTrue(npStats.msgDropRate > 0);
             assertTrue(sub1Stats.msgDropRate > 0);
             assertTrue(sub2Stats.msgDropRate > 0);
+            // make sure producer connection not disconnected due to unordered ack
+            assertEquals(firstTimeConnected, producer.getConnectedSince());
 
             producer.close();
             consumer.close();
