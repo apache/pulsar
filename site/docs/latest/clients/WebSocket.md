@@ -318,7 +318,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])
+    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -341,7 +341,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])
+    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
