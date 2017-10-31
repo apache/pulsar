@@ -252,6 +252,7 @@ public class Producer {
                             exception.getMessage()));
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
                     producer.publishOperationCompleted();
+                    recycle();
                 });
             } else {
                 if (log.isDebugEnabled()) {
