@@ -37,7 +37,7 @@ public class SimpleResourceAllocationPolicies {
     private final ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPolicies;
     private final PulsarService pulsar;
 
-    SimpleResourceAllocationPolicies(PulsarService pulsar) {
+    public SimpleResourceAllocationPolicies(PulsarService pulsar) {
         this.namespaceIsolationPolicies = pulsar.getConfigurationCache().namespaceIsolationPoliciesCache();
         this.pulsar = pulsar;
     }

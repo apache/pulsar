@@ -48,8 +48,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -58,6 +61,11 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -72,8 +80,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
 public class ModularLoadManagerImplTest {
@@ -424,5 +435,121 @@ public class ModularLoadManagerImplTest {
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWapper);
         Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
         assertEquals(avaialbeBrokers.size(), 1);
+    }
+    
+    /**
+     * It verifies namespace-isolation policies with primary and secondary brokers.
+     * 
+     * usecase:
+     * 
+     * <pre>
+     *  1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1 
+     *     b. available-brokers: broker2, broker3          => result: broker2
+     *     c. available-brokers: broker3                   => result: NULL
+     *  2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2 
+     *     b. available-brokers: broker2, broker3          => result: broker2
+     *     c. available-brokers: broker3                   => result: NULL
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers() throws Exception {
+
+        final String property = "my-property";
+        final String cluster = "use";
+        final String namespace = "my-ns";
+        final String broker1Address = pulsar1.getAdvertisedAddress() + "0";
+        final String broker2Address = pulsar2.getAdvertisedAddress() + "1";
+        final String sharedBroker = "broker3";
+        admin1.clusters().createCluster(cluster, new ClusterData("http://" + pulsar1.getAdvertisedAddress()));
+        admin1.properties().createProperty(property,
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin1.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
+
+        // set a new policy
+        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
+                + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
+        String newPolicyJson = String.format(newPolicyJsonTemplate, property, cluster, namespace, broker1Address,
+                broker2Address, 1);
+        String newPolicyName = "my-ns-isolation-policies";
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        NamespaceIsolationData nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(),
+                NamespaceIsolationData.class);
+        admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
+
+        SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
+                pulsar1);
+        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, property, cluster, namespace, 1)[0];
+        BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
+            @Override
+            public boolean isEnablePersistentTopics(String brokerUrl) {
+                return true;
+            }
+
+            @Override
+            public boolean isEnableNonPersistentTopics(String brokerUrl) {
+                return true;
+            }
+        };
+
+        // (1) now we have isolation policy : primary=broker1, secondary=broker2, minLimit=1
+
+        // test1: shared=1, primary=1, secondary=1 => It should return 1 primary broker only
+        Set<String> brokerCandidateCache = Sets.newHashSet();
+        Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 1);
+        assertTrue(brokerCandidateCache.contains(broker1Address));
+
+        // test2: shared=1, primary=0, secondary=1 => It should return 1 secondary broker only
+        brokerCandidateCache = Sets.newHashSet();
+        availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 1);
+        assertTrue(brokerCandidateCache.contains(broker2Address));
+
+        // test3: shared=1, primary=0, secondary=0 => It should return 0 broker
+        brokerCandidateCache = Sets.newHashSet();
+        availableBrokers = Sets.newHashSet(sharedBroker);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 0);
+
+        // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
+
+        newPolicyJson = String.format(newPolicyJsonTemplate, property, cluster, namespace, broker1Address,
+                broker2Address, 2);
+        nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationData.class);
+        admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
+
+        // test1: shared=1, primary=1, secondary=1 => It should return primary + secondary
+        brokerCandidateCache = Sets.newHashSet();
+        availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 2);
+        assertTrue(brokerCandidateCache.contains(broker1Address));
+        assertTrue(brokerCandidateCache.contains(broker2Address));
+
+        // test2: shared=1, secondary=1 => It should return secondary
+        brokerCandidateCache = Sets.newHashSet();
+        availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 1);
+        assertTrue(brokerCandidateCache.contains(broker2Address));
+
+        // test3: shared=1, => It should return 0 broker
+        brokerCandidateCache = Sets.newHashSet();
+        availableBrokers = Sets.newHashSet(sharedBroker);
+        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+                availableBrokers, brokerTopicLoadingPredicate);
+        assertEquals(brokerCandidateCache.size(), 0);
+
     }
 }
