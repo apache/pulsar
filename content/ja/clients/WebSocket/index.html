@@ -772,9 +772,9 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -958,9 +958,9 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -1124,8 +1124,6 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
           
           
@@ -1149,6 +1147,8 @@
           
           
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -1631,7 +1631,7 @@
     <span class="n">msg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span><span class="p">:</span> <span class="k">break</span>
 
-    <span class="k">print</span> <span class="s">"Received: {} - payload: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">])</span>
+    <span class="k">print</span> <span class="s">"Received: {} - payload: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">]))</span>
 
     <span class="c"># 正常に処理できた事を応答します</span>
     <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
