@@ -48,7 +48,7 @@ PULSAR_MEM=" -Xmx256m -XX:MaxDirectMemorySize=256m"
 PULSAR_GC=" -client "
 
 # Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} -Dio.netty.leakDetectionLevel=disabled"
+PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Dio.netty.leakDetectionLevel=disabled"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=
