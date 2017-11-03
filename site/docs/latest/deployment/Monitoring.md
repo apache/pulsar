@@ -66,7 +66,7 @@ http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
 
 The default port of local ZooKeeper is `8000` and that of global ZooKeeper is `8001`.
-These can be changed by specifying system properties, `pulsar.zookeeper.local.stats.server.port` and `pulsar.zookeeper.global.stats.server.port`.
+These can be changed by specifying system property `stats_server_port`.
 
 ### BookKeeper stats
 

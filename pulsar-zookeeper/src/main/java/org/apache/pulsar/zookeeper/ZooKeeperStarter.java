@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import java.net.InetSocketAddress;
 
 import org.apache.zookeeper.server.quorum.QuorumPeerMain;
@@ -37,10 +35,10 @@ import io.prometheus.client.hotspot.DefaultExports;
 
 public class ZooKeeperStarter {
     public static void main(String[] args) throws Exception {
-        start(args, "pulsar.zookeeper.local.stats.server.port", "8000");
+        start(args, "8000");
     }
 
-    protected static void start(String[] args, String statsPortProperty, String defaultStatsPort) throws Exception {
+    protected static void start(String[] args, String defaultStatsPort) throws Exception {
         // Register basic JVM metrics
         DefaultExports.initialize();
 
@@ -48,11 +46,7 @@ public class ZooKeeperStarter {
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         // Start Jetty to serve stats
-        String portStr = System.getProperty(statsPortProperty);
-        if (isBlank(portStr)) {
-            portStr = System.getProperty("stats_server_port", defaultStatsPort);
-        }
-        int port = Integer.parseInt(portStr);
+        int port = Integer.parseInt(System.getProperties().getProperty("stats_server_port", defaultStatsPort));
 
         log.info("Starting ZK stats HTTP server at port {}", port);
         InetSocketAddress httpEndpoint = InetSocketAddress.createUnresolved("0.0.0.0", port);
