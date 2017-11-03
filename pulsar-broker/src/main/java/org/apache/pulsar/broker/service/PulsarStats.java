@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 public class PulsarStats implements Closeable {
@@ -60,8 +60,8 @@ public class PulsarStats implements Closeable {
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
-        this.topicStatsBuf = PooledByteBufAllocator.DEFAULT.heapBuffer(16 * 1024);
-        this.tempTopicStatsBuf = PooledByteBufAllocator.DEFAULT.heapBuffer(16 * 1024);
+        this.topicStatsBuf = Unpooled.buffer(16 * 1024);
+        this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
         this.nsStats = new NamespaceStats();
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
@@ -177,7 +177,7 @@ public class PulsarStats implements Closeable {
     public NamespaceBundleStats invalidBundleStats(String bundleName) {
         return bundleStats.remove(bundleName);
     }
-    
+
     public void getDimensionMetrics(Consumer<ByteBuf> consumer) {
         bufferLock.readLock().lock();
         try {
