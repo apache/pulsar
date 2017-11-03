@@ -29,6 +29,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -127,6 +128,7 @@ public class LoadBalancerTest {
                 "{\"loadBalancerStrategy\":\"leastLoadedServer\"}".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
+        final String localhost = InetAddress.getLocalHost().getHostName();
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             brokerWebServicePorts[i] = PortManager.nextFreePort();
@@ -139,6 +141,7 @@ public class LoadBalancerTest {
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+            config.setAdvertisedAddress(localhost+i);;
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();
@@ -739,7 +742,7 @@ public class LoadBalancerTest {
         policyData.namespaces.add("pulsar/use/primary-ns.*");
         policyData.primary = new ArrayList<String>();
         for (int i = 0; i < BROKER_COUNT; i++) {
-            policyData.primary.add(lookupAddresses[i]);
+            policyData.primary.add(pulsarServices[i].getAdvertisedAddress());
         }
         policyData.secondary = new ArrayList<String>();
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
@@ -754,10 +757,10 @@ public class LoadBalancerTest {
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/secondary-ns.*");
         policyData.primary = new ArrayList<String>();
-        policyData.primary.add(lookupAddresses[0]);
+        policyData.primary.add(pulsarServices[0].getAdvertisedAddress());
         policyData.secondary = new ArrayList<String>();
         for (int i = 1; i < BROKER_COUNT; i++) {
-            policyData.secondary.add(lookupAddresses[i]);
+            policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
@@ -771,10 +774,10 @@ public class LoadBalancerTest {
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("pulsar/use/shared-ns.*");
         policyData.primary = new ArrayList<String>();
-        policyData.primary.add(lookupAddresses[0]);
+        policyData.primary.add(pulsarServices[0].getAdvertisedAddress());
         policyData.secondary = new ArrayList<String>();
         for (int i = 1; i < BROKER_COUNT; i++) {
-            policyData.secondary.add(lookupAddresses[i]);
+            policyData.secondary.add(pulsarServices[i].getAdvertisedAddress());
         }
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
