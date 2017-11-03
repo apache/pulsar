@@ -55,14 +55,13 @@ package org.apache.pulsar.common.util.protobuf;
 import java.io.IOException;
 import java.nio.ByteOrder;
 
-import org.apache.pulsar.common.api.Commands.RecyclableHeapByteBuf;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.WireFormat;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 
 public class ByteBufCodedOutputStream {
     public static interface ByteBufGeneratedMessage {
@@ -183,17 +182,19 @@ public class ByteBufCodedOutputStream {
         writeRawBytes(value);
     }
 
+
+    private static final FastThreadLocal<byte[]> localByteArray = new FastThreadLocal<>();
+
     /** Write a byte string. */
     public void writeRawBytes(final ByteString value) throws IOException {
-        RecyclableHeapByteBuf heapBuf = RecyclableHeapByteBuf.get();
-        if (value.size() > heapBuf.writableBytes()) {
-            heapBuf.capacity(value.size());
+        byte[] localBuf = localByteArray.get();
+        if (localBuf == null || localBuf.length < value.size()) {
+            localBuf = new byte[Math.max(value.size(), 1024)];
+            localByteArray.set(localBuf);
         }
 
-        value.copyTo(heapBuf.array(), 0);
-        heapBuf.writerIndex(value.size());
-        buf.writeBytes(heapBuf);
-        heapBuf.recycle();
+        value.copyTo(localBuf, 0);
+        buf.writeBytes(localBuf, 0, value.size());
     }
 
     public void writeEnum(final int fieldNumber, final int value) throws IOException {

@@ -55,8 +55,6 @@ package org.apache.pulsar.common.util.protobuf;
 import java.io.IOException;
 import java.nio.ByteOrder;
 
-import org.apache.pulsar.common.api.Commands.RecyclableHeapByteBuf;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -65,6 +63,7 @@ import com.google.protobuf.WireFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 
 public class ByteBufCodedInputStream {
     public static interface ByteBufMessageBuilder {
@@ -145,20 +144,22 @@ public class ByteBufCodedInputStream {
         buf.writerIndex(writerIdx);
     }
 
+    private static final FastThreadLocal<byte[]> localByteArray = new FastThreadLocal<>();
+
     /** Read a {@code bytes} field value from the stream. */
     public ByteString readBytes() throws IOException {
         final int size = readRawVarint32();
         if (size == 0) {
             return ByteString.EMPTY;
         } else {
-            RecyclableHeapByteBuf heapBuf = RecyclableHeapByteBuf.get();
-            if (size > heapBuf.writableBytes()) {
-                heapBuf.capacity(size);
+            byte[] localBuf = localByteArray.get();
+            if (localBuf == null || localBuf.length < size) {
+                localBuf = new byte[Math.max(size, 1024)];
+                localByteArray.set(localBuf);
             }
 
-            heapBuf.writeBytes(buf, size);
-            ByteString res = ByteString.copyFrom(heapBuf.array(), heapBuf.arrayOffset(), heapBuf.readableBytes());
-            heapBuf.recycle();
+            buf.readBytes(localBuf, 0, size);
+            ByteString res = ByteString.copyFrom(localBuf, 0, size);
             return res;
         }
     }
