@@ -106,8 +106,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Enable check for minimum allowed client library version
     private boolean clientLibraryVersionCheckEnabled = false;
-    // Allow client libraries with no version information
-    private boolean clientLibraryVersionCheckAllowUnversioned = true;
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
@@ -559,14 +557,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setClientLibraryVersionCheckEnabled(boolean clientLibraryVersionCheckEnabled) {
         this.clientLibraryVersionCheckEnabled = clientLibraryVersionCheckEnabled;
-    }
-
-    public boolean isClientLibraryVersionCheckAllowUnversioned() {
-        return clientLibraryVersionCheckAllowUnversioned;
-    }
-
-    public void setClientLibraryVersionCheckAllowUnversioned(boolean clientLibraryVersionCheckAllowUnversioned) {
-        this.clientLibraryVersionCheckAllowUnversioned = clientLibraryVersionCheckAllowUnversioned;
     }
 
     public String getStatusFilePath() {

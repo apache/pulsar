@@ -286,7 +286,6 @@ public class WebServiceTest {
         config.setAuthenticationEnabled(enableAuth);
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
-        config.setClientLibraryVersionCheckAllowUnversioned(allowUnversionedClients);
         config.setSuperUserRoles(roles);
         config.setTlsEnabled(enableTls);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
