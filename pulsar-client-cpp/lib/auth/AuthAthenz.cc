@@ -77,8 +77,9 @@ namespace pulsar {
             Json::Value root;
             Json::Reader reader;
             if (reader.parse(authParamsString, root, false)) {
-                for (auto key: root.getMemberNames()) {
-                    params[key] = root[key].asString();
+                Json::Value::Members members = root.getMemberNames();
+                for (Json::Value::Members::iterator iter = members.begin(); iter != members.end(); iter++) {
+                    params[*iter] = root[*iter].asString();
                 }
             } else {
                 LOG_ERROR("Invalid String Error: " << reader.getFormatedErrorMessages());

@@ -20,6 +20,7 @@
 #include <map>
 #include <lib/LogUtils.h>
 #include <boost/thread.hpp>
+#pragma GCC visibility push(default)
 
 namespace pulsar {
 
@@ -61,3 +62,4 @@ namespace pulsar {
         friend class ZTSClientWrapper;
     };
 }
+#pragma GCC visibility pop
