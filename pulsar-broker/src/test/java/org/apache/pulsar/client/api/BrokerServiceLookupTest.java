@@ -22,11 +22,17 @@ import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
@@ -37,6 +43,8 @@ import java.security.cert.Certificate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,37 +68,40 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.asynchttpclient.AsyncCompletionHandler;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncHttpClientConfig;
+import org.asynchttpclient.BoundRequestBuilder;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.Request;
+import org.asynchttpclient.Response;
+import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class BrokerServiceLookupTest extends ProducerConsumerBase {
@@ -342,11 +353,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
-            Assert.assertNotNull(msg, "Message should not be null");
+            assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
-            Assert.assertTrue(messageSet.add(receivedMessage), "Message " + receivedMessage + " already received");
+            assertTrue(messageSet.add(receivedMessage), "Message " + receivedMessage + " already received");
         }
 
         producer.close();
@@ -443,11 +454,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 		con.connect();
 		log.info("connected url: {} ", con.getURL());
 		// assert connect-url: broker2-https
-		Assert.assertEquals(con.getURL().getPort(), conf2.getWebServicePortTls());
+		assertEquals(con.getURL().getPort(), conf2.getWebServicePortTls());
 		InputStream is = con.getInputStream();
 		// assert redirect-url: broker1-https only
 		log.info("redirected url: {}", con.getURL());
-		Assert.assertEquals(con.getURL().getPort(), conf.getWebServicePortTls());
+		assertEquals(con.getURL().getPort(), conf.getWebServicePortTls());
 		is.close();
 
 		pulsarClient2.close();
@@ -689,7 +700,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         try {
             pulsarClient.subscribe("persistent://my-property/use2/my-ns/my-topic1", "my-subscriber-name",
                     new ConsumerConfiguration());
-            Assert.fail("should have failed due to authentication");
+            fail("should have failed due to authentication");
         } catch (PulsarClientException e) {
             // Ok: expected
         }
@@ -739,10 +750,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         try {
             pulsarClient.subscribe("persistent://my-property/use2/my-ns/my-topic1", "my-subscriber-name",
                     new ConsumerConfiguration());
-            Assert.fail("should have failed due to authentication");
+            fail("should have failed due to authentication");
         } catch (PulsarClientException e) {
             // Ok: expected
-            Assert.assertTrue(e instanceof PulsarClientException.LookupException);
+            assertTrue(e instanceof PulsarClientException.LookupException);
         }
     }
 
@@ -812,11 +823,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // (4) Broker-1 will own topic-1
         final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
-        Assert.assertTrue(serviceUnits1.contains(unsplitBundle));
+        assertTrue(serviceUnits1.contains(unsplitBundle));
         // broker-2 should have this bundle into the cache
         DestinationName destination = DestinationName.get(topic1);
         NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(destination);
-        Assert.assertEquals(bundleInBroker2.toString(), unsplitBundle);
+        assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
         // (5) Split the bundle for topic-1
         admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true);
@@ -837,7 +848,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
                 .getBundle(DestinationName.get(topic2));
-        Assert.assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+        assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
 
         consumer1.close();
         consumer2.close();
@@ -918,11 +929,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             // (4) Broker-1 will own topic-1
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
-            Assert.assertTrue(serviceUnits1.contains(unsplitBundle));
+            assertTrue(serviceUnits1.contains(unsplitBundle));
             // broker-2 should have this bundle into the cache
             DestinationName destination = DestinationName.get(topic1);
             NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(destination);
-            Assert.assertEquals(bundleInBroker2.toString(), unsplitBundle);
+            assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
             // update broker-1 bundle report to zk
             pulsar.getBrokerService().updateRates();
@@ -963,7 +974,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
                     .getBundle(DestinationName.get(topic2));
-            Assert.assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+            assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
 
             consumer1.close();
             consumer2.close();
@@ -974,7 +985,143 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
     }
-    
+
+    @Test
+    public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
+
+        final String cluster = "use2";
+        final String property = "my-property2";
+        final String namespace = "my-ns";
+        final String topicName = "my-partitioned";
+        final int totalPartitions = 10;
+        final DestinationName dest = DestinationName.get("persistent", property, cluster, namespace, topicName);
+        admin.clusters().createCluster(cluster,
+                new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, null, null));
+        admin.properties().createProperty(property,
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
+        admin.persistentTopics().createPartitionedTopic(dest.toString(), totalPartitions);
+
+        stopBroker();
+        conf.setClientLibraryVersionCheckEnabled(true);
+        startBroker();
+
+        URI brokerServiceUrl = new URI(pulsar.getWebServiceAddress());
+
+        URL url = brokerServiceUrl.toURL();
+        String path = String.format("admin/%s/partitions", dest.getLookupName());
+
+        AsyncHttpClient httpClient = getHttpClient("Pulsar-Java-1.20");
+        PartitionedTopicMetadata metadata = getPartitionedMetadata(httpClient, url, path);
+        assertEquals(metadata.partitions, totalPartitions);
+        httpClient.close();
+
+        httpClient = getHttpClient("Pulsar-CPP-v1.21");
+        metadata = getPartitionedMetadata(httpClient, url, path);
+        assertEquals(metadata.partitions, totalPartitions);
+        httpClient.close();
+
+        httpClient = getHttpClient("Pulsar-CPP-v1.21-SNAPSHOT");
+        metadata = getPartitionedMetadata(httpClient, url, path);
+        assertEquals(metadata.partitions, totalPartitions);
+        httpClient.close();
+
+        httpClient = getHttpClient("");
+        try {
+            metadata = getPartitionedMetadata(httpClient, url, path);
+            fail("should have failed due to invalid version");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException);
+        }
+        httpClient.close();
+
+        httpClient = getHttpClient("Pulsar-CPP-v1.20-SNAPSHOT");
+        try {
+            metadata = getPartitionedMetadata(httpClient, url, path);
+            fail("should have failed due to invalid version");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException);
+        }
+        httpClient.close();
+
+        httpClient = getHttpClient("Pulsar-CPP-v1.20");
+        try {
+            metadata = getPartitionedMetadata(httpClient, url, path);
+            fail("should have failed due to invalid version");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException);
+        }
+        httpClient.close();
+    }
+
+    private PartitionedTopicMetadata getPartitionedMetadata(AsyncHttpClient httpClient, URL url, String path)
+            throws Exception {
+        final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
+        try {
+
+            String requestUrl = new URL(url, path).toString();
+            BoundRequestBuilder builder = httpClient.prepareGet(requestUrl);
+
+            final ListenableFuture<Response> responseFuture = builder.setHeader("Accept", "application/json")
+                    .execute(new AsyncCompletionHandler<Response>() {
+
+                        @Override
+                        public Response onCompleted(Response response) throws Exception {
+                            return response;
+                        }
+
+                        @Override
+                        public void onThrowable(Throwable t) {
+                            log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
+                            future.completeExceptionally(new PulsarClientException(t));
+                        }
+                    });
+
+            responseFuture.addListener(() -> {
+                try {
+                    Response response = responseFuture.get();
+                    if (response.getStatusCode() != HttpURLConnection.HTTP_OK) {
+                        log.warn("[{}] HTTP get request failed: {}", requestUrl, response.getStatusText());
+                        future.completeExceptionally(
+                                new PulsarClientException("HTTP get request failed: " + response.getStatusText()));
+                        return;
+                    }
+
+                    PartitionedTopicMetadata data = ObjectMapperFactory.getThreadLocal()
+                            .readValue(response.getResponseBodyAsBytes(), PartitionedTopicMetadata.class);
+                    future.complete(data);
+                } catch (Exception e) {
+                    log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());
+                    future.completeExceptionally(new PulsarClientException(e));
+                }
+            }, MoreExecutors.sameThreadExecutor());
+
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get authentication data for lookup: {}", path, e.getMessage());
+            if (e instanceof PulsarClientException) {
+                future.completeExceptionally(e);
+            } else {
+                future.completeExceptionally(new PulsarClientException(e));
+            }
+        }
+        return future.get();
+    }
+
+    private AsyncHttpClient getHttpClient(String version) {
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setUserAgent(version);
+        confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
+            @Override
+            public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
+                // Close connection upon a server error or per HTTP spec
+                return (response.getStatus().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
+            }
+        });
+        AsyncHttpClientConfig config = confBuilder.build();
+        return new DefaultAsyncHttpClient(config);
+    }
+
     /**** helper classes ****/
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {

@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -106,6 +107,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Doubles;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -126,6 +128,7 @@ public class PersistentTopics extends AdminResource {
 
     protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
+    private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
 
     @GET
     @Path("/{property}/{cluster}/{namespace}")
@@ -470,8 +473,21 @@ public class PersistentTopics extends AdminResource {
             @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         destination = decode(destination);
-       return getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
+        if (metadata.partitions > 1) {
+            try {
+                validateClientVersion();
+            } catch (UnsupportedOperationException ue) {
+                log.warn("[{}] Client lib is not allowed to access partitioned metadata  {}, {}", clientAppId(),
+                        destination, ue.getMessage());
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Client lib is not compatible to access partitioned metadata " + ue.getMessage());
+            }
+        }
+        return metadata;
     }
+
+    
 
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{destination}/partitions")
@@ -1459,5 +1475,28 @@ public class PersistentTopics extends AdminResource {
             log.error("[{}] Failed to unload topic {}, {}", clientAppId(), destination, e.getCause().getMessage(), e);
             throw new RestException(e.getCause());
         }
+    }
+
+    // as described at : (PR: #836) CPP-client old client lib should not be allowed to connect on partitioned-topic.
+    // So, all requests from old-cpp-client (< v1.21) must be rejected.
+    // Pulsar client-java lib always passes user-agent as X-Java-$version.
+    // However, cpp-client older than v1.20 (PR #765) never used to pass it.
+    // So, request without user-agent and Pulsar-CPP-vX (X < 1.21) must be rejected
+    private void validateClientVersion() {
+        if (!pulsar().getConfiguration().isClientLibraryVersionCheckEnabled()) {
+            return;
+        }
+        final String userAgent = httpRequest.getHeader("User-Agent");
+        if (StringUtils.isBlank(userAgent)) {
+            throw new UnsupportedOperationException("User-agent is not present");
+        }
+        // Version < 1.20 for cpp-client is not allowed
+        if (userAgent.contains(DEPRECATED_CLIENT_VERSION_PREFIX)) {
+            Double version = Doubles.tryParse(userAgent.split(DEPRECATED_CLIENT_VERSION_PREFIX)[1].split("-")[0]);
+            if (version == null || version < 1.21) {
+                throw new UnsupportedOperationException("version " + version + " is not supported");
+            }
+        }
+        return;
     }
 }

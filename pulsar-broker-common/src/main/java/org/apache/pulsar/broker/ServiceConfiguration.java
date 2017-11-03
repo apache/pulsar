@@ -105,6 +105,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int defaultNumberOfNamespaceBundles = 4;
 
     // Enable check for minimum allowed client library version
+    @FieldContext(dynamic = true)
     private boolean clientLibraryVersionCheckEnabled = false;
     // Allow client libraries with no version information
     private boolean clientLibraryVersionCheckAllowUnversioned = true;
