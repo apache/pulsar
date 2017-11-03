@@ -143,7 +143,7 @@ namespace pulsar {
         size_t length = strlen(input);
         char *result = (char*)malloc(length);
 
-        bio = BIO_new_mem_buf(input, -1);
+        bio = BIO_new_mem_buf((void *)input, -1);
         b64 = BIO_new(BIO_f_base64());
         bio = BIO_push(b64, bio);
 
