@@ -52,7 +52,7 @@ public class LoadManagerShared {
     private static final Set<String> primariesCache = new HashSet<>();
 
     // Cache for shard brokers according to policies.
-    private static final Set<String> sharedCache = new HashSet<>();
+    private static final Set<String> secondaryCache = new HashSet<>();
     
     // update LoadReport at most every 5 seconds
     public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
@@ -68,7 +68,7 @@ public class LoadManagerShared {
             final Set<String> availableBrokers,
             final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
         primariesCache.clear();
-        sharedCache.clear();
+        secondaryCache.clear();
         NamespaceName namespace = serviceUnit.getNamespaceObject();
         boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
         boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
@@ -96,8 +96,8 @@ public class LoadManagerShared {
                         log.debug("Added Primary Broker - [{}] as possible Candidates for"
                                 + " namespace - [{}] with policies", brokerUrl.getHost(), namespace.toString());
                     }
-                } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                    sharedCache.add(broker);
+                } else if (policies.isSecondaryBroker(namespace, brokerUrl.getHost())) {
+                    secondaryCache.add(broker);
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "Added Shared Broker - [{}] as possible "
@@ -127,7 +127,7 @@ public class LoadManagerShared {
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                    sharedCache.add(broker);
+                    secondaryCache.add(broker);
                     if (log.isDebugEnabled()) {
                         log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
@@ -141,15 +141,15 @@ public class LoadManagerShared {
                 log.debug(
                         "Not enough of primaries [{}] available for namespace - [{}], "
                                 + "adding shared [{}] as possible candidate owners",
-                        primariesCache.size(), namespace.toString(), sharedCache.size());
-                brokerCandidateCache.addAll(sharedCache);
+                        primariesCache.size(), namespace.toString(), secondaryCache.size());
+                brokerCandidateCache.addAll(secondaryCache);
             }
         } else {
             log.debug(
                     "Policies not present for namespace - [{}] so only "
                             + "considering shared [{}] brokers for possible owner",
-                    namespace.toString(), sharedCache.size());
-            brokerCandidateCache.addAll(sharedCache);
+                    namespace.toString(), secondaryCache.size());
+            brokerCandidateCache.addAll(secondaryCache);
         }
     }
 
@@ -273,7 +273,7 @@ public class LoadManagerShared {
         }
     }
     
-    interface BrokerTopicLoadingPredicate {
+    public interface BrokerTopicLoadingPredicate {
         boolean isEnablePersistentTopics(String brokerUrl);
 
         boolean isEnableNonPersistentTopics(String brokerUrl);
