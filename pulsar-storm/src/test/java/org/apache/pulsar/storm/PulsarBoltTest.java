@@ -37,7 +37,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import org.apache.storm.Constants;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -212,16 +211,5 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         // test serializability with no auth
         PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         TestUtil.testSerializability(boltWithNoAuth);
-    }
-
-    @Test
-    public void testTickTuple() throws Exception {
-        Tuple mockTuple = mock(Tuple.class);
-        when(mockTuple.getSourceComponent()).thenReturn(Constants.SYSTEM_COMPONENT_ID);
-        when(mockTuple.getSourceStreamId()).thenReturn(Constants.SYSTEM_TICK_STREAM_ID);
-        bolt.execute(mockTuple);
-        Assert.assertTrue(mockCollector.acked());
-        Message msg = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(msg);
     }
 }
