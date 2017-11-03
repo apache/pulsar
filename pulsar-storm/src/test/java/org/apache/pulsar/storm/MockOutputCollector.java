@@ -21,8 +21,8 @@ package org.apache.pulsar.storm;
 import java.util.Collection;
 import java.util.List;
 
-import backtype.storm.task.IOutputCollector;
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.task.IOutputCollector;
+import org.apache.storm.tuple.Tuple;
 
 public class MockOutputCollector implements IOutputCollector {
 
@@ -58,6 +58,11 @@ public class MockOutputCollector implements IOutputCollector {
     public void fail(Tuple input) {
         failed = true;
         acked = false;
+    }
+
+    @Override
+    public void resetTimeout(Tuple tuple) {
+
     }
 
     public boolean acked() {
