@@ -71,10 +71,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.buffer.UnpooledHeapByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 
 public class Commands {
 
@@ -822,32 +818,6 @@ public class Commands {
     private static int getCurrentProtocolVersion() {
         // Return the last ProtocolVersion enum value
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
-    }
-
-    public static final class RecyclableHeapByteBuf extends UnpooledHeapByteBuf {
-        private static final Recycler<RecyclableHeapByteBuf> RECYCLER = new Recycler<RecyclableHeapByteBuf>() {
-            @Override
-            protected RecyclableHeapByteBuf newObject(Handle handle) {
-                return new RecyclableHeapByteBuf(handle);
-            }
-        };
-
-        private final Handle handle;
-
-        private RecyclableHeapByteBuf(Handle handle) {
-            super(UnpooledByteBufAllocator.DEFAULT, 4096, PulsarDecoder.MaxMessageSize);
-            this.handle = handle;
-        }
-
-        public static RecyclableHeapByteBuf get() {
-            return RECYCLER.get();
-
-        }
-
-        public void recycle() {
-            clear();
-            RECYCLER.recycle(this, handle);
-        }
     }
 
     public static enum ChecksumType {
