@@ -45,7 +45,7 @@ To run the dashboard:
 $ SERVICE_URL=http://broker.example.com:8080/
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
-  pulsar-dashboard
+  apachepulsar/pulsar-dashboard
 ```
 
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in {% popover standalone %} mode, the URL will be `http://localhost:8080` by default.
