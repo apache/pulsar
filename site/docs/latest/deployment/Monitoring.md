@@ -57,12 +57,16 @@ http://$BROKER_ADDRESS:8080/metrics
 
 ### ZooKeeper stats
 
-The ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
+The local/global ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
 detailed stats through Prometheus as well.
 
 ```shell
-http://$ZK_SERVER:8080/metrics
+http://$LOCAL_ZK_SERVER:8000/metrics
+http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
+
+The default port of local ZooKeeper is `8000` and that of global ZooKeeper is `8001`.
+These can be changed by specifying system property `stats_server_port`.
 
 ### BookKeeper stats
 
