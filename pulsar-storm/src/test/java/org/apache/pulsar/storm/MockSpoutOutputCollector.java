@@ -23,7 +23,7 @@ import java.util.List;
 
 import org.apache.pulsar.client.api.Message;
 
-import backtype.storm.spout.ISpoutOutputCollector;
+import org.apache.storm.spout.ISpoutOutputCollector;
 
 public class MockSpoutOutputCollector implements ISpoutOutputCollector {
 
@@ -44,6 +44,11 @@ public class MockSpoutOutputCollector implements ISpoutOutputCollector {
         emitted = true;
         data = (String) tuple.get(0);
         lastMessage = (Message) messageId;
+    }
+
+    @Override
+    public long getPendingCount() {
+        return 0;
     }
 
     @Override

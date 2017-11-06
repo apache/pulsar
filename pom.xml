@@ -108,7 +108,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.3.1.72-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.0.46.Final</netty.version>
-    <storm.version>0.9.5</storm.version>
+    <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.0.23</prometheus.version>
