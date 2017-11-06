@@ -72,6 +72,11 @@ public class ReaderImpl implements Reader {
             });
         }
 
+        consumerConfiguration.setCryptoFailureAction(readerConfiguration.getCryptoFailureAction());
+        if (readerConfiguration.getCryptoKeyReader() != null) {
+            consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
+        }
+
         consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
                 consumerFuture, SubscriptionMode.NonDurable, startMessageId);
     }

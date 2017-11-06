@@ -20,8 +20,12 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +33,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -283,4 +288,75 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
+    @Test(groups = "encryption")
+    public void testECDSAEncryption() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        class EncKeyReader implements CryptoKeyReader {
+
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+        }
+
+        final int totalMsg = 10;
+
+        Set<String> messageSet = Sets.newHashSet();
+        ReaderConfiguration conf = new ReaderConfiguration();
+        conf.setCryptoKeyReader(new EncKeyReader());
+        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1", MessageId.latest,
+                conf);
+
+        ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.addEncryptionKey("client-ecdsa.pem");
+        producerConf.setCryptoKeyReader(new EncKeyReader());
+
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1", producerConf);
+        for (int i = 0; i < totalMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message msg = null;
+
+        for (int i = 0; i < totalMsg; i++) {
+            msg = reader.readNext(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        producer.close();
+        reader.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }
