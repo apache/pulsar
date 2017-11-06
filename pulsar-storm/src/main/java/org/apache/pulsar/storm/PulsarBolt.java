@@ -21,6 +21,7 @@ package org.apache.pulsar.storm;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.storm.utils.TupleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,6 +97,10 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
 
     @Override
     public void execute(Tuple input) {
+        if (TupleUtils.isTick(input)) {
+            collector.ack(input);
+            return;
+        }
         try {
             if (producer != null) {
                 // a message key can be provided in the mapper
