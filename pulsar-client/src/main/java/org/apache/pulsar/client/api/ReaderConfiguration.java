@@ -31,6 +31,9 @@ public class ReaderConfiguration implements Serializable {
 
     private String readerName = null;
 
+    private CryptoKeyReader cryptoKeyReader = null;
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
@@ -58,6 +61,41 @@ public class ReaderConfiguration implements Serializable {
      */
     public int getReceiverQueueSize() {
         return this.receiverQueueSize;
+    }
+
+    /**
+     * @return the CryptoKeyReader
+     */
+    public CryptoKeyReader getCryptoKeyReader() {
+        return this.cryptoKeyReader;
+    }
+
+    /**
+     * Sets a {@link CryptoKeyReader}
+     *
+     * @param cryptoKeyReader
+     *            CryptoKeyReader object
+     */
+    public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        checkNotNull(cryptoKeyReader);
+        this.cryptoKeyReader = cryptoKeyReader;
+        return this;
+    }
+
+    /**
+     * Sets the ConsumerCryptoFailureAction to the value specified
+     * 
+     * @param The consumer action
+     */
+    public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
+        cryptoFailureAction = action;
+    }
+
+    /**
+     * @return The ConsumerCryptoFailureAction
+     */
+    public ConsumerCryptoFailureAction getCryptoFailureAction() {
+        return this.cryptoFailureAction;
     }
 
     /**
