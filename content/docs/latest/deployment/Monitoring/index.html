@@ -780,12 +780,16 @@ level:</p>
 
 <h3 id="zookeeper-stats">ZooKeeper stats</h3>
 
-<p>The ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
+<p>The local/global ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
 detailed stats through Prometheus as well.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$ZK_SERVER</span>:8080/metrics
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$LOCAL_ZK_SERVER</span>:8000/metrics
+http://<span class="nv">$GLOBAL_ZK_SERVER</span>:8001/metrics
 </code></pre>
 </div>
+
+<p>The default port of local ZooKeeper is <code class="highlighter-rouge">8000</code> and that of global ZooKeeper is <code class="highlighter-rouge">8001</code>.
+These can be changed by specifying system property <code class="highlighter-rouge">stats_server_port</code>.</p>
 
 <h3 id="bookkeeper-stats">BookKeeper stats</h3>
 
