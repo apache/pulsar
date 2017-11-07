@@ -191,7 +191,7 @@ public class ServerCnx extends PulsarHandler {
                     });
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed lookup due to too many lookup-requets {}", remoteAddress, topic);
+                log.debug("[{}] Failed lookup due to too many lookup-requests {}", remoteAddress, topic);
             }
             ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
@@ -232,7 +232,7 @@ public class ServerCnx extends PulsarHandler {
                             });
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requets {}", remoteAddress,
+                log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}", remoteAddress,
                         topic);
             }
             ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
