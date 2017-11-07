@@ -115,6 +115,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import com.github.zafarkhaja.semver.Version;
 
 /**
  */
@@ -129,6 +130,7 @@ public class PersistentTopics extends AdminResource {
     protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
+    private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1,21);
 
     @GET
     @Path("/{property}/{cluster}/{namespace}")
@@ -1492,9 +1494,20 @@ public class PersistentTopics extends AdminResource {
         }
         // Version < 1.20 for cpp-client is not allowed
         if (userAgent.contains(DEPRECATED_CLIENT_VERSION_PREFIX)) {
-            Double version = Doubles.tryParse(userAgent.split(DEPRECATED_CLIENT_VERSION_PREFIX)[1].split("-")[0]);
-            if (version == null || version < 1.21) {
-                throw new UnsupportedOperationException("version " + version + " is not supported");
+            try {
+                // Version < 1.20 for cpp-client is not allowed
+                String[] tokens = userAgent.split(DEPRECATED_CLIENT_VERSION_PREFIX);
+                String[] splits = tokens.length > 1 ? tokens[1].split("-")[0].trim().split("\\.") : null;
+                if (splits != null && splits.length > 1) {
+                    if (LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMajorVersion() > Integer.parseInt(splits[0])
+                            || LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMinorVersion() > Integer.parseInt(splits[1])) {
+                        throw new UnsupportedOperationException("version " + tokens[1] + " is not supported");
+                    }
+                }
+            } catch (UnsupportedOperationException ue) {
+                throw ue;
+            } catch (Exception e) {
+                log.warn("[{}] Failed to parse version {} ", clientAppId(), userAgent);
             }
         }
         return;
