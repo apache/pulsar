@@ -871,7 +871,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause)
 
     // Send asynchronously for 3 seconds
     // Expect timeouts since we have set timeout to 1 ms
-    // On receiving timeout send the message using the CMS client IO thread via cb function.
+    // On receiving timeout send the message using the Pulsar client IO thread via cb function.
     for (int i = 0; i<10000; i++) {
         producer.sendAsync(MessageBuilder().build(), boost::bind(resendMessage, _1, _2, producer));
     }

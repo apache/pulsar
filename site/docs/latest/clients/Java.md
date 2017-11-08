@@ -246,7 +246,7 @@ To use [Athenz](../../admin/Authz#athenz) as an authentication provider, you nee
 * `tenantDomain`
 * `tenantService`
 * `providerDomain`
-* `privateKeyPath`
+* `privateKey`
 
 You can also set an optional `keyId`. Here's an example configuration:
 
