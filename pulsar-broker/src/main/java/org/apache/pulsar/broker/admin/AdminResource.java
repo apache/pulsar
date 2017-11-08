@@ -187,9 +187,6 @@ public abstract class AdminResource extends PulsarWebResource {
      */
     protected List<String> getListOfNamespaces(String property) throws Exception {
         List<String> namespaces = Lists.newArrayList();
-        // First get the list of cluster nodes
-        log.info("Children of {} : {}", path(POLICIES, property),
-                globalZk().getChildren(path(POLICIES, property), null));
 
         for (String cluster : globalZk().getChildren(path(POLICIES, property), false)) {
             // Then get the list of namespaces
