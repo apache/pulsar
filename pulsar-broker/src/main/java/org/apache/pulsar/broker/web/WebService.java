@@ -77,7 +77,7 @@ public class WebService implements AutoCloseable {
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
     public static final int NUM_ACCEPTORS = 32; // make it configurable?
-    public static final int MAX_CONCURRENT_REQUESTES = 1024; // make it configurable?
+    public static final int MAX_CONCURRENT_REQUESTS = 1024; // make it configurable?
 
     private final PulsarService pulsar;
     private final Server server;
@@ -118,7 +118,7 @@ public class WebService implements AutoCloseable {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.forEach(c -> c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTES / connectors.size()));
+        connectors.forEach(c -> c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTS / connectors.size()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 

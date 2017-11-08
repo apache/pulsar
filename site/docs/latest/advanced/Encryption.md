@@ -165,6 +165,7 @@ Pulsar does not store the encryption key anywhere in the pulsar service. If you 
         consumer.acknowledgeCumulative(msg);
         pulsarClient.close();
 ```
+
 ## Key rotation
 Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
 

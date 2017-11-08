@@ -280,7 +280,7 @@ configs:
   description: Default retention size
 - name: keepAliveIntervalSeconds
   default: '30'
-  description: How often to check cms connection is still alive
+  description: How often to check whether the connections are still alive
 - name: brokerServicePurgeInactiveFrequencyInSeconds
   default: '60'
   description: How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
