@@ -1442,10 +1442,11 @@
      <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 </code></pre>
     </div>
-    <h2 id="key-rotation">Key rotation</h2>
-    <p>Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.</p>
   </li>
 </ol>
+
+<h2 id="key-rotation">Key rotation</h2>
+<p>Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.</p>
 
 <h2 id="enabling-encryption-at-the-producer-application">Enabling encryption at the producer application:</h2>
 <p>If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:</p>
