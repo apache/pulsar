@@ -349,7 +349,8 @@ public class ServerCnx extends PulsarHandler {
         if (service.isAuthorizationEnabled()) {
             authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
                     DestinationName.get(subscribe.getTopic()),
-                    originalPrincipal != null ? originalPrincipal : authRole);
+                    originalPrincipal != null ? originalPrincipal : authRole,
+                    subscribe.getSubscription());
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }
