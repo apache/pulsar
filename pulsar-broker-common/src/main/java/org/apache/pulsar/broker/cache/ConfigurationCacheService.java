@@ -56,7 +56,7 @@ public class ConfigurationCacheService {
     private ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache;
 
     public static final String POLICIES = "policies";
-    protected static final String POLICIES_ROOT = "/admin/policies";
+    public static final String POLICIES_ROOT = "/admin/policies";
     private static final String CLUSTERS_ROOT = "/admin/clusters";
 
     public ConfigurationCacheService(ZooKeeperCache cache) throws PulsarServerException {

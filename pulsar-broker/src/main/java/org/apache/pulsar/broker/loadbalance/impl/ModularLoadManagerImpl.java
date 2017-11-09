@@ -421,6 +421,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Update both the broker data and the bundle data.
     private void updateAll() {
+        if (log.isDebugEnabled()) {
+            log.debug("Updating broker and bundle data for loadreport");
+        }
         updateAllBrokerData();
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
@@ -678,6 +681,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Choose a broker among the potentially smaller filtered list, when possible
             String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            if (log.isDebugEnabled()) {
+                log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
+            }
 
             final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
             final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
@@ -825,6 +831,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 final String zooKeeperPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
                 createZPathIfNotExists(zkClient, zooKeeperPath);
                 zkClient.setData(zooKeeperPath, data.getJsonBytes(), -1);
+                if (log.isDebugEnabled()) {
+                    log.debug("Writing zookeeper report {}", data);
+                }
             } catch (Exception e) {
                 log.warn("Error when writing time average broker data for {} to ZooKeeper: {}", broker, e);
             }
