@@ -512,6 +512,28 @@ public class CmdNamespaces extends CmdBase {
 
     }
 
+    @Parameters(commandDescription = "Enable or disable message encryption required for a namespace")
+    private class SetEncryptionRequired extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable message encryption required")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable message encryption required")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setEncryptionRequiredStatus(namespace, enable);
+        }
+    }
+
     private static long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
         String subStr = s.substring(0, s.length() - 1);
@@ -599,5 +621,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 
         jcommander.addCommand("unsubscribe", new Unsubscribe());
+
+        jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
     }
 }
