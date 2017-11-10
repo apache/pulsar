@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -549,5 +550,42 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup1.cleanup();
         mockPulsarSetup2.cleanup();
     }
-    
+
+    @Test
+    public void testPeerCluster() throws Exception {
+        admin.clusters().createCluster("us-west1",
+                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west2",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east1",
+                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east2",
+                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+
+        admin.clusters().updatePeerClusterNames("us-west1", Lists.newArrayList("us-west2"));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
+        assertEquals(admin.clusters().getCluster("us-west2").getPeerClusterNames(), null);
+        admin.clusters().updatePeerClusterNames("us-west1", Lists.newArrayList("us-west2", "us-east1"));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
+                Lists.newArrayList("us-west2", "us-east1"));
+        admin.clusters().updatePeerClusterNames("us-west1", null);
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), null);
+
+        // Check name validation
+        try {
+            admin.clusters().updatePeerClusterNames("us-west1", Lists.newArrayList("invalid-cluster"));
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+        
+        // Cluster itselft can't be part of peer-list 
+        try {
+            admin.clusters().updatePeerClusterNames("us-west1", Lists.newArrayList("us-west1"));
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+    }
+
 }

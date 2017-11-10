@@ -224,16 +224,7 @@ public class ReplicatorTestBase {
         assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
-        /*
-         * assertEquals(admin2.clusters().getCluster("global").getServiceUrl(), "http://global:8080");
-         * assertEquals(admin2.properties().getPropertyAdmin("pulsar").getAdminRoles(), Lists.newArrayList("appid1",
-         * "appid2")); assertEquals(admin2.namespaces().getPolicies("pulsar/global/ns").replication_clusters,
-         * Lists.newArrayList("r1", "r2", "r3"));
-         *
-         * admin1.namespaces().createNamespace("pulsar/global/ns2");
-         * admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns2", Lists.newArrayList("r1", "r2",
-         * "r3"));
-         */
+
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
 
@@ -252,13 +243,8 @@ public class ReplicatorTestBase {
         admin3.close();
 
         pulsar3.close();
-        ns3.close();
-
         pulsar2.close();
-        ns2.close();
-
         pulsar1.close();
-        ns1.close();
 
         bkEnsemble1.stop();
         bkEnsemble2.stop();

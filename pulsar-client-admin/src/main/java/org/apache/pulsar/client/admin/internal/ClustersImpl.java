@@ -82,6 +82,17 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
+    public void updatePeerClusterNames(String cluster, List<String> peerClusterNames) throws PulsarAdminException {
+        try {
+            request(clusters.path(cluster).path("peers")).post(Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON),
+                    ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+        
+    }
+
+    @Override
     public void deleteCluster(String cluster) throws PulsarAdminException {
         try {
             request(clusters.path(cluster)).delete(ErrorData.class);

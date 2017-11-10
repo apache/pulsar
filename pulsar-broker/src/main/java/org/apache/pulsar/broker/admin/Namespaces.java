@@ -361,6 +361,7 @@ public class Namespaces extends AdminResource {
 
         // ensure that non-global namespace is directed to the correct cluster
         validateClusterOwnership(cluster);
+
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
@@ -777,6 +778,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         Policies policies = getNamespacePolicies(property, cluster, namespace);
@@ -813,6 +817,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
@@ -851,6 +858,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
@@ -1264,6 +1274,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership  for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         NamespaceName nsName = new NamespaceName(property, cluster, namespace);
@@ -1336,6 +1349,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership  for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         NamespaceName nsName = new NamespaceName(property, cluster, namespace);
@@ -1406,6 +1422,9 @@ public class Namespaces extends AdminResource {
         if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForProperty(property, cluster);
+        } else {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
         }
 
         NamespaceName nsName = new NamespaceName(property, cluster, namespace);

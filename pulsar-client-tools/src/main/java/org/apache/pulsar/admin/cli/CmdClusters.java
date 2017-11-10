@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.beust.jcommander.internal.Lists;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -105,6 +107,22 @@ public class CmdClusters extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update peer cluster names")
+    private class UpdatePeerClusters extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
+        private String peerClusterNames;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            java.util.List<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
+                    : Lists.newArrayList(peerClusterNames.split(","));
+            admin.clusters().updatePeerClusterNames(cluster, clusters);
+        }
+    }
+
     public CmdClusters(PulsarAdmin admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
@@ -112,6 +130,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("update", new Update());
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
+        jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
     }
 
 }

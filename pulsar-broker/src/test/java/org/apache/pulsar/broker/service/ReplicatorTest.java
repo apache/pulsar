@@ -182,7 +182,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
 
-        final DestinationName dest = DestinationName.get(String.format("persistent://pulsar/global/ns1/topic-%d", 0));
+        final String namespace = "pulsar/global/concurrent";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2"));
+        final DestinationName dest = DestinationName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
         ClientConfiguration conf = new ClientConfiguration();
         conf.setStatsInterval(0, TimeUnit.SECONDS);
         Producer producer = PulsarClient.create(url1.toString(), conf).createProducer(dest.toString());
@@ -200,6 +203,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .get(pulsar1.getBrokerService());
         replicationClients.put("r3", pulsarClient);
 
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2", "r3"));
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {

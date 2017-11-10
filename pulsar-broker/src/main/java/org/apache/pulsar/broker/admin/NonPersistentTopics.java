@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -141,6 +142,9 @@ public class NonPersistentTopics extends PersistentTopics {
         log.info("[{}] Unloading topic {}/{}/{}/{}", clientAppId(), property, cluster, namespace, destination);
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
+            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+        }
         unloadTopic(dn, authoritative);
     }
     
