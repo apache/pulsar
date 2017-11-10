@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -32,6 +35,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
+import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -60,6 +66,8 @@ public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
+
+    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
     static class Arguments {
 
@@ -200,6 +208,9 @@ public class PerformanceConsumer {
                     limiter.acquire();
                 }
 
+                long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - msg.getPublishTime());
+                recorder.recordValue(latencyMicros);
+
                 consumer.acknowledgeAsync(msg);
             }
         };
@@ -274,6 +285,9 @@ public class PerformanceConsumer {
 
         long oldTime = System.nanoTime();
 
+        Histogram reportHistogram = null;
+
+
         while (true) {
             try {
                 Thread.sleep(10000);
@@ -287,6 +301,21 @@ public class PerformanceConsumer {
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
             log.info("Throughput received: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
+
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
+
+            log.info(
+                    "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    dec.format(rate), dec.format(throughput),
+                    dec.format(reportHistogram.getMean() / 1000.0),
+                    dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
+                    dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
+                    dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
+                    dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
+                    dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
+                    dec.format(reportHistogram.getMaxValue() / 1000.0));
+
+            reportHistogram.reset();
             oldTime = now;
         }
 
