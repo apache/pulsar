@@ -104,13 +104,13 @@ public class DiscoveryService implements Closeable {
         bootstrap.childHandler(new ServiceChannelInitializer(this, config, false));
         // Bind and start to accept incoming connections.
         bootstrap.bind(config.getServicePort()).sync();
-        LOG.info("Started Pulsar Broker service on port {}", config.getWebServicePort());
+        LOG.info("Started Pulsar Discovery service on port {}", config.getWebServicePort());
 
         if (config.isTlsEnabled()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, config, true));
             tlsBootstrap.bind(config.getServicePortTls()).sync();
-            LOG.info("Started Pulsar Broker TLS service on port {}", config.getWebServicePortTls());
+            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getWebServicePortTls());
         }
     }
 
