@@ -349,9 +349,9 @@ public class PerformanceProducer {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
 
-                            long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
-                            recorder.recordValue(latencyMicros);
-                            cumulativeRecorder.recordValue(latencyMicros);
+                            long latencyMillis = NANOSECONDS.toMillis(System.nanoTime() - sendTime);
+                            recorder.recordValue(latencyMillis);
+                            cumulativeRecorder.recordValue(latencyMillis);
                         }).exceptionally(ex -> {
                             log.warn("Write error on message", ex);
                             System.exit(-1);

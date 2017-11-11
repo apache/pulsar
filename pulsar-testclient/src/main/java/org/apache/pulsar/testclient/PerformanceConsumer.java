@@ -62,7 +62,7 @@ public class PerformanceConsumer {
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(90), 5);
+    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     static class Arguments {
 
@@ -203,8 +203,8 @@ public class PerformanceConsumer {
                     limiter.acquire();
                 }
 
-                long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - msg.getPublishTime());
-                recorder.recordValue(latencyMicros);
+                long latencyMills = System.currentTimeMillis() - msg.getPublishTime();
+                recorder.recordValue(latencyMills);
 
                 consumer.acknowledgeAsync(msg);
             }
