@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -203,8 +204,8 @@ public class PerformanceConsumer {
                     limiter.acquire();
                 }
 
-                long latencyMills = System.currentTimeMillis() - msg.getPublishTime();
-                recorder.recordValue(latencyMills);
+                long latencyMicros = MILLISECONDS.toMicros(System.currentTimeMillis() - msg.getPublishTime());
+                recorder.recordValue(latencyMicros);
 
                 consumer.acknowledgeAsync(msg);
             }
