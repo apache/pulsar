@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -72,6 +73,7 @@ public class Producer {
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
+    private final boolean isEncryptionRequired;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
         this.topic = topic;
@@ -93,6 +95,7 @@ public class Producer {
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+        this.isEncryptionRequired = this.topic.isEncryptionRequired();
     }
 
     @Override
@@ -128,6 +131,24 @@ public class Producer {
                 cnx.completedSendOperation(isNonPersistentTopic);
             });
             return;
+        }
+
+        if (isEncryptionRequired) {
+
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+
+            // Check whether the message is encrypted or not
+            if (msgMetadata.getEncryptionKeysCount() < 1) {
+                log.warn("[{}] Messages must be encrypted", getTopic().getName());
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
+                            "Messages must be encrypted"));
+                    cnx.completedSendOperation(isNonPersistentTopic);
+                });
+                return;
+            }
         }
 
         startPublishOperation();

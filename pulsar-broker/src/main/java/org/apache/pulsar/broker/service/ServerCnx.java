@@ -522,6 +522,14 @@ public class ServerCnx extends PulsarHandler {
                         return;
                     }
 
+                    // Check whether the producer will publish encrypted messages or not
+                    if (topic.isEncryptionRequired() && !cmdProducer.getEncrypted()) {
+                        String msg = String.format("Encryption is required in %s", topicName);
+                        log.warn("[{}] {}", remoteAddress, msg);
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                        return;
+                    }
+
                     disableTcpNoDelayIfNeeded(topicName, producerName);
 
                     Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole);

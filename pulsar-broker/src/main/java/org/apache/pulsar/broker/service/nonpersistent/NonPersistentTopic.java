@@ -871,6 +871,11 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
+    public boolean isEncryptionRequired() {
+        return false;
+    }
+
+    @Override
     public CompletableFuture<Void> unsubscribe(String subName) {
         // No-op
         return CompletableFuture.completedFuture(null);

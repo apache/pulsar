@@ -1373,6 +1373,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return false;
     }
 
+    @Override
+    public boolean isEncryptionRequired() {
+
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            return policies.encryption_required;
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies: {}", topic, e.getMessage());
+            return false;
+        }
+    }
+
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {

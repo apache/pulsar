@@ -105,6 +105,8 @@ public interface Topic {
 
     boolean isBacklogQuotaExceeded(String producerName);
 
+    boolean isEncryptionRequired();
+
     BacklogQuota getBacklogQuota();
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
