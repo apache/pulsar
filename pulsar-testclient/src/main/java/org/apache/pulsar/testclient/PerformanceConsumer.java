@@ -64,6 +64,8 @@ public class PerformanceConsumer {
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+
 
     static class Arguments {
 
@@ -206,6 +208,7 @@ public class PerformanceConsumer {
 
                 long latencyMicros = MILLISECONDS.toMicros(System.currentTimeMillis() - msg.getPublishTime());
                 recorder.recordValue(latencyMicros);
+                cumulativeRecorder.recordValue(latencyMicros);
 
                 consumer.acknowledgeAsync(msg);
             }
@@ -316,6 +319,21 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
+        printAggregatedStats();
+    }
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean() / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
+                dec.format(reportHistogram.getMaxValue() / 1000.0));
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
