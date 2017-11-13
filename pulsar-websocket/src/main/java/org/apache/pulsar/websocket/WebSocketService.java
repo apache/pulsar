@@ -66,8 +66,9 @@ public class WebSocketService implements Closeable {
     AuthorizationManager authorizationManager;
     PulsarClient pulsarClient;
 
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(
-            WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS, new DefaultThreadFactory("pulsar-websocket"));
+    private final ScheduledExecutorService executor = Executors
+            .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
+                    new DefaultThreadFactory("pulsar-websocket"));
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(
             WebSocketProxyConfiguration.GLOBAL_ZK_THREADS, "pulsar-websocket-ordered");
     private GlobalZooKeeperCache globalZkCache;
@@ -82,7 +83,7 @@ public class WebSocketService implements Closeable {
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
-        this(createClusterData(config), createServiceConfiguration(config));
+        this(createClusterData(config), ServiceConfiguration.convertFrom(config));
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
@@ -210,31 +211,6 @@ public class WebSocketService implements Closeable {
         }
     }
 
-    private static ServiceConfiguration createServiceConfiguration(WebSocketProxyConfiguration config) {
-        ServiceConfiguration serviceConfig = new ServiceConfiguration();
-        serviceConfig.setProperties(config.getProperties());
-        serviceConfig.setClusterName(config.getClusterName());
-        serviceConfig.setWebServicePort(config.getWebServicePort());
-        serviceConfig.setWebServicePortTls(config.getWebServicePortTls());
-        serviceConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
-        serviceConfig.setAuthenticationProviders(config.getAuthenticationProviders());
-        serviceConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
-        serviceConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
-        serviceConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
-        serviceConfig.setAuthorizationAllowWildcardsMatching(config.getAuthorizationAllowWildcardsMatching());
-        serviceConfig.setSuperUserRoles(config.getSuperUserRoles());
-        serviceConfig.setGlobalZookeeperServers(config.getGlobalZookeeperServers());
-        serviceConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
-        serviceConfig.setTlsEnabled(config.isTlsEnabled());
-        serviceConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
-        serviceConfig.setTlsCertificateFilePath(config.getTlsCertificateFilePath());
-        serviceConfig.setTlsKeyFilePath(config.getTlsKeyFilePath());
-        serviceConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-        serviceConfig.setWebSocketNumIoThreads(config.getNumIoThreads());
-        serviceConfig.setWebSocketConnectionsPerBroker(config.getConnectionsPerBroker());
-        return serviceConfig;
-    }
-
     private ClusterData retrieveClusterData() throws PulsarServerException {
         if (configurationCacheService == null) {
             throw new PulsarServerException("Failed to retrieve Cluster data due to empty GlobalZookeeperServers");
@@ -307,16 +283,16 @@ public class WebSocketService implements Closeable {
         }
         return false;
     }
-    
+
     public boolean addReader(ReaderHandler reader) {
         return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
                 .add(reader);
     }
-    
+
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> getReaders() {
         return topicReaderMap;
     }
-    
+
     public boolean removeReader(ReaderHandler reader) {
         final String topicName = reader.getConsumer().getTopic();
         if (topicReaderMap.containsKey(topicName)) {

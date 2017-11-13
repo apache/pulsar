@@ -79,7 +79,7 @@ public class DiscoveryService implements Closeable {
     public void start() throws Exception {
         discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory());
         this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-        ServiceConfiguration serviceConfiguration = createServiceConfiguration(config);
+        ServiceConfiguration serviceConfiguration = ServiceConfiguration.convertFrom(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
         startServer();
@@ -130,16 +130,6 @@ public class DiscoveryService implements Closeable {
         discoveryProvider.close();
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
-    }
-
-    private ServiceConfiguration createServiceConfiguration(ServiceConfig config) {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
-        serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
-        serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
-        serviceConfiguration.setAuthorizationAllowWildcardsMatching(config.getAuthorizationAllowWildcardsMatching());
-        serviceConfiguration.setProperties(config.getProperties());
-        return serviceConfiguration;
     }
 
     /**

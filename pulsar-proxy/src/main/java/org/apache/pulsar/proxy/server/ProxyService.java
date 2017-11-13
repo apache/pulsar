@@ -122,7 +122,7 @@ public class ProxyService implements Closeable {
 
         discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
         this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-        ServiceConfiguration serviceConfiguration = createServiceConfiguration(proxyConfig);
+        ServiceConfiguration serviceConfiguration = ServiceConfiguration.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
 
@@ -179,15 +179,6 @@ public class ProxyService implements Closeable {
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         client.close();
-    }
-
-    private ServiceConfiguration createServiceConfiguration(ProxyConfiguration config) {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
-        serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
-        serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
-        serviceConfiguration.setProperties(config.getProperties());
-        return serviceConfiguration;
     }
 
     public String getServiceUrl() {
