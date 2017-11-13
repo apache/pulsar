@@ -282,6 +282,13 @@ public class PerformanceConsumer {
         log.info("Start receiving from {} consumers on {} destinations", arguments.numConsumers,
                 arguments.numDestinations);
 
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                printAggregatedStats();
+            }
+        });
+
+
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
@@ -319,7 +326,6 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
-        printAggregatedStats();
     }
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
