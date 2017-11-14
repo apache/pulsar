@@ -206,9 +206,9 @@ public class PerformanceConsumer {
                     limiter.acquire();
                 }
 
-                long latencyMicros = MILLISECONDS.toMicros(System.currentTimeMillis() - msg.getPublishTime());
-                recorder.recordValue(latencyMicros);
-                cumulativeRecorder.recordValue(latencyMicros);
+                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+                recorder.recordValue(latencyMillis);
+                cumulativeRecorder.recordValue(latencyMillis);
 
                 consumer.acknowledgeAsync(msg);
             }
@@ -313,13 +313,13 @@ public class PerformanceConsumer {
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     dec.format(rate), dec.format(throughput),
-                    dec.format(reportHistogram.getMean() / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    dec.format(reportHistogram.getMaxValue() / 1000.0));
+                    dec.format(reportHistogram.getMean()),
+                    dec.format(reportHistogram.getValueAtPercentile(50)),
+                    dec.format(reportHistogram.getValueAtPercentile(95)),
+                    dec.format(reportHistogram.getValueAtPercentile(99)),
+                    dec.format(reportHistogram.getValueAtPercentile(99.9)),
+                    dec.format(reportHistogram.getValueAtPercentile(99.99)),
+                    dec.format(reportHistogram.getMaxValue()));
 
             reportHistogram.reset();
             oldTime = now;
@@ -333,13 +333,13 @@ public class PerformanceConsumer {
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportHistogram.getMean() / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
-                dec.format(reportHistogram.getMaxValue() / 1000.0));
+                dec.format(reportHistogram.getValueAtPercentile(50)),
+                dec.format(reportHistogram.getValueAtPercentile(95)),
+                dec.format(reportHistogram.getValueAtPercentile(99)),
+                dec.format(reportHistogram.getValueAtPercentile(99.9)),
+                dec.format(reportHistogram.getValueAtPercentile(99.99)),
+                dec.format(reportHistogram.getValueAtPercentile(99.999)),
+                dec.format(reportHistogram.getMaxValue()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
