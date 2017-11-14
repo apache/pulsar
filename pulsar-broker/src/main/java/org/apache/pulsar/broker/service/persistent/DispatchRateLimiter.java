@@ -144,21 +144,18 @@ public class DispatchRateLimiter {
         final NamespaceName namespace = DestinationName.get(this.topicName).getNamespaceObject();
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         final String path = path(POLICIES, namespace.toString());
+        Optional<Policies> policies = Optional.empty();
         try {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
                     .get(cacheTimeOutInSec, SECONDS);
-            if (policies.isPresent() && policies.get().clusterDispatchRate != null
-                    && policies.get().clusterDispatchRate.get(cluster) != null) {
-                DispatchRate dispatchRate = policies.get().clusterDispatchRate.get(cluster);
-                // return policy-dispatch rate only if it's enabled in policies
-                if (isDispatchRateEnabled(dispatchRate)) {
-                    return dispatchRate;
-                }
-            }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {}", this.topicName, e);
         }
-        return null;
+        // return policy-dispatch rate only if it's enabled in policies
+        return policies.map(p -> {
+            DispatchRate dispatchRate = p.clusterDispatchRate.get(cluster);
+            return isDispatchRateEnabled(dispatchRate) ? dispatchRate : null;
+        }).orElse(null);
     }
 
     /**
