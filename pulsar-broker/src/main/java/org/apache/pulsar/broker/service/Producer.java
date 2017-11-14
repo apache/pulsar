@@ -73,9 +73,9 @@ public class Producer {
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
-    private final boolean isEncryptionRequired;
+    private final boolean isEncrypted;
 
-    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
+    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId, boolean isEncrypted) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -95,7 +95,8 @@ public class Producer {
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
-        this.isEncryptionRequired = this.topic.isEncryptionRequired();
+
+        this.isEncrypted = isEncrypted;
     }
 
     @Override
@@ -133,7 +134,7 @@ public class Producer {
             return;
         }
 
-        if (isEncryptionRequired) {
+        if (topic.isEncryptionRequired()) {
 
             headersAndPayload.markReaderIndex();
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
@@ -457,6 +458,14 @@ public class Producer {
                         e);
             }
             log.info("[{}] is not allowed to produce from destination [{}] anymore", appId, topic.getName());
+            disconnect();
+        }
+    }
+
+    public void checkEncryption() {
+        if (topic.isEncryptionRequired() && !isEncrypted) {
+            log.info("[{}] [{}] Unencrypted producer is not allowed to produce from destination [{}] anymore",
+                    producerId, producerName, topic.getName());
             disconnect();
         }
     }
