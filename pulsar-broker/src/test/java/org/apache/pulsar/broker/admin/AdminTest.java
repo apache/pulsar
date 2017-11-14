@@ -626,4 +626,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(permission.isEmpty());
     }
 
+    @Test
+    public void testRestExceptionMessage() {
+        String message = "my-message";
+        RestException exception = new RestException(Status.PRECONDITION_FAILED, message);
+        assertEquals(exception.getMessage(), message);
+
+    }
+    
 }
