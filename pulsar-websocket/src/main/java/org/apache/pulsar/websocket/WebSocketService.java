@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -83,7 +84,7 @@ public class WebSocketService implements Closeable {
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
-        this(createClusterData(config), ServiceConfiguration.convertFrom(config));
+        this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {

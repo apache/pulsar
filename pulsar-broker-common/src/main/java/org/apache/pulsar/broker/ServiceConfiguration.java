@@ -1274,28 +1274,4 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
-
-    public static ServiceConfiguration convertFrom(PulsarConfiguration conf) throws RuntimeException {
-        try {
-            final ServiceConfiguration convertedConf = ServiceConfiguration.class.newInstance();
-            Field[] confFields = conf.getClass().getDeclaredFields();
-            Arrays.stream(confFields).forEach(confField -> {
-                try {
-                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
-                    confField.setAccessible(true);
-                    convertedConfField.setAccessible(true);
-                    convertedConfField.set(convertedConf, confField.get(conf));
-                } catch (NoSuchFieldException e) {
-                    // no-op
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
-                }
-            });
-            return convertedConf;
-        } catch (InstantiationException e) {
-            throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
-        }
-    }
 }

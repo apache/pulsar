@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.configuration;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.util.FieldParser.update;
 
@@ -25,6 +27,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 
@@ -125,6 +128,36 @@ public class PulsarConfigurationLoader {
             throw new IllegalArgumentException(error.substring(0, error.length() - 1));
         }
         return true;
+    }
+
+    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember) throws RuntimeException {
+        try {
+            final ServiceConfiguration convertedConf = ServiceConfiguration.class.newInstance();
+            Field[] confFields = conf.getClass().getDeclaredFields();
+            Arrays.stream(confFields).forEach(confField -> {
+                try {
+                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
+                    confField.setAccessible(true);
+                    convertedConfField.setAccessible(true);
+                    convertedConfField.set(convertedConf, confField.get(conf));
+                } catch (NoSuchFieldException e) {
+                    if (!ignoreNonExistMember) {
+                        throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
+                }
+            });
+            return convertedConf;
+        } catch (InstantiationException e) {
+            throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
+        }
+    }
+
+    public static ServiceConfiguration convertFrom(PulsarConfiguration conf) throws RuntimeException {
+        return convertFrom(conf, true);
     }
 
 }
