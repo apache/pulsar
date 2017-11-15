@@ -144,18 +144,6 @@ public class WebService implements AutoCloseable {
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
-        log.info("Servlet path: '{}' -- Enable client version check: {} -- shouldCheckApiVersionOnPath: {}", path,
-                pulsar.getConfiguration().isClientLibraryVersionCheckEnabled(),
-                shouldCheckApiVersionOnPath(path));
-        if (pulsar.getConfiguration().isClientLibraryVersionCheckEnabled() && shouldCheckApiVersionOnPath(path)) {
-            // Add the ApiVersionFilter to reject request from deprecated
-            // clients.
-            FilterHolder holder = new FilterHolder(
-                    new ApiVersionFilter(pulsar, pulsar.getConfiguration().isClientLibraryVersionCheckAllowUnversioned()));
-            context.addFilter(holder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-            log.info("Enabling ApiVersionFilter");
-        }
-        
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
 
