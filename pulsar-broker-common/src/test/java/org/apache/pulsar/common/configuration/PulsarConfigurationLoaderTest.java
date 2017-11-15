@@ -33,8 +33,6 @@ import java.io.PrintWriter;
 import java.util.Properties;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.testng.annotations.Test;
 
 public class PulsarConfigurationLoaderTest {
@@ -78,7 +76,7 @@ public class PulsarConfigurationLoaderTest {
             PulsarConfigurationLoader.convertFrom(mockConfiguration, false);
             fail();
         } catch (Exception e) {
-            assertEquals(e.getClass(), RuntimeException.class);
+            assertEquals(e.getClass(), IllegalArgumentException.class);
         }
     }
 

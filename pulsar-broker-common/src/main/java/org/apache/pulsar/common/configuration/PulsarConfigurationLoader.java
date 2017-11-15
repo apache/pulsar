@@ -130,6 +130,16 @@ public class PulsarConfigurationLoader {
         return true;
     }
 
+    /**
+     * Converts a PulsarConfiguration object to a ServiceConfiguration object.
+     *
+     * @param conf
+     * @param ignoreNonExistMember
+     * @return
+     * @throws IllegalArgumentException
+     *             if conf has the field whose name is not contained in ServiceConfiguration and ignoreNonExistMember is false.
+     * @throws RuntimeException
+     */
     public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember) throws RuntimeException {
         try {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class.newInstance();
@@ -142,7 +152,7 @@ public class PulsarConfigurationLoader {
                     convertedConfField.set(convertedConf, confField.get(conf));
                 } catch (NoSuchFieldException e) {
                     if (!ignoreNonExistMember) {
-                        throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
+                        throw new IllegalArgumentException("Exception caused while converting configuration: " + e.getMessage());
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
