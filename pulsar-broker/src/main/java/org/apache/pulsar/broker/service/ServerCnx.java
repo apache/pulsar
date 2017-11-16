@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -414,8 +415,17 @@ public class ServerCnx extends PulsarHandler {
 
                         }) //
                         .exceptionally(exception -> {
-                            log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
-                                    subscriptionName, exception.getCause().getMessage(), exception);
+                            if (exception.getCause() instanceof ConsumerBusyException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}][{}][{}] Failed to create consumer because exclusive consumer is already connected: {}",
+                                            remoteAddress, topicName, subscriptionName,
+                                            exception.getCause().getMessage());
+                                }
+                            } else {
+                                log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                        subscriptionName, exception.getCause().getMessage(), exception);
+                            }
 
                             // If client timed out, the future would have been completed by subsequent close. Send error
                             // back to client, only if not completed already.
