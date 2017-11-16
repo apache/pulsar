@@ -33,11 +33,52 @@ import java.io.PrintWriter;
 import java.util.Properties;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.testng.annotations.Test;
 
 public class PulsarConfigurationLoaderTest {
+    public class MockConfiguration implements PulsarConfiguration {
+        private Properties properties = new Properties();
+
+        private String zookeeperServers = "localhost:2181";
+        private String globalZookeeperServers = "localhost:2184";
+        private int brokerServicePort = 7650;
+        private int brokerServicePortTls = 7651;
+        private int webServicePort = 9080;
+        private int webServicePortTls = 9443;
+        private int notExistFieldInServiceConfig = 0;
+
+        @Override
+        public Properties getProperties() {
+            return properties;
+        }
+
+        @Override
+        public void setProperties(Properties properties) {
+            this.properties = properties;
+        }
+    }
+
+    @Test
+    public void testConfigurationConverting() throws Exception {
+        MockConfiguration mockConfiguration = new MockConfiguration();
+        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
+
+        // check whether converting correctly
+        assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
+        assertEquals(serviceConfiguration.getGlobalZookeeperServers(), "localhost:2184");
+        assertEquals(serviceConfiguration.getBrokerServicePort(), 7650);
+        assertEquals(serviceConfiguration.getBrokerServicePortTls(), 7651);
+        assertEquals(serviceConfiguration.getWebServicePort(), 9080);
+        assertEquals(serviceConfiguration.getWebServicePortTls(), 9443);
+
+        // check whether exception causes
+        try {
+            PulsarConfigurationLoader.convertFrom(mockConfiguration, false);
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getClass(), IllegalArgumentException.class);
+        }
+    }
 
     @Test
     public void testPulsarConfiguraitonLoadingStream() throws Exception {

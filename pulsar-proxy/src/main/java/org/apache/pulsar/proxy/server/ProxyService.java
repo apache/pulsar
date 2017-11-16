@@ -24,7 +24,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -34,6 +33,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -122,7 +122,7 @@ public class ProxyService implements Closeable {
 
         discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
         this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-        ServiceConfiguration serviceConfiguration = createServiceConfiguration(proxyConfig);
+        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
 
@@ -179,15 +179,6 @@ public class ProxyService implements Closeable {
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         client.close();
-    }
-
-    private ServiceConfiguration createServiceConfiguration(ProxyConfiguration config) {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        serviceConfiguration.setAuthenticationEnabled(config.isAuthenticationEnabled());
-        serviceConfiguration.setAuthorizationEnabled(config.isAuthorizationEnabled());
-        serviceConfiguration.setAuthenticationProviders(config.getAuthenticationProviders());
-        serviceConfiguration.setProperties(config.getProperties());
-        return serviceConfiguration;
     }
 
     public String getServiceUrl() {
