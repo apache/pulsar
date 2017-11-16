@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.storm;
 
+import static java.lang.String.format;
+
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentMap;
@@ -213,6 +215,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     pulsarSpoutConf.getTopic(), pulsarSpoutConf.getSubscriptionName());
         } catch (PulsarClientException e) {
             LOG.error("[{}] Error creating pulsar consumer on topic {}", spoutId, pulsarSpoutConf.getTopic(), e);
+            throw new IllegalStateException(format("Failed to initialize consumer for %s-%s : %s",
+                    pulsarSpoutConf.getTopic(), pulsarSpoutConf.getSubscriptionName(), e.getMessage()), e);
         }
         context.registerMetric(String.format("PulsarSpoutMetrics-%s-%s", componentId, context.getThisTaskIndex()), this,
                 pulsarSpoutConf.getMetricsTimeIntervalInSecs());
