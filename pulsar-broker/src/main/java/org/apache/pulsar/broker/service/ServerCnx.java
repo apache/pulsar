@@ -415,10 +415,17 @@ public class ServerCnx extends PulsarHandler {
 
                         }) //
                         .exceptionally(exception -> {
-                            log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
-                                    subscriptionName, exception.getCause().getMessage(),
-                                    exception.getCause() instanceof ConsumerBusyException ? null
-                                            : exception.getCause());
+                            if (exception.getCause() instanceof ConsumerBusyException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}][{}][{}] Failed to create consumer because exclusive consumer is already connected: {}",
+                                            remoteAddress, topicName, subscriptionName,
+                                            exception.getCause().getMessage());
+                                }
+                            } else {
+                                log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                        subscriptionName, exception.getCause().getMessage(), exception);
+                            }
 
                             // If client timed out, the future would have been completed by subsequent close. Send error
                             // back to client, only if not completed already.
