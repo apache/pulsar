@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.testng.Assert;
+import static org.testng.Assert.fail;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -211,5 +212,26 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         // test serializability with no auth
         PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         TestUtil.testSerializability(boltWithNoAuth);
+    }
+    
+    @Test
+    public void testFailedProducer() {
+        PulsarBoltConfiguration pulsarBoltConf = new PulsarBoltConfiguration();
+        pulsarBoltConf.setServiceUrl(serviceUrl);
+        pulsarBoltConf.setTopic("persistent://invalid");
+        pulsarBoltConf.setTupleToMessageMapper(tupleToMessageMapper);
+        pulsarBoltConf.setMetricsTimeIntervalInSecs(60);
+        PulsarBolt bolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
+        MockOutputCollector mockCollector = new MockOutputCollector();
+        OutputCollector collector = new OutputCollector(mockCollector);
+        TopologyContext context = mock(TopologyContext.class);
+        when(context.getThisComponentId()).thenReturn("new" + methodName);
+        when(context.getThisTaskId()).thenReturn(0);
+        try {
+            bolt.prepare(Maps.newHashMap(), context, collector);
+            fail("should have failed as producer creation failed");
+        } catch (IllegalStateException ie) {
+            // Ok.
+        }
     }
 }
