@@ -39,6 +39,7 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
+import static java.lang.String.format;
 
 public class PulsarBolt extends BaseRichBolt implements IMetric {
     /**
@@ -90,6 +91,8 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
             LOG.info("[{}] Created a pulsar producer on topic {} to send messages", boltId, pulsarBoltConf.getTopic());
         } catch (PulsarClientException e) {
             LOG.error("[{}] Error initializing pulsar producer on topic {}", boltId, pulsarBoltConf.getTopic(), e);
+            throw new IllegalStateException(
+                    format("Failed to initialize producer for %s : %s", pulsarBoltConf.getTopic(), e.getMessage()), e);
         }
         context.registerMetric(String.format("PulsarBoltMetrics-%s-%s", componentId, context.getThisTaskIndex()), this,
                 pulsarBoltConf.getMetricsTimeIntervalInSecs());
