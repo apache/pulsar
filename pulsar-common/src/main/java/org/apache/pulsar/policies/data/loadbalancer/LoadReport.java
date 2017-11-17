@@ -28,12 +28,14 @@ import org.apache.pulsar.common.util.NamespaceBundleStatsComparator;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Maps;
 
 /**
  * This class represents the overall load of the broker - it includes overall {@link SystemResourceUsage} and
  * {@link NamespaceUsage} for all the namespaces hosted by this broker.
  */
+@JsonDeserialize(as = LoadReport.class)
 public class LoadReport implements LoadManagerReport {
     private String name;
     private String brokerVersionString;
@@ -54,7 +56,9 @@ public class LoadReport implements LoadManagerReport {
     private int numConsumers;
     private int numProducers;
     private int numBundles;
-
+    // This place-holder requires to identify correct LoadManagerReport type while deserializing
+    public static final String loadReportType = LoadReport.class.getSimpleName();
+    
     public LoadReport() {
         this(null, null, null, null);
     }
@@ -191,6 +195,10 @@ public class LoadReport implements LoadManagerReport {
             });
         }
         return msgRateOut;
+    }
+
+    public String getLoadReportType() {
+        return loadReportType;
     }
 
     @Override

@@ -24,10 +24,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 
 /**
  * Contains all the data that is maintained locally on each broker.
  */
+@JsonDeserialize(as = LocalBrokerData.class)
 public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
@@ -74,6 +77,8 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     // The version string that this broker is running, obtained from the Maven build artifact in the POM
     private String brokerVersionString;
+    // This place-holder requires to identify correct LoadManagerReport type while deserializing
+    public static final String loadReportType = LocalBrokerData.class.getSimpleName();
 
     // For JSON only.
     public LocalBrokerData() {
@@ -195,6 +200,10 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
                 .max(Math.max(Math.max(cpu.percentUsage(), memory.percentUsage()),
                         Math.max(directMemory.percentUsage(), bandwidthIn.percentUsage())), bandwidthOut.percentUsage())
                 / 100;
+    }
+
+    public String getLoadReportType() {
+        return loadReportType;
     }
 
     @Override

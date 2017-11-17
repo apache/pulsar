@@ -19,6 +19,7 @@
 package org.apache.pulsar.discovery.service;
 
 import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
 import java.io.Closeable;
@@ -35,7 +36,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.zookeeper.KeeperException;
@@ -45,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
@@ -78,13 +78,13 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     /**
-     * Find next broke {@link LoadReport} in round-robin fashion.
+     * Find next broker {@link LoadManagerReport} in round-robin fashion.
      *
      * @return
      * @throws PulsarServerException
      */
-    LoadReport nextBroker() throws PulsarServerException {
-        List<LoadReport> availableBrokers = localZkCache.getAvailableBrokers();
+    LoadManagerReport nextBroker() throws PulsarServerException {
+        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new PulsarServerException("No active broker is available");

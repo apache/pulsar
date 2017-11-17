@@ -23,9 +23,13 @@ import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -35,6 +39,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
 
@@ -63,28 +68,36 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
         ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "", 30_000);
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
-        // 1. create znode for each broker
-        brokers.stream().forEach(b -> {
+        for (int i = 0; i < brokers.size(); i++) {
             try {
-                zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + b, new byte[0],
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            } catch (KeeperException | InterruptedException e) {
+                LoadManagerReport report = i % 2 == 0 ? getSimpleLoadManagerLoadReport(brokers.get(i))
+                        : getModularLoadManagerLoadReport(brokers.get(i));
+                zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + brokers.get(i),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+            } catch (Exception e) {
                 fail("failed while creating broker znodes");
             }
-        });
+        }
 
         Thread.sleep(100); // wait for 100 msec: to get cache updated
 
         // 2. get available brokers from ZookeeperCacheLoader
-        List<LoadReport> list = zkLoader.getAvailableBrokers();
+        List<LoadManagerReport> list = zkLoader.getAvailableBrokers();
 
         // 3. verify retrieved broker list
-        Assert.assertTrue(brokers.containsAll(list));
+        Set<String> cachedBrokers = list.stream().map(loadReport -> loadReport.getWebServiceUrl())
+                .collect(Collectors.toSet());
+        Assert.assertEquals(list.size(), brokers.size());
+        Assert.assertTrue(brokers.containsAll(cachedBrokers));
 
         // 4.a add new broker
-        zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + "broker-4:15000", new byte[0],
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        brokers.add("broker-4:15000");
+        final String newBroker = "broker-4:15000";
+        LoadManagerReport report = getSimpleLoadManagerLoadReport(newBroker);
+        zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + newBroker,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
+        brokers.add(newBroker);
 
         Thread.sleep(100); // wait for 100 msec: to get cache updated
 
@@ -92,8 +105,17 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
         list = zkLoader.getAvailableBrokers();
 
         // 4.c. verify retrieved broker list
-        Assert.assertTrue(brokers.containsAll(list));
+        cachedBrokers = list.stream().map(loadReport -> loadReport.getWebServiceUrl()).collect(Collectors.toSet());
+        Assert.assertEquals(list.size(), brokers.size());
+        Assert.assertTrue(brokers.containsAll(cachedBrokers));
 
     }
 
+    private LoadReport getSimpleLoadManagerLoadReport(String brokerUrl) {
+        return new LoadReport(brokerUrl, null, null, null);
+    }
+
+    private LocalBrokerData getModularLoadManagerLoadReport(String brokerUrl) {
+        return new LocalBrokerData(brokerUrl, null, null, null);
+    }
 }

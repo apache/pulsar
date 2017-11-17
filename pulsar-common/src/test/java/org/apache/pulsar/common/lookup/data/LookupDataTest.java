@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.lookup.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.util.Map;
 
@@ -27,6 +28,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
+import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.testng.annotations.Test;
 
 @Test
@@ -66,5 +72,51 @@ public class LookupDataTest {
         assertEquals("specialCharacters_%2B%26*%25%7B%7D%28%29+%5C%2F%24%40%23%5E%25", urlEncoded);
         assertEquals(str, Codec.decode(urlEncoded));
         assertEquals(Codec.decode(urlEncoded), Codec.decode(uriEncoded));
+    }
+    
+    @Test
+    public void testLoadReportSerialization() throws Exception {
+        final String simpleLmBrokerUrl = "simple";
+        final String simpleLmReportName = "simpleLoadManager";
+        final String modularLmBrokerUrl = "modular";
+        final SystemResourceUsage simpleLmSystemResourceUsage = new SystemResourceUsage();
+        final ResourceUsage resource = new ResourceUsage();
+        final double usage = 55.0;
+        resource.usage = usage;
+        simpleLmSystemResourceUsage.bandwidthIn = resource;
+        
+        LoadReport simpleReport = getSimpleLoadManagerLoadReport(simpleLmBrokerUrl, simpleLmReportName,
+                simpleLmSystemResourceUsage);
+        
+        LocalBrokerData modularReport = getModularLoadManagerLoadReport(modularLmBrokerUrl, resource);
+
+        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getThreadLocal().readValue(
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(simpleReport), LoadManagerReport.class);
+        LoadManagerReport modularLoadReport = ObjectMapperFactory.getThreadLocal().readValue(
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(modularReport), LoadManagerReport.class);
+
+        assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
+        assertTrue(simpleLoadReport instanceof LoadReport);
+        assertEquals(((LoadReport) simpleLoadReport).getName(), simpleLmReportName);
+        assertEquals(((LoadReport) simpleLoadReport).getSystemResourceUsage().bandwidthIn.usage, usage);
+
+        assertEquals(modularLoadReport.getWebServiceUrl(), modularLmBrokerUrl);
+        assertTrue(modularLoadReport instanceof LocalBrokerData);
+        assertEquals(((LocalBrokerData) modularLoadReport).getBandwidthIn().usage, usage);
+
+    }
+
+    private LoadReport getSimpleLoadManagerLoadReport(String brokerUrl, String reportName,
+            SystemResourceUsage systemResourceUsage) {
+        LoadReport report = new LoadReport(brokerUrl, null, null, null);
+        report.setName(reportName);
+        report.setSystemResourceUsage(systemResourceUsage);
+        return report;
+    }
+
+    private LocalBrokerData getModularLoadManagerLoadReport(String brokerUrl, ResourceUsage bandwidthIn) {
+        LocalBrokerData report = new LocalBrokerData(brokerUrl, null, null, null);
+        report.setBandwidthIn(bandwidthIn);
+        return report;
     }
 }
