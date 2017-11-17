@@ -632,12 +632,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
             // Get persistence policy for this destination
-            Policies policies;
+            Optional<Policies> policies = Optional.empty();
             try {
                 policies = pulsar
                         .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
-                                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()))
-                        .orElse(null);
+                                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()));
             } catch (Throwable t) {
                 // Ignoring since if we don't have policies, we fallback on the default
                 log.warn("Got exception when reading persistence policy for {}: {}", topicName, t.getMessage(), t);
@@ -645,21 +644,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return;
             }
 
-            PersistencePolicies persistencePolicies = policies != null ? policies.persistence : null;
-            RetentionPolicies retentionPolicies = policies != null ? policies.retention_policies : null;
+            PersistencePolicies persistencePolicies = policies.map(p -> p.persistence).orElseGet(
+                    () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
+                            serviceConfig.getManagedLedgerDefaultWriteQuorum(),
+                            serviceConfig.getManagedLedgerDefaultAckQuorum(),
+                            serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
 
-            if (persistencePolicies == null) {
-                // Apply default values
-                persistencePolicies = new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                        serviceConfig.getManagedLedgerDefaultWriteQuorum(),
-                        serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                        serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
-            }
-
-            if (retentionPolicies == null) {
-                retentionPolicies = new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
-                        serviceConfig.getDefaultRetentionSizeInMB());
-            }
+            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
+                    () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
+                            serviceConfig.getDefaultRetentionSizeInMB())
+            );
 
             ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
@@ -1132,7 +1126,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     private void updateDynamicServiceConfiguration() {
 
-        Optional<Map<String, String>> configCache = null;
+        Optional<Map<String, String>> configCache = Optional.empty();
         try {
             // create dynamic-config znode if not present
             if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
@@ -1148,7 +1142,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
         }
-        if (configCache != null && configCache.isPresent() && configCache.get() != null) {
+        if (configCache.isPresent()) {
             configCache.get().forEach((key, value) -> {
                 // validate field
                 if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {

@@ -254,8 +254,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             callback.completed(new PersistenceException(exception), -1, -1);
         }
 
-
-
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
@@ -499,7 +497,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // When the start message is relative to a batch, we need to take one step back on the previous message,
                 // because the "batch" might not have been consumed in its entirety.
                 // The client will then be able to discard the first messages in the batch.
-                if (((BatchMessageIdImpl)msgId).getBatchIndex() >= 0) {
+                if (((BatchMessageIdImpl) msgId).getBatchIndex() >= 0) {
                     entryId = msgId.getEntryId() - 1;
                 }
             }
@@ -744,7 +742,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
         return future;
     }
-    
+
     @Override
     public CompletableFuture<Void> checkReplication() {
         DestinationName name = DestinationName.get(topic);
@@ -1084,9 +1082,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         destStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
                         destStatsStream.writePair("unackedMessages", dispatcher.getTotalUnackedMessages());
                     }
-
                 }
-
 
                 // Close consumers
                 destStatsStream.endObject();
@@ -1317,18 +1313,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         try {
             Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()));
-            if (!policies.isPresent()) {
-                // If no policies, the default is to have no retention and delete the inactive topic
-                return false;
-            }
-
-            RetentionPolicies retention = policies.get().retention_policies;
-            if (retention == null) {
-                // Same as above, apply default to gc inactive topic
-                return false;
-            }
-
-            return (System.nanoTime() - lastActive < TimeUnit.MINUTES.toNanos(retention.getRetentionTimeInMinutes()));
+            // If no policies, the default is to have no retention and delete the inactive topic
+            return policies.map(p -> p.retention_policies)
+                    .map(rp -> System.nanoTime() - lastActive < TimeUnit.MINUTES.toNanos(rp.getRetentionTimeInMinutes()))
+                    .orElse(false).booleanValue();
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
