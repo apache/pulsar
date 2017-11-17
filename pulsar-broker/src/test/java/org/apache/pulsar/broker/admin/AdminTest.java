@@ -159,6 +159,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc"))).when(persistentTopics).clusters();
         doNothing().when(persistentTopics).validateAdminAccessOnProperty("my-property");
         doNothing().when(persistentTopics).validateAdminAccessOnProperty("other-property");
+        doNothing().when(persistentTopics).validateAdminAccessOnProperty("prop-xyz");
 
         resourceQuotas = spy(new ResourceQuotas());
         resourceQuotas.setServletContext(new MockServletContext());
