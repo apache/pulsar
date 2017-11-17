@@ -27,7 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -48,10 +48,10 @@ public class ZookeeperCacheLoader implements Closeable {
     private final ZooKeeperCache localZkCache;
     private final LocalZooKeeperConnectionService localZkConnectionSvc;
 
-    private final ZooKeeperDataCache<LoadReport> brokerInfo;
+    private final ZooKeeperDataCache<LoadManagerReport> brokerInfo;
     private final ZooKeeperChildrenCache availableBrokersCache;
 
-    private volatile List<LoadReport> availableBrokers;
+    private volatile List<LoadManagerReport> availableBrokers;
 
     private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery-ordered-cache");
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8,
@@ -83,10 +83,10 @@ public class ZookeeperCacheLoader implements Closeable {
             }
         });
 
-        this.brokerInfo = new ZooKeeperDataCache<LoadReport>(localZkCache) {
+        this.brokerInfo = new ZooKeeperDataCache<LoadManagerReport>(localZkCache) {
             @Override
-            public LoadReport deserialize(String key, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, LoadReport.class);
+            public LoadManagerReport deserialize(String key, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, LoadManagerReport.class);
             }
         };
 
@@ -103,7 +103,7 @@ public class ZookeeperCacheLoader implements Closeable {
         updateBrokerList(availableBrokersCache.get());
     }
 
-    public List<LoadReport> getAvailableBrokers() {
+    public List<LoadManagerReport> getAvailableBrokers() {
         return availableBrokers;
     }
 
@@ -118,7 +118,7 @@ public class ZookeeperCacheLoader implements Closeable {
     }
 
     private void updateBrokerList(Set<String> brokerNodes) throws Exception {
-        List<LoadReport> availableBrokers = new ArrayList<>(brokerNodes.size());
+        List<LoadManagerReport> availableBrokers = new ArrayList<>(brokerNodes.size());
         for (String broker : brokerNodes) {
             availableBrokers.add(brokerInfo.get(LOADBALANCE_BROKERS_ROOT + '/' + broker).get());
         }
