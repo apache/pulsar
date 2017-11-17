@@ -55,7 +55,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-
+import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -824,7 +824,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
                         log.info("[{}] [{}] Created producer on cnx {}", topic, producerName, cnx.ctx().channel());
                         connectionId = cnx.ctx().channel().toString();
-                        connectedSince = DATE_FORMAT.format(Instant.now());
+                        connectedSince = DateFormatter.now();
 
                         if (this.producerName == null) {
                             this.producerName = producerName;
@@ -1238,9 +1238,6 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     public int getPendingQueueSize() {
         return pendingMessages.size();
     }
-
-    private static DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ")
-            .withZone(ZoneId.systemDefault());
 
     private PulsarApi.CompressionType convertCompressionType(CompressionType compressionType) {
         switch (compressionType) {

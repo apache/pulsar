@@ -20,9 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +60,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
@@ -350,8 +348,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
                 ManagedLedgerInfo info = new ManagedLedgerInfo();
                 info.version = stat.getVersion();
-                info.creationDate = DATE_FORMAT.format(Instant.ofEpochMilli(stat.getCreationTimestamp()));
-                info.modificationDate = DATE_FORMAT.format(Instant.ofEpochMilli(stat.getModificationTimestamp()));
+                info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
+                info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
 
                 info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
                 if (pbInfo.hasTerminatedPosition()) {
@@ -385,10 +383,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                         public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
                                             CursorInfo cursorInfo = new CursorInfo();
                                             cursorInfo.version = stat.getVersion();
-                                            cursorInfo.creationDate = DATE_FORMAT
-                                                    .format(Instant.ofEpochMilli(stat.getCreationTimestamp()));
-                                            cursorInfo.modificationDate = DATE_FORMAT
-                                                    .format(Instant.ofEpochMilli(stat.getModificationTimestamp()));
+                                            cursorInfo.creationDate = DateFormatter.format(stat.getCreationTimestamp());
+                                            cursorInfo.modificationDate = DateFormatter
+                                                    .format(stat.getModificationTimestamp());
 
                                             cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
 
@@ -475,6 +472,4 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);
-
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 }
