@@ -741,7 +741,14 @@ public class PersistentTopics extends AdminResource {
                             subName);
                 }
             } catch (Exception e) {
-                throw new RestException(e);
+                if (e instanceof NotFoundException) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                } else if (e instanceof PreconditionFailedException) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
+                } else {
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
+                    throw new RestException(e);
+                }
             }
         } else {
             validateAdminOperationOnDestination(dn, authoritative);
@@ -753,12 +760,12 @@ public class PersistentTopics extends AdminResource {
                 log.info("[{}][{}] Deleted subscription {}", clientAppId(), dn, subName);
             } catch (Exception e) {
                 Throwable t = e.getCause();
-                log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
                 if (e instanceof NullPointerException) {
                     throw new RestException(Status.NOT_FOUND, "Subscription not found");
                 } else if (t instanceof SubscriptionBusyException) {
                     throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
                 } else {
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
                     throw new RestException(t);
                 }
             }
