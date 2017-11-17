@@ -34,7 +34,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,7 +129,7 @@ public class ServerConnection extends PulsarHandler {
 
     private void sendLookupResponse(long requestId) {
         try {
-            LoadReport availableBroker = service.getDiscoveryProvider().nextBroker();
+            LoadManagerReport availableBroker = service.getDiscoveryProvider().nextBroker();
             ctx.writeAndFlush(Commands.newLookupResponse(availableBroker.getPulsarServiceUrl(),
                     availableBroker.getPulsarServiceUrlTls(), false, Redirect, requestId, false));
         } catch (PulsarServerException e) {
