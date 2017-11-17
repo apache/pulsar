@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.List;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.LinkedHashSet;
+import java.util.SortedSet;
 
 import com.google.common.base.Objects;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ClusterData {
     private String serviceUrl;
@@ -30,7 +32,7 @@ public class ClusterData {
     private String brokerServiceUrlTls;
     // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
     // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
-    private List<String> peerClusterNames;
+    private LinkedHashSet<String> peerClusterNames;
 
     public ClusterData() {
     }
@@ -91,11 +93,11 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
-    public List<String> getPeerClusterNames() {
+    public LinkedHashSet<String> getPeerClusterNames() {
         return peerClusterNames;
     }
 
-    public void setPeerClusterNames(List<String> peerClusterNames) {
+    public void setPeerClusterNames(LinkedHashSet<String> peerClusterNames) {
         this.peerClusterNames = peerClusterNames;
     }
 

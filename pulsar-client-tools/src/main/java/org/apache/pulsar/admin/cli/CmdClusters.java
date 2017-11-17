@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.util.Arrays;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -25,7 +27,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Sets;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -117,8 +119,8 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            java.util.List<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
-                    : Lists.newArrayList(peerClusterNames.split(","));
+            java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
+                    : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
             admin.clusters().updatePeerClusterNames(cluster, clusters);
         }
     }

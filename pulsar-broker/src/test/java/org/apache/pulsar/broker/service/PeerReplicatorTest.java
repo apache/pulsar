@@ -38,6 +38,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
+import com.google.common.collect.Sets;
+
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
@@ -116,7 +118,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         }
 
         // set peer-clusters : r3->r1
-        admin1.clusters().updatePeerClusterNames("r3", Lists.newArrayList("r1"));
+        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
         producer = client3.createProducer(topic1);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic1).get();
         assertNotNull(topic);
@@ -131,7 +133,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // set peer-clusters : r3->r2
-        admin2.clusters().updatePeerClusterNames("r3", Lists.newArrayList("r2"));
+        admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r2")));
         producer = client3.createProducer(topic2);
         topic = (PersistentTopic) pulsar2.getBrokerService().getTopic(topic2).get();
         assertNotNull(topic);

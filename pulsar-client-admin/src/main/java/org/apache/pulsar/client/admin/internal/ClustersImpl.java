@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -82,7 +83,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void updatePeerClusterNames(String cluster, List<String> peerClusterNames) throws PulsarAdminException {
+    public void updatePeerClusterNames(String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException {
         try {
             request(clusters.path(cluster).path("peers")).post(Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON),
                     ErrorData.class);
