@@ -476,19 +476,10 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
         if (metadata.partitions > 1) {
-            try {
-                validateClientVersion();
-            } catch (UnsupportedOperationException ue) {
-                log.warn("[{}] Client lib is not allowed to access partitioned metadata  {}, {}", clientAppId(),
-                        destination, ue.getMessage());
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Client lib is not compatible to access partitioned metadata " + ue.getMessage());
-            }
+            validateClientVersion();
         }
         return metadata;
     }
-
-    
 
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{destination}/partitions")
@@ -1489,7 +1480,8 @@ public class PersistentTopics extends AdminResource {
         }
         final String userAgent = httpRequest.getHeader("User-Agent");
         if (StringUtils.isBlank(userAgent)) {
-            throw new UnsupportedOperationException("User-agent is not present");
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Client lib is not compatible to access partitioned metadata: version in user-agent is not present");
         }
         // Version < 1.20 for cpp-client is not allowed
         if (userAgent.contains(DEPRECATED_CLIENT_VERSION_PREFIX)) {
@@ -1500,11 +1492,13 @@ public class PersistentTopics extends AdminResource {
                 if (splits != null && splits.length > 1) {
                     if (LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMajorVersion() > Integer.parseInt(splits[0])
                             || LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMinorVersion() > Integer.parseInt(splits[1])) {
-                        throw new UnsupportedOperationException("version " + userAgent + " is not supported");
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Client lib is not compatible to access partitioned metadata: version " + userAgent
+                                        + " is not supported");
                     }
                 }
-            } catch (UnsupportedOperationException ue) {
-                throw ue;
+            } catch (RestException re) {
+                throw re;
             } catch (Exception e) {
                 log.warn("[{}] Failed to parse version {} ", clientAppId(), userAgent);
             }
