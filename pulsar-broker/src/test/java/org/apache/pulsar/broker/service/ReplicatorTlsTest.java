@@ -30,7 +30,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-public class ReplicatorTlsTest extends ReplicatorTest {
+public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass
