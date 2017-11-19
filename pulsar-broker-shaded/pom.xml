@@ -32,7 +32,7 @@
 
   <artifactId>pulsar-broker-shaded</artifactId>
   <packaging>jar</packaging>
-  <name>Pulsar Broker</name>
+  <name>Pulsar Shaded Broker</name>
 
   <dependencies>
     <dependency>
