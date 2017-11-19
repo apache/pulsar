@@ -20,9 +20,8 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -76,16 +75,15 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class NonPersistentTopic implements Topic {
     private final String topic;
@@ -112,9 +110,6 @@ public class NonPersistentTopic implements Topic {
     private final OrderedSafeExecutor executor;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
-    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ")
-            .withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;

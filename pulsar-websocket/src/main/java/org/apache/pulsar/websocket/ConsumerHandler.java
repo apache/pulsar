@@ -21,9 +21,6 @@ package org.apache.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +36,7 @@ import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
@@ -125,7 +123,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
-            dm.publishTime = DATE_FORMAT.format(Instant.ofEpochMilli(msg.getPublishTime()));
+            dm.publishTime = DateFormatter.format(msg.getPublishTime());
+            if (msg.getEventTime() != 0) {
+                dm.eventTime = DateFormatter.format(msg.getEventTime());
+            }
             if (msg.hasKey()) {
                 dm.key = msg.getKey();
             }
@@ -284,8 +285,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         return parts.get(8);
     }
-
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 

@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DATE_FORMAT;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
-import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
@@ -38,6 +36,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +84,7 @@ public class Producer {
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();
-        stats.connectedSince = DATE_FORMAT.format(Instant.now());
+        stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
         stats.producerName = producerName;
         stats.producerId = producerId;
