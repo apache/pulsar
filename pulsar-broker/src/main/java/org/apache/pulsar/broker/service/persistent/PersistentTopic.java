@@ -92,6 +92,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -142,8 +143,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
-
-    public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     // Timestamp of when this topic was last seen active
     private volatile long lastActive;
@@ -1187,10 +1186,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.totalSize = ml.getTotalSize();
         stats.currentLedgerEntries = ml.getCurrentLedgerEntries();
         stats.currentLedgerSize = ml.getCurrentLedgerSize();
-        stats.lastLedgerCreatedTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(ml.getLastLedgerCreatedTimestamp()));
+        stats.lastLedgerCreatedTimestamp = DateFormatter.format(ml.getLastLedgerCreatedTimestamp());
         if (ml.getLastLedgerCreationFailureTimestamp() != 0) {
-            stats.lastLedgerCreationFailureTimestamp = DATE_FORMAT
-                    .format(Instant.ofEpochMilli(ml.getLastLedgerCreationFailureTimestamp()));
+            stats.lastLedgerCreationFailureTimestamp = DateFormatter.format(ml.getLastLedgerCreationFailureTimestamp());
         }
 
         stats.waitingCursorsCount = ml.getWaitingCursorsCount();
@@ -1220,7 +1218,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             cs.cursorLedger = cursor.getCursorLedger();
             cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
-            cs.lastLedgerSwitchTimestamp = DATE_FORMAT.format(Instant.ofEpochMilli(cursor.getLastLedgerSwitchTimestamp()));
+            cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
             cs.state = cursor.getState();
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();

@@ -98,6 +98,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -121,8 +122,6 @@ import io.swagger.annotations.ApiResponses;
 @Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
 public class PersistentTopics extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
-
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
@@ -1026,7 +1025,7 @@ public class PersistentTopics extends AdminResource {
             }
         }
     }
-    
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
@@ -1077,8 +1076,10 @@ public class PersistentTopics extends AdminResource {
                 responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
             }
             if (metadata.hasPublishTime()) {
-                responseBuilder.header("X-Pulsar-publish-time",
-                        DATE_FORMAT.format(Instant.ofEpochMilli(metadata.getPublishTime())));
+                responseBuilder.header("X-Pulsar-publish-time", DateFormatter.format(metadata.getPublishTime()));
+            }
+            if (metadata.hasEventTime()) {
+                responseBuilder.header("X-Pulsar-event-time", DateFormatter.format(metadata.getEventTime()));
             }
             if (metadata.hasNumMessagesInBatch()) {
                 responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
@@ -1410,7 +1411,7 @@ public class PersistentTopics extends AdminResource {
                             });
                             // wait for all subscriptions to be created
                             FutureUtil.waitForAll(subscriptionCreationFuture).handle((res, subscriptionException) -> {
-                                // close all topics and then complete result future 
+                                // close all topics and then complete result future
                                 FutureUtil.waitForAll(
                                         topics.stream().map(topic -> topic.close()).collect(Collectors.toList()))
                                         .handle((closed, topicCloseException) -> {
@@ -1444,7 +1445,7 @@ public class PersistentTopics extends AdminResource {
         });
         return result;
     }
-    
+
     protected void unloadTopic(DestinationName destination, boolean authoritative) {
         validateSuperUserAccess();
         validateDestinationOwnership(destination, authoritative);
