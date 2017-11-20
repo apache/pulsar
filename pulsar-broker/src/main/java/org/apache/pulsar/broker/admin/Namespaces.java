@@ -550,24 +550,25 @@ public class Namespaces extends AdminResource {
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
 
+        Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
         if (!cluster.equals("global")) {
             throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
         }
 
-        if (clusterIds.contains("global")) {
+        if (replicationClusterSet.contains("global")) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "Cannot specify global in the list of replication clusters");
         }
 
         Set<String> clusters = clusters();
-        for (String clusterId : clusterIds) {
+        for (String clusterId : replicationClusterSet) {
             if (!clusters.contains(clusterId)) {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
-            validatePeerClusterConflict(clusterId, clusters);
+            validatePeerClusterConflict(clusterId, replicationClusterSet);
         }
 
-        for (String clusterId : clusterIds) {
+        for (String clusterId : replicationClusterSet) {
             validateClusterForProperty(property, clusterId);
         }
 
@@ -1510,19 +1511,19 @@ public class Namespaces extends AdminResource {
      * @param clusters:
      *            replication-cluster list
      */
-    private void validatePeerClusterConflict(String clusterName, Set<String> clusters) {
+    private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
-            Optional<ClusterData> clusterData = clustersCache().get(path("clusters", clusterName));
-            if (clusterData.isPresent()) {
-                LinkedHashSet<String> peerClusters = clusterData.get().getPeerClusterNames();
-                if (peerClusters != null && !peerClusters.isEmpty()) {
-                    SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, clusters);
-                    if (!conflictPeerClusters.isEmpty()) {
-                        log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
-                                clusterName, conflictPeerClusters);
-                        throw new RestException(Status.CONFLICT, clusterName
-                                + "'s peer-clusters can't be part of replication-clusters " + conflictPeerClusters);
-                    }
+            ClusterData clusterData = clustersCache().get(path("clusters", clusterName)).orElseThrow(
+                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
+            Set<String> peerClusters = clusterData.getPeerClusterNames();
+            if (peerClusters != null && !peerClusters.isEmpty()) {
+                SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
+                if (!conflictPeerClusters.isEmpty()) {
+                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
+                            clusterName, conflictPeerClusters);
+                    throw new RestException(Status.CONFLICT,
+                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
+                                    conflictPeerClusters, replicationClusters));
                 }
             }
         } catch (RestException re) {
