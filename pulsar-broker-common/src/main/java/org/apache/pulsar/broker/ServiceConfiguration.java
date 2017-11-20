@@ -107,6 +107,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int defaultNumberOfNamespaceBundles = 4;
 
     // Enable check for minimum allowed client library version
+    @FieldContext(dynamic = true)
     private boolean clientLibraryVersionCheckEnabled = false;
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks

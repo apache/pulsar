@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -114,6 +115,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import com.github.zafarkhaja.semver.Version;
 
 /**
  */
@@ -125,6 +127,8 @@ public class PersistentTopics extends AdminResource {
 
     protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
+    private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
+    private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1,21);
 
     @GET
     @Path("/{property}/{cluster}/{namespace}")
@@ -469,7 +473,11 @@ public class PersistentTopics extends AdminResource {
             @PathParam("destination") @Encoded String destination,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         destination = decode(destination);
-       return getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(property, cluster, namespace, destination, authoritative);
+        if (metadata.partitions > 1) {
+            validateClientVersion();
+        }
+        return metadata;
     }
 
     @DELETE
@@ -1460,5 +1468,42 @@ public class PersistentTopics extends AdminResource {
             log.error("[{}] Failed to unload topic {}, {}", clientAppId(), destination, e.getCause().getMessage(), e);
             throw new RestException(e.getCause());
         }
+    }
+
+    // as described at : (PR: #836) CPP-client old client lib should not be allowed to connect on partitioned-topic.
+    // So, all requests from old-cpp-client (< v1.21) must be rejected.
+    // Pulsar client-java lib always passes user-agent as X-Java-$version.
+    // However, cpp-client older than v1.20 (PR #765) never used to pass it.
+    // So, request without user-agent and Pulsar-CPP-vX (X < 1.21) must be rejected
+    private void validateClientVersion() {
+        if (!pulsar().getConfiguration().isClientLibraryVersionCheckEnabled()) {
+            return;
+        }
+        final String userAgent = httpRequest.getHeader("User-Agent");
+        if (StringUtils.isBlank(userAgent)) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Client lib is not compatible to access partitioned metadata: version in user-agent is not present");
+        }
+        // Version < 1.20 for cpp-client is not allowed
+        if (userAgent.contains(DEPRECATED_CLIENT_VERSION_PREFIX)) {
+            try {
+                // Version < 1.20 for cpp-client is not allowed
+                String[] tokens = userAgent.split(DEPRECATED_CLIENT_VERSION_PREFIX);
+                String[] splits = tokens.length > 1 ? tokens[1].split("-")[0].trim().split("\\.") : null;
+                if (splits != null && splits.length > 1) {
+                    if (LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMajorVersion() > Integer.parseInt(splits[0])
+                            || LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMinorVersion() > Integer.parseInt(splits[1])) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Client lib is not compatible to access partitioned metadata: version " + userAgent
+                                        + " is not supported");
+                    }
+                }
+            } catch (RestException re) {
+                throw re;
+            } catch (Exception e) {
+                log.warn("[{}] Failed to parse version {} ", clientAppId(), userAgent);
+            }
+        }
+        return;
     }
 }
