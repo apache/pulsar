@@ -299,6 +299,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
                         loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             } catch (KeeperException.NodeExistsException e) {
+                long ownerZkSessionId = getBrokerZnodeOwner();
+                if (ownerZkSessionId != 0 && ownerZkSessionId != pulsar.getZkClient().getSessionId()) {
+                    log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
+                            ownerZkSessionId);
+                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
+                }
                 // Node may already be created by another load manager: in this case update the data.
                 if (loadReport != null) {
                     pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
@@ -1469,5 +1475,16 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         loadReportCacheZk.clear();
         availableActiveBrokers.close();
         scheduler.shutdown();
+    }
+    
+    private long getBrokerZnodeOwner() {
+        try {
+            Stat stat = new Stat();
+            pulsar.getZkClient().getData(brokerZnodePath, false, stat);
+            return stat.getEphemeralOwner();
+        } catch (Exception e) {
+            log.warn("Failed to get stat of {}", brokerZnodePath, e);
+        }
+        return 0;
     }
 }
