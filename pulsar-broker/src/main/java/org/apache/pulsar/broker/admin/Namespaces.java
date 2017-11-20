@@ -24,9 +24,11 @@ import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_PO
 
 import java.net.URI;
 import java.net.URL;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -80,11 +82,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/namespaces")
@@ -538,6 +543,7 @@ public class Namespaces extends AdminResource {
     @ApiOperation(value = "Set the replication clusters for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
     public void setNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, List<String> clusterIds) {
@@ -558,6 +564,7 @@ public class Namespaces extends AdminResource {
             if (!clusters.contains(clusterId)) {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
+            validatePeerClusterConflict(clusterId, clusters);
         }
 
         for (String clusterId : clusterIds) {
@@ -1495,5 +1502,35 @@ public class Namespaces extends AdminResource {
         }
     }
 
+    /**
+     * It validates that peer-clusters can't coexist in replication-clusters
+     * 
+     * @param clusterName:
+     *            given cluster whose peer-clusters can't be present into replication-cluster list
+     * @param clusters:
+     *            replication-cluster list
+     */
+    private void validatePeerClusterConflict(String clusterName, Set<String> clusters) {
+        try {
+            Optional<ClusterData> clusterData = clustersCache().get(path("clusters", clusterName));
+            if (clusterData.isPresent()) {
+                LinkedHashSet<String> peerClusters = clusterData.get().getPeerClusterNames();
+                if (peerClusters != null && !peerClusters.isEmpty()) {
+                    SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, clusters);
+                    if (!conflictPeerClusters.isEmpty()) {
+                        log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
+                                clusterName, conflictPeerClusters);
+                        throw new RestException(Status.CONFLICT, clusterName
+                                + "'s peer-clusters can't be part of replication-clusters " + conflictPeerClusters);
+                    }
+                }
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
+        }
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

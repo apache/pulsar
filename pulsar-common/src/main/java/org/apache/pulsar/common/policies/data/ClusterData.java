@@ -120,21 +120,9 @@ public class ClusterData {
 
     @Override
     public String toString() {
-        StringBuilder str = new StringBuilder();
-        str.append(serviceUrl);
-        if (serviceUrlTls != null && !serviceUrlTls.isEmpty()) {
-            str.append(",");
-            str.append(serviceUrlTls);
-        }
-        if (brokerServiceUrl != null && !brokerServiceUrl.isEmpty()) {
-            str.append(",");
-            str.append(brokerServiceUrl);
-        }
-        if (brokerServiceUrlTls != null && !brokerServiceUrlTls.isEmpty()) {
-            str.append(",");
-            str.append(brokerServiceUrlTls);
-        }
-        return str.toString();
+        return Objects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
+                .add("brokerServiceUrl", brokerServiceUrl).add("brokerServiceUrlTls", brokerServiceUrlTls)
+                .add("peerClusterNames", peerClusterNames).toString();
     }
     
 }

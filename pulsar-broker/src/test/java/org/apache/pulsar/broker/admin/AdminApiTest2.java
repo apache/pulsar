@@ -585,5 +585,62 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
     }
+    
+    /**
+     * It validates that peer-cluster can't coexist in replication-cluster list
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testReplicationPeerCluster() throws Exception {
+        admin.clusters().createCluster("us-west1",
+                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west2",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west3",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west4",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east1",
+                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east2",
+                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("global", new ClusterData());
+
+        final String property = "peer-prop";
+        Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
+                "us-east2");
+        PropertyAdmin propConfig = new PropertyAdmin(Lists.newArrayList("test"), allowedClusters);
+        admin.properties().createProperty(property, propConfig);
+
+        final String namespace = property + "/global/conflictPeer";
+        admin.namespaces().createNamespace(namespace);
+
+        admin.clusters().updatePeerClusterNames("us-west1",
+                Sets.newLinkedHashSet(Lists.newArrayList("us-west2", "us-west3")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
+                Lists.newArrayList("us-west2", "us-west3"));
+
+        // (1) no conflicting peer
+        List<String> clusterIds = Lists.newArrayList("us-east1", "us-east2");
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+
+        // (2) conflicting peer
+        clusterIds = Lists.newArrayList("us-west2", "us-west3", "us-west1");
+        try {
+            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+            fail("Peer-cluster can't coexist in replication cluster list");
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok
+        }
+
+        clusterIds = Lists.newArrayList("us-west2", "us-west3");
+        // no peer coexist in replication clusters
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+
+        clusterIds = Lists.newArrayList("us-west1", "us-west4");
+        // no peer coexist in replication clusters
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+    }
 
 }
