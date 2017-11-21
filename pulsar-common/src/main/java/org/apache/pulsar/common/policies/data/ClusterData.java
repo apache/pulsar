@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.LinkedHashSet;
+import java.util.SortedSet;
+
 import com.google.common.base.Objects;
 
 public class ClusterData {
@@ -25,6 +30,9 @@ public class ClusterData {
     private String serviceUrlTls;
     private String brokerServiceUrl;
     private String brokerServiceUrlTls;
+    // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
+    // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
+    private LinkedHashSet<String> peerClusterNames;
 
     public ClusterData() {
     }
@@ -45,6 +53,14 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
+    public void update(ClusterData other) {
+        checkNotNull(other);
+        this.serviceUrl = other.serviceUrl;
+        this.serviceUrlTls = other.serviceUrlTls;
+        this.brokerServiceUrl = other.brokerServiceUrl;
+        this.brokerServiceUrlTls = other.brokerServiceUrlTls;
+    }
+    
     public String getServiceUrl() {
         return serviceUrl;
     }
@@ -77,6 +93,14 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
+    public LinkedHashSet<String> getPeerClusterNames() {
+        return peerClusterNames;
+    }
+
+    public void setPeerClusterNames(LinkedHashSet<String> peerClusterNames) {
+        this.peerClusterNames = peerClusterNames;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ClusterData) {
@@ -96,21 +120,9 @@ public class ClusterData {
 
     @Override
     public String toString() {
-        StringBuilder str = new StringBuilder();
-        str.append(serviceUrl);
-        if (serviceUrlTls != null && !serviceUrlTls.isEmpty()) {
-            str.append(",");
-            str.append(serviceUrlTls);
-        }
-        if (brokerServiceUrl != null && !brokerServiceUrl.isEmpty()) {
-            str.append(",");
-            str.append(brokerServiceUrl);
-        }
-        if (brokerServiceUrlTls != null && !brokerServiceUrlTls.isEmpty()) {
-            str.append(",");
-            str.append(brokerServiceUrlTls);
-        }
-        return str.toString();
+        return Objects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
+                .add("brokerServiceUrl", brokerServiceUrl).add("brokerServiceUrlTls", brokerServiceUrlTls)
+                .add("peerClusterNames", peerClusterNames).toString();
     }
     
 }

@@ -148,6 +148,9 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("delete my-cluster"));
         verify(mockClusters).deleteCluster("my-cluster");
+
+        clusters.run(split("update-peer-clusters my-cluster --peer-clusters c1,c2"));
+        verify(mockClusters).updatePeerClusterNames("my-cluster", Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
     }
 
     @Test

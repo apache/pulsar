@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -52,7 +53,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -61,10 +61,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -73,8 +71,6 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
-import com.google.gson.JsonObject;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
@@ -549,5 +545,102 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup1.cleanup();
         mockPulsarSetup2.cleanup();
     }
+
+    @Test
+    public void testPeerCluster() throws Exception {
+        admin.clusters().createCluster("us-west1",
+                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west2",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east1",
+                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east2",
+                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+
+        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
+        assertEquals(admin.clusters().getCluster("us-west2").getPeerClusterNames(), null);
+        // update cluster with duplicate peer-clusters in the list
+        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(
+                Lists.newArrayList("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
+                Lists.newArrayList("us-west2", "us-east1"));
+        admin.clusters().updatePeerClusterNames("us-west1", null);
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), null);
+
+        // Check name validation
+        try {
+            admin.clusters().updatePeerClusterNames("us-west1",
+                    Sets.newLinkedHashSet(Lists.newArrayList("invalid-cluster")));
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+
+        // Cluster itselft can't be part of peer-list
+        try {
+            admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west1")));
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof PreconditionFailedException);
+        }
+    }
     
+    /**
+     * It validates that peer-cluster can't coexist in replication-cluster list
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testReplicationPeerCluster() throws Exception {
+        admin.clusters().createCluster("us-west1",
+                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west2",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west3",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-west4",
+                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east1",
+                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("us-east2",
+                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("global", new ClusterData());
+
+        final String property = "peer-prop";
+        Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
+                "us-east2");
+        PropertyAdmin propConfig = new PropertyAdmin(Lists.newArrayList("test"), allowedClusters);
+        admin.properties().createProperty(property, propConfig);
+
+        final String namespace = property + "/global/conflictPeer";
+        admin.namespaces().createNamespace(namespace);
+
+        admin.clusters().updatePeerClusterNames("us-west1",
+                Sets.newLinkedHashSet(Lists.newArrayList("us-west2", "us-west3")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
+                Lists.newArrayList("us-west2", "us-west3"));
+
+        // (1) no conflicting peer
+        List<String> clusterIds = Lists.newArrayList("us-east1", "us-east2");
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+
+        // (2) conflicting peer
+        clusterIds = Lists.newArrayList("us-west2", "us-west3", "us-west1");
+        try {
+            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+            fail("Peer-cluster can't coexist in replication cluster list");
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok
+        }
+
+        clusterIds = Lists.newArrayList("us-west2", "us-west3");
+        // no peer coexist in replication clusters
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+
+        clusterIds = Lists.newArrayList("us-west1", "us-west4");
+        // no peer coexist in replication clusters
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+    }
+
 }

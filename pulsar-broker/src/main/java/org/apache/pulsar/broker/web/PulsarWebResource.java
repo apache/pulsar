@@ -23,10 +23,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import javax.servlet.ServletContext;
@@ -38,6 +41,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -59,6 +63,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 
 /**
  * Base class for Web resources in Pulsar. It provides basic authorization functions.
@@ -233,19 +238,12 @@ public abstract class PulsarWebResource {
         try {
             ClusterData differentClusterData = getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
-                URL webUrl;
-                if (pulsar.getConfiguration().isTlsEnabled() && !differentClusterData.getServiceUrlTls().isEmpty()) {
-                    webUrl = new URL(differentClusterData.getServiceUrlTls());
-                } else {
-                    webUrl = new URL(differentClusterData.getServiceUrl());
-                }
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort())
-                        .build();
+                URI redirect = getRedirectionUrl(differentClusterData); 
+                // redirect to the cluster requested
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(), redirect, cluster);
 
                 }
-                // redirect to the cluster requested
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
         } catch (WebApplicationException wae) {
@@ -258,6 +256,16 @@ public abstract class PulsarWebResource {
                     .format("Failed to validate Cluster configuration : cluster=%s  emsg=%s", cluster, e.getMessage()));
         }
 
+    }
+
+    private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
+        URL webUrl = null;
+        if (pulsar.getConfiguration().isTlsEnabled() && !differentClusterData.getServiceUrlTls().isEmpty()) {
+            webUrl = new URL(differentClusterData.getServiceUrlTls());
+        } else {
+            webUrl = new URL(differentClusterData.getServiceUrl());
+        }
+        return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
@@ -295,8 +303,8 @@ public abstract class PulsarWebResource {
     }
 
     protected static boolean isValidCluster(PulsarService pulsarSevice, String cluster) {// If the cluster name is
-                                                                                         // "global", don't validate the
-                                                                                         // cluster ownership.
+        // "global", don't validate the
+        // cluster ownership.
         // The validation will be done by checking the namespace configuration
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             return true;
@@ -501,29 +509,40 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected void validateReplicationSettingsOnNamespace(String property, String cluster, String namespace) {
-        NamespaceName namespaceName = new NamespaceName(property, cluster, namespace);
-        validateReplicationSettingsOnNamespace(pulsar(), namespaceName);
-    }
-
     /**
      * If the namespace is global, validate the following - 1. If replicated clusters are configured for this global
      * namespace 2. If local cluster belonging to this namespace is replicated 3. If replication is enabled for this
-     * namespace
+     * namespace <br/>
+     * It validates if local cluster is part of replication-cluster. If local cluster is not part of the replication
+     * cluster then it redirects request to peer-cluster if any of the peer-cluster is part of replication-cluster of
+     * this namespace. If none of the cluster is part of the replication cluster then it fails the validation.
      *
-     * @param pulsarService
      * @param namespace
      * @throws Exception
      */
-    protected static void validateReplicationSettingsOnNamespace(PulsarService pulsarService, NamespaceName namespace) {
+    protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
         try {
-            validateReplicationSettingsOnNamespaceAsync(pulsarService, namespace).get(cacheTimeOutInSec, SECONDS);
+            ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+                    .get(cacheTimeOutInSec, SECONDS);
+            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
+            // redirect to the peer-cluster
+            if (peerClusterData != null) {
+                URI redirect = getRedirectionUrl(peerClusterData);
+                // redirect to the cluster requested
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Redirecting the rest call to {}: cluster={}", redirect, peerClusterData);
+
+                }
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
         } catch (InterruptedException e) {
             log.warn("Time-out {} sec while validating policy on {} ", cacheTimeOutInSec, namespace);
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
+        } catch (WebApplicationException e) {
+            throw e;
         } catch (Exception e) {
-            if(e.getCause() instanceof WebApplicationException) {
+            if (e.getCause() instanceof WebApplicationException) {
                 throw (WebApplicationException) e.getCause();
             }
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
@@ -531,61 +550,86 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<Void> validateReplicationSettingsOnNamespaceAsync(PulsarService pulsarService,
+    protected static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
             NamespaceName namespace) {
+        if (!namespace.isGlobal()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final CompletableFuture<ClusterData> validationFuture = new CompletableFuture<>();
+        final String localCluster = pulsarService.getConfiguration().getClusterName();
+        final String path = AdminResource.path(POLICIES, namespace.getProperty(), namespace.getCluster(),
+                namespace.getLocalName());
 
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-
-        if (namespace.isGlobal()) {
-            String localCluster = pulsarService.getConfiguration().getClusterName();
-
-            String path = AdminResource.path(POLICIES, namespace.getProperty(), namespace.getCluster(),
-                    namespace.getLocalName());
-
-            pulsarService.getConfigurationCache().policiesCache().getAsync(path).thenAccept(policiesResult -> {
-
-                if (policiesResult.isPresent()) {
-                    Policies policies = policiesResult.get();
-                    if (policies.replication_clusters.isEmpty()) {
-                        String msg = String.format(
-                                "Global namespace does not have any clusters configured : local_cluster=%s ns=%s",
-                                localCluster, namespace.toString());
-                        log.warn(msg);
-                        validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                    } else if (!policies.replication_clusters.contains(localCluster)) {
-                        String msg = String.format(
-                                "Global namespace missing local cluster name in replication list : local_cluster=%s ns=%s repl_clusters=%s",
-                                localCluster, namespace.toString(), policies.replication_clusters);
-
-                        log.warn(msg);
-                        // TODO: when we have a fail-over policy defined, we should find the next cluster in the
-                        // replication
-                        // clusters to re-direct the request to
-                        validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                    } else {
-                        validationFuture.complete(null);
+        pulsarService.getConfigurationCache().policiesCache().getAsync(path).thenAccept(policiesResult -> {
+            if (policiesResult.isPresent()) {
+                Policies policies = policiesResult.get();
+                if (policies.replication_clusters.isEmpty()) {
+                    String msg = String.format(
+                            "Global namespace does not have any clusters configured : local_cluster=%s ns=%s",
+                            localCluster, namespace.toString());
+                    log.warn(msg);
+                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
+                } else if (!policies.replication_clusters.contains(localCluster)) {
+                    ClusterData ownerPeerCluster = getOwnerFromPeerClusterList(pulsarService,
+                            policies.replication_clusters);
+                    if (ownerPeerCluster != null) {
+                        // found a peer that own this namespace
+                        validationFuture.complete(ownerPeerCluster);
+                        return;
                     }
+                    String msg = String.format(
+                            "Global namespace missing local cluster name in replication list : local_cluster=%s ns=%s repl_clusters=%s",
+                            localCluster, namespace.toString(), policies.replication_clusters);
 
+                    log.warn(msg);
+                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
                 } else {
-                    String msg = String.format("Policies not found for %s namespace", namespace.toString());
-                    log.error(msg);
-                    validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, msg));
+                    validationFuture.complete(null);
                 }
-
-            }).exceptionally(ex -> {
-                String msg = String.format(
-                        "Failed to validate global cluster configuration : cluster=%s ns=%s  emsg=%s", localCluster,
-                        namespace, ex.getMessage());
+            } else {
+                String msg = String.format("Policies not found for %s namespace", namespace.toString());
                 log.error(msg);
-                validationFuture.completeExceptionally(new RestException(ex));
-                return null;
-            });
+                validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, msg));
+            }
+        }).exceptionally(ex -> {
+            String msg = String.format("Failed to validate global cluster configuration : cluster=%s ns=%s  emsg=%s",
+                    localCluster, namespace, ex.getMessage());
+            log.error(msg);
+            validationFuture.completeExceptionally(new RestException(ex));
+            return null;
+        });
+        return validationFuture;
+    }
 
-        } else {
-            validationFuture.complete(null);
+    private static ClusterData getOwnerFromPeerClusterList(PulsarService pulsar, List<String> replicationClusters) {
+        String currentCluster = pulsar.getConfiguration().getClusterName();
+        if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
+            return null;
         }
 
-        return validationFuture;
+        try {
+            Optional<ClusterData> cluster = pulsar.getConfigurationCache().clustersCache()
+                    .get(path("clusters", currentCluster));
+            if (!cluster.isPresent() || cluster.get().getPeerClusterNames() == null) {
+                return null;
+            }
+            Set<String> replicationClusterSet = Sets.newHashSet(replicationClusters);
+            for (String peerCluster : cluster.get().getPeerClusterNames()) {
+                if (replicationClusterSet.contains(peerCluster)) {
+                    return pulsar.getConfigurationCache().clustersCache().get(path("clusters", peerCluster))
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                                    "Peer cluster " + peerCluster + " data not found"));
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to get peer-cluster {}-{}", currentCluster, e.getMessage());
+            if (e instanceof RestException) {
+                throw (RestException) e;
+            } else {
+                throw new RestException(e);
+            }
+        }
+        return null;
     }
 
     protected void checkConnect(DestinationName destination) throws RestException, Exception {

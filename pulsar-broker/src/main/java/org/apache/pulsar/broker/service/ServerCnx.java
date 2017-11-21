@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -224,8 +224,11 @@ public class ServerCnx extends PulsarHandler {
                                     } else {
                                         log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress, topic,
                                                 ex.getMessage(), ex);
-                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
-                                                ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                                        ServerError error = (ex instanceof RestException)
+                                                && ((RestException) ex).getResponse().getStatus() < 500
+                                                        ? ServerError.MetadataError : ServerError.ServiceNotReady;
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error, ex.getMessage(),
+                                                requestId));
                                     }
                                 }
                                 lookupSemaphore.release();

@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
 import java.io.IOException;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -44,6 +47,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +58,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/clusters")
 @Api(value = "/clusters", description = "Cluster admin apis", tags = "clusters")
@@ -133,9 +136,69 @@ public class Clusters extends AdminResource {
 
         try {
             String clusterPath = path("clusters", cluster);
-            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(clusterData), -1);
+            Stat nodeStat = new Stat();
+            byte[] content = globalZk().getData(clusterPath, null, nodeStat);
+            ClusterData currentClusterData = jsonMapper().readValue(content, ClusterData.class);
+            // only update cluster-url-data and not overwrite other metadata such as peerClusterNames
+            currentClusterData.update(clusterData);
+            // Write back the new updated ClusterData into zookeeper
+            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(currentClusterData),
+                    nodeStat.getVersion());
             globalZkCache().invalidate(clusterPath);
             log.info("[{}] Updated cluster {}", clientAppId(), cluster);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
+            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+    }
+
+    @POST
+    @Path("/{cluster}/peers")
+    @ApiOperation(value = "Update peer-cluster-list for a cluster.", notes = "This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Cluster has been updated"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 412, message = "Peer cluster doesn't exist"),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+    public void setPeerClusterNames(@PathParam("cluster") String cluster, LinkedHashSet<String> peerClusterNames) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        // validate if peer-cluster exist
+        if (peerClusterNames != null && !peerClusterNames.isEmpty()) {
+            for (String peerCluster : peerClusterNames) {
+                try {
+                    if (cluster.equalsIgnoreCase(peerCluster)) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                cluster + " itself can't be part of peer-list");
+                    }
+                    clustersCache().get(path("clusters", peerCluster))
+                            .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
+                                    "Peer cluster " + peerCluster + " does not exist"));
+                } catch (RestException e) {
+                    log.warn("[{}] Peer cluster doesn't exist from {}, {}", clientAppId(), peerClusterNames,
+                            e.getMessage());
+                    throw e;
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames,
+                            e.getMessage());
+                    throw new RestException(e);
+                }
+            }
+        }
+
+        try {
+            String clusterPath = path("clusters", cluster);
+            Stat nodeStat = new Stat();
+            byte[] content = globalZk().getData(clusterPath, null, nodeStat);
+            ClusterData currentClusterData = jsonMapper().readValue(content, ClusterData.class);
+            currentClusterData.setPeerClusterNames(peerClusterNames);
+            // Write back the new updated ClusterData into zookeeper
+            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(currentClusterData), nodeStat.getVersion());
+            globalZkCache().invalidate(clusterPath);
+            log.info("[{}] Successfully added peer-cluster {} for {}", clientAppId(), peerClusterNames, cluster);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
