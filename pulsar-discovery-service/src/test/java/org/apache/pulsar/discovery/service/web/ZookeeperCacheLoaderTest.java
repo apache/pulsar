@@ -65,6 +65,7 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
 
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
 
+        @SuppressWarnings("resource")
         ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "", 30_000);
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
@@ -80,7 +81,13 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
             }
         }
 
-        Thread.sleep(100); // wait for 100 msec: to get cache updated
+        // strategically wait for cache to get sync
+        for (int i = 0; i < 5; i++) {
+            if (zkLoader.getAvailableBrokers().size() == 3 || i == 4) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
 
         // 2. get available brokers from ZookeeperCacheLoader
         List<LoadManagerReport> list = zkLoader.getAvailableBrokers();
