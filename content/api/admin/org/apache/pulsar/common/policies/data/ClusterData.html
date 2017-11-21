@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -170,36 +170,48 @@ extends Object</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getBrokerServiceUrlTls--">getBrokerServiceUrlTls</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrl--">getServiceUrl</a></span>()</code>&nbsp;</td>
+<td class="colFirst"><code>LinkedHashSet&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getPeerClusterNames--">getPeerClusterNames</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrlTls--">getServiceUrlTls</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrl--">getServiceUrl</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrlTls--">getServiceUrlTls</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#hashCode--">hashCode</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#setBrokerServiceUrl-java.lang.String-">setBrokerServiceUrl</a></span>(String&nbsp;brokerServiceUrl)</code>&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#setBrokerServiceUrlTls-java.lang.String-">setBrokerServiceUrlTls</a></span>(String&nbsp;brokerServiceUrlTls)</code>&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#setPeerClusterNames-java.util.LinkedHashSet-">setPeerClusterNames</a></span>(LinkedHashSet&lt;String&gt;&nbsp;peerClusterNames)</code>&nbsp;</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#setServiceUrl-java.lang.String-">setServiceUrl</a></span>(String&nbsp;serviceUrl)</code>&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#setServiceUrlTls-java.lang.String-">setServiceUrlTls</a></span>(String&nbsp;serviceUrlTls)</code>&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#toString--">toString</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i13" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html#update-org.apache.pulsar.common.policies.data.ClusterData-">update</a></span>(<a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a>&nbsp;other)</code>&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -271,6 +283,15 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a name="update-org.apache.pulsar.common.policies.data.ClusterData-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>update</h4>
+<pre>public&nbsp;void&nbsp;update(<a href="../../../../../../org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a>&nbsp;other)</pre>
+</li>
+</ul>
 <a name="getServiceUrl--">
 <!--   -->
 </a>
@@ -341,6 +362,24 @@ extends Object</pre>
 <li class="blockList">
 <h4>setBrokerServiceUrlTls</h4>
 <pre>public&nbsp;void&nbsp;setBrokerServiceUrlTls(String&nbsp;brokerServiceUrlTls)</pre>
+</li>
+</ul>
+<a name="getPeerClusterNames--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getPeerClusterNames</h4>
+<pre>public&nbsp;LinkedHashSet&lt;String&gt;&nbsp;getPeerClusterNames()</pre>
+</li>
+</ul>
+<a name="setPeerClusterNames-java.util.LinkedHashSet-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setPeerClusterNames</h4>
+<pre>public&nbsp;void&nbsp;setPeerClusterNames(LinkedHashSet&lt;String&gt;&nbsp;peerClusterNames)</pre>
 </li>
 </ul>
 <a name="equals-java.lang.Object-">
