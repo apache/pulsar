@@ -91,7 +91,7 @@ public class DestinationLookup extends PulsarWebResource {
         try {
             validateClusterOwnership(topic.getCluster());
             checkConnect(topic);
-            validateReplicationSettingsOnNamespace(pulsar(), topic.getNamespaceObject());
+            validateGlobalNamespaceOwnership(topic.getNamespaceObject());
         } catch (WebApplicationException we) {
             // Validation checks failed
             log.error("Validation check failed: {}", we.getMessage());
@@ -228,10 +228,19 @@ public class DestinationLookup extends PulsarWebResource {
                     return;
                 }
                 // (3) validate global namespace
-                validateReplicationSettingsOnNamespaceAsync(pulsarService, fqdn.getNamespaceObject())
-                        .thenAccept(success -> {
-                            // (4) all validation passed: initiate lookup
-                            validationFuture.complete(null);
+                checkLocalOrGetPeerReplicationCluster(pulsarService, fqdn.getNamespaceObject())
+                        .thenAccept(peerClusterData -> {
+                            if (peerClusterData == null) {
+                                // (4) all validation passed: initiate lookup
+                                validationFuture.complete(null);
+                                return;
+                            }
+                            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
+                            // request should be redirect to the peer-cluster
+                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
+                                    false));
+
                         }).exceptionally(ex -> {
                             validationFuture
                                     .complete(newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));

@@ -291,7 +291,11 @@ public abstract class AdminResource extends PulsarWebResource {
             String destination, boolean authoritative) {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateClusterOwnership(dn.getCluster());
-
+        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+        // producer/consumer
+        validateGlobalNamespaceOwnership(dn.getNamespaceObject());
+        
         try {
             checkConnect(dn);
         } catch (WebApplicationException e) {

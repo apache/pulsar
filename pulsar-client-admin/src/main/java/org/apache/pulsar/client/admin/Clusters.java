@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -112,6 +113,25 @@ public interface Clusters {
      *             Unexpected error
      */
     void updateCluster(String cluster, ClusterData clusterData) throws PulsarAdminException;
+    
+    /**
+     * Update peer cluster names.
+     * <p>
+     * This operation requires Pulsar super-user privileges.
+     *
+     * @param cluster
+     *            Cluster name
+     * @param peerClusterNames
+     *            list of peer cluster names
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updatePeerClusterNames(String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException;
 
     /**
      * Delete an existing cluster
