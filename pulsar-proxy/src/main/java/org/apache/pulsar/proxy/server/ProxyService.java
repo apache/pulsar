@@ -110,21 +110,24 @@ public class ProxyService implements Closeable {
     }
 
     public void start() throws Exception {
-        localZooKeeperConnectionService = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
-                proxyConfig.getZookeeperServers(), proxyConfig.getZookeeperSessionTimeoutMs());
-        localZooKeeperConnectionService.start(new ShutdownService() {
-            @Override
-            public void shutdown(int exitCode) {
-                LOG.error("Lost local ZK session. Shutting down the proxy");
-                Runtime.getRuntime().halt(-1);
-            }
-        });
-
-        discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
-        this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
-        authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
+        
+        if (proxyConfig.isDiscoveryServiceEnabled()) {
+            localZooKeeperConnectionService = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
+                    proxyConfig.getZookeeperServers(), proxyConfig.getZookeeperSessionTimeoutMs());
+            localZooKeeperConnectionService.start(new ShutdownService() {
+                @Override
+                public void shutdown(int exitCode) {
+                    LOG.error("Lost local ZK session. Shutting down the proxy");
+                    Runtime.getRuntime().halt(-1);
+                }
+            });
+
+            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
+            this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
+            authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
+        }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);

@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static java.lang.String.format;
+
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
+import org.asynchttpclient.config.AsyncHttpClientConfigHelper.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.sun.research.ws.wadl.Response;
 
 import io.prometheus.client.Counter;
 
 public class LookupProxyHandler {
+    private final int MAX_RETRIES = 10;
     private final ProxyService service;
     private final ProxyConnection proxyConnection;
     private final boolean connectWithTLS;
@@ -65,19 +73,24 @@ public class LookupProxyHandler {
         long clientRequestId = lookup.getRequestId();
         String topic = lookup.getTopic();
 
-        ServiceLookupData availableBroker = null;
-        try {
-            availableBroker = service.getDiscoveryProvider().nextBroker();
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
-            proxyConnection.ctx().writeAndFlush(
-                    Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
-            return;
+        String url;
+        ProxyConfiguration conf = service.getConfiguration();
+        if (conf.isDiscoveryServiceEnabled()) {
+            ServiceLookupData availableBroker = null;
+            try {
+                availableBroker = service.getDiscoveryProvider().nextBroker();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
+                return;
+            }
+            url = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
+                    : availableBroker.getPulsarServiceUrl();
+        } else {
+            url = this.connectWithTLS ? conf.getDiscoveryServiceURLTLS() : conf.getDiscoveryServiceURL();
         }
-
-        performLookup(clientRequestId, topic,
-                this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl(),
-                false, 10);
+        performLookup(clientRequestId, topic, url, false, MAX_RETRIES);
     }
 
     private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,
@@ -140,22 +153,62 @@ public class LookupProxyHandler {
 
         final long requestId = partitionMetadata.getRequestId();
         DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
+        ProxyConfiguration conf = service.getConfiguration();
+        if (conf.isDiscoveryServiceEnabled()) {
+            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole)
+                    .thenAccept(metadata -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Total number of partitions for topic {} is {}",
+                                    proxyConnection.clientAuthRole, dn, metadata.partitions);
+                        }
+                        proxyConnection.ctx()
+                                .writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
+                    }).exceptionally(ex -> {
+                        log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, dn,
+                                ex.getMessage(), ex);
+                        proxyConnection.ctx().writeAndFlush(Commands
+                                .newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+                        return null;
+                    });
+        } else {
+            handlePartitionMetadataResponse(requestId, dn,
+                    this.connectWithTLS ? conf.getDiscoveryServiceURLTLS() : conf.getDiscoveryServiceURL());
+        }
+    }
 
-        service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole)
-                .thenAccept(metadata -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Total number of partitions for topic {} is {}", proxyConnection.clientAuthRole,
-                                dn, metadata.partitions);
-                    }
-                    proxyConnection.ctx()
-                            .writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
-                }).exceptionally(ex -> {
-                    log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, dn,
-                            ex.getMessage(), ex);
-                    proxyConnection.ctx().writeAndFlush(Commands
-                            .newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
-                    return null;
-                });
+    private void handlePartitionMetadataResponse(long clientRequestId, DestinationName dn, String discoveryServiceUrl) {
+        URI brokerURI;
+        try {
+            brokerURI = new URI(discoveryServiceUrl);
+        } catch (URISyntaxException e) {
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newPartitionMetadataResponse(ServerError.MetadataError, e.getMessage(), clientRequestId));
+            return;
+        }
+
+        InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}'", addr);
+        }
+        service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            // Connected to backend broker
+            long requestId = service.newRequestId();
+            clientCnx.newLookup(Commands.newPartitionMetadataRequest(dn.toString(), requestId), requestId).thenAccept(lookupDataResult -> {
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
+            }).exceptionally((e) -> {
+                log.warn("[{}] failed to get Partitioned metadata : {}", dn.toString(),
+                        e.getCause().getMessage(), e);
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
+                return null;                
+            });
+        }).exceptionally(ex -> {
+            // Failed to connect to backend broker
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
+            return null;
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);
