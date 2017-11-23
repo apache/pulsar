@@ -1,7 +1,7 @@
 {
   "swagger" : "2.0",
   "info" : {
-    "description" : "This provides the REST API for admin\n                  operations",
+    "description" : "This provides the REST API for admin\n                      operations",
     "version" : "v1",
     "title" : "Pulsar Admin REST API",
     "license" : {
@@ -18,6 +18,8 @@
     "name" : "clusters"
   }, {
     "name" : "namespaces"
+  }, {
+    "name" : "non-persistent topic"
   }, {
     "name" : "persistent topic"
   }, {
@@ -111,6 +113,9 @@
           },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "409" : {
+            "description" : "Load-manager doesn't support operation"
           }
         }
       }
@@ -295,7 +300,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -355,7 +364,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -592,6 +605,35 @@
         }
       }
     },
+    "/clusters/{cluster}/peers" : {
+      "post" : {
+        "tags" : [ "clusters" ],
+        "summary" : "Update peer-cluster-list for a cluster.",
+        "description" : "This operation requires Pulsar super-user privileges.",
+        "operationId" : "setPeerClusterNames",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Cluster has been updated"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Cluster doesn't exist"
+          },
+          "412" : {
+            "description" : "Peer cluster doesn't exist"
+          }
+        }
+      }
+    },
     "/namespaces/{property}" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -610,7 +652,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -645,7 +691,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -1034,6 +1084,40 @@
         }
       }
     },
+    "/namespaces/{property}/{cluster}/{namespace}/deduplication" : {
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Enable or disable broker side deduplication for all topics in a namespace",
+        "description" : "",
+        "operationId" : "modifyDeduplication",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Property or cluster or namespace doesn't exist"
+          }
+        }
+      }
+    },
     "/namespaces/{property}/{cluster}/{namespace}/destinations" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -1062,7 +1146,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -1070,6 +1158,75 @@
           },
           "404" : {
             "description" : "Property or cluster or namespace doesn't exist"
+          }
+        }
+      }
+    },
+    "/namespaces/{property}/{cluster}/{namespace}/dispatchRate" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get dispatch-rate configured for the namespace, -1 represents not configured yet",
+        "description" : "",
+        "operationId" : "getDispatchRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/DispatchRate"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set dispatch-rate throttling for all topics of the namespace",
+        "description" : "",
+        "operationId" : "setDispatchRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
           }
         }
       }
@@ -1341,6 +1498,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "400" : {
+            "description" : "Invalid persistence policies"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -1427,6 +1587,9 @@
           },
           "404" : {
             "description" : "Property or cluster or namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Peer-cluster can't be part of replication-cluster"
           },
           "412" : {
             "description" : "Namespace is not global or invalid cluster ids"
@@ -1771,6 +1934,12 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "name" : "unload",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -1867,6 +2036,1255 @@
           },
           "404" : {
             "description" : "Namespace does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the list of destinations under a namespace.",
+        "description" : "",
+        "operationId" : "getList",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/partitioned" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the list of partitioned topics under a namespace.",
+        "description" : "",
+        "operationId" : "getPartitionedTopicList",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}" : {
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Delete a topic.",
+        "description" : "The topic cannot be deleted if there's any active subscription or producer connected to the it.",
+        "operationId" : "deleteTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic has active producers/subscriptions"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/all_subscription/expireMessages/{expireTimeInSeconds}" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Expire messages on all subscriptions of topic.",
+        "description" : "",
+        "operationId" : "expireMessagesForAllSubscriptions",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "expireTimeInSeconds",
+          "in" : "path",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int32"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic or subscription does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/backlog" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get estimated backlog for offline topic.",
+        "description" : "",
+        "operationId" : "getBacklog",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PersistentOfflineTopicStats"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/internal-info" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the internal stats for the topic.",
+        "description" : "",
+        "operationId" : "getManagedLedgerInfo",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/internalStats" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the internal stats for the topic.",
+        "description" : "",
+        "operationId" : "getInternalStats",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PersistentTopicInternalStats"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/partitioned-stats" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the stats for the partitioned topic.",
+        "description" : "",
+        "operationId" : "getPartitionedStats",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PartitionedTopicStats"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/partitions" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get partitioned topic metadata.",
+        "description" : "",
+        "operationId" : "getPartitionedMetadata",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PartitionedTopicMetadata"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Increment partitons of an existing partitioned topic.",
+        "description" : "It only increments partitions of existing non-global partitioned-topic",
+        "operationId" : "updatePartitionedTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "409" : {
+            "description" : "Partitioned topic does not exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Create a partitioned topic.",
+        "description" : "It needs to be called before creating a producer on a partitioned topic.",
+        "operationId" : "createPartitionedTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "409" : {
+            "description" : "Partitioned topic already exist"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Delete a partitioned topic.",
+        "description" : "It will also delete all the partitions of the topic if it exists.",
+        "operationId" : "deletePartitionedTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Partitioned topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/permissions" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get permissions on a destination.",
+        "description" : "Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at thenamespace level combined (union) with any eventual specific permission set on the destination.",
+        "operationId" : "getPermissionsOnDestination",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "object"
+              }
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/permissions/{role}" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Grant a new permission to a role on a single destination.",
+        "description" : "",
+        "operationId" : "grantPermissionsOnDestination",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "role",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Revoke permissions on a destination.",
+        "description" : "Revoke permissions to a role on a single destination. If the permission was not set at the destinationlevel, but rather at the namespace level, this operation will return an error (HTTP status code 412).",
+        "operationId" : "revokePermissionsOnDestination",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "role",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "412" : {
+            "description" : "Permissions are not set at the destination level"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/stats" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the stats for the topic.",
+        "description" : "",
+        "operationId" : "getStats",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PersistentTopicStats"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}" : {
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Delete a subscription.",
+        "description" : "There should not be any active consumers on the subscription.",
+        "operationId" : "deleteSubscription",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Subscription has active consumers"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/expireMessages/{expireTimeInSeconds}" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Expire messages on a topic subscription.",
+        "description" : "",
+        "operationId" : "expireTopicMessages",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "expireTimeInSeconds",
+          "in" : "path",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int32"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic or subscription does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/position/{messagePosition}" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Peek nth message on a topic subscription.",
+        "description" : "",
+        "operationId" : "peekNthMessage",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "messagePosition",
+          "in" : "path",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int32"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic, subscription or the message position does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Reset subscription to message position closest to given position.",
+        "description" : "It fence cursor and disconnects all active consumers before reseting cursor.",
+        "operationId" : "resetCursorOnPosition",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic/Subscription does not exist"
+          },
+          "405" : {
+            "description" : "Not supported for partitioned topics"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Reset subscription to message position closest to absolute timestamp (in ms).",
+        "description" : "It fence cursor and disconnects all active consumers before reseting cursor.",
+        "operationId" : "resetCursor",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "timestamp",
+          "in" : "path",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int64"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic/Subscription does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip/{numMessages}" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Skip messages on a topic subscription.",
+        "description" : "",
+        "operationId" : "skipMessages",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "numMessages",
+          "in" : "path",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int32"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic or subscription does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/skip_all" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Skip all messages on a topic subscription.",
+        "description" : "Completely clears the backlog on the subscription.",
+        "operationId" : "skipAllMessages",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Operation not allowed on non-persistent topic"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/subscriptions" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get the list of persistent subscriptions for a given topic.",
+        "description" : "",
+        "operationId" : "getSubscriptions",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object"
+              }
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/terminate" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
+        "description" : "",
+        "operationId" : "terminate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/MessageId"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Operation not allowed on non-persistent topic"
+          }
+        }
+      }
+    },
+    "/non-persistent/{property}/{cluster}/{namespace}/{destination}/unload" : {
+      "put" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Unload a topic",
+        "description" : "",
+        "operationId" : "unloadTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
           }
         }
       }
@@ -2756,11 +4174,63 @@
         }
       }
     },
+    "/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor" : {
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Reset subscription to message position closest to given position.",
+        "description" : "It fence cursor and disconnects all active consumers before reseting cursor.",
+        "operationId" : "resetCursorOnPosition",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "subName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic/Subscription does not exist"
+          },
+          "405" : {
+            "description" : "Not supported for partitioned topics"
+          }
+        }
+      }
+    },
     "/persistent/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor/{timestamp}" : {
       "post" : {
         "tags" : [ "persistent topic" ],
         "summary" : "Reset subscription to message position closest to absolute timestamp (in ms).",
-        "description" : "There should not be any active consumers on the subscription.",
+        "description" : "It fence cursor and disconnects all active consumers before reseting cursor.",
         "operationId" : "resetCursor",
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -2806,13 +4276,7 @@
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Not supported for global topics"
-          },
-          "412" : {
-            "description" : "Subscription has active consumers"
+            "description" : "Topic/Subscription does not exist"
           }
         }
       }
@@ -2917,6 +4381,9 @@
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Operation not allowed on non-persistent topic"
           }
         }
       }
@@ -3015,6 +4482,53 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Operation not allowed on non-persistent topic"
+          }
+        }
+      }
+    },
+    "/persistent/{property}/{cluster}/{namespace}/{destination}/unload" : {
+      "put" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Unload a topic",
+        "description" : "",
+        "operationId" : "unloadTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "destination",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3168,7 +4682,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -3187,7 +4705,11 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "type" : "string"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string"
+              }
             }
           },
           "403" : {
@@ -3445,6 +4967,13 @@
         },
         "brokerServiceUrlTls" : {
           "type" : "string"
+        },
+        "peerClusterNames" : {
+          "type" : "array",
+          "uniqueItems" : true,
+          "items" : {
+            "type" : "string"
+          }
         }
       }
     },
@@ -3475,8 +5004,7 @@
           "format" : "int32"
         },
         "blockedConsumerOnUnackedMsgs" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         },
         "address" : {
           "type" : "string"
@@ -3512,8 +5040,7 @@
           "type" : "string"
         },
         "waitingReadOp" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         },
         "pendingReadOps" : {
           "type" : "integer",
@@ -3539,6 +5066,38 @@
         },
         "state" : {
           "type" : "string"
+        },
+        "numberOfEntriesSinceFirstNotAckedMessage" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "totalNonContiguousDeletedMessagesRange" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "properties" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      }
+    },
+    "DispatchRate" : {
+      "type" : "object",
+      "properties" : {
+        "dispatchThrottlingRatePerTopicInMsg" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "dispatchThrottlingRatePerTopicInByte" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "ratePeriodInSecond" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -3601,6 +5160,12 @@
         "pulsarServiceUrlTls" : {
           "type" : "string"
         },
+        "persistentTopicsEnabled" : {
+          "type" : "boolean"
+        },
+        "nonPersistentTopicsEnabled" : {
+          "type" : "boolean"
+        },
         "timestamp" : {
           "type" : "integer",
           "format" : "int64"
@@ -3615,19 +5180,19 @@
         },
         "numTopics" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
         "numConsumers" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
         "numProducers" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
         "numBundles" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
         "systemResourceUsage" : {
           "$ref" : "#/definitions/SystemResourceUsage"
@@ -3700,13 +5265,41 @@
           "type" : "number",
           "format" : "double"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "underLoaded" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         },
         "overLoaded" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -3801,12 +5394,199 @@
           "enum" : [ "primary", "secondary", "shared" ]
         },
         "is_controlled" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         },
         "is_active" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
+        }
+      }
+    },
+    "NonPersistentPublisherStats" : {
+      "type" : "object",
+      "properties" : {
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "producerId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "address" : {
+          "type" : "string"
+        },
+        "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
+          "type" : "string"
+        },
+        "msgDropRate" : {
+          "type" : "number",
+          "format" : "double"
+        }
+      }
+    },
+    "NonPersistentReplicatorStats" : {
+      "type" : "object",
+      "properties" : {
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "replicationBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "connected" : {
+          "type" : "boolean"
+        },
+        "replicationDelayInSeconds" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "inboundConnection" : {
+          "type" : "string"
+        },
+        "inboundConnectedSince" : {
+          "type" : "string"
+        },
+        "outboundConnection" : {
+          "type" : "string"
+        },
+        "outboundConnectedSince" : {
+          "type" : "string"
+        },
+        "msgDropRate" : {
+          "type" : "number",
+          "format" : "double"
+        }
+      }
+    },
+    "NonPersistentSubscriptionStats" : {
+      "type" : "object",
+      "properties" : {
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "blockedSubscriptionOnUnackedMsgs" : {
+          "type" : "boolean"
+        },
+        "unackedMessages" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "Exclusive", "Shared", "Failover" ]
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "consumers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ConsumerStats"
+          }
+        },
+        "msgDropRate" : {
+          "type" : "number",
+          "format" : "double"
+        }
+      }
+    },
+    "NonPersistentTopicStats" : {
+      "type" : "object",
+      "properties" : {
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "storageSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "publishers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/NonPersistentPublisherStats"
+          }
+        },
+        "subscriptions" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/NonPersistentSubscriptionStats"
+          }
+        },
+        "replication" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/NonPersistentReplicatorStats"
+          }
+        },
+        "deduplicationStatus" : {
+          "type" : "string"
+        },
+        "msgDropRate" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -3858,7 +5638,7 @@
         "subscriptions" : {
           "type" : "object",
           "additionalProperties" : {
-            "$ref" : "#/definitions/PersistentSubscriptionStats"
+            "$ref" : "#/definitions/SubscriptionStats"
           }
         },
         "replication" : {
@@ -3866,6 +5646,9 @@
           "additionalProperties" : {
             "$ref" : "#/definitions/ReplicatorStats"
           }
+        },
+        "deduplicationStatus" : {
+          "type" : "string"
         },
         "metadata" : {
           "$ref" : "#/definitions/PartitionedTopicMetadata"
@@ -3975,49 +5758,6 @@
         }
       }
     },
-    "PersistentSubscriptionStats" : {
-      "type" : "object",
-      "properties" : {
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateRedeliver" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "blockedSubscriptionOnUnackedMsgs" : {
-          "type" : "boolean",
-          "default" : false
-        },
-        "unackedMessages" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "type" : {
-          "type" : "string",
-          "enum" : [ "Exclusive", "Shared", "Failover" ]
-        },
-        "msgRateExpired" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "consumers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/definitions/ConsumerStats"
-          }
-        }
-      }
-    },
     "PersistentTopicInternalStats" : {
       "type" : "object",
       "properties" : {
@@ -4111,7 +5851,7 @@
         "subscriptions" : {
           "type" : "object",
           "additionalProperties" : {
-            "$ref" : "#/definitions/PersistentSubscriptionStats"
+            "$ref" : "#/definitions/SubscriptionStats"
           }
         },
         "replication" : {
@@ -4119,6 +5859,9 @@
           "additionalProperties" : {
             "$ref" : "#/definitions/ReplicatorStats"
           }
+        },
+        "deduplicationStatus" : {
+          "type" : "string"
         }
       }
     },
@@ -4143,8 +5886,17 @@
             "$ref" : "#/definitions/BacklogQuota"
           }
         },
+        "clusterDispatchRate" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
+        },
         "persistence" : {
           "$ref" : "#/definitions/PersistencePolicies"
+        },
+        "deduplicationEnabled" : {
+          "type" : "boolean"
         },
         "latency_stats_sample_rate" : {
           "type" : "object",
@@ -4161,8 +5913,7 @@
           "$ref" : "#/definitions/RetentionPolicies"
         },
         "deleted" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         }
       }
     },
@@ -4397,8 +6148,7 @@
           "format" : "int64"
         },
         "connected" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         },
         "replicationDelayInSeconds" : {
           "type" : "integer",
@@ -4457,19 +6207,18 @@
           "format" : "double"
         },
         "dynamic" : {
-          "type" : "boolean",
-          "default" : false
+          "type" : "boolean"
         }
       }
     },
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
@@ -4496,6 +6245,48 @@
         "retentionSizeInMB" : {
           "type" : "integer",
           "format" : "int64"
+        }
+      }
+    },
+    "SubscriptionStats" : {
+      "type" : "object",
+      "properties" : {
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "blockedSubscriptionOnUnackedMsgs" : {
+          "type" : "boolean"
+        },
+        "unackedMessages" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "Exclusive", "Shared", "Failover" ]
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "consumers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ConsumerStats"
+          }
         }
       }
     },
