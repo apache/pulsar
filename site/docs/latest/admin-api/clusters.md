@@ -113,6 +113,7 @@ $ pulsar-admin clusters get cluster-1
     "serviceUrlTls": null,
     "brokerServiceUrl": "pulsar://my-cluster.org.com:6650/",
     "brokerServiceUrlTls": null
+    "peerClusterNames": null
 }
 ```
 
@@ -208,4 +209,28 @@ cluster-2
 
 ```java
 admin.clusters().getClusters();
+```
+
+### Update peer-cluster data
+
+Peer clusters can be configured for a given cluster in a Pulsar {% popover instance %}.
+
+#### pulsar-admin
+
+Use the [`update-peer-clusters`](../../reference/CliTools#pulsar-admin-clusters-update-peer-clusters) subcommand and specify the list of peer-cluster names.
+
+```
+$ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
+```
+
+#### REST API
+
+{% endpoint POST /admin/clusters/:cluster/peers %}
+
+[More info](../../reference/RestApi#/admin/clusters/:cluster/peers)
+
+#### Java
+
+```java
+admin.clusters().updatePeerClusterNames(clusterName, peerClusterList);
 ```

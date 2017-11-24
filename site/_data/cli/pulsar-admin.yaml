@@ -102,6 +102,9 @@ commands:
     argument: cluster-name
   - name: list
     description: List the existing clusters
+  - name: update-peer-clusters
+    description: Update peer cluster names
+    argument: peer-cluster-names
 - name: namespaces
   description: Operations about namespaces
   subcommands:
