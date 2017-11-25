@@ -834,6 +834,10 @@
         
         
         
+        <li><a href="/admin/clusters/:cluster/peers"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>clusters<span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span>peers</code></a></li>
+        
+        
+        
         <li><a href="/admin/namespaces/:property"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span></code></a></li>
         
         
@@ -866,7 +870,15 @@
         
         
         
+        <li><a href="/admin/namespaces/:property/:cluster/:namespace/deduplication"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>deduplication</code></a></li>
+        
+        
+        
         <li><a href="/admin/namespaces/:property/:cluster/:namespace/destinations"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>destinations</code></a></li>
+        
+        
+        
+        <li><a href="/admin/namespaces/:property/:cluster/:namespace/dispatchRate"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>dispatchRate</code></a></li>
         
         
         
@@ -923,6 +935,94 @@
         
         
         <li><a href="/admin/namespaces/:property/:cluster/:namespace/:bundle/unsubscribe/:subscription"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:bundle</span><span class="slash">/</span>unsubscribe<span class="slash">/</span><span class="endpoint">:subscription</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/partitioned"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>partitioned</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/all_subscription/expireMessages/:expireTimeInSeconds"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>all_subscription<span class="slash">/</span>expireMessages<span class="slash">/</span><span class="endpoint">:expireTimeInSeconds</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/backlog"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>backlog</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/internal-info"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>internal-info</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/internalStats"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>internalStats</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/partitioned-stats"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>partitioned-stats</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/partitions"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>partitions</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/permissions"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>permissions</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/permissions/:role"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>permissions<span class="slash">/</span><span class="endpoint">:role</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/stats"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>stats</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/expireMessages/:expireTimeInSeconds"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>expireMessages<span class="slash">/</span><span class="endpoint">:expireTimeInSeconds</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>position<span class="slash">/</span><span class="endpoint">:messagePosition</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor<span class="slash">/</span><span class="endpoint">:timestamp</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>skip<span class="slash">/</span><span class="endpoint">:numMessages</span></code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>skip_all</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscriptions"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscriptions</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/terminate"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>terminate</code></a></li>
+        
+        
+        
+        <li><a href="/admin/non-persistent/:property/:cluster/:namespace/:destination/unload"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>unload</code></a></li>
         
         
         
@@ -986,6 +1086,10 @@
         
         
         
+        <li><a href="/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor</code></a></li>
+        
+        
+        
         <li><a href="/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor<span class="slash">/</span><span class="endpoint">:timestamp</span></code></a></li>
         
         
@@ -1003,6 +1107,10 @@
         
         
         <li><a href="/admin/persistent/:property/:cluster/:namespace/:destination/terminate"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>terminate</code></a></li>
+        
+        
+        
+        <li><a href="/admin/persistent/:property/:cluster/:namespace/:destination/unload"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>unload</code></a></li>
         
         
         
@@ -1202,6 +1310,11 @@
               <tr>
                 <td>403</td>
                 <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Load-manager doesn't support operation</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
@@ -2270,6 +2383,81 @@
   
   
   
+  <div class="card" id="/admin/clusters/:cluster/peers">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>clusters<span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span>peers</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Update peer-cluster-list for a cluster.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>204</td>
+                <td>Cluster has been updated</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Cluster doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Peer cluster doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/namespaces/:property">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span></code></h5>
@@ -3187,6 +3375,85 @@
   
   
   
+  <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/deduplication">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>deduplication</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Enable or disable broker side deduplication for all topics in a namespace</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Property or cluster or namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/destinations">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>destinations</code></h5>
@@ -3259,6 +3526,153 @@
               <tr>
                 <td>404</td>
                 <td>Property or cluster or namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/dispatchRate">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>dispatchRate</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get dispatch-rate configured for the namespace, -1 represents not configured yet</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Set dispatch-rate throttling for all topics of the namespace</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
@@ -3821,6 +4235,11 @@
             <tbody>
               
               <tr>
+                <td>400</td>
+                <td>Invalid persistence policies</td>
+              </tr>
+              
+              <tr>
                 <td>403</td>
                 <td>Don't have admin permission</td>
               </tr>
@@ -3990,6 +4409,11 @@
               <tr>
                 <td>404</td>
                 <td>Property or cluster or namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Peer-cluster can't be part of replication-cluster</td>
               </tr>
               
               <tr>
@@ -4695,6 +5119,13 @@
                 <td>false</td>
                 <td>boolean</td>
               </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">unload</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
                <!-- for param in parameters -->
             </tbody>
           </table>
@@ -4901,6 +5332,2495 @@
               <tr>
                 <td>404</td>
                 <td>Namespace does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the list of destinations under a namespace.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/partitioned">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>partitioned</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the list of partitioned topics under a namespace.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Delete a topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Topic has active producers/subscriptions</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/all_subscription/expireMessages/:expireTimeInSeconds">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>all_subscription<span class="slash">/</span>expireMessages<span class="slash">/</span><span class="endpoint">:expireTimeInSeconds</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Expire messages on all subscriptions of topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">expireTimeInSeconds</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>integer</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic or subscription does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/backlog">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>backlog</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get estimated backlog for offline topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/internal-info">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>internal-info</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the internal stats for the topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/internalStats">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>internalStats</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the internal stats for the topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/partitioned-stats">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>partitioned-stats</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the stats for the partitioned topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/partitions">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>partitions</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get partitioned topic metadata.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Increment partitons of an existing partitioned topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Partitioned topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Create a partitioned topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Partitioned topic already exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Delete a partitioned topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Partitioned topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/permissions">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>permissions</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get permissions on a destination.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/permissions/:role">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>permissions<span class="slash">/</span><span class="endpoint">:role</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Grant a new permission to a role on a single destination.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">role</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Revoke permissions on a destination.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">role</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Permissions are not set at the destination level</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/stats">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>stats</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the stats for the topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Delete a subscription.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Subscription has active consumers</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/expireMessages/:expireTimeInSeconds">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>expireMessages<span class="slash">/</span><span class="endpoint">:expireTimeInSeconds</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Expire messages on a topic subscription.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">expireTimeInSeconds</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>integer</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic or subscription does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>position<span class="slash">/</span><span class="endpoint">:messagePosition</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Peek nth message on a topic subscription.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">messagePosition</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>integer</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic, subscription or the message position does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Reset subscription to message position closest to given position.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic/Subscription does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Not supported for partitioned topics</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor<span class="slash">/</span><span class="endpoint">:timestamp</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Reset subscription to message position closest to absolute timestamp (in ms).</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">timestamp</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>integer</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic/Subscription does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>skip<span class="slash">/</span><span class="endpoint">:numMessages</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Skip messages on a topic subscription.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">numMessages</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>integer</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic or subscription does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>skip_all</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Skip all messages on a topic subscription.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic or subscription does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on non-persistent topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/subscriptions">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscriptions</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the list of persistent subscriptions for a given topic.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/terminate">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>terminate</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on non-persistent topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/non-persistent/:property/:cluster/:namespace/:destination/unload">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>non-persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>unload</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Unload a topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
@@ -6684,6 +9604,111 @@
   
   
   
+  <div class="card" id="/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Reset subscription to message position closest to given position.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">subName</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic/Subscription does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Not supported for partitioned topics</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>subscription<span class="slash">/</span><span class="endpoint">:subName</span><span class="slash">/</span>resetcursor<span class="slash">/</span><span class="endpoint">:timestamp</span></code></h5>
@@ -6778,17 +9803,7 @@
               
               <tr>
                 <td>404</td>
-                <td>Topic does not exist</td>
-              </tr>
-              
-              <tr>
-                <td>405</td>
-                <td>Not supported for global topics</td>
-              </tr>
-              
-              <tr>
-                <td>412</td>
-                <td>Subscription has active consumers</td>
+                <td>Topic/Subscription does not exist</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
@@ -6997,6 +10012,11 @@
                 <td>404</td>
                 <td>Topic or subscription does not exist</td>
               </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on non-persistent topic</td>
+              </tr>
                <!-- for param in parameters -->
             </tbody>
           </table>
@@ -7183,6 +10203,104 @@
                 <td>200</td>
                 <td>successful operation</td>
               </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Topic does not exist</td>
+              </tr>
+              
+              <tr>
+                <td>405</td>
+                <td>Operation not allowed on non-persistent topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/persistent/:property/:cluster/:namespace/:destination/unload">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>persistent<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:destination</span><span class="slash">/</span>unload</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Unload a topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">destination</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">authoritative</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>boolean</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
               
               <tr>
                 <td>403</td>

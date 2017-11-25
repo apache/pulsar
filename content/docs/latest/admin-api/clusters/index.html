@@ -887,6 +887,7 @@
     <span class="s2">"serviceUrlTls"</span>: null,
     <span class="s2">"brokerServiceUrl"</span>: <span class="s2">"pulsar://my-cluster.org.com:6650/"</span>,
     <span class="s2">"brokerServiceUrlTls"</span>: null
+    <span class="s2">"peerClusterNames"</span>: null
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -982,6 +983,30 @@ cluster-2
 <h6 id="java-4">Java</h6>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<h3 id="update-peer-cluster-data">Update peer-cluster data</h3>
+
+<p>Peer clusters can be configured for a given cluster in a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+
+<h4 id="pulsar-admin-5">pulsar-admin</h4>
+
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-update-peer-clusters"><code class="highlighter-rouge">update-peer-clusters</code></a> subcommand and specify the list of peer-cluster names.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
+</code></pre>
+</div>
+
+<h4 id="rest-api-4">REST API</h4>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/clusters/<span class="endpoint">:cluster</span>/peers</code></pre></div>
+
+<p><a href="../../reference/RestApi#/admin/clusters/:cluster/peers">More info</a></p>
+
+<h4 id="java-5">Java</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updatePeerClusterNames</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">peerClusterList</span><span class="o">);</span>
 </code></pre>
 </div>
 
