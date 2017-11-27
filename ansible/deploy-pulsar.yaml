@@ -155,36 +155,6 @@
      - set_fact:
          benchmark_version: "{{ maven_version.stdout }}"
 
-- name: Setup Pulsar client
-  hosts: client
-  connection: ssh
-  become: true
-  tasks:
-    - name: Set up client config
-      template:
-        src: "templates/client.conf"
-        dest: "/opt/pulsar/conf/client.conf"
-    - name: Copy benchmark code
-      unarchive:
-        src: ../../package/target/openmessaging-benchmark-0.0.1-SNAPSHOT-bin.tar.gz
-        dest: /opt
-    - name: Configure service URL
-      lineinfile:
-         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/driver-pulsar/pulsar.yaml
-         regexp: '^    serviceUrl \: '
-         line: '    serviceUrl : {{ serviceUrl }}'
-    - name: Configure http URL
-      lineinfile:
-         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/driver-pulsar/pulsar.yaml
-         regexp: '^    httpUrl : '
-         line: '    httpUrl : {{ httpUrl }}'
-    - name: Configure http URL
-      lineinfile:
-         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/bin/benchmark
-         regexp: '^JVM_MEM='
-         line: 'JVM_MEM="-Xms48G -Xmx48G -XX:+UseShenandoahGC -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:-UseBiasedLocking"'
-
-
 - name:  Hosts addresses
   hosts: localhost
   tasks:
@@ -194,6 +164,3 @@
     - debug:
         msg: "Pulsar/BookKeeper servers {{ item }}"
       with_items: "{{ groups['pulsar'] }}"
-    - debug:
-        msg: "Benchmark client {{ item }}"
-      with_items: "{{ groups['client'] }}"

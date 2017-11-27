@@ -15,3 +15,4 @@ When you run the Ansible playbook, the following AWS resources will be used:
 * 7 total [Elastic Compute Cloud](https://aws.amazon.com/ec2) (EC2) instances
   * 3 small VMs for ZooKeeper
   * 3 larger VMs for Pulsar {% popover brokers %} and BookKeeper {% popover bookies %}
+* 
