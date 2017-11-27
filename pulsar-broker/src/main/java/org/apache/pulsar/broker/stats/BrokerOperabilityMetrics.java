@@ -90,6 +90,9 @@ public class BrokerOperabilityMetrics {
 
     public void reset() {
         metricsList.clear();
+        topicLoadStats.reset();
+        zkWriteLatencyStats.reset();
+        zkReadLatencyStats.reset();
     }
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
