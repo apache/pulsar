@@ -1,0 +1,199 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+- name: Format and mount disks
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - shell: >
+        sudo tuned-adm profile latency-performance &&
+        mkfs.xfs /dev/nvme0n1 &&
+        mkfs.xfs /dev/nvme1n1 &&
+        mkdir -p /mnt/journal &&
+        mkdir -p /mnt/storage &&
+        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&
+        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme1n1 /mnt/storage
+      args:
+        creates: /mnt/journal
+
+- name: Pulsar setup
+  hosts: all
+  connection: ssh
+  become: true
+  tasks:
+    - name: Install RPM packages
+      yum: pkg={{ item }} state=latest
+      with_items:
+          - wget
+          - java
+          - sysstat
+          - vim
+
+    - set_fact:
+        zookeeperServers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
+        serviceUrl: "pulsar://{{ hostvars[groups['pulsar'][0]].private_ip }}:6650/"
+        httpUrl: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
+
+    - name: Download Pulsar
+      file:
+        path: "/opt/pulsar"
+        state: directory
+    - get_url:
+        url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz
+        dest: /tmp/pulsar.tgz
+    - command: tar --strip-components=1 -xvf /tmp/pulsar.tgz
+      args:
+        chdir: /opt/pulsar
+
+    - set_fact:
+        private_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+        max_heap_memory: "24g"
+        max_direct_memory: "24g"
+    - template:
+        src: "templates/pulsar_env.sh"
+        dest: "/opt/pulsar/conf/pulsar_env.sh"
+
+- name: Setup ZooKeeper
+  hosts: zookeeper
+  connection: ssh
+  become: true
+  tasks:
+    - set_fact:
+        zid: "{{ groups['zookeeper'].index(inventory_hostname) }}"
+        max_heap_memory: "512m"
+        max_direct_memory: "512m"
+    - file:
+        path: "/opt/pulsar/{{ item }}"
+        state: directory
+      with_items:
+        - data/zookeeper
+    - template:
+        src: "templates/pulsar_env.sh"
+        dest: "/opt/pulsar/conf/pulsar_env.sh"
+    - template:
+        src: "templates/zoo.cfg"
+        dest: "/opt/pulsar/conf/zookeeper.conf"
+    - template:
+        src: templates/myid
+        dest: "/opt/pulsar/data/zookeeper/myid"
+    - template:
+        src: "templates/zookeeper.service"
+        dest: "/etc/systemd/system/zookeeper.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "zookeeper"
+    - command: >
+        bin/pulsar initialize-cluster-metadata --cluster local
+        --zookeeper localhost:2181
+        --global-zookeeper localhost:2181
+        --web-service-url {{ httpUrl }}
+        --broker-service-url {{ serviceUrl }}
+      args:
+        chdir: /opt/pulsar
+      when: groups['zookeeper'][0] == inventory_hostname
+
+- name: Setup Bookkeeper
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - template:
+        src: "templates/bookkeeper.conf"
+        dest: "/opt/pulsar/conf/bookkeeper.conf"
+    - name: Install bookkeeper systemd service
+      template:
+        src: "templates/bookkeeper.service"
+        dest: "/etc/systemd/system/bookkeeper.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "bookkeeper"
+
+- name: Setup Pulsar
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - name: Set up broker
+      template:
+        src: "templates/broker.conf"
+        dest: "/opt/pulsar/conf/broker.conf"
+    - template:
+        src: "templates/pulsar.service"
+        dest: "/etc/systemd/system/pulsar.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "pulsar"
+
+- name: Get Maven version
+  hosts: localhost
+  tasks:
+     - shell: >
+          cat ../../pom.xml | xmllint --format - \
+            | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - \
+            | grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"
+       register: maven_version
+     - set_fact:
+         benchmark_version: "{{ maven_version.stdout }}"
+
+- name: Setup Pulsar client
+  hosts: client
+  connection: ssh
+  become: true
+  tasks:
+    - name: Set up client config
+      template:
+        src: "templates/client.conf"
+        dest: "/opt/pulsar/conf/client.conf"
+    - name: Copy benchmark code
+      unarchive:
+        src: ../../package/target/openmessaging-benchmark-0.0.1-SNAPSHOT-bin.tar.gz
+        dest: /opt
+    - name: Configure service URL
+      lineinfile:
+         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/driver-pulsar/pulsar.yaml
+         regexp: '^    serviceUrl \: '
+         line: '    serviceUrl : {{ serviceUrl }}'
+    - name: Configure http URL
+      lineinfile:
+         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/driver-pulsar/pulsar.yaml
+         regexp: '^    httpUrl : '
+         line: '    httpUrl : {{ httpUrl }}'
+    - name: Configure http URL
+      lineinfile:
+         dest: /opt/openmessaging-benchmark-0.0.1-SNAPSHOT/bin/benchmark
+         regexp: '^JVM_MEM='
+         line: 'JVM_MEM="-Xms48G -Xmx48G -XX:+UseShenandoahGC -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:-UseBiasedLocking"'
+
+
+- name:  Hosts addresses
+  hosts: localhost
+  tasks:
+    - debug:
+        msg: "Zookeeper servers  {{ item }}"
+      with_items: "{{ groups['zookeeper'] }}"
+    - debug:
+        msg: "Pulsar/BookKeeper servers {{ item }}"
+      with_items: "{{ groups['pulsar'] }}"
+    - debug:
+        msg: "Benchmark client {{ item }}"
+      with_items: "{{ groups['client'] }}"
