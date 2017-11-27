@@ -33,7 +33,7 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
-  - title: Deploy using Ansible
+  - title: Deploy on AWS using Ansible
     endpoint: bare-metal/ansible
   - title: Deploying on bare metal
     endpoint: InstanceSetup
