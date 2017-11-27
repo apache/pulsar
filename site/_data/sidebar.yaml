@@ -33,6 +33,8 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
+  - title: Deploy using Ansible
+    endpoint: bare-metal/ansible
   - title: Deploying on bare metal
     endpoint: InstanceSetup
   - title: Pulsar on Kubernetes
