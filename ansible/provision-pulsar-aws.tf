@@ -25,36 +25,36 @@ provider "aws" {
 }
 
 # Create a VPC to launch our instances into
-resource "aws_vpc" "benchmark_vpc" {
+resource "aws_vpc" "pulsar_vpc" {
   cidr_block = "10.0.0.0/16"
 
   tags {
-      Name = "Benchmark-VPC"
+      Name = "Pulsar-VPC"
   }
 }
 
 # Create an internet gateway to give our subnet access to the outside world
 resource "aws_internet_gateway" "default" {
-  vpc_id = "${aws_vpc.benchmark_vpc.id}"
+  vpc_id = "${aws_vpc.pulsar_vpc.id}"
 }
 
 # Grant the VPC internet access on its main route table
 resource "aws_route" "internet_access" {
-  route_table_id         = "${aws_vpc.benchmark_vpc.main_route_table_id}"
+  route_table_id         = "${aws_vpc.pulsar_vpc.main_route_table_id}"
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = "${aws_internet_gateway.default.id}"
 }
 
 # Create a subnet to launch our instances into
-resource "aws_subnet" "benchmark_subnet" {
-  vpc_id                  = "${aws_vpc.benchmark_vpc.id}"
+resource "aws_subnet" "pulsar_subnet" {
+  vpc_id                  = "${aws_vpc.pulsar_vpc.id}"
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
 }
 
-resource "aws_security_group" "benchmark_security_group" {
+resource "aws_security_group" "pulsar_security_group" {
   name        = "terraform"
-  vpc_id      = "${aws_vpc.benchmark_vpc.id}"
+  vpc_id      = "${aws_vpc.pulsar_vpc.id}"
 
   # SSH access from anywhere
   ingress {
@@ -81,7 +81,7 @@ resource "aws_security_group" "benchmark_security_group" {
   }
 
   tags {
-      Name = "Benchmark-Security-Group"
+      Name = "Pulsar-Security-Group"
   }
 }
 
@@ -94,8 +94,8 @@ resource "aws_instance" "zookeeper" {
     ami           = "${var.ami}"
     instance_type = "t2.small"
     key_name      = "${aws_key_pair.auth.id}"
-    subnet_id     = "${aws_subnet.benchmark_subnet.id}"
-    vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
+    subnet_id     = "${aws_subnet.pulsar_subnet.id}"
+    vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
     count         = 3
 
     tags {
@@ -107,8 +107,8 @@ resource "aws_instance" "pulsar" {
     ami           = "${var.ami}"
     instance_type = "i3.4xlarge"
     key_name      = "${aws_key_pair.auth.id}"
-    subnet_id     = "${aws_subnet.benchmark_subnet.id}"
-    vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
+    subnet_id     = "${aws_subnet.pulsar_subnet.id}"
+    vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
     count         = 3
 
     tags {
