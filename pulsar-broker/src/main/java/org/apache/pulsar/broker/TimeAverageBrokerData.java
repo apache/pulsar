@@ -24,7 +24,7 @@ import java.util.Set;
 import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 /**
  * Data class aggregating the short term and long term data across all bundles belonging to a broker.
@@ -44,7 +44,7 @@ public class TimeAverageBrokerData extends JSONWritable {
 
     /**
      * Initialize a TimeAverageBrokerData.
-     * 
+     *
      * @param bundles
      *            The bundles belonging to the broker.
      * @param data
@@ -59,7 +59,7 @@ public class TimeAverageBrokerData extends JSONWritable {
 
     /**
      * Reuse this TimeAverageBrokerData using new data.
-     * 
+     *
      * @param bundles
      *            The bundles belonging to the broker.
      * @param data
@@ -174,7 +174,7 @@ public class TimeAverageBrokerData extends JSONWritable {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("shortTermMsgThroughputIn", shortTermMsgThroughputIn)
+        return MoreObjects.toStringHelper(this).add("shortTermMsgThroughputIn", shortTermMsgThroughputIn)
                 .add("shortTermMsgThroughputOut", shortTermMsgThroughputOut)
                 .add("shortTermMsgRateIn", shortTermMsgRateIn).add("shortTermMsgRateOut", shortTermMsgRateOut)
                 .add("longTermMsgThroughputIn", longTermMsgThroughputIn)

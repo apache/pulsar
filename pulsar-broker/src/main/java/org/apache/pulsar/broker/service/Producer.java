@@ -23,6 +23,7 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
@@ -41,7 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -96,14 +97,14 @@ public class Producer {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(producerName);
+        return Objects.hash(producerName);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Producer) {
             Producer other = (Producer) obj;
-            return Objects.equal(producerName, other.producerName) && Objects.equal(topic, other.topic);
+            return Objects.equals(producerName, other.producerName) && Objects.equals(topic, other.topic);
         }
 
         return false;
@@ -336,7 +337,7 @@ public class Producer {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topic).add("client", cnx.clientAddress())
+        return MoreObjects.toStringHelper(this).add("topic", topic).add("client", cnx.clientAddress())
                 .add("producerName", producerName).add("producerId", producerId).toString();
     }
 

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class PersistencePolicies {
     private int bookkeeperEnsemble;
@@ -69,7 +69,7 @@ public class PersistencePolicies {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("e", bookkeeperEnsemble).add("w", bookkeeperWriteQuorum)
+        return MoreObjects.toStringHelper(this).add("e", bookkeeperEnsemble).add("w", bookkeeperWriteQuorum)
                 .add("a", bookkeeperAckQuorum).add("ml-md-rate", managedLedgerMaxMarkDeleteRate).toString();
     }
 }

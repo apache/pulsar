@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class NamespaceEphemeralData {
     private String nativeUrl;
@@ -65,7 +65,7 @@ public class NamespaceEphemeralData {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("nativeUrl", nativeUrl).add("httpUrl", httpUrl)
+        return MoreObjects.toStringHelper(this).add("nativeUrl", nativeUrl).add("httpUrl", httpUrl)
                 .add("disabled", disabled).toString();
     }
 }

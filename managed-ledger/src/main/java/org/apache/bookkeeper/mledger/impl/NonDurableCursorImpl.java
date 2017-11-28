@@ -29,7 +29,7 @@ import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Range;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
@@ -116,7 +116,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     @Override
     public synchronized String toString() {
-        return Objects.toStringHelper(this).add("ledger", ledger.getName()).add("ackPos", markDeletePosition)
+        return MoreObjects.toStringHelper(this).add("ledger", ledger.getName()).add("ackPos", markDeletePosition)
                 .add("readPos", readPosition).toString();
     }
 

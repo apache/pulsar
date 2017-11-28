@@ -25,7 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 /**
  * 
@@ -254,7 +254,7 @@ public class RateLimiter implements AutoCloseable{
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("rateTime", rateTime).add("permits", permits)
+        return MoreObjects.toStringHelper(this).add("rateTime", rateTime).add("permits", permits)
                 .add("acquiredPermits", acquiredPermits).toString();
     }
 
