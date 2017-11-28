@@ -6,7 +6,7 @@ tags: [admin, deployment, cluster, ansible]
 {% include admonition.html type="info"
    content="For instructions on deploying a single Pulsar cluster manually rather than using Ansible, see [Deploying a Pulsar cluster on bare metal](../cluster). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](../instance)." %}
 
-One of the easiest ways to get a Pulsar {% popover cluster %} running on [Amazon Web Services](https://aws.amazon.com/) (AWS) is to use the the [Ansible](https://www.ansible.com) server automation tool. Pulsar's [GitHub]() repository.
+One of the easiest ways to get a Pulsar {% popover cluster %} running on [Amazon Web Services](https://aws.amazon.com/) (AWS) is to use the the [Ansible](https://www.ansible.com) server automation tool. Pulsar's [GitHub](https://github.com/apache/incubator-pulsar) repository.
 
 ## Requirements and setup
 
@@ -41,5 +41,7 @@ When you run the Ansible playbook, the following AWS resources will be used:
 * An EC2 [security group](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html)
 * A [virtual private cloud](https://aws.amazon.com/vpc/) (VPC) for security
 * An [API Gateway](https://aws.amazon.com/api-gateway/) for connections from the outside world
+* A [route table](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Route_Tables.html) for the Pulsar cluster's VPC
+* A [subnet](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html) for the VPC
 
-These EC2 instances will be in the [us-west-2](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html) region
+All EC2 instances for the cluster will run in the [us-west-2](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html) region.
