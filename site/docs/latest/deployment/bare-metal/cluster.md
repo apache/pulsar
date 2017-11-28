@@ -37,11 +37,30 @@ Deploying a Pulsar {% popover cluster %} involves doing the following (in order)
 * Deploying a [BookKeeper](#deploying-a-bookkeeper-cluster) cluster
 * Deploying one or more Pulsar [brokers](#deploying-pulsar-brokers)
 
-### System requirements
+### Requirements
 
-To run Pulsar on bare metal, you will need a cluster of at least 6 machines or VMs (3 running ZooKeeper and 3 running {% popover brokers %} and {% popover bookies %}).
+To run Pulsar on bare metal, you will need:
+
+* At least 6 Linux machines or VMs
+  * 3 running [ZooKeeper](https://zookeeper.apache.org)
+  * 3 running a Pulsar {% popover broker %} and a [BookKeeper](https://bookkeeper.apache.org) {% popover bookie %}
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
+
+### Hardware considerations
+
+When deploying a Pulsar cluster, we have some basic recommendations that you should keep in mind when capacity planning.
+
+For machines running ZooKeeper, we recommend using lighter-weight machines or VMs. Pulsar uses ZooKeeper only for periodic coordination- and configuration-related tasks, *not* for basic operations. If you're running Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance would likely suffice.
+
+For machines running a {% popover bookie %} and a Pulsar {% popover broker %}, we recommend using more powerful machines. For an AWS deployment, for example, [i3.4xlarge](https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/) instances may be appropriate. On those machines we also recommend:
+
+* Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
+* Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
+
+## Diagram
+
+{% img https://www.lucidchart.com/publicSegments/view/a096c5c3-e5ec-4f8b-9ee9-61d4fd058566/image.png 80 %}
 
 ## Installing the Pulsar binary package
 
@@ -79,7 +98,7 @@ Directory | Contains
 
 ## Deploying a ZooKeeper cluster
 
-[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you'll need to deploy ZooKeeper first (before all other components). We recommend deploying a **three-node ZooKeeper cluster**. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
+[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you'll need to deploy ZooKeeper first (before all other components). We recommend deploying a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
 To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](../../../reference/Configuration#zookeeper) (in the Pulsar directory you created [above](#installing-the-pulsar-binary-package)). Here's an example:
 
@@ -134,13 +153,13 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
-  --cluster us-west \
+  --cluster pulsar-cluster-1 \
   --zookeeper zk1.us-west.example.com:2181 \
   --global-zookeeper zk1.us-west.example.com:2184 \
-  --web-service-url http://pulsar.us-west.example.com:8080/ \
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+  --web-service-url http://pulsar.us-west.example.com:8080 \
+  --web-service-url-tls https://pulsar.us-west.example.com:8443 \
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
 As you can see from the example above, the following needs to be specified:
@@ -157,10 +176,76 @@ Flag | Description
 
 ## Deploying a BookKeeper cluster
 
-[BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar.
+[BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You will need to deploy a cluster of BookKeeper {% popover bookies %} to use Pulsar. We recommend running a **3-bookie BookKeeper cluster**.
 
-We recommend running a **three-bookie BookKeeper cluster**.
+BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](../../../reference/Configuration#bookkeeper) configuration file. The most important step in configuring bookies for our purposes here is ensuring that the [`zkServers`](../../../reference/Configuration#bookkeeper-zkServers) is set to the connection string for the ZooKeeper cluster. Here's an example:
+
+```properties
+zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+```
+
+Once you've appropriately modified the `zkServers` parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters [here](../../../reference/Configuration/#bookkeeper), although we would recommend consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide.
+
+Once you've applied the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
+
+To start the bookie in the background, use the [`pulsar-daemon`](../../../reference/CliTools#pulsar-daemon) CLI tool:
+
+```bash
+$ bin/pulsar-daemon start bookie
+```
+
+To start the bookie in the foreground:
+
+```bash
+$ bin/bookkeeper bookie
+```
+
+You can verify that the bookie is working properly using the `bookiesanity` command for the [BookKeeper shell](http://localhost:4000/docs/latest/deployment/reference/CliTools#bookkeeper-shell):
+
+```bash
+$ bin/bookkeeper shell bookiesanity
+```
+
+This will create an ephemeral BookKeeper {% popover ledger %} on the local bookie, write a few entries, read them back, and finally delete the ledger.
 
 ## Deploying Pulsar brokers
 
-We recommend deploying 3 brokers, with each broker running on the same machine as a BookKeeper bookie.
+Pulsar {% popover brokers %} are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running **3 brokers**, one for each machine that's already running a BookKeeper bookie.
+
+The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](../../../reference/Configuration#broker-zookeeperServers) and [`globalZookeeperServers`](../../../reference/Configuration#broker-globalZookeeperServers) parameters
+
+```properties
+zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+```
+
+The only difference between the two connection strings should be the port for each host (2181 and 2184 are the defaults). You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata):
+
+```properties
+clusterName=pulsar-cluster-1
+```
+
+You can then provide any other configuration changes that you'd like in the [`conf/broker.conf`](../../../reference/Configuration#broker) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
+
+You can start a broker in the foreground using the [`pulsar broker`](../../../reference/CliTools#pulsar-broker) command:
+
+```bash
+$ bin/pulsar broker
+```
+
+You can start a broker in the background using the [`pulsar-daemon`](../../../reference/CliTools#pulsar-daemon) CLI tool:
+
+```bash
+$ bin/pulsar-daemon start broker
+```
+
+## Google Cloud Platform example
+
+```bash
+$ gcloud compute networks create pulsar-network \
+  --subnet-mode custom
+$ gcloud compute networks subnets create pulsar-network-subnet \
+  --network pulsar-network \
+  --region us-central1 \
+  --range 192.168.1.0/24
+```
