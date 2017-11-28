@@ -143,6 +143,10 @@ message CommandConnect {
 	// a Pulsar proxy. In this case the auth info above
 	// will the the auth of the proxy itself
 	optional string original_principal = 7;
+	
+	// Originial clients auth data which needs to be 
+	// authenticated and authorized by the broker once again.
+	optional string original_auth_data = 8;
 }
 
 message CommandConnected {

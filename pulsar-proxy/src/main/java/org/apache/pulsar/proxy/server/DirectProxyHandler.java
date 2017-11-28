@@ -30,10 +30,12 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.PulsarLengthFieldFrameDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.asynchttpclient.config.AsyncHttpClientConfigHelper.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -51,15 +53,14 @@ public class DirectProxyHandler {
 
     private Channel inboundChannel;
     Channel outboundChannel;
-    private String originalPrincipal;
+    private ProxyService proxyService;
+    private ProxyConnection proxyConnection; 
     public static final String TLS_HANDLER = "tls";
 
-    private final Authentication authentication;
-
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
-        this.authentication = service.getClientAuthentication();
+        this.proxyService = service;
+        this.proxyConnection = proxyConnection;
         this.inboundChannel = proxyConnection.ctx().channel();
-        this.originalPrincipal = proxyConnection.clientAuthRole;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -86,7 +87,7 @@ public class DirectProxyHandler {
                     }
 
                     // Set client certificate if available
-                    AuthenticationDataProvider authData = authentication.getAuthData();
+                    AuthenticationDataProvider authData = service.getClientAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
                         builder.keyManager(authData.getTlsPrivateKey(),
                                 (X509Certificate[]) authData.getTlsCertificates());
@@ -133,11 +134,21 @@ public class DirectProxyHandler {
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             // Send the Connect command to broker
             String authData = "";
+            Authentication authentication = proxyService.getClientAuthentication();
             if (authentication.getAuthData().hasDataFromCommand()) {
                 authData = authentication.getAuthData().getCommandData();
             }
-            outboundChannel.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData,
-                    "Pulsar proxy", null /* target broker */, originalPrincipal));
+            ProxyConfiguration config = proxyService.getConfiguration();
+            ByteBuf command = null;
+            if (config.sendClientAuthRole() ) {
+                command = Commands.newConnect(authentication.getAuthMethodName(), authData,
+                        "Pulsar proxy", null /* target broker */, proxyConnection.clientAuthRole);
+            } else {
+                command = Commands.newConnect(authentication.getAuthMethodName(), authData,
+                        "Pulsar proxy", null /* target broker */, null, proxyConnection.clientAuthData);
+                
+            }
+            outboundChannel.writeAndFlush(command);
             outboundChannel.read();
         }
 

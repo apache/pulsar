@@ -91,6 +91,13 @@ public class Commands {
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
             String targetBroker, String originalPrincipal) {
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, originalPrincipal, null);
+        
+    }
+    
+    public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
+            String targetBroker, String originalPrincipal, String originalAuthData) {
+          
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
@@ -114,7 +121,10 @@ public class Commands {
         if (originalPrincipal != null) {
             connectBuilder.setOriginalPrincipal(originalPrincipal);
         }
-
+        
+        if (originalAuthData != null) {
+            connectBuilder.setOriginalAuthData(originalAuthData);
+        }
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
