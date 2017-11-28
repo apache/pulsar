@@ -48,9 +48,11 @@ To run Pulsar on bare metal, you will need:
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
 
-Here's a diagram showing the basic
+Here's a diagram showing the basic setup:
 
 {% img https://www.lucidchart.com/publicSegments/view/a096c5c3-e5ec-4f8b-9ee9-61d4fd058566/image.png 80 %}
+
+In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL, in this case `pulsar-cluster.acme.com`, that abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
 
 ### Hardware considerations
 
