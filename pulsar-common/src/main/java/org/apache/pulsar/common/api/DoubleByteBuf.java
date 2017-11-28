@@ -135,7 +135,12 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     @Override
     public int capacity() {
-        return b1.capacity() + b2.capacity();
+        return b1.writerIndex() + b2.writerIndex();
+    }
+
+    @Override
+    public int maxCapacity() {
+        return capacity();
     }
 
     @Override
