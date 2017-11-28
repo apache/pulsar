@@ -24,9 +24,6 @@ tags: [admin, deployment, instance, bare metal]
 
 -->
 
-<!-- Convenience variables to be used for download links -->
-{% capture binary_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-
 {% include admonition.html type="info"
   content="Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster, see the guide [here](../cluster)." %}
 
