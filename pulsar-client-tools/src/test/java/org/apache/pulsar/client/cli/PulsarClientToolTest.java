@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.cli.PulsarClientTool;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -51,11 +52,12 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 10000)
-    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException {
+    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException, PulsarAdminException {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
+        admin.properties().createProperty("property", new PropertyAdmin());
         String topicName = "persistent://property/ns/topic-scale-ns-0/topic";
 
         int numberOfMessages = 10;

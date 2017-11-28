@@ -100,7 +100,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          **/
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
-                "Cannot set replication on a non-global namespace");
+                "Property does not exist");
         assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Property does not exist");
         assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Property does not exist");
 
