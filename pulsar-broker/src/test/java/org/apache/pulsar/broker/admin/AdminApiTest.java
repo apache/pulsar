@@ -756,6 +756,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.persistentTopics().getSubscriptions(partitionedTopicName), Lists.newArrayList("my-sub"));
 
+        try {
+            admin.persistentTopics().deleteSubscription(partitionedTopicName, "my-sub");
+            fail("should have failed");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // ok
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
         Consumer consumer1 = client.subscribe(partitionedTopicName, "my-sub-1", conf);
 
         assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(partitionedTopicName)),
