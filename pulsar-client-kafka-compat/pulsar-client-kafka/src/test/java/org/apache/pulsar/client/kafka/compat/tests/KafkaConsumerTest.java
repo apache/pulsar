@@ -45,9 +45,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class KafkaConsumerTest extends BrokerTestBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        isTcpLookup = true;
         super.baseSetup();
     }
 
@@ -62,7 +64,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -99,7 +101,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testConsumerAutoCommit";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -142,7 +144,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testConsumerManualOffsetCommit";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -193,7 +195,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         admin.persistentTopics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -239,7 +241,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -293,7 +295,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
