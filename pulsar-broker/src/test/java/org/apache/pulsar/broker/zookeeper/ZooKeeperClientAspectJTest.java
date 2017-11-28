@@ -185,23 +185,23 @@ public class ZooKeeperClientAspectJTest {
             pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
             Metrics zkOpMetric = getMetric(pulsar, "zk_write_latency");
             Assert.assertNotNull(zkOpMetric);
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_rate_s"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_95percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_99_99_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_99_9_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_99_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_mean_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_latency_time_median_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_rate_s"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_95percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_99_99_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_99_9_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_99_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_mean_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_time_median_ms"));
 
             zkOpMetric = getMetric(pulsar, "zk_read_latency");
             Assert.assertNotNull(zkOpMetric);
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_rate_s"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_95percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_99_99_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_99_9_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_99_percentile_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_mean_ms"));
-            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_latency_time_median_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_rate_s"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_95percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_99_99_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_99_9_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_99_percentile_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_mean_ms"));
+            Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_read_time_median_ms"));
 
             CountDownLatch createLatch = new CountDownLatch(1);
             CountDownLatch deleteLatch = new CountDownLatch(1);
