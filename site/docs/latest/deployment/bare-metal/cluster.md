@@ -44,8 +44,13 @@ To run Pulsar on bare metal, you will need:
 * At least 6 Linux machines or VMs
   * 3 running [ZooKeeper](https://zookeeper.apache.org)
   * 3 running a Pulsar {% popover broker %} and a [BookKeeper](https://bookkeeper.apache.org) {% popover bookie %}
+* A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
+
+Here's a diagram showing the basic
+
+{% img https://www.lucidchart.com/publicSegments/view/a096c5c3-e5ec-4f8b-9ee9-61d4fd058566/image.png 80 %}
 
 ### Hardware considerations
 
@@ -57,10 +62,6 @@ For machines running a {% popover bookie %} and a Pulsar {% popover broker %}, w
 
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
-
-## Diagram
-
-{% img https://www.lucidchart.com/publicSegments/view/a096c5c3-e5ec-4f8b-9ee9-61d4fd058566/image.png 80 %}
 
 ## Installing the Pulsar binary package
 
@@ -239,13 +240,4 @@ You can start a broker in the background using the [`pulsar-daemon`](../../../re
 $ bin/pulsar-daemon start broker
 ```
 
-## Google Cloud Platform example
-
-```bash
-$ gcloud compute networks create pulsar-network \
-  --subnet-mode custom
-$ gcloud compute networks subnets create pulsar-network-subnet \
-  --network pulsar-network \
-  --region us-central1 \
-  --range 192.168.1.0/24
-```
+Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
