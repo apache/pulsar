@@ -1,0 +1,106 @@
+
+Apache Pulsar
+Copyright 2017 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+
+----------------------------------------------------------------------------------------------------
+
+Bouncy Castle
+Copyright (c) 2000-2015 The Legion Of The Bouncy Castle Inc. (http://www.bouncycastle.org)
+
+JCommander
+Copyright 2010 Cedric Beust cedric@beust.com
+
+EA Agent Loader
+Copyright (C) 2015 Electronic Arts Inc.  All rights reserved.
+
+Jackson
+Copyright ©2009 FasterXML, LLC
+
+Caffeine
+Copyright 2015 Ben Manes. All Rights Reserved.
+
+Java SemVer
+Copyright 2012-2014 Zafar Khaja <zafarkhaja@gmail.com>.
+
+GSon
+Copyright 2008 Google Inc.
+
+Guava
+Copyright (C) 2010 The Guava Authors
+
+Protocol Buffers - Google's data interchange format
+Copyright 2008 Google Inc.  All rights reserved.
+
+Swagger
+Copyright 2016 SmartBear Software
+
+DataSketches
+Copyright 2017, Yahoo! Inc.
+
+Java Annotations API
+Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
+
+Bean Validation API
+Copyright © 2007-2013 Red Hat, Inc.
+
+Java Web Service REST API
+Copyright (c) 2012-2015 Oracle and/or its affiliates. All rights reserved.
+
+JLine
+Copyright (c) 2002-2006, Marc Prud'hommeaux <mwp1@cornell.edu> All rights reserved.
+
+Joda Time
+Copyright 2001-2005 Stephen Colebourne
+
+Java Native Access JNA
+Copyright (c) 2007 Timothy Wall, All Rights Reserved
+
+AsyncHttpClient
+Copyright 2014-2016 AsyncHttpClient Project
+
+Jersey
+Copyright (c) 2011-2017 Oracle and/or its affiliates. All rights reserved.
+
+HdrHistogram
+Copyright (c) 2012, 2013, 2014, 2015, 2016 Gil Tene
+Copyright (c) 2014 Michael Barker
+Copyright (c) 2014 Matt Warren
+All rights reserved.
+
+Javassist
+Copyright (C) 1999- by Shigeru Chiba, All rights reserved.
+
+SLF4J
+Copyright (c) 2004-2017 QOS.ch
+
+RocksDB
+Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+Copyright (c) 2011 The LevelDB Authors. All rights reserved.
+
+----------------------------------------------------------------------------------------------------
+Apache Log4j
+Copyright 1999-2017 Apache Software Foundation
+
+ResolverUtil.java
+Copyright 2005-2006 Tim Fennell
+
+Dumbster SMTP test server
+Copyright 2004 Jason Paul Kitchen
+
+TypeUtil.java
+Copyright 2002-2012 Ramnivas Laddad, Juergen Hoeller, Chris Beams
+
+----------------------------------------------------------------------------------------------------
+
+Prometheus instrumentation library for JVM applications
+Copyright 2012-2015 The Prometheus Authors
+
+Netty
+Copyright 2014 The Netty Project
+
+High Performance Primitive Collections for Java
+(c) Carrot Search s.c., http://carrotsearch.com/
