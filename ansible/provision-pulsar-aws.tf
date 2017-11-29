@@ -24,6 +24,14 @@ variable "ami" {
   default = "ami-9fa343e7" // RHEL-7.4
 }
 
+variable "num_zookeeper_nodes" {
+  default = 3
+}
+
+variable "num_pulsar_brokers" {
+  default = 3
+}
+
 provider "aws" {
   region = "${var.region}"
 }
@@ -100,7 +108,7 @@ resource "aws_instance" "zookeeper" {
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
-  count                  = 3
+  count                  = ${var.num_zookeeper_nodes}
 
   tags {
     Name = "zk-${count.index}"
@@ -113,7 +121,7 @@ resource "aws_instance" "pulsar" {
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
-  count                  = 3
+  count                  = ${var.num_pulsar_brokers}
 
   tags {
     Name = "pulsar-${count.index}"
@@ -125,6 +133,6 @@ resource "aws_instance" "pulsar" {
   }
 
   provisioner "local-exec" {
-    command = "/bin/prepare-mounts.sh"
+    command = "sudo bash bin/prepare-mounts.bash"
   }
 }
