@@ -615,7 +615,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
-            <exclude>**/proto/*.java</exclude>
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto//PulsarApi.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>data/**</exclude>
@@ -686,48 +687,19 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
           <excludes>
-            <exclude>**/target/**</exclude>
-            <exclude>data/**</exclude>
-            <exclude>logs/**</exclude>
-            <exclude>**/test-output/**</exclude>
-            <exclude>**/*.hgrm</exclude>
-            <exclude>**/*.test</exclude>
-
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
-
-            <!-- Exclude site files -->
-            <exclude>site/Gemfile.lock</exclude>
-            <exclude>site/VERSIONS</exclude>
-            <exclude>site/_sass/bootstrap-sass/**</exclude>
-            <exclude>site/_sass/font-awesome/**</exclude>
-            <exclude>site/.sass-cache/**</exclude>
-            <exclude>site/fonts/**</exclude>
-            <exclude>site/img/**</exclude>
-            <exclude>site/js/jquery.scrollTo.min.js</exclude>
-            <exclude>site/js/jquery.tocify.min.js</exclude>
-            <exclude>generated-site/**</exclude>
-
-            <exclude>**/*.patch</exclude>
-            <exclude>.github/*.md</exclude>
-
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
 
             <!-- Protobuf generated files -->
-            <exclude>**/proto/*.java</exclude>
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto//PulsarApi.java</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
-            <exclude>**/*.versionsBackup</exclude>
-            <exclude>**/.classpath</exclude>
-            <exclude>**/.project</exclude>
-            <exclude>**/.settings/*</exclude>
-            <exclude>**/dependency-reduced-pom.xml</exclude>
-
             <exclude>pulsar-client-cpp/python/MANIFEST</exclude>
-            <exclude>**/*.egg-info/*</exclude>
 
             <!-- Dashboard are exported from grafana -->
             <exclude>docker/grafana/dashboards/*.json</exclude>
@@ -741,27 +713,16 @@ flexible messaging model and an intuitive client API.</description>
             <!-- Apache v2.0 Licensed code without ASF Copyright -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
 
-            <!-- Idea project files -->
-            <exclude>**/*.cbp</exclude>
-            <exclude>**/.idea/*</exclude>
-            <exclude>**/Project.cbp</exclude>
-
-            <!-- CMake temp files -->
-            <exclude>**/cmake_install.cmake</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/CMakeCache.txt</exclude>
-            <exclude>*/**/Makefile</exclude>
-
             <!-- Django generated code -->
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
             <exclude>dashboard/conf/uwsgi_params</exclude>
-            <exclude>docs/img/pulsar.svg</exclude>
 
             <!-- Exclude certificates used for tests -->
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
             <exclude>**/*.json</exclude>
+            <exclude>src/test/resources/athenz.conf.test</exclude>
           </excludes>
         </configuration>
       </plugin>
