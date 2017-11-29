@@ -70,7 +70,7 @@ resource "aws_key_pair" "auth" {
 
 resource "aws_instance" "zookeeper" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.zookeeper_node_ami}"
+  instance_type          = "${var.zookeeper_node_instance_type}"
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
@@ -83,7 +83,7 @@ resource "aws_instance" "zookeeper" {
 
 resource "aws_instance" "pulsar" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.pulsar_broker_ami}"
+  instance_type          = "${var.pulsar_broker_instance_type}"
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
@@ -95,24 +95,26 @@ resource "aws_instance" "pulsar" {
 
   provisioner "file" {
     source = "scripts/prepare-mounts.sh"
-    destination = "/usr/sbin/prepare-mounts.sh"
+    destination = "/tmp/prepare-mounts.sh"
 
     connection {
       type = "ssh"
-      user = "root"
+      user = "ec2-user"
+      agent = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /bin/prepare-mounts.sh",
-      "/usr/sbin/prepare-mounts.sh"
+      "sudo chmod +x /tmp/prepare-mounts.sh",
+      "/tmp/prepare-mounts.sh"
     ]
 
     connection {
       type = "ssh"
-      user = "root"
+      user = "ec2-user"
+      agent = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }

@@ -37,10 +37,10 @@ variable "num_pulsar_brokers" {
   default = 3
 }
 
-variable "zookeeper_node_ami" {
+variable "zookeeper_node_instance_type" {
   default = "t2.small"
 }
 
-variable "pulsar_broker_ami" {
+variable "pulsar_broker_instance_type" {
   default = "i3.4xlarge"
 }
