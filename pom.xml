@@ -693,16 +693,11 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
 
-            <!-- Protobuf generated files -->
+            <!-- These files are generated automatically by the Protobuf compiler
+                 and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto//PulsarApi.java</exclude>
-            <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
-
-            <exclude>pulsar-client-cpp/python/MANIFEST</exclude>
-
-            <!-- Dashboard are exported from grafana -->
-            <exclude>docker/grafana/dashboards/*.json</exclude>
 
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
@@ -710,7 +705,7 @@ flexible messaging model and an intuitive client API.</description>
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
-            <!-- Apache v2.0 Licensed code without ASF Copyright -->
+            <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
 
             <!-- Django generated code -->
