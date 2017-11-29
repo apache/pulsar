@@ -1,27 +1,31 @@
 variable "public_key_path" {
+  default = "~/.ssh/pulsar-terraform.pub"
+
   description = <<DESCRIPTION
 Path to the SSH public key to be used for authentication.
 Ensure this keypair is added to your local SSH agent so provisioners can
 connect.
 
-Example: ~/.ssh/terraform.pub
+Example: ~/.ssh/my-keys.pub
+Default: ~/.ssh/pulsar-terraform.pub
 DESCRIPTION
 }
 
 variable "key_name" {
+  default     = "pulsar-keys"
   description = "Desired name of AWS key pair"
 }
 
 variable "region" {
-    default = "us-west-2"
+  default = "us-west-2"
 }
 
 variable "ami" {
-    default = "ami-9fa343e7" // RHEL-7.4
+  default = "ami-9fa343e7" // RHEL-7.4
 }
 
 provider "aws" {
-    region     = "${var.region}"
+  region = "${var.region}"
 }
 
 # Create a VPC to launch our instances into
@@ -29,7 +33,7 @@ resource "aws_vpc" "pulsar_vpc" {
   cidr_block = "10.0.0.0/16"
 
   tags {
-      Name = "Pulsar-VPC"
+    Name = "Pulsar-VPC"
   }
 }
 
@@ -53,8 +57,8 @@ resource "aws_subnet" "pulsar_subnet" {
 }
 
 resource "aws_security_group" "pulsar_security_group" {
-  name        = "terraform"
-  vpc_id      = "${aws_vpc.pulsar_vpc.id}"
+  name   = "terraform"
+  vpc_id = "${aws_vpc.pulsar_vpc.id}"
 
   # SSH access from anywhere
   ingress {
@@ -81,7 +85,7 @@ resource "aws_security_group" "pulsar_security_group" {
   }
 
   tags {
-      Name = "Pulsar-Security-Group"
+    Name = "Pulsar-Security-Group"
   }
 }
 
@@ -91,27 +95,27 @@ resource "aws_key_pair" "auth" {
 }
 
 resource "aws_instance" "zookeeper" {
-    ami           = "${var.ami}"
-    instance_type = "t2.small"
-    key_name      = "${aws_key_pair.auth.id}"
-    subnet_id     = "${aws_subnet.pulsar_subnet.id}"
-    vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
-    count         = 3
+  ami                    = "${var.ami}"
+  instance_type          = "t2.small"
+  key_name               = "${aws_key_pair.auth.id}"
+  subnet_id              = "${aws_subnet.pulsar_subnet.id}"
+  vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
+  count                  = 3
 
-    tags {
-        Name = "zk-${count.index}"
-    }
+  tags {
+    Name = "zk-${count.index}"
+  }
 }
 
 resource "aws_instance" "pulsar" {
-    ami           = "${var.ami}"
-    instance_type = "i3.4xlarge"
-    key_name      = "${aws_key_pair.auth.id}"
-    subnet_id     = "${aws_subnet.pulsar_subnet.id}"
-    vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
-    count         = 3
+  ami                    = "${var.ami}"
+  instance_type          = "i3.4xlarge"
+  key_name               = "${aws_key_pair.auth.id}"
+  subnet_id              = "${aws_subnet.pulsar_subnet.id}"
+  vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
+  count                  = 3
 
-    tags {
-        Name = "pulsar-${count.index}"
-    }
+  tags {
+    Name = "pulsar-${count.index}"
+  }
 }

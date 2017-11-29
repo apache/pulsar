@@ -41,3 +41,8 @@ target/
 
 # Generated website
 generated-site/
+
+# Ansible and Terraform artifacts
+ansible/deploy-pulsar.retry
+ansible/terraform*
+ansible/.terraform/

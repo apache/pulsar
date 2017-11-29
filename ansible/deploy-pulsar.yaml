@@ -159,7 +159,7 @@
   hosts: localhost
   tasks:
     - debug:
-        msg: "Zookeeper servers  {{ item }}"
+        msg: "Zookeeper servers {{ item }}"
       with_items: "{{ groups['zookeeper'] }}"
     - debug:
         msg: "Pulsar/BookKeeper servers {{ item }}"

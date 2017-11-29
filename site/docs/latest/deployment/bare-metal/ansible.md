@@ -31,6 +31,16 @@ $ cd incubator-pulsar/ansible
 
 ## Running the Pulsar playbook
 
+### Create SSH keys
+
+```bash
+$ mkdir -p ~/.ssh/terraform
+$ ssh-keygen -b 2048 -t rsa -f ~/.ssh/terraform
+# Automatically creates terraform.pub
+# Enter the same passphrase twice
+
+```
+
 ## What is installed
 
 When you run the Ansible playbook, the following AWS resources will be used:
