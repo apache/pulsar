@@ -85,9 +85,9 @@ resource "aws_instance" "zookeeper" {
     destination = "/tmp/install-zookeeper.bash"
 
     connection {
-      type = "ssh"
-      user = "ec2-user"
-      agent = false
+      type        = "ssh"
+      user        = "ec2-user"
+      agent       = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }
@@ -99,9 +99,9 @@ resource "aws_instance" "zookeeper" {
     ]
 
     connection {
-      type = "ssh"
-      user = "ec2-user"
-      agent = false
+      type        = "ssh"
+      user        = "ec2-user"
+      agent       = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }
@@ -120,13 +120,13 @@ resource "aws_instance" "pulsar" {
   }
 
   provisioner "file" {
-    source = "scripts/prepare-mounts.sh"
-    destination = "/tmp/prepare-mounts.sh"
+    source      = "scripts/prepare-mounts.bash"
+    destination = "/tmp/prepare-mounts.bash"
 
     connection {
-      type = "ssh"
-      user = "ec2-user"
-      agent = false
+      type        = "ssh"
+      user        = "ec2-user"
+      agent       = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }
@@ -136,11 +136,46 @@ resource "aws_instance" "pulsar" {
     destination = "/tmp/install-pulsar.bash"
 
     connection {
-      type = "ssh"
-      user = "ec2-user"
-      agent = false
+      type        = "ssh"
+      user        = "ec2-user"
+      agent       = false
       private_key = "${file("${var.private_key_path}")}"
     }
+  }
+
+  provisioner "file" {
+    content     = "${data.template_file.bookkeeper_conf.rendered}"
+    destination = "/opt/pulsar/conf/bookkeeper.conf"
+  }
+
+  provisioner "file" {
+    source      = "templates/bookkeeper.service"
+    destination = "/etc/systemd/system/bookkeeper.service"
+  }
+
+  provisioner "file" {
+    source      = "${data.template_file.broker_conf.rendered}"
+    destination = "/opt/pulsar/conf/broker.conf"
+  }
+
+  provisioner "file" {
+    content     = "${count.index}"
+    destination = "/opt/pulsar/data/zookeeper/myid"
+  }
+
+  provisioner "file" {
+    source      = "${data.template_file.pulsar_env_sh_pulsar.rendered}"
+    destination = "/opt/pulsar/conf/pulsar_env.sh"
+  }
+
+  provisioner "file" {
+    source      = "templates/pulsar.service"
+    destination = "/etc/systemd/system/pulsar.service"
+  }
+
+  provisioner "file" {
+    source      = "templates/zookeeper.service"
+    destination = "/etc/systemd/system/zookeeper.service"
   }
 
   provisioner "remote-exec" {
@@ -148,7 +183,8 @@ resource "aws_instance" "pulsar" {
       "sudo chmod +x /tmp/prepare-mounts.bash",
       "sudo chmod +x /tmp/install-pulsar.bash",
       "/tmp/prepare-mounts.bash",
-      "/tmp/install-pulsar.bash ${var.pulsar_version}"
+      "/tmp/install-pulsar.bash ${var.pulsar_version}",
+      "sudo systemctl start /etc/systemd/system/zookeeper.service"
     ]
 
     connection {
@@ -157,5 +193,49 @@ resource "aws_instance" "pulsar" {
       agent = false
       private_key = "${file("${var.private_key_path}")}"
     }
+  }
+}
+
+data "template_file" "bookkeeper_conf" {
+  template = "${file("${path.module}/templates/bookkeeper.conf")}"
+
+  vars {
+    zookeeper_servers = ""
+    advertised_address = ""
+  }
+}
+
+data "template_file" "broker_conf" {
+  template = "${file("${path.module}/templates/broker.conf")}"
+
+  vars {
+    zookeeper_servers = ""
+    ip = ""
+  }
+}
+
+data "template_file" "pulsar_env_sh_zookeeper" {
+  template = "${file("${path.module}/templates/pulsar_env.sh")}"
+
+  vars {
+    max_heap_memory   = "512m"
+    max_direct_memory = "512m"
+  }
+}
+
+data "template_file" "pulsar_env_sh_pulsar" {
+  template = "${file("${path.module}/templates/pulsar_env.sh")}"
+
+  vars {
+    max_heap_memory   = "24g"
+    max_direct_memory = "24g"
+  }
+}
+
+data "template_file" "zoo_cfg" {
+  template = "${file("${path.module}/templates/zoo.cfg")}"
+
+  vars {
+    zookeeper_servers = ""
   }
 }

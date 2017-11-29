@@ -42,16 +42,16 @@
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm
-PULSAR_MEM=" -Xms{{ max_heap_memory }} -Xmx{{ max_heap_memory }} -XX:MaxDirectMemorySize={{ max_direct_memory }}"
+PULSAR_MEM=" -Xms${max_heap_memory} -Xmx${max_heap_memory} -XX:MaxDirectMemorySize=${max_direct_memory}"
 
 # Garbage collection options
 # PULSAR_GC=" -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB"
 PULSAR_GC=" -XX:+UseShenandoahGC -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis "
-PULSAR_GC="${PULSAR_GC} -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:-UseBiasedLocking"
-PULSAR_GC="${PULSAR_GC} -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=30m -Xloggc:/dev/shm/gc_%p.log"
+PULSAR_GC="$PULSAR_GC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:-UseBiasedLocking"
+PULSAR_GC="$PULSAR_GC -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=30m -Xloggc:/dev/shm/gc_%p.log"
 
 # Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
+PULSAR_EXTRA_OPTS="$PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=
