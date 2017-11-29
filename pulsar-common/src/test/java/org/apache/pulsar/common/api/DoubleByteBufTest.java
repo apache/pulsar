@@ -52,6 +52,10 @@ public class DoubleByteBufTest {
         }
 
         buf.release();
+
+        assertEquals(buf.refCnt(), 0);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
     }
 
     @Test
@@ -67,5 +71,9 @@ public class DoubleByteBufTest {
         assertEquals(buf.maxCapacity(), 256);
 
         buf.release();
+
+        assertEquals(buf.refCnt(), 0);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
     }
 }
