@@ -24,7 +24,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
@@ -35,12 +34,12 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
-        protected EntryImpl newObject(Handle handle) {
+        protected EntryImpl newObject(Handle<EntryImpl> handle) {
             return new EntryImpl(handle);
         }
     };
 
-    private final Handle recyclerHandle;
+    private final Handle<EntryImpl> recyclerHandle;
     private long ledgerId;
     private long entryId;
     ByteBuf data;
@@ -89,12 +88,12 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         EntryImpl entry = RECYCLER.get();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
-        entry.data = RecyclableDuplicateByteBuf.create(other.data);
+        entry.data = other.data.retainedDuplicate();
         entry.setRefCnt(1);
         return entry;
     }
 
-    private EntryImpl(Recycler.Handle recyclerHandle) {
+    private EntryImpl(Recycler.Handle<EntryImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
@@ -137,10 +136,15 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
     public long getEntryId() {
         return entryId;
     }
-    
+
     @Override
     public int compareTo(EntryImpl other) {
         return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
+    }
+
+    @Override
+    public ReferenceCounted touch(Object hint) {
+        return this;
     }
 
     @Override
@@ -150,7 +154,7 @@ final class EntryImpl extends AbstractReferenceCounted implements Entry, Compara
         data = null;
         ledgerId = -1;
         entryId = -1;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
 }
