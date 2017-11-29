@@ -118,4 +118,13 @@ resource "aws_instance" "pulsar" {
   tags {
     Name = "pulsar-${count.index}"
   }
+
+  provisioner "file" {
+    source = "scripts/prepare-mounts.sh"
+    destination = "/bin/prepare-mounts.sh"
+  }
+
+  provisioner "local-exec" {
+    command = "/bin/prepare-mounts.sh"
+  }
 }

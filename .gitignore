@@ -46,3 +46,4 @@ generated-site/
 ansible/deploy-pulsar.retry
 ansible/terraform*
 ansible/.terraform/
+ansible/.terraform.tfstate.lock.info
