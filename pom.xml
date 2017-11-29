@@ -616,7 +616,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto//PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>data/**</exclude>
