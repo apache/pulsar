@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
+import com.google.common.base.MoreObjects;
 
 public class DispatchRate {
 
@@ -43,7 +45,7 @@ public class DispatchRate {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(dispatchThrottlingRatePerTopicInMsg, dispatchThrottlingRatePerTopicInByte,
+        return Objects.hash(dispatchThrottlingRatePerTopicInMsg, dispatchThrottlingRatePerTopicInByte,
                 ratePeriodInSecond);
     }
 
@@ -51,16 +53,16 @@ public class DispatchRate {
     public boolean equals(Object obj) {
         if (obj instanceof DispatchRate) {
             DispatchRate rate = (DispatchRate) obj;
-            return Objects.equal(dispatchThrottlingRatePerTopicInMsg, rate.dispatchThrottlingRatePerTopicInMsg)
-                    && Objects.equal(dispatchThrottlingRatePerTopicInByte, rate.dispatchThrottlingRatePerTopicInByte)
-                    && Objects.equal(ratePeriodInSecond, rate.ratePeriodInSecond);
+            return Objects.equals(dispatchThrottlingRatePerTopicInMsg, rate.dispatchThrottlingRatePerTopicInMsg)
+                    && Objects.equals(dispatchThrottlingRatePerTopicInByte, rate.dispatchThrottlingRatePerTopicInByte)
+                    && Objects.equals(ratePeriodInSecond, rate.ratePeriodInSecond);
         }
         return false;
     }
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("dispatchThrottlingRatePerTopicInMsg", dispatchThrottlingRatePerTopicInMsg)
                 .add("dispatchThrottlingRatePerTopicInByte", dispatchThrottlingRatePerTopicInByte)
                 .add("ratePeriodInSecond", ratePeriodInSecond).toString();

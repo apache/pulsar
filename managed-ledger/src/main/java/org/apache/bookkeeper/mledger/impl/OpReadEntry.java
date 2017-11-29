@@ -142,14 +142,14 @@ public class OpReadEntry implements ReadEntriesCallback {
         return cursor.ledger.getSlowestConsumer() == cursor;
     }
 
-    private final Handle recyclerHandle;
+    private final Handle<OpReadEntry> recyclerHandle;
 
-    private OpReadEntry(Handle recyclerHandle) {
+    private OpReadEntry(Handle<OpReadEntry> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
     private static final Recycler<OpReadEntry> RECYCLER = new Recycler<OpReadEntry>() {
-        protected OpReadEntry newObject(Recycler.Handle recyclerHandle) {
+        protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
             return new OpReadEntry(recyclerHandle);
         }
     };
@@ -161,7 +161,7 @@ public class OpReadEntry implements ReadEntriesCallback {
         ctx = null;
         entries = null;
         nextReadPosition = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);

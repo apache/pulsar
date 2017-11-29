@@ -106,9 +106,9 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.72-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.82-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
-    <netty.version>4.0.46.Final</netty.version>
+    <netty.version>4.1.12.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
@@ -125,7 +125,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.0.31</version>
+        <version>2.1.0-alpha26</version>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -286,7 +286,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>15.0</version>
+        <version>20.0</version>
       </dependency>
 
       <dependency>

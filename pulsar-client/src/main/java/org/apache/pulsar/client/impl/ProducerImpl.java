@@ -459,18 +459,18 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             producer = null;
             cnx = null;
             op = null;
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<WriteInEventLoopCallback> recyclerHandle;
 
-        private WriteInEventLoopCallback(Handle recyclerHandle) {
+        private WriteInEventLoopCallback(Handle<WriteInEventLoopCallback> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
         private static final Recycler<WriteInEventLoopCallback> RECYCLER = new Recycler<WriteInEventLoopCallback>() {
             @Override
-            protected WriteInEventLoopCallback newObject(Handle handle) {
+            protected WriteInEventLoopCallback newObject(Handle<WriteInEventLoopCallback> handle) {
                 return new WriteInEventLoopCallback(handle);
             }
         };
@@ -759,7 +759,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             callback = null;
             sequenceId = -1;
             createdAt = -1;
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
 
         void setNumMessagesInBatch(int numMessagesInBatch) {
@@ -781,14 +781,14 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             }
         }
 
-        private OpSendMsg(Handle recyclerHandle) {
+        private OpSendMsg(Handle<OpSendMsg> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<OpSendMsg> recyclerHandle;
         private static final Recycler<OpSendMsg> RECYCLER = new Recycler<OpSendMsg>() {
             @Override
-            protected OpSendMsg newObject(Handle handle) {
+            protected OpSendMsg newObject(Handle<OpSendMsg> handle) {
                 return new OpSendMsg(handle);
             }
         };

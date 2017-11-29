@@ -21,9 +21,9 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
-import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -46,7 +46,7 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
@@ -432,7 +432,7 @@ public class Consumer {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
+        return MoreObjects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
                 .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
     }
 
@@ -461,7 +461,7 @@ public class Consumer {
     public boolean equals(Object obj) {
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
-            return Objects.equal(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
+            return Objects.equals(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
         }
         return false;
     }

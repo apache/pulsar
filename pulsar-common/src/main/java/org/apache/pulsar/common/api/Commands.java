@@ -69,7 +69,6 @@ import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
 
 public class Commands {
@@ -608,7 +607,7 @@ public class Commands {
     }
 
     static ByteBuf newPing() {
-    	return RecyclableDuplicateByteBuf.create(cmdPing);
+        return cmdPing.retainedDuplicate();
     }
 
     private final static ByteBuf cmdPong;
@@ -623,7 +622,7 @@ public class Commands {
     }
 
     static ByteBuf newPong() {
-    	return RecyclableDuplicateByteBuf.create(cmdPong);
+    	return cmdPong.retainedDuplicate();
     }
 
     private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
