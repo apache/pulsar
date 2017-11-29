@@ -44,3 +44,11 @@ variable "zookeeper_node_instance_type" {
 variable "pulsar_broker_instance_type" {
   default = "i3.4xlarge"
 }
+
+variable "zookeeper_version" {
+  default = "3.4.11"
+}
+
+variable "pulsar_version" {
+  default = "1.20.0-incubating"
+}

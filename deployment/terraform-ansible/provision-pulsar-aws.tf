@@ -79,6 +79,32 @@ resource "aws_instance" "zookeeper" {
   tags {
     Name = "zk-${count.index}"
   }
+
+  provisioner "file" {
+    source      = "scripts/install-zookeeper.bash"
+    destination = "/tmp/install-zookeeper.bash"
+
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      agent = false
+      private_key = "${file("${var.private_key_path}")}"
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo chmod +x /tmp/install-zookeeper.bash",
+      "/tmp/install-zookeeper.bash ${var.zookeeper_version} ${count.index}"
+    ]
+
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      agent = false
+      private_key = "${file("${var.private_key_path}")}"
+    }
+  }
 }
 
 resource "aws_instance" "pulsar" {
@@ -105,10 +131,24 @@ resource "aws_instance" "pulsar" {
     }
   }
 
+  provisioner "file" {
+    source      = "scripts/install-pulsar.bash"
+    destination = "/tmp/install-pulsar.bash"
+
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      agent = false
+      private_key = "${file("${var.private_key_path}")}"
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /tmp/prepare-mounts.sh",
-      "/tmp/prepare-mounts.sh"
+      "sudo chmod +x /tmp/prepare-mounts.bash",
+      "sudo chmod +x /tmp/install-pulsar.bash",
+      "/tmp/prepare-mounts.bash",
+      "/tmp/install-pulsar.bash ${var.pulsar_version}"
     ]
 
     connection {
