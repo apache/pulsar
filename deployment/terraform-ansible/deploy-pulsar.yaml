@@ -54,7 +54,7 @@
 
     - name: Download Pulsar
       file:
-        path: "/opt/pulsar"
+        path: "/opt/pulsar/conf"
         state: directory
     - get_url:
         url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
