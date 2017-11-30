@@ -17,24 +17,21 @@
 # under the License.
 #
 
-- name: Format and mount disks
-  hosts: pulsar
-  connection: ssh
-  become: true
-  tasks:
-    - shell: >
-        sudo tuned-adm profile latency-performance &&
-        mkfs.xfs -f /dev/nvme0n1 &&
-        mkfs.xfs -f /dev/nvme1n1 &&
-        mkdir -p /mnt/journal &&
-        mkdir -p /mnt/storage &&
-        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&
-        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme1n1 /mnt/storage
-      args:
-        creates:
-          - /mnt/journal
-          - /mnt/storage
-
+#- name: Format and mount disks
+#  hosts: pulsar
+#  connection: ssh
+#  become: true
+#  tasks:
+#    - shell: >
+#        sudo tuned-adm profile latency-performance &&
+#        mkfs.xfs -f /dev/nvme0n1 &&
+#        mkfs.xfs -f /dev/nvme1n1 &&
+#        mkdir -p /mnt/journal &&
+#        mkdir -p /mnt/storage &&
+#        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&
+#        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme1n1 /mnt/storage
+#      args:
+#        creates: /mnt/journal
 
 - name: Pulsar setup
   hosts: all
