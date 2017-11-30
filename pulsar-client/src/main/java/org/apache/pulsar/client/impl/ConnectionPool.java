@@ -46,6 +46,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
@@ -111,7 +112,8 @@ public class ConnectionPool implements Closeable {
             }
         });
 
-        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next()).build();
+        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next())
+                .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup)).build();
     }
 
     private static final Random random = new Random();
