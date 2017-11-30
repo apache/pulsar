@@ -69,6 +69,12 @@ $ terraform apply \
 ```
 
 ```bash
+$ terraform apply \
+  -var num_zookeeper_nodes=5 \
+  -var num_pulsar_brokers=4
+```
+
+```bash
 $ cat terraform.tstate | jq .
 ```
 
@@ -76,7 +82,19 @@ $ cat terraform.tstate | jq .
 $ cat terraform.tfstate | jq '.modules | .[0].outputs.pulsar_connection_url.value'
 ```
 
+```bash
+$ terraform destroy
+```
+
 ## Running the Pulsar playbook
+
+```bash
+$ ansible-playbook \
+  --user=ec2-user \
+  --inventory=`which terraform-inventory` \
+  --private-key ~/.ssh/pulsar_terraform \
+  deploy-pulsar.yaml
+```
 
 ### Create SSH keys
 
