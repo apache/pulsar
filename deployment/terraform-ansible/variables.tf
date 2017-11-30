@@ -44,10 +44,3 @@ variable "instance_types" {
     "zookeeper" = "t2.small"
   }
 }
-
-variable "versions" {
-  type = "map"
-  default = {
-    "pulsar" = "1.20.0-incubating"
-  }
-}

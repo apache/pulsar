@@ -29,7 +29,50 @@ $ git clone https://github.com/apache/incubator-pulsar
 $ cd incubator-pulsar/ansible
 ```
 
+## Creating AWS resources using Terraform
+
+```bash
+$ ssh-keygen \
+  -t rsa \
+  -f ~/.ssh/pulsar_terraform
+```
+
+Do *not* enter a passphrase (hit **Enter** when prompted instead).
+
+```bash
+$ terraform init
+```
+
+```bash
+$ terraform apply
+```
+
+```bash
+$ terraform apply \
+  -var public_key_path=~/.ssh/my_key.pub \
+  -var private_key_path=~/.ssh/my_key
+```
+
+```bash
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value:
+```
+
+Type `yes` and hit **Enter**.
+
+```bash
+$ terraform apply \
+  -var 'instance_types={ zookeeper = "t2.nano", pulsar = "t2.medium" }'
+```
+
 ## Running the Pulsar playbook
+
+```bash
+
+```
 
 ### Create SSH keys
 
