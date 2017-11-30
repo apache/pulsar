@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -763,7 +761,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache
         subscriber2.close();
-        
+
         // retry strategically until broker clean up closed subscribers and invalidate all cache entries
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -2368,7 +2366,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final int totalMsg = 10;
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
-        
+
         Message msg = null;
         Set<String> messageSet = Sets.newHashSet();
         ConsumerConfiguration conf = new ConsumerConfiguration();
@@ -2392,7 +2390,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producerConf.setCryptoKeyReader(new EncKeyReader());
         producerConf.addEncryptionKey("client-rsa.pem");
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/myenc-topic1", producerConf);
-        
+
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -2408,7 +2406,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/myenc-topic1", "my-subscriber-name",
                 conf);
-        
+
         int msgNum = 0;
         try {
             // Receive should proceed and deliver encrypted message
