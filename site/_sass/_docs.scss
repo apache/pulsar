@@ -31,7 +31,7 @@
   margin-top: $top-margin;
 
   ul ul {
-    margin-bottom: 10px;
+    margin: 8px 0;
   }
 
   article {
@@ -142,9 +142,9 @@
         margin-right: 2px;
       }
 
-      img {
-        margin: 20px 0;
-        width: 100%;
+      p img {
+        display: block;
+        margin: 20px auto;
 
         &[alt="Maven Central"] {
           width: 20%;

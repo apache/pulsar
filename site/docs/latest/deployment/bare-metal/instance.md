@@ -1,6 +1,6 @@
 ---
-title: Deploying a Pulsar instance
-tags: [admin, instance]
+title: Deploying a Pulsar instance on bare metal
+tags: [admin, deployment, instance, bare metal]
 ---
 
 <!--
@@ -24,13 +24,15 @@ tags: [admin, instance]
 
 -->
 
+{% include admonition.html type="info"
+  content="Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster, see the guide [here](../cluster)." %}
+
 A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](../../admin/GeoReplication). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
 * Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
 * Deploying a [BookKeeper cluster](#deploying-bookkeeper) of {% popover bookies %} in each Pulsar cluster
 * Deploying [brokers](#deploying-brokers) in each Pulsar cluster
-
 
 If you're deploying a single Pulsar cluster, see the [Clusters and Brokers](../../getting-started/LocalCluster#starting-the-cluster) guide.
 
