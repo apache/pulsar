@@ -899,6 +899,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 && producerCreatedFuture.completeExceptionally(exception)) {
             log.info("[{}] Producer creation failed for producer {}", topic, producerId);
             setState(State.Failed);
+            client.cleanupProducer(this);
         }
     }
 
