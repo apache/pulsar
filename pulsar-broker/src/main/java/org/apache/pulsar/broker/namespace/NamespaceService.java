@@ -767,7 +767,7 @@ public class NamespaceService {
             return;
         }
 
-	LOG.info("Trying to unload SLA namespace {}", namespaceName);
+        LOG.info("Trying to unload SLA namespace {}", namespaceName);
         adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName);
         LOG.info("Namespace {} unloaded successfully", namespaceName);
