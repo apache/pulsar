@@ -89,6 +89,11 @@ resource "aws_instance" "pulsar" {
     Name = "pulsar-${count.index + 1}"
   }
 
+  provisioner "file" {
+    source      = "scripts/prepare-mounts.bash"
+    destination = "/tmp/prepare-mounts.bash"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sudo chmod +x /tmp/prepare-mounts.bash",
@@ -96,9 +101,9 @@ resource "aws_instance" "pulsar" {
     ]
 
     connection {
-      type = "ssh"
-      user = "ec2-user"
-      agent = false
+      type        = "ssh"
+      user        = "ec2-user"
+      agent       = false
       private_key = "${file("${var.private_key_path}")}"
     }
   }

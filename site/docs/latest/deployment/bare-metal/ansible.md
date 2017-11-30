@@ -68,11 +68,15 @@ $ terraform apply \
   -var 'instance_types={ zookeeper = "t2.nano", pulsar = "t2.medium" }'
 ```
 
-## Running the Pulsar playbook
+```bash
+$ cat terraform.tstate | jq .
+```
 
 ```bash
-
+$ cat terraform.tfstate | jq '.modules | .[0].outputs.pulsar_connection_url.value'
 ```
+
+## Running the Pulsar playbook
 
 ### Create SSH keys
 
