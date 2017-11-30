@@ -1,5 +1,5 @@
 variable "public_key_path" {
-  default = "~/.ssh/pulsar_terraform.pub"
+  default = "~/.ssh/id_rsa.pub"
 
   description = <<DESCRIPTION
 Path to the SSH public key to be used for authentication.
@@ -7,12 +7,8 @@ Ensure this keypair is added to your local SSH agent so provisioners can
 connect.
 
 Example: ~/.ssh/my_keys.pub
-Default: ~/.ssh/pulsar_terraform.pub
+Default: ~/.ssh/id_rsa.pub
 DESCRIPTION
-}
-
-variable "private_key_path" {
-  default = "~/.ssh/pulsar_terraform"
 }
 
 variable "key_name" {

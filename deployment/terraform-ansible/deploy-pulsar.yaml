@@ -23,11 +23,11 @@
   become: true
   tasks:
     - shell: >
-        sudo tuned-adm profile latency-performance &&
-        mkfs.xfs /dev/nvme0n1 &&
-        mkfs.xfs /dev/nvme1n1 &&
+        tuned-adm profile latency-performance &&
         mkdir -p /mnt/journal &&
         mkdir -p /mnt/storage &&
+        mkfs.xfs /dev/nvme0n1 &&
+        mkfs.xfs /dev/nvme1n1 &&
         mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&
         mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme1n1 /mnt/storage
       args:
@@ -50,13 +50,14 @@
         zookeeperServers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
         serviceUrl: "pulsar://{{ hostvars[groups['pulsar'][0]].private_ip }}:6650/"
         httpUrl: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
+        pulsarVersion: "1.20.0-incubating"
 
     - name: Download Pulsar
       file:
         path: "/opt/pulsar"
         state: directory
     - get_url:
-        url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz
+        url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsarVersion }}/apache-pulsar-{{ pulsarVersion }}-bin.tar.gz
         dest: /tmp/pulsar.tgz
     - command: tar --strip-components=1 -xvf /tmp/pulsar.tgz
       args:
