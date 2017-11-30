@@ -47,17 +47,17 @@
           - vim
 
     - set_fact:
-        zookeeperServers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
-        serviceUrl: "pulsar://{{ hostvars[groups['pulsar'][0]].private_ip }}:6650/"
-        httpUrl: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
-        pulsarVersion: "1.20.0-incubating"
+        zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
+        service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].private_ip }}:6650/"
+        http_url: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
+        pulsar_version: "1.20.0-incubating"
 
     - name: Download Pulsar
       file:
         path: "/opt/pulsar"
         state: directory
     - get_url:
-        url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsarVersion }}/apache-pulsar-{{ pulsarVersion }}-bin.tar.gz
+        url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         dest: /tmp/pulsar.tgz
     - command: tar --strip-components=1 -xvf /tmp/pulsar.tgz
       args:
@@ -80,6 +80,7 @@
         zid: "{{ groups['zookeeper'].index(inventory_hostname) }}"
         max_heap_memory: "512m"
         max_direct_memory: "512m"
+        cluster_name: "local"
     - file:
         path: "/opt/pulsar/{{ item }}"
         state: directory
@@ -102,11 +103,12 @@
         daemon_reload: yes
         name: "zookeeper"
     - command: >
-        bin/pulsar initialize-cluster-metadata --cluster local
+        bin/pulsar initialize-cluster-metadata
+        --cluster {{ cluster_name }}
         --zookeeper localhost:2181
         --global-zookeeper localhost:2181
-        --web-service-url {{ httpUrl }}
-        --broker-service-url {{ serviceUrl }}
+        --web-service-url {{ http_url }}
+        --broker-service-url {{ service_url }}
       args:
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
