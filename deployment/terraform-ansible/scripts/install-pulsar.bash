@@ -14,6 +14,7 @@ mkdir -p ${PULSAR_ROOT_DIR}/data/zookeeper
 
 wget ${PULSAR_DOWNLOAD_URL} -O /tmp/pulsar.tgz
 cd ${PULSAR_ROOT_DIR}
+tar --strip-components=1 -xvf /tmp/pulsar.tgz
 conf/pulsar_env.sh
 
 if [ "${BROKER_ID}" -eq "0" ]; then

@@ -1,7 +1,3 @@
-provider "aws" {
-  region = "${var.region}"
-}
-
 # Create a VPC to launch our instances into
 resource "aws_vpc" "pulsar_vpc" {
   cidr_block = "10.0.0.0/16"
@@ -97,7 +93,7 @@ resource "aws_instance" "zookeeper" {
     inline = [
       "sudo yum install wget java sysstat vim",
       "sudo chmod +x /tmp/install-zookeeper.bash",
-      "/tmp/install-zookeeper.bash ${var.versions["zookeeper"]} ${count.index + 1}"
+      "/tmp/install-zookeeper.bash ${var.versions["pulsar"]} ${count.index + 1}"
     ]
 
     connection {
@@ -187,14 +183,5 @@ resource "aws_instance" "pulsar" {
       agent = false
       private_key = "${file("${var.private_key_path}")}"
     }
-  }
-}
-
-data "template_file" "zoo_cfg" {
-  count = "${var.num_zookeeper_nodes}"
-  template = "${file("${path.module}/templates/zoo.cfg")}"
-
-  vars {
-    zookeeper_servers = "${join("\n", formatlist("server.%s=%v:2888:3888", aws_instance.zookeeper.*.tags.Id, aws_instance.zookeeper.*.private_ip))}"
   }
 }

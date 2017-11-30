@@ -48,7 +48,6 @@ variable "instance_types" {
 variable "versions" {
   type = "map"
   default = {
-    "pulsar"    = "1.20.0-incubating"
-    "zookeeper" = "3.4.11"
+    "pulsar" = "1.20.0-incubating"
   }
 }
