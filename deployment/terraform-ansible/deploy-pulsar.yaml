@@ -59,9 +59,10 @@
     - get_url:
         url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         dest: /tmp/pulsar.tgz
-    - command: tar --strip-components=1 -xvf /tmp/pulsar.tgz
-      args:
-        chdir: /opt/pulsar
+    - unarchive:
+        src: /tmp/pulsar.tgz
+        dest: /opt/pulsar
+        remote_src: yes
 
     - set_fact:
         private_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
