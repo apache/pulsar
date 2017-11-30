@@ -16,7 +16,7 @@ variable "private_key_path" {
 }
 
 variable "key_name" {
-  default     = "pulsar-terraform-keys"
+  default     = "pulsar-terraform-ssh-keys"
   description = "The name for the AWS key pair to be used for SSH connections"
 }
 
@@ -37,18 +37,18 @@ variable "num_pulsar_brokers" {
   default = 3
 }
 
-variable "zookeeper_node_instance_type" {
-  default = "t2.small"
+variable "instance_types" {
+  type = "map"
+  default = {
+    "pulsar"   = "i3.4xlarge"
+    "zookeeper" = "t2.small"
+  }
 }
 
-variable "pulsar_broker_instance_type" {
-  default = "i3.4xlarge"
-}
-
-variable "zookeeper_version" {
-  default = "3.4.11"
-}
-
-variable "pulsar_version" {
-  default = "1.20.0-incubating"
+variable "versions" {
+  type = "map"
+  default = {
+    "pulsar"    = "1.20.0-incubating"
+    "zookeeper" = "3.4.11"
+  }
 }

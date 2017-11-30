@@ -70,14 +70,15 @@ resource "aws_key_pair" "auth" {
 
 resource "aws_instance" "zookeeper" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.zookeeper_node_instance_type}"
+  instance_type          = "${var.instance_types["zookeeper"]}"
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
   count                  = "${var.num_zookeeper_nodes}"
 
   tags {
-    Name = "zk-${count.index}"
+    Name = "zk-${count.index + 1}"
+    Id  = "${count.index + 1}"
   }
 
   provisioner "file" {
@@ -94,8 +95,9 @@ resource "aws_instance" "zookeeper" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo yum install wget java sysstat vim",
       "sudo chmod +x /tmp/install-zookeeper.bash",
-      "/tmp/install-zookeeper.bash ${var.zookeeper_version} ${count.index}"
+      "/tmp/install-zookeeper.bash ${var.versions["zookeeper"]} ${count.index + 1}"
     ]
 
     connection {
@@ -109,38 +111,24 @@ resource "aws_instance" "zookeeper" {
 
 resource "aws_instance" "pulsar" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.pulsar_broker_instance_type}"
+  instance_type          = "${var.instance_types["pulsar"]}"
   key_name               = "${aws_key_pair.auth.id}"
   subnet_id              = "${aws_subnet.pulsar_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.pulsar_security_group.id}"]
   count                  = "${var.num_pulsar_brokers}"
 
   tags {
-    Name = "pulsar-${count.index}"
+    Name = "pulsar-${count.index + 1}"
   }
 
   provisioner "file" {
     source      = "scripts/prepare-mounts.bash"
     destination = "/tmp/prepare-mounts.bash"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      agent       = false
-      private_key = "${file("${var.private_key_path}")}"
-    }
   }
 
   provisioner "file" {
     source      = "scripts/install-pulsar.bash"
     destination = "/tmp/install-pulsar.bash"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      agent       = false
-      private_key = "${file("${var.private_key_path}")}"
-    }
   }
 
   provisioner "file" {
@@ -159,7 +147,7 @@ resource "aws_instance" "pulsar" {
   }
 
   provisioner "file" {
-    content     = "${count.index}"
+    content     = "${count.index + 1}"
     destination = "/opt/pulsar/data/zookeeper/myid"
   }
 
@@ -178,12 +166,18 @@ resource "aws_instance" "pulsar" {
     destination = "/etc/systemd/system/zookeeper.service"
   }
 
+  provisioner "file" {
+    source      = "${data.template_file.zoo_cfg.rendered}"
+    destination = "/opt/pulsar/conf/zookeeper.conf"
+  }
+
   provisioner "remote-exec" {
     inline = [
+      "sudo yum install wget java sysstat vim",
       "sudo chmod +x /tmp/prepare-mounts.bash",
       "sudo chmod +x /tmp/install-pulsar.bash",
       "/tmp/prepare-mounts.bash",
-      "/tmp/install-pulsar.bash ${var.pulsar_version}",
+      "/tmp/install-pulsar.bash ${var.versions["pulsar"]} ${count.index + 1} ${aws_instance.zookeeper.0.private_ip}",
       "sudo systemctl start /etc/systemd/system/zookeeper.service"
     ]
 
@@ -196,46 +190,11 @@ resource "aws_instance" "pulsar" {
   }
 }
 
-data "template_file" "bookkeeper_conf" {
-  template = "${file("${path.module}/templates/bookkeeper.conf")}"
-
-  vars {
-    zookeeper_servers = ""
-    advertised_address = ""
-  }
-}
-
-data "template_file" "broker_conf" {
-  template = "${file("${path.module}/templates/broker.conf")}"
-
-  vars {
-    zookeeper_servers = ""
-    ip = ""
-  }
-}
-
-data "template_file" "pulsar_env_sh_zookeeper" {
-  template = "${file("${path.module}/templates/pulsar_env.sh")}"
-
-  vars {
-    max_heap_memory   = "512m"
-    max_direct_memory = "512m"
-  }
-}
-
-data "template_file" "pulsar_env_sh_pulsar" {
-  template = "${file("${path.module}/templates/pulsar_env.sh")}"
-
-  vars {
-    max_heap_memory   = "24g"
-    max_direct_memory = "24g"
-  }
-}
-
 data "template_file" "zoo_cfg" {
+  count = "${var.num_zookeeper_nodes}"
   template = "${file("${path.module}/templates/zoo.cfg")}"
 
   vars {
-    zookeeper_servers = ""
+    zookeeper_servers = "${join("\n", formatlist("server.%s=%v:2888:3888", aws_instance.zookeeper.*.tags.Id, aws_instance.zookeeper.*.private_ip))}"
   }
 }
