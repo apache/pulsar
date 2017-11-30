@@ -21,8 +21,11 @@ package org.apache.pulsar.client.impl;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -47,6 +51,9 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
+import io.netty.util.concurrent.Future;
 
 public class ConnectionPool implements Closeable {
     private final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
@@ -54,6 +61,8 @@ public class ConnectionPool implements Closeable {
     private final Bootstrap bootstrap;
     private final EventLoopGroup eventLoopGroup;
     private final int maxConnectionsPerHosts;
+
+    private final DnsNameResolver dnsResolver;
 
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
@@ -101,6 +110,8 @@ public class ConnectionPool implements Closeable {
                 ch.pipeline().addLast("handler", new ClientCnx(client));
             }
         });
+
+        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next()).build();
     }
 
     private static final Random random = new Random();
@@ -114,18 +125,20 @@ public class ConnectionPool implements Closeable {
      * <p>
      * The connection can either be created or be coming from the pool itself.
      * <p>
-     * When specifying multiple addresses, the logicalAddress is used as a tag for the broker,
-     * while the physicalAddress is where the connection is actually happening.
+     * When specifying multiple addresses, the logicalAddress is used as a tag for the broker, while the physicalAddress
+     * is where the connection is actually happening.
      * <p>
-     * These two addresses can be different when the client is forced to connect through
-     * a proxy layer. Essentially, the pool is using the logical address as a way to
-     * decide whether to reuse a particular connection.
+     * These two addresses can be different when the client is forced to connect through a proxy layer. Essentially, the
+     * pool is using the logical address as a way to decide whether to reuse a particular connection.
      *
-     * @param logicalAddress the address to use as the broker tag
-     * @param physicalAddress the real address where the TCP connection should be made
+     * @param logicalAddress
+     *            the address to use as the broker tag
+     * @param physicalAddress
+     *            the real address where the TCP connection should be made
      * @return a future that will produce the ClientCnx object
      */
-    public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress) {
+    public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress,
+            InetSocketAddress physicalAddress) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
             return createConnection(logicalAddress, physicalAddress, -1);
@@ -146,17 +159,10 @@ public class ConnectionPool implements Closeable {
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<ClientCnx>();
 
         // Trigger async connect to broker
-        bootstrap.connect(physicalAddress).addListener((ChannelFuture future) -> {
-            if (!future.isSuccess()) {
-                log.warn("Failed to open connection to {} : {}", physicalAddress, future.cause().getClass().getSimpleName());
-                cnxFuture.completeExceptionally(new PulsarClientException(future.cause()));
-                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
-                return;
-            }
+        createConnection(physicalAddress).thenAccept(channel -> {
+            log.info("[{}] Connected to server", channel);
 
-            log.info("[{}] Connected to server", future.channel());
-
-            future.channel().closeFuture().addListener(v -> {
+            channel.closeFuture().addListener(v -> {
                 // Remove connection from pool when it gets closed
                 if (log.isDebugEnabled()) {
                     log.debug("Removing closed connection from pool: {}", v);
@@ -166,10 +172,10 @@ public class ConnectionPool implements Closeable {
 
             // We are connected to broker, but need to wait until the connect/connected handshake is
             // complete
-            final ClientCnx cnx = (ClientCnx) future.channel().pipeline().get("handler");
-            if (!future.channel().isActive() || cnx == null) {
+            final ClientCnx cnx = (ClientCnx) channel.pipeline().get("handler");
+            if (!channel.isActive() || cnx == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Connection was already closed by the time we got notified", future.channel());
+                    log.debug("[{}] Connection was already closed by the time we got notified", channel);
                 }
                 cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
                 return;
@@ -195,14 +201,91 @@ public class ConnectionPool implements Closeable {
                 cnx.ctx().close();
                 return null;
             });
+        }).exceptionally(exception -> {
+            log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getClass().getSimpleName());
+            cnxFuture.completeExceptionally(new PulsarClientException(exception));
+            cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+            return null;
         });
 
         return cnxFuture;
     }
 
+    /**
+     * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server
+     */
+    private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
+        String hostname = unresolvedAddress.getHostString();
+        int port = unresolvedAddress.getPort();
+
+        // Resolve DNS --> Attempt to connect to all IP addresses until once succeeds
+        return resolveName(hostname)
+                .thenCompose(inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(), port));
+    }
+
+    /**
+     * Try to connect to a sequence of IP addresses until a successfull connection can be made, or fail if no address is
+     * working
+     */
+    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses, int port) {
+        CompletableFuture<Channel> future = new CompletableFuture<>();
+
+        connectToAddress(unresolvedAddresses.next(), port).thenAccept(channel -> {
+            // Successfully connected to server
+            future.complete(channel);
+        }).exceptionally(exception -> {
+            if (unresolvedAddresses.hasNext()) {
+                // Try next IP address
+                connectToResolvedAddresses(unresolvedAddresses, port).thenAccept(channel -> {
+                    future.complete(channel);
+                }).exceptionally(ex -> {
+                    // This is already unwinding the recursive call
+                    future.completeExceptionally(ex);
+                    return null;
+                });
+            } else {
+                // Failed to connect to any IP address
+                future.completeExceptionally(exception);
+            }
+            return null;
+        });
+
+        return future;
+    }
+
+    private CompletableFuture<List<InetAddress>> resolveName(String hostname) {
+        CompletableFuture<List<InetAddress>> future = new CompletableFuture<>();
+        dnsResolver.resolveAll(hostname).addListener((Future<List<InetAddress>> resolveFuture) -> {
+            if (resolveFuture.isSuccess()) {
+                future.complete(resolveFuture.get());
+            } else {
+                future.completeExceptionally(resolveFuture.cause());
+            }
+        });
+        return future;
+    }
+
+    /**
+     * Attempt to establish a TCP connection to an already resolved single IP address
+     */
+    private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port) {
+        CompletableFuture<Channel> future = new CompletableFuture<>();
+
+        bootstrap.connect(ipAddress, port).addListener((ChannelFuture channelFuture) -> {
+            if (channelFuture.isSuccess()) {
+                future.complete(channelFuture.channel());
+            } else {
+                future.completeExceptionally(channelFuture.cause());
+            }
+        });
+
+        return future;
+    }
+
     @Override
     public void close() throws IOException {
         eventLoopGroup.shutdownGracefully();
+        dnsResolver.close();
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,
