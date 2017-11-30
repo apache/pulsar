@@ -758,15 +758,16 @@ public class NamespaceService {
         PulsarAdmin adminClient = null;
         String namespaceName = getSLAMonitorNamespace(host, config);
 
-        LOG.info("Trying to unload SLA namespace {}", namespaceName);
+        LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
         NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
         if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
             // Next lookup will assign the bundle to this broker.
-            LOG.info("No one owns SLA namespace {}. Aborting unload", namespaceName);
             return;
         }
+
+	LOG.info("Trying to unload SLA namespace {}", namespaceName);
         adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName);
         LOG.info("Namespace {} unloaded successfully", namespaceName);
