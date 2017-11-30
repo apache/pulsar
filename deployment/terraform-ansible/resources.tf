@@ -74,34 +74,6 @@ resource "aws_instance" "zookeeper" {
 
   tags {
     Name = "zk-${count.index + 1}"
-    Id  = "${count.index + 1}"
-  }
-
-  provisioner "file" {
-    source      = "scripts/install-zookeeper.bash"
-    destination = "/tmp/install-zookeeper.bash"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      agent       = false
-      private_key = "${file("${var.private_key_path}")}"
-    }
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo yum install wget java sysstat vim",
-      "sudo chmod +x /tmp/install-zookeeper.bash",
-      "/tmp/install-zookeeper.bash ${var.versions["pulsar"]} ${count.index + 1}"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      agent       = false
-      private_key = "${file("${var.private_key_path}")}"
-    }
   }
 }
 
@@ -117,64 +89,10 @@ resource "aws_instance" "pulsar" {
     Name = "pulsar-${count.index + 1}"
   }
 
-  provisioner "file" {
-    source      = "scripts/prepare-mounts.bash"
-    destination = "/tmp/prepare-mounts.bash"
-  }
-
-  provisioner "file" {
-    source      = "scripts/install-pulsar.bash"
-    destination = "/tmp/install-pulsar.bash"
-  }
-
-  provisioner "file" {
-    content     = "${data.template_file.bookkeeper_conf.rendered}"
-    destination = "/opt/pulsar/conf/bookkeeper.conf"
-  }
-
-  provisioner "file" {
-    source      = "templates/bookkeeper.service"
-    destination = "/etc/systemd/system/bookkeeper.service"
-  }
-
-  provisioner "file" {
-    source      = "${data.template_file.broker_conf.rendered}"
-    destination = "/opt/pulsar/conf/broker.conf"
-  }
-
-  provisioner "file" {
-    content     = "${count.index + 1}"
-    destination = "/opt/pulsar/data/zookeeper/myid"
-  }
-
-  provisioner "file" {
-    source      = "${data.template_file.pulsar_env_sh_pulsar.rendered}"
-    destination = "/opt/pulsar/conf/pulsar_env.sh"
-  }
-
-  provisioner "file" {
-    source      = "templates/pulsar.service"
-    destination = "/etc/systemd/system/pulsar.service"
-  }
-
-  provisioner "file" {
-    source      = "templates/zookeeper.service"
-    destination = "/etc/systemd/system/zookeeper.service"
-  }
-
-  provisioner "file" {
-    source      = "${data.template_file.zoo_cfg.rendered}"
-    destination = "/opt/pulsar/conf/zookeeper.conf"
-  }
-
   provisioner "remote-exec" {
     inline = [
-      "sudo yum install wget java sysstat vim",
       "sudo chmod +x /tmp/prepare-mounts.bash",
-      "sudo chmod +x /tmp/install-pulsar.bash",
-      "/tmp/prepare-mounts.bash",
-      "/tmp/install-pulsar.bash ${var.versions["pulsar"]} ${count.index + 1} ${aws_instance.zookeeper.0.private_ip}",
-      "sudo systemctl start /etc/systemd/system/zookeeper.service"
+      "/tmp/prepare-mounts.bash"
     ]
 
     connection {
