@@ -35,7 +35,7 @@ Pulsar*インスタンス*は協調して動作する複数のPulsar{% popover_j
 もし単一のPulsarクラスタをデプロイする場合は、[クラスタとBroker](../../admin/ClustersBrokers)のガイドを参照してください。
 
 {% include admonition.html type="info" title='PulsarをローカルやKubernetesで実行しますか？' content="
-このガイドでは、Kubernetesでないプロダクション環境にPulsarをデプロイする方法を説明します。開発目的で単独のマシン上でスタンドアローンのPulsarクラスタを実行したい場合、[ローカルクラスタのセットアップ](../../getting-started/LocalCluster)ガイドを参照してください。[Kubernetes](https://kubernetes.io)でPulsarを実行したい場合、[Kubernetes上のPulsar](../Kubernetes)ガイドを参照してください。このガイドには、[Google Container Engine](../Kubernetes#google-container-engine)と[Amazon Web Services](../Kubernetes#amazon-web-services)を使用してKubernetes上でPulsarを実行するセクションが含まれています。
+このガイドでは、Kubernetesでないプロダクション環境にPulsarをデプロイする方法を説明します。開発目的で単独のマシン上でスタンドアローンのPulsarクラスタを実行したい場合、[ローカルクラスタのセットアップ](../../getting-started/LocalCluster)ガイドを参照してください。[Kubernetes](https://kubernetes.io)でPulsarを実行したい場合、[Kubernetes上のPulsar](../Kubernetes)ガイドを参照してください。このガイドには、[Google Kubernetes Engine](../Kubernetes#google-kubernetes-engine)と[Amazon Web Services](../Kubernetes#amazon-web-services)を使用してKubernetes上でPulsarを実行するセクションが含まれています。
 " %}
 
 {% include explanations/ja/install-package.md %}
