@@ -36,12 +36,6 @@ resource "aws_route_table" "pulsar_private_route_table" {
   vpc_id = "${aws_vpc.pulsar_vpc.id}"
 }
 
-resource "aws_route" "pulsar_private_route" {
-  route_table_id         = "${aws_route_table.pulsar_private_route_table.id}"
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = "${aws_nat_gateway.pulsar_nat.id}"
-}
-
 resource "aws_route_table_association" "pulsar_route_table_association" {
   subnet_id      = "${aws_subnet.pulsar_subnet.id}"
   route_table_id = "${aws_vpc.pulsar_vpc.main_route_table_id}"
