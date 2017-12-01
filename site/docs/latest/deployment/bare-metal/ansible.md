@@ -93,6 +93,7 @@ $ ansible-playbook \
   --user=ec2-user \
   --inventory=`which terraform-inventory` \
   --private-key ~/.ssh/pulsar_terraform \
+  --ask-become-pass \
   deploy-pulsar.yaml
 ```
 

@@ -40,3 +40,7 @@ variable "instance_types" {
     "zookeeper" = "t2.small"
   }
 }
+
+variable "dns_name" {
+  default = "some-example-domain.com"
+}

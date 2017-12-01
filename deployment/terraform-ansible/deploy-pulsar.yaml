@@ -38,13 +38,16 @@
   connection: ssh
   become: true
   tasks:
+    - file:
+        path: /opt/pulsar
+        state: directory
     - name: Install RPM packages
       yum: pkg={{ item }} state=latest
       with_items:
-          - wget
-          - java
-          - sysstat
-          - vim
+        - wget
+        - java
+        - sysstat
+        - vim
 
     - set_fact:
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
@@ -52,17 +55,12 @@
         http_url: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
         pulsar_version: "1.20.0-incubating"
 
-    - name: Download Pulsar
-      file:
-        path: "/opt/pulsar/conf"
-        state: directory
     - get_url:
         url: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         dest: /tmp/pulsar.tgz
-    - unarchive:
-        src: /tmp/pulsar.tgz
-        dest: /opt/pulsar
-        remote_src: yes
+    - command: tar --strip-components=1 -xvf /tmp/pulsar.tgz
+      args:
+        chdir: /opt/pulsar
 
     - set_fact:
         private_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"

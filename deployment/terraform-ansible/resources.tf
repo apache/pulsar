@@ -1,6 +1,8 @@
 # Create a VPC to launch our instances into
 resource "aws_vpc" "pulsar_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
   tags {
     Name = "Pulsar-VPC"
@@ -18,6 +20,43 @@ resource "aws_route" "internet_access" {
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = "${aws_internet_gateway.default.id}"
 }
+
+/*
+resource "aws_elb" "pulsar_elb" {
+  name                        = "pulsar-load-balancer"
+  availability_zones          = ["${var.region}"]
+  instances                   = ["${aws_instance.pulsar.*.tags.Name}"]
+  security_groups             = ["${aws_security_group.pulsar_security_group.id}"]
+  cross_zone_load_balancing   = false
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  listener {
+    instance_port     = 8080
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  tags {
+    Name = "Pulsar-ELB"
+  }
+}
+
+resource "aws_route53_zone" "pulsar_zone" {
+  name = "${var.dns_name}"
+}
+
+resource "aws_route53_record" "pulsar_dns" {
+  zone_id = "${aws_route53_zone.pulsar_zone.zone_id}"
+  count   = "${var.num_pulsar_brokers}"
+  name    = "pulsar-${count.index}.${var.dns_name}"
+  type    = "CNAME"
+  ttl     = "300"
+  records = ["${aws_elb.pulsar_elb.dns_name}"]
+}
+*/
 
 # Create a subnet to launch our instances into
 resource "aws_subnet" "pulsar_subnet" {
