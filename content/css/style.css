@@ -9422,7 +9422,7 @@ span.popover-term {
 .rest-api-container, .docs-container {
   margin-top: 50px; }
   .rest-api-container ul ul, .docs-container ul ul {
-    margin-bottom: 10px; }
+    margin: 8px 0; }
   .rest-api-container article section.docs-header, .docs-container article section.docs-header {
     margin-bottom: 35px; }
     .rest-api-container article section.docs-header .tags, .docs-container article section.docs-header .tags {
@@ -9485,10 +9485,10 @@ span.popover-term {
       border-radius: 0; }
     .rest-api-container article section.content em, .docs-container article section.content em {
       margin-right: 2px; }
-    .rest-api-container article section.content img, .docs-container article section.content img {
-      margin: 20px 0;
-      width: 100%; }
-      .rest-api-container article section.content img[alt="Maven Central"], .docs-container article section.content img[alt="Maven Central"] {
+    .rest-api-container article section.content p img, .docs-container article section.content p img {
+      display: block;
+      margin: 20px auto; }
+      .rest-api-container article section.content p img[alt="Maven Central"], .docs-container article section.content p img[alt="Maven Central"] {
         width: 20%;
         margin: 0;
         padding: 0; }
