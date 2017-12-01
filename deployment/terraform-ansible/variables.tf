@@ -41,6 +41,6 @@ variable "instance_types" {
   }
 }
 
-variable "dns_name" {
-  default = "some-example-domain.com"
+variable "subnet_availability_zone" {
+  default = "us-west-2a"
 }

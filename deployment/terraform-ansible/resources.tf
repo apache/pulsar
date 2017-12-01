@@ -21,48 +21,38 @@ resource "aws_route" "internet_access" {
   gateway_id             = "${aws_internet_gateway.default.id}"
 }
 
-/*
-resource "aws_elb" "pulsar_elb" {
-  name                        = "pulsar-load-balancer"
-  availability_zones          = ["${var.region}"]
-  instances                   = ["${aws_instance.pulsar.*.tags.Name}"]
-  security_groups             = ["${aws_security_group.pulsar_security_group.id}"]
-  cross_zone_load_balancing   = false
-  idle_timeout                = 400
-  connection_draining         = true
-  connection_draining_timeout = 400
-
-  listener {
-    instance_port     = 8080
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
-
-  tags {
-    Name = "Pulsar-ELB"
-  }
+resource "aws_eip" "pulsar_eip" {
+  vpc        = true
+  depends_on = ["aws_internet_gateway.default"]
 }
 
-resource "aws_route53_zone" "pulsar_zone" {
-  name = "${var.dns_name}"
+resource "aws_nat_gateway" "pulsar_nat" {
+  allocation_id = "${aws_eip.pulsar_eip.id}"
+  subnet_id     = "${aws_subnet.pulsar_subnet.id}"
+  depends_on    = ["aws_internet_gateway.default"]
 }
 
-resource "aws_route53_record" "pulsar_dns" {
-  zone_id = "${aws_route53_zone.pulsar_zone.zone_id}"
-  count   = "${var.num_pulsar_brokers}"
-  name    = "pulsar-${count.index}.${var.dns_name}"
-  type    = "CNAME"
-  ttl     = "300"
-  records = ["${aws_elb.pulsar_elb.dns_name}"]
+resource "aws_route_table" "pulsar_private_route_table" {
+  vpc_id = "${aws_vpc.pulsar_vpc.id}"
 }
-*/
+
+resource "aws_route" "pulsar_private_route" {
+  route_table_id         = "${aws_route_table.pulsar_private_route_table.id}"
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = "${aws_nat_gateway.pulsar_nat.id}"
+}
+
+resource "aws_route_table_association" "pulsar_route_table_association" {
+  subnet_id      = "${aws_subnet.pulsar_subnet.id}"
+  route_table_id = "${aws_vpc.pulsar_vpc.main_route_table_id}"
+}
 
 # Create a subnet to launch our instances into
 resource "aws_subnet" "pulsar_subnet" {
   vpc_id                  = "${aws_vpc.pulsar_vpc.id}"
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
+  availability_zone       = "${var.subnet_availability_zone}"
 }
 
 resource "aws_security_group" "pulsar_security_group" {
