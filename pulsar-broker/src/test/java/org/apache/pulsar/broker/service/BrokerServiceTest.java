@@ -29,6 +29,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -46,6 +48,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.api.Authentication;
@@ -822,6 +828,58 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertTrue(e.getCause() instanceof NullPointerException);
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testLedgerOpenFailureShouldNotHaveDeadLock() throws Exception {
+        final String namespace = "prop/usw/my-ns";
+        final String deadLockTestTopic = "persistent://" + namespace + "/deadLockTestTopic";
+
+        // let this broker own this namespace bundle by creating a topic
+        try {
+            final String successfulTopic = "persistent://" + namespace + "/ownBundleTopic";
+            Producer producer = pulsarClient.createProducer(successfulTopic);
+            producer.close();
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        BrokerService service = spy(pulsar.getBrokerService());
+        // create topic will fail to get managedLedgerConfig
+        CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
+        failedManagedLedgerConfig.complete(null);
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+
+        CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
+        // fail managed-ledger future
+        Field ledgerField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        ledgerField.setAccessible(true);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
+                .get(pulsar.getManagedLedgerFactory());
+        CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
+        future.completeExceptionally(new ManagedLedgerException("ledger opening failed"));
+        ledgers.put(namespace + "/persistent/deadLockTestTopic", future);
+
+        // create topic async and wait on the future completion
+        executor.submit(() -> {
+            service.getTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+                topicCreation.completeExceptionally(e.getCause());
+                return null;
+            });
+        });
+
+        // future-result should be completed with exception
+        try {
+            topicCreation.get(1, TimeUnit.SECONDS);
+        } catch (TimeoutException | InterruptedException e) {
+            fail("there is a dead-lock and it should have been prevented");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PersistenceException);
+        } finally {
+            executor.shutdownNow();
+            ledgers.clear();
         }
     }
 
