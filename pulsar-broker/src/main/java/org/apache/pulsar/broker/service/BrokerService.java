@@ -609,7 +609,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Failed to create topic {}", topic, exception);
-                            topics.remove(topic, topicFuture);
+                            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
                             topicFuture.completeExceptionally(new PersistenceException(exception));
                         }
                     }, null);
