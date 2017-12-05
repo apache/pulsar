@@ -14,6 +14,15 @@ resource "aws_internet_gateway" "default" {
   vpc_id = "${aws_vpc.pulsar_vpc.id}"
 }
 
+resource "aws_route_table" "default" {
+  vpc_id = "${aws_vpc.pulsar_vpc.id}"
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "${aws_internet_gateway.default.id}"
+  }
+}
+
 # Grant the VPC internet access on its main route table
 resource "aws_route" "internet_access" {
   route_table_id         = "${aws_vpc.pulsar_vpc.main_route_table_id}"
@@ -30,10 +39,6 @@ resource "aws_nat_gateway" "pulsar_nat" {
   allocation_id = "${aws_eip.pulsar_eip.id}"
   subnet_id     = "${aws_subnet.pulsar_subnet.id}"
   depends_on    = ["aws_internet_gateway.default"]
-}
-
-resource "aws_route_table" "pulsar_private_route_table" {
-  vpc_id = "${aws_vpc.pulsar_vpc.id}"
 }
 
 resource "aws_route_table_association" "pulsar_route_table_association" {
@@ -79,6 +84,28 @@ resource "aws_security_group" "pulsar_security_group" {
 
   tags {
     Name = "Pulsar-Security-Group"
+  }
+}
+
+resource "aws_elb" "load_balancer" {
+  name = "pulsar-lb"
+  security_groups = ["${aws_security_group.pulsar_security_group.id}"]
+  subnets = ["${aws_subnet.pulsar_subnet.id}"]
+  instances = ["${aws_instance.pulsar.*.id}"]
+  cross_zone_load_balancing = false
+
+  listener {
+    instance_port     = 6650
+    instance_protocol = "tcp"
+    lb_port           = 6650
+    lb_protocol       = "tcp"
+  }
+
+  listener {
+    instance_port     = 8080
+    instance_protocol = "http"
+    lb_port           = 8080
+    lb_protocol       = "http"
   }
 }
 

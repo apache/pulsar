@@ -9,3 +9,7 @@ output "pulsar_connection_url" {
 output "pulsar_ssh_host" {
   value = "${aws_instance.pulsar.0.public_ip}"
 }
+
+output "pulsar_dns_name" {
+  value = "${aws_elb.load_balancer.dns_name}"
+}
