@@ -57,7 +57,7 @@
 
     - unarchive:
         src: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
-        remote_src: no
+        remote_src: yes
         dest: /opt/pulsar
         extra_opts: ["--strip-components=1"]
     - set_fact:
