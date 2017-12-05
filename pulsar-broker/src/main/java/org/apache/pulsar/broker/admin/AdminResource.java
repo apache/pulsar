@@ -215,7 +215,7 @@ public abstract class AdminResource extends PulsarWebResource {
         String brokerUrl = String.format("http://%s", broker);
         if (!pulsar().getWebServiceAddress().equals(brokerUrl)) {
             String[] parts = broker.split(":");
-            checkArgument(parts.length == 2);
+            checkArgument(parts.length == 2, "Invalid broker url %s", broker);
             String host = parts[0];
             int port = Integer.parseInt(parts[1]);
 

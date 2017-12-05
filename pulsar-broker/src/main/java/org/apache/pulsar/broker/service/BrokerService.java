@@ -776,7 +776,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkGC(int gcIntervalInSeconds) {
         topics.forEach((n, t) -> {
-            Topic topic = t.getNow(null);
+            Topic topic = t.isCompletedExceptionally() ? null : t.getNow(null);
             if (topic != null) {
                 topic.checkGC(gcIntervalInSeconds);
             }
