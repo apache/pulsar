@@ -1,6 +1,6 @@
 # Create a VPC to launch our instances into
 resource "aws_vpc" "pulsar_vpc" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "${var.vpc_cidr_block}"
   enable_dns_support   = true
   enable_dns_hostnames = true
 
@@ -68,6 +68,20 @@ resource "aws_security_group" "pulsar_security_group" {
     cidr_blocks = ["10.0.0.0/16"]
   }
 
+  ingress {
+    from_port   = 6650
+    to_port     = 6650
+    protocol    = "tcp"
+    cidr_blocks = ["${var.vpc_cidr_block}"]
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["${var.vpc_cidr_block}"]
+  }
+
   # outbound internet access
   egress {
     from_port   = 0
@@ -82,11 +96,10 @@ resource "aws_security_group" "pulsar_security_group" {
 }
 
 resource "aws_elb" "load_balancer" {
-  name = "pulsar-lb"
+  name            = "pulsar-lb"
   security_groups = ["${aws_security_group.pulsar_security_group.id}"]
-  subnets = ["${aws_subnet.pulsar_subnet.id}"]
-  instances = ["${aws_instance.pulsar.*.id}"]
-  cross_zone_load_balancing = false
+  subnets         = ["${aws_subnet.pulsar_subnet.id}"]
+  instances       = ["${aws_instance.pulsar.*.id}"]
 
   listener {
     instance_port     = 6650
@@ -101,6 +114,8 @@ resource "aws_elb" "load_balancer" {
     lb_port           = 8080
     lb_protocol       = "http"
   }
+
+  cross_zone_load_balancing = false
 }
 
 resource "aws_key_pair" "auth" {
