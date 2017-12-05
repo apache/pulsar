@@ -352,14 +352,17 @@ public class PulsarService implements AutoCloseable {
     private void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
+            String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
             if (!this.globalZkCache.exists(
-                    AdminResource.path(POLICIES) + "/" + NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config))) {
+                    AdminResource.path(POLICIES) + "/" + nsName)) {
+                LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
             }
 
             boolean acquiredSLANamespace;
             try {
                 acquiredSLANamespace = nsservice.registerSLANamespace();
+                LOG.info("Register SLA Namespace = {}, returned - {}.", nsName, acquiredSLANamespace);
             } catch (PulsarServerException e) {
                 acquiredSLANamespace = false;
             }
