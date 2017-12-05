@@ -34,9 +34,9 @@ groups:
   dir: deployment
   docs:
   - title: Single cluster on bare metal
-    endpoint: bare-metal/cluster
+    endpoint: cluster
   - title: Multi-cluster instance on bare metal
-    endpoint: bare-metal/instance
+    endpoint: instance
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
   - title: Pulsar on Google Container Engine
