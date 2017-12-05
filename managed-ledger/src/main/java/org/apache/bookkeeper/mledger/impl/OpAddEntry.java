@@ -106,7 +106,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     @Override
     public void addComplete(int rc, final LedgerHandle lh, long entryId, Object ctx) {
-        checkArgument(ledger.getId() == lh.getId());
+        if (ledger.getId() != lh.getId()) {
+            log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(), lh.getId());
+        }
+        checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
+                lh.getId());
         checkArgument(this.ctx == ctx);
 
         this.entryId = entryId;
@@ -173,7 +177,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     @Override
     public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-        checkArgument(ledger.getId() == lh.getId());
+        checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
+                lh.getId());
 
         if (rc == BKException.Code.OK) {
             log.debug("Successfuly closed ledger {}", lh.getId());
