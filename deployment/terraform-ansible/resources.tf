@@ -35,12 +35,6 @@ resource "aws_eip" "pulsar_eip" {
   depends_on = ["aws_internet_gateway.default"]
 }
 
-resource "aws_nat_gateway" "pulsar_nat" {
-  allocation_id = "${aws_eip.pulsar_eip.id}"
-  subnet_id     = "${aws_subnet.pulsar_subnet.id}"
-  depends_on    = ["aws_internet_gateway.default"]
-}
-
 resource "aws_route_table_association" "pulsar_route_table_association" {
   subnet_id      = "${aws_subnet.pulsar_subnet.id}"
   route_table_id = "${aws_vpc.pulsar_vpc.main_route_table_id}"
