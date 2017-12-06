@@ -43,6 +43,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
@@ -87,7 +88,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
             }
-            receiveMessage();
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
@@ -159,6 +159,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     subscription, getRemote().getInetSocketAddress().toString(), exception);
             return null;
         });
+    }
+
+    @Override
+    public void onWebSocketConnect(Session session) {
+        super.onWebSocketConnect(session);
+        receiveMessage();
     }
 
     @Override
