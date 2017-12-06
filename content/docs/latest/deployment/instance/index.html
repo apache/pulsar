@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>ZooKeeper and BookKeeper administration</title>
+<title>Deploying a Pulsar instance on bare metal</title>
 
 <meta charset="utf-8">
 
@@ -717,9 +717,777 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">ZooKeeper and BookKeeper administration</h1>
+        <h1 class="docs-title">Deploying a Pulsar instance on bare metal</h1>
         
         <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">deployment</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-deployment">deployment</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-deployment">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>deployment</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">instance</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-instance">instance</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-instance">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>instance</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">bare metal</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-bare-metal">bare metal</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-bare-metal">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>bare metal</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
           
         </section>
 
@@ -748,15 +1516,6 @@
 
 -->
 
-<p>Pulsar relies on two external systems for essential tasks:</p>
-
-<ul>
-  <li><a href="https://zookeeper.apache.org/">ZooKeeper</a> is responsible for a wide variety of configuration- and coordination-related tasks.</li>
-  <li><a href="http://bookkeeper.apache.org/">BookKeeper</a> is responsible for <a href="../../getting-started/ConceptsAndArchitecture#persistent-storage">persistent storage</a> of message data.</li>
-</ul>
-
-<p>ZooKeeper and BookKeeper are both open-source <a href="https://www.apache.org/">Apache</a> projects.</p>
-
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -780,13 +1539,165 @@
 <div class="admonition">
   <div class="info">
     
-    
-<p>Skip to the <a href="#how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</a> section below for a more schematic explanation of the role of these two systems in Pulsar.</p>
+    <p>Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you’re interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster, see the guide <a href="../cluster">here</a>.</p>
 
   </div>
 </div>
 
-<h2 id="zookeeper">ZooKeeper</h2>
+<p>A Pulsar <em>instance</em> consists of multiple Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using <a href="../../admin/GeoReplication">geo-replication</a>. Deploying a multi-cluster Pulsar instance involves the following basic steps:</p>
+
+<ul>
+  <li>Deploying two separate <a href="#deploying-zookeeper">ZooKeeper</a> quorums: a <a href="#deploying-local-zookeeper">local</a> quorum for each cluster in the instance and a <a href="#deploying-global-zookeeper">global</a> quorum for instance-wide tasks</li>
+  <li>Initializing <a href="#cluster-metadata-initialization">cluster metadata</a> for each cluster</li>
+  <li>Deploying a <a href="#deploying-bookkeeper">BookKeeper cluster</a> of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> in each Pulsar cluster</li>
+  <li>Deploying <a href="#deploying-brokers">brokers</a> in each Pulsar cluster</li>
+</ul>
+
+<p>If you’re deploying a single Pulsar cluster, see the <a href="../../getting-started/LocalCluster#starting-the-cluster">Clusters and Brokers</a> guide.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Running Pulsar locally or on Kubernetes?</p>
+</span>
+    
+<p>This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you’d like to run a standalone Pulsar cluster on a single machine for development purposes, see the <a href="../../getting-started/LocalCluster">Setting up a local cluster</a> guide. If you’re looking to run Pulsar on <a href="https://kubernetes.io">Kubernetes</a>, see the <a href="../Kubernetes">Pulsar on Kubernetes</a> guide, which includes sections on running Pulsar on Kubernetes on <a href="../Kubernetes#pulsar-on-google-container-engine">Google Container Engine</a> and on <a href="../Kubernetes#pulsar-on-amazon-web-services">Amazon Web Services</a>.</p>
+
+  </div>
+</div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<h2 id="system-requirements">System requirements</h2>
+
+<p>Pulsar is currently available for <strong>MacOS</strong> and <strong>Linux</strong>. In order to use Pulsar, you’ll need to install <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">Java 8</a>.</p>
+
+<h2 id="installing-pulsar">Installing Pulsar</h2>
+
+<p>To get started running Pulsar, download a binary tarball release in one of the following ways:</p>
+
+<ul>
+  <li>
+    <p>by clicking one of these links, which will automatically trigger a download:</p>
+
+    <ul>
+      <li><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-src.tar.gz" download="">Pulsar 1.20.0-incubating source release</a></li>
+      <li><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz" download="">Pulsar 1.20.0-incubating binary release</a></li>
+    </ul>
+  </li>
+  <li>from the Pulsar <a href="/download">downloads page</a></li>
+  <li>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></li>
+  <li>
+    <p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+
+    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-src.tar.gz
+
+<span class="c"># Binary release</span>
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>Once the tarball is downloaded, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="gp">$ </span>tar xvfz apache-pulsar-1.20.0-incubating-src.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.20.0-incubating
+
+<span class="c"># Binary release</span>
+<span class="gp">$ </span>tar xvfz apache-pulsar-1.20.0-incubating-bin.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.20.0-incubating
+</code></pre>
+</div>
+
+<h2 id="what-your-package-contains">What your package contains</h2>
+
+<p>Both the source and binary packages contain the following directories:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Directory</th>
+      <th style="text-align: left">Contains</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">bin</code></td>
+      <td style="text-align: left">Pulsar’s <a href="../../reference/CliTools">command-line tools</a>, such as <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> and <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">conf</code></td>
+      <td style="text-align: left">Configuration files for Pulsar, including for <a href="../../reference/Configuration#broker">broker configuration</a>, <a href="../../reference/Configuration#zookeeper">ZooKeeper configuration</a>, and more</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">data</code></td>
+      <td style="text-align: left">The data storage directory used by <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">lib</code></td>
+      <td style="text-align: left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">logs</code></td>
+      <td style="text-align: left">Logs created by the installation.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The source package contains all of the assets, specific to version 1.20.0-incubating, from the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar repository</a>.</p>
+
+<h2 id="compiling-from-source">Compiling from source</h2>
+
+<p>If you’ve downloaded a source release and would like to compile it, you’ll need to have <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">JDK 8</a> and <a href="https://maven.apache.org/">Maven</a> installed. To run the scripts in the <code class="highlighter-rouge">bin</code> directory, you’ll need to have the <a href="http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html">Java SE Runtime Environment</a> installed (JDK 8 already includes this).</p>
+
+<p>To compile, skipping the tests:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn install -DskipTests
+</code></pre>
+</div>
+
+<h2 id="deploying-zookeeper">Deploying ZooKeeper</h2>
 
 <!--
 
@@ -985,201 +1896,32 @@ of these regions is unreachable.</p>
 </code></pre>
 </div>
 
-<h3 id="zookeeper-configuration">ZooKeeper configuration</h3>
+<h2 id="cluster-metadata-initialization">Cluster metadata initialization</h2>
 
-<p>In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the <code class="highlighter-rouge">conf</code> directory of your Pulsar installation: <code class="highlighter-rouge">conf/zookeeper.conf</code> for <a href="#local-zookeeper">local ZooKeeper</a> and <code class="highlighter-rouge">conf/global-zookeeper.conf</code> for <a href="#global-zookeeper">global ZooKeeper</a>.</p>
+<p>Once you’ve set up local and global ZooKeeper for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. It only needs to be written once.</p>
 
-<h4 id="local-zookeeper">Local ZooKeeper</h4>
+<p>You can initialize this metadata using the <a href="../../reference/CliTools#pulsar-initialize-cluster-metadata"><code class="highlighter-rouge">initialize-cluster-metadata</code></a> command of the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool. Here’s an example:</p>
 
-<p>Configuration for local ZooKeeper is handled by the <a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> file. The table below shows the available parameters:</p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  --cluster us-west <span class="se">\</span>
+  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
+  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
+  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
+  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
+  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre>
+</div>
 
-<!--
+<p>As you can see from the example above, the following needs to be specified:</p>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<table class="config">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Description</th>
-      <th>Default</th>
-    </tr>
-  </thead>
-  <tbody>
-    
-    <tr id="zookeeper-tickTime">
-      <td>tickTime</td>
-      <td>The <em>tick</em> is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like <a href="https://www.tutorialspoint.com/zookeeper/zookeeper_quick_guide.htm">heartbeats and timeouts</a>. <code class="highlighter-rouge">tickTime</code> is the length of a single tick.
-</td>
-      <td>2000</td>
-    </tr>
-    
-    <tr id="zookeeper-initLimit">
-      <td>initLimit</td>
-      <td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
-</td>
-      <td>10</td>
-    </tr>
-    
-    <tr id="zookeeper-syncLimit">
-      <td>syncLimit</td>
-      <td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the <a href="#zookeeper-tickTime"><code class="highlighter-rouge">tickTime</code></a> parameter.
-</td>
-      <td>5</td>
-    </tr>
-    
-    <tr id="zookeeper-dataDir">
-      <td>dataDir</td>
-      <td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.
-</td>
-      <td>data/zookeeper</td>
-    </tr>
-    
-    <tr id="zookeeper-clientPort">
-      <td>clientPort</td>
-      <td>The port on which the ZooKeeper server will listen for connections.
-</td>
-      <td>2181</td>
-    </tr>
-    
-    <tr id="zookeeper-autopurge.snapRetainCount">
-      <td>autopurge.snapRetainCount</td>
-      <td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in <a href="#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> to retain within the time interval specified by <a href="#zookeeper-autopurge.purgeInterval"><code class="highlighter-rouge">autopurge.purgeInterval</code></a> (while deleting the rest).
-</td>
-      <td>3</td>
-    </tr>
-    
-    <tr id="zookeeper-autopurge.purgeInterval">
-      <td>autopurge.purgeInterval</td>
-      <td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">this guide</a> before enabling auto purge.
-</td>
-      <td>1</td>
-    </tr>
-    
-    <tr id="zookeeper-maxClientCnxns">
-      <td>maxClientCnxns</td>
-      <td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.
-</td>
-      <td>60</td>
-    </tr>
-    
-  </tbody>
-</table>
-
-<h4 id="global-zookeeper">Global ZooKeeper</h4>
-
-<p>Configuration for global ZooKeeper is handled by the <a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global-zookeeper.conf</code></a> file. The table below shows the available parameters:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<table class="config">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Description</th>
-      <th>Default</th>
-    </tr>
-  </thead>
-  <tbody>
-    
-    <tr id="global-zookeeper-tickTime">
-      <td>tickTime</td>
-      <td>The number of milliseconds of each tick
-</td>
-      <td>2000</td>
-    </tr>
-    
-    <tr id="global-zookeeper-initLimit">
-      <td>initLimit</td>
-      <td>The number of ticks that the initial synchronization phase can take
-</td>
-      <td>10</td>
-    </tr>
-    
-    <tr id="global-zookeeper-syncLimit">
-      <td>syncLimit</td>
-      <td>The number of ticks that can pass between sending a request and getting an acknowledgement
-</td>
-      <td>5</td>
-    </tr>
-    
-    <tr id="global-zookeeper-dataDir">
-      <td>dataDir</td>
-      <td>the directory where the snapshot is stored.
-</td>
-      <td>data/global-zookeeper</td>
-    </tr>
-    
-    <tr id="global-zookeeper-clientPort">
-      <td>clientPort</td>
-      <td>the port at which the clients will connect
-</td>
-      <td>2184</td>
-    </tr>
-    
-    <tr id="global-zookeeper-maxClientCnxns">
-      <td>maxClientCnxns</td>
-      <td>the maximum number of client connections. increase this if you need to handle more clients
-</td>
-      <td>60</td>
-    </tr>
-    
-    <tr id="global-zookeeper-autopurge.snapRetainCount">
-      <td>autopurge.snapRetainCount</td>
-      <td>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.
-</td>
-      <td>3</td>
-    </tr>
-    
-    <tr id="global-zookeeper-autopurge.purgeInterval">
-      <td>autopurge.purgeInterval</td>
-      <td>Purge task interval in hours. Set to “0” to disable auto purge feature
-</td>
-      <td>1</td>
-    </tr>
-    
-  </tbody>
-</table>
-
-<h2 id="bookkeeper">BookKeeper</h2>
-
-<p><span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> is responsible for all durable message storage in Pulsar. BookKeeper is a distributed <a href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead log</a> WAL system that guarantees read consistency of independent message logs called <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics." data-toggle="popover" data-trigger="focus">ledgers</span>. Individual BookKeeper servers are also called <em>bookies</em>.</p>
+<ul>
+  <li>The name of the cluster</li>
+  <li>The local ZooKeeper connection string for the cluster</li>
+  <li>The global ZooKeeper connection string for the entire instance</li>
+  <li>The web service URL for the cluster</li>
+  <li>A broker service URL enabling interaction with the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in the cluster</li>
+</ul>
 
 <!--
 
@@ -1203,14 +1945,19 @@ of these regions is unreachable.</p>
 -->
 <div class="admonition">
   <div class="info">
+    <span class="admonition-title"><p>Global cluster</p>
+</span>
     
-    
-<p>For a guide to managing message persistence, retention, and expiry in Pulsar, see <a href="../../advanced/RetentionExpiry">this guide</a>.</p>
+<p>In each Pulsar instance, there is a <code class="highlighter-rouge">global</code> cluster that you can administer just like other clusters. The <code class="highlighter-rouge">global</code> cluster enables you to do things like create global topics.</p>
 
   </div>
 </div>
 
-<h3 id="deploying-bookkeeper">Deploying BookKeeper</h3>
+<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a>, you’ll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.</p>
+
+<p>Make sure to run <code class="highlighter-rouge">initialize-cluster-metadata</code> for each cluster in your instance.</p>
+
+<h2 id="deploying-bookkeeper">Deploying BookKeeper</h2>
 
 <!--
 
@@ -1276,25 +2023,74 @@ designed to use multiple devices:</p>
   <li>A <strong>ledger storage device</strong> is where data is stored until all <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> have <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> the message. Writes will happen in the background, so write I/O is not a big concern. Reads will happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration will involve multiple HDDs with a RAID controller.</li>
 </ul>
 
-<h3 id="configuring-bookkeeper">Configuring BookKeeper</h3>
+<h2 id="deploying-brokers">Deploying brokers</h2>
 
-<p>Configurable parameters for BookKeeper bookies can be found in the <a href="../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a> file.</p>
+<p>Once you’ve set up ZooKeeper, initialized cluster metadata, and spun up BookKeeper <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, you can deploy <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>.</p>
 
-<p>Minimum configuration changes required  in <code class="highlighter-rouge">conf/bookkeeper.conf</code> are:</p>
+<h3 id="broker-configuration">Broker configuration</h3>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Change to point to journal disk mount point
-</span><span class="py">journalDirectory</span><span class="p">=</span><span class="s">data/bookkeeper/journal</span>
+<p>Brokers can be configured using the <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a> configuration file.</p>
 
-<span class="c"># Point to ledger storage disk mount point
-</span><span class="py">ledgerDirectories</span><span class="p">=</span><span class="s">data/bookkeeper/ledgers</span>
+<p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the <a href="../../reference/Configuration#broker-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> parameter to reflect the local quorum and the <a href="../../reference/Configuration#broker-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a> parameter to reflect the global quorum (although you’ll need to specify only those global ZooKeeper servers located in the same cluster).</p>
 
-<span class="c"># Point to local ZK quorum
-</span><span class="py">zkServers</span><span class="p">=</span><span class="s">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
+<p>You also need to specify the name of the <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> to which the broker belongs using the <a href="../../reference/Configuration#broker-clusterName"><code class="highlighter-rouge">clusterName</code></a> parameter.</p>
 
-<span class="c"># Change the ledger manager type
-</span><span class="py">ledgerManagerType</span><span class="p">=</span><span class="s">hierarchical</span>
+<p>Here’s an example configuration:</p>
+
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Local ZooKeeper servers
+</span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+
+<span class="c"># Global Zookeeper quorum connection string.
+</span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
+
+<span class="py">clusterName</span><span class="p">=</span><span class="s">us-west</span>
 </code></pre>
 </div>
+
+<h3 id="broker-hardware">Broker hardware</h3>
+
+<p>Pulsar brokers do not require any special hardware since they don’t use the local disk. Fast CPUs and 10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller">NIC</a> are recommended since the software can take full advantage of that.</p>
+
+<h3 id="starting-the-broker-service">Starting the broker service</h3>
+
+<p>You can start a broker in the background using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a> with the <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start broker
+</code></pre>
+</div>
+
+<p>You can also start brokers in the foreground using <a href="../../reference/CliTools#pulsar-broker"><code class="highlighter-rouge">pulsar broker</code></a>:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar broker
+</code></pre>
+</div>
+
+<h2 id="service-discovery">Service discovery</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p><a href="../../getting-started/Clients">Clients</a> connecting to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> need to be able to communicate with an entire Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions <a href="#service-discovery-setup">immediately below</a>.</p>
+
+<p>You can also use your own service discovery system if you’d like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an <a href="../../reference/Configuration">endpoint</a> for a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, such as <code class="highlighter-rouge">http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
 
 <!--
 
@@ -1317,129 +2113,122 @@ designed to use multiple devices:</p>
 
 -->
 <div class="admonition">
-  <div class="info">
+  <div class="success">
+    <span class="admonition-title"><p>Service discovery already provided by many scheduling systems</p>
+</span>
     
-    <p>Consult the official <a href="http://bookkeeper.apache.org">BookKeeper docs</a> for more information about BookKeeper.</p>
+<p>Many large-scale deployment systems, such as <a href="../../deployment/Kubernetes">Kubernetes</a>, have service discovery systems built in. If you’re running Pulsar on such a system, you may not need to provide your own service discovery mechanism.</p>
 
   </div>
 </div>
 
-<h2 id="bookkeeper-persistence-policies">BookKeeper persistence policies</h2>
+<h3 id="service-discovery-setup">Service discovery setup</h3>
 
-<p>In Pulsar, you can set <em>persistence policies</em>, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level, that determine how <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> handles persistent storage of messages. Policies determine four things:</p>
+<p>The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span>, and supports lookup using HTTP and also Pulsar’s <a href="../../project/BinaryProtocol">binary protocol</a>.</p>
 
-<ul>
-  <li>The number of <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acks</span> (guaranteed copies) to wait for each ledger entry</li>
-  <li>The number of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> to use for a topic</li>
-  <li>How many writes to make for each ledger entry</li>
-  <li>The throttling rate for mark-delete operations</li>
-</ul>
+<p>To get started setting up Pulsar’s built-in service discovery, you need to change a few parameters in the <a href="../../reference/Configuration#service-discovery"><code class="highlighter-rouge">conf/discovery.conf</code></a> configuration file. Set the <a href="../../reference/Configuration#service-discovery-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> parameter to the global ZooKeeper quorum connection string and the <a href="../../reference/Configuration#service-discovery-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a></p>
 
-<h3 id="set-persistence-policies">Set persistence policies</h3>
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Zookeeper quorum connection string
+</span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 
-<p>You can set persistence policies for BookKeeper at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level.</p>
-
-<h4 id="pulsar-admin">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-set-persistence"><code class="highlighter-rouge">set-persistence</code></a> subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:</p>
-
-<table>
-  <thead>
-    <tr>
-      <th style="text-align: left">Flag</th>
-      <th style="text-align: left">Description</th>
-      <th style="text-align: left">Default</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">-a</code>, <code class="highlighter-rouge">--bookkeeper-ack-quorom</code></td>
-      <td style="text-align: left">The number of acks (guaranteed copies) to wait on for each entry</td>
-      <td style="text-align: left">0</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">-e</code>, <code class="highlighter-rouge">--bookkeeper-ensemble</code></td>
-      <td style="text-align: left">The number of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> to use for topics in the namespace</td>
-      <td style="text-align: left">0</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">-w</code>, <code class="highlighter-rouge">--bookkeeper-write-quorum</code></td>
-      <td style="text-align: left">How many writes to make for each entry</td>
-      <td style="text-align: left">0</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">-r</code>, <code class="highlighter-rouge">--ml-mark-delete-max-rate</code></td>
-      <td style="text-align: left">Throttling rate for mark-delete operations (0 means no throttle)</td>
-      <td style="text-align: left">0</td>
-    </tr>
-  </tbody>
-</table>
-
-<h5 id="example">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
-  --bookkeeper-ack-quorom 3 <span class="se">\</span>
-  --bookeeper-ensemble 2
+<span class="c"># Global zookeeper quorum connection string
+</span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
 </code></pre>
 </div>
 
-<h4 id="rest-api">REST API</h4>
+<p>To start the discovery service:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">More info</a></p>
-
-<h4 id="java">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
-<span class="kt">int</span> <span class="n">bkQuorum</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span>
-<span class="kt">int</span> <span class="n">bkAckQuorum</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
-<span class="kt">double</span> <span class="n">markDeleteRate</span> <span class="o">=</span> <span class="mf">0.7</span><span class="o">;</span>
-<span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span>
-  <span class="k">new</span> <span class="nf">PersistencePolicies</span><span class="o">(</span><span class="n">ensemble</span><span class="o">,</span> <span class="n">quorum</span><span class="o">,</span> <span class="n">ackQuorum</span><span class="o">,</span> <span class="n">markDeleteRate</span><span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start discovery
 </code></pre>
 </div>
 
-<h3 id="list-persistence-policies">List persistence policies</h3>
+<h2 id="admin-client-and-verification">Admin client and verification</h2>
 
-<p>You can see which persistence policy currently applies to a namespace.</p>
+<p>At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as <a href="../../admin-api/overview">administrative clients</a> for each cluster. You can use the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> configuration file to configure admin clients.</p>
 
-<h4 id="pulsar-admin-1">pulsar-admin</h4>
+<p>The most important thing is that you point the <a href="../../reference/Configuration#client-serviceUrl"><code class="highlighter-rouge">serviceUrl</code></a> parameter to the correct service URL for the cluster:</p>
 
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-persistence"><code class="highlighter-rouge">get-persistence</code></a> subcommand and specify the namespace.</p>
-
-<h5 id="example-1">Example</h5>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
-<span class="o">{</span>
-  <span class="s2">"bookkeeperEnsemble"</span>: 1,
-  <span class="s2">"bookkeeperWriteQuorum"</span>: 1,
-  <span class="s2">"bookkeeperAckQuorum"</span>, 1,
-  <span class="s2">"managedLedgerMaxMarkDeleteRate"</span>: 0
-<span class="o">}</span>
+<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">http://pulsar.us-west.example.com:8080/</span>
 </code></pre>
 </div>
 
-<h4 id="rest-api-1">REST API</h4>
+<h2 id="provisioning-new-tenants">Provisioning new tenants</h2>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/persistence</code></pre></div>
+<p>Pulsar was built as a fundamentally <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. New tenants can be provisioned as Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be</p>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence">More info</a></p>
+<p>To allow a new tenant to use the system, we need to create a new <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>. You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool:</p>
 
-<h4 id="java-1">Java</h4>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create <span class="nb">test</span>-prop <span class="se">\</span>
+  --allowed-clusters us-west <span class="se">\</span>
+  --admin-roles <span class="nb">test</span>-admin-role
 </code></pre>
 </div>
 
-<h2 id="how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</h2>
+<p>This will allow users who identify with role <code class="highlighter-rouge">test-admin-role</code> to administer the configuration for the property <code class="highlighter-rouge">test</code> which will only be allowed to use the cluster <code class="highlighter-rouge">us-west</code>. From now on, this tenant will be able to self-manage its resources.</p>
 
-<p>This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:</p>
+<p>Once a tenant has been created, you will need to create <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> for topics within that property.</p>
 
-<p><img src="/img/pulsar_system_architecture.png" alt="ZooKeeper and BookKeeper" /></p>
+<p>The first step is to create a namespace. A namespace is an administrative unit
+that can contain many topic. Common practice is to create a namespace for each
+different use case from a single tenant.</p>
 
-<p>Each Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> consists of one or more message <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>. Each broker relies on an ensemble of <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span></p>
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+</code></pre>
+</div>
+
+<h5 id="testing-producer-and-consumer">Testing producer and consumer</h5>
+
+<p>Everything is now ready to send and receive messages. The quickest way to test
+the system is through the <code class="highlighter-rouge">pulsar-perf</code> client tool.</p>
+
+<p>Let’s use a topic in the namespace we just created. Topics are automatically
+created the first time a producer or a consumer tries to use them.</p>
+
+<p>The topic name in this case could be:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="topic">
+  persistent://<span class="property">test</span>/<span class="cluster">us-west</span>/<span class="namespace">ns1</span>/<span class="t">my-topic</span>
+</section>
+
+<p>Start a consumer that will create a subscription on the topic and will wait
+for messages:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<p>Start a producer that publishes messages at a fixed rate and report stats every
+10 seconds:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
+
+<p>To report the topic stats:</p>
+
+<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+</code></pre>
+</div>
 
       </section>
     </article>
@@ -1447,7 +2236,7 @@ designed to use multiple devices:</p>
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>ZooKeeper and BookKeeper administration</h4>
+        <h4>Deploying a Pulsar instance on bare metal</h4>
       </div>
       
     </nav>
