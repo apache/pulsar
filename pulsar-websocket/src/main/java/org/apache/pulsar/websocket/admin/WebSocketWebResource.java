@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.websocket.admin;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import javax.naming.AuthenticationException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -62,14 +64,15 @@ public class WebSocketWebResource {
      * @return the web service caller identification
      */
     public String clientAppId() {
-        if (clientId != null && service().getConfig().isAuthenticationEnabled()) {
+        if (isBlank(clientId) && service().getConfig().isAuthenticationEnabled()) {
             try {
                 clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
             } catch (AuthenticationException e) {
                 throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
             }
-        } else {
-            throw new RestException(Status.UNAUTHORIZED, "Failed to get auth data from the request");
+            if (isBlank(clientId)) {
+                throw new RestException(Status.UNAUTHORIZED, "Failed to get auth data from the request");
+            }
         }
         return clientId;
     }
