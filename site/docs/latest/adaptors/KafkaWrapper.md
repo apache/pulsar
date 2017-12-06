@@ -50,7 +50,7 @@ Include dependency for Pulsar Kafka wrapper:
 ```xml
 <dependency>
   <groupId>org.apache.pulsar</groupId>
-  <artifactId>pulsar-client-kafka-compat</artifactId>
+  <artifactId>pulsar-client-kafka</artifactId>
   <version>{{ site.current_version }}</version>
 </dependency>
 ```
@@ -183,9 +183,9 @@ APIs:
 | `void commitAsync()`                                                                                    | Yes       |       |
 | `void commitAsync(OffsetCommitCallback callback)`                                                       | Yes       |       |
 | `void commitAsync(Map<TopicPartition, OffsetAndMetadata> offsets, OffsetCommitCallback callback)`       | Yes       |       |
-| `void seek(TopicPartition partition, long offset)`                                                      | No        |       |
-| `void seekToBeginning(Collection<TopicPartition> partitions)`                                           | No        |       |
-| `void seekToEnd(Collection<TopicPartition> partitions)`                                                 | No        |       |
+| `void seek(TopicPartition partition, long offset)`                                                      | Yes        |       |
+| `void seekToBeginning(Collection<TopicPartition> partitions)`                                           | Yes        |       |
+| `void seekToEnd(Collection<TopicPartition> partitions)`                                                 | Yes        |       |
 | `long position(TopicPartition partition)`                                                               | Yes       |       |
 | `OffsetAndMetadata committed(TopicPartition partition)`                                                 | Yes       |       |
 | `Map<MetricName, ? extends Metric> metrics()`                                                           | No        |       |
