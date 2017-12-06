@@ -1334,7 +1334,7 @@ the Pulsar Kafka wrapper:</p>
 
 <div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
   <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
-  <span class="nt">&lt;artifactId&gt;</span>pulsar-client-kafka-compat<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-client-kafka<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>1.20.0-incubating<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
 </code></pre>
@@ -1674,17 +1674,17 @@ Pulsar topic.</p>
     </tr>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">void seek(TopicPartition partition, long offset)</code></td>
-      <td style="text-align: left">No</td>
+      <td style="text-align: left">Yes</td>
       <td style="text-align: left"> </td>
     </tr>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">void seekToBeginning(Collection&lt;TopicPartition&gt; partitions)</code></td>
-      <td style="text-align: left">No</td>
+      <td style="text-align: left">Yes</td>
       <td style="text-align: left"> </td>
     </tr>
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">void seekToEnd(Collection&lt;TopicPartition&gt; partitions)</code></td>
-      <td style="text-align: left">No</td>
+      <td style="text-align: left">Yes</td>
       <td style="text-align: left"> </td>
     </tr>
     <tr>
