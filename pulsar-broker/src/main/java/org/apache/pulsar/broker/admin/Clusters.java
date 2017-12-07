@@ -146,9 +146,14 @@ public class Clusters extends AdminResource {
             String clusterPath = path("clusters", cluster);
             Stat nodeStat = new Stat();
             byte[] content = globalZk().getData(clusterPath, null, nodeStat);
-            ClusterData currentClusterData = jsonMapper().readValue(content, ClusterData.class);
-            // only update cluster-url-data and not overwrite other metadata such as peerClusterNames
-            currentClusterData.update(clusterData);
+            ClusterData currentClusterData = null;
+            if (content.length > 0) {
+                currentClusterData = jsonMapper().readValue(content, ClusterData.class);
+                // only update cluster-url-data and not overwrite other metadata such as peerClusterNames
+                currentClusterData.update(clusterData);
+            } else {
+                currentClusterData = clusterData;
+            }
             // Write back the new updated ClusterData into zookeeper
             globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(currentClusterData),
                     nodeStat.getVersion());
