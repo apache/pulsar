@@ -11,7 +11,7 @@ resource "aws_vpc" "pulsar_vpc" {
 resource "aws_subnet" "default" {
   vpc_id                  = "${aws_vpc.pulsar_vpc.id}"
   cidr_block              = "${cidrsubnet(var.base_cidr_block, 8, 2)}"
-  availability_zone       = "${var.subnet_availability_zone}"
+  availability_zone       = "${var.availability_zone}"
   map_public_ip_on_launch = true
 
   tags {

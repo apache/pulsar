@@ -65,7 +65,7 @@
         max_heap_memory: "24g"
         max_direct_memory: "24g"
     - template:
-        src: "templates/pulsar_env.sh"
+        src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
 
 - name: Setup ZooKeeper
@@ -84,16 +84,16 @@
       with_items:
         - data/zookeeper
     - template:
-        src: "templates/pulsar_env.sh"
+        src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
     - template:
-        src: "templates/zoo.cfg"
+        src: "../templates/zoo.cfg"
         dest: "/opt/pulsar/conf/zookeeper.conf"
     - template:
-        src: templates/myid
+        src: "../templates/myid"
         dest: "/opt/pulsar/data/zookeeper/myid"
     - template:
-        src: "templates/zookeeper.service"
+        src: "../templates/zookeeper.service"
         dest: "/etc/systemd/system/zookeeper.service"
     - systemd:
         state: restarted
@@ -116,11 +116,11 @@
   become: true
   tasks:
     - template:
-        src: "templates/bookkeeper.conf"
+        src: "../templates/bookkeeper.conf"
         dest: "/opt/pulsar/conf/bookkeeper.conf"
     - name: Install bookkeeper systemd service
       template:
-        src: "templates/bookkeeper.service"
+        src: "../templates/bookkeeper.service"
         dest: "/etc/systemd/system/bookkeeper.service"
     - systemd:
         state: restarted
@@ -134,10 +134,10 @@
   tasks:
     - name: Set up broker
       template:
-        src: "templates/broker.conf"
+        src: "../templates/broker.conf"
         dest: "/opt/pulsar/conf/broker.conf"
     - template:
-        src: "templates/pulsar.service"
+        src: "../templates/pulsar.service"
         dest: "/etc/systemd/system/pulsar.service"
     - systemd:
         state: restarted
