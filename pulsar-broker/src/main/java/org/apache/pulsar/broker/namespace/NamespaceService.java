@@ -236,7 +236,6 @@ public class NamespaceService {
         try {
             NamespaceName nsname = new NamespaceName(namespace);
 
-            // [Bug 6504511] Enable writing with JSON format
             String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
 
@@ -759,18 +758,19 @@ public class NamespaceService {
         PulsarAdmin adminClient = null;
         String namespaceName = getSLAMonitorNamespace(host, config);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Trying to unload SLA namespace {}", namespaceName);
-        }
+        LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
         NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
         if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
+            // Next lookup will assign the bundle to this broker.
             return;
         }
+
+        LOG.info("Trying to unload SLA namespace {}", namespaceName);
         adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName);
-        LOG.debug("Namespace {} unloaded successfully", namespaceName);
+        LOG.info("Namespace {} unloaded successfully", namespaceName);
     }
 
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {
