@@ -96,7 +96,7 @@ Variable name | Description | Default
 
 When you run the Ansible playbook, the following AWS resources will be used:
 
-* 6 total [Elastic Compute Cloud](https://aws.amazon.com/ec2) (EC2) instances running the [ami-9fa343e7](https://access.redhat.com/articles/3135091) Amazon Machine Image (AMI), which runs [Red Hat Enterprise Linux (RHEL) 7.4](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index). That includes:
+* 6 total [Elastic Compute Cloud](https://aws.amazon.com/ec2) (EC2) instances running the [ami-9fa343e7](https://access.redhat.com/articles/3135091) Amazon Machine Image (AMI), which runs [Red Hat Enterprise Linux (RHEL) 7.4](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index). By default, that includes:
   * 3 small VMs for ZooKeeper ([t2.small](https://www.ec2instances.info/?selected=t2.small) instances)
   * 3 larger VMs for Pulsar {% popover brokers %} and BookKeeper {% popover bookies %} ([i3.4xlarge](https://www.ec2instances.info/?selected=i3.4xlarge) instances)
 * An EC2 [security group](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html)
@@ -107,7 +107,7 @@ When you run the Ansible playbook, the following AWS resources will be used:
 
 All EC2 instances for the cluster will run in the [us-west-2](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html) region.
 
-### Fetching a Pulsar connection URL
+### Fetching your Pulsar connection URL
 
 When you apply the Terraform configuration by running `terraform apply`, Terraform will output a value for the `pulsar_connection_url`. It should look something like this:
 
@@ -150,9 +150,9 @@ $ ansible-playbook \
 
 ## Accessing the cluster
 
-You can access your running Pulsar
+You can now access your running Pulsar using the unique Pulsar connection URL for your cluster, which you can obtain using the instructions [above](#fetching-your-pulsar-connection-url).
 
-For a quick demonstration, install the Pulsar Python module using pip:
+For a quick demonstration of accessing the cluster, we can use the Python client for Pulsar and the Python shell. First, install the Pulsar Python module using pip:
 
 ```bash
 $ pip install pulsar-client
@@ -174,3 +174,5 @@ Once in the shell, run the following:
 >>> producer.send('Hello world')
 >>> client.close()
 ```
+
+If all of these commands are successful, your cluster can now be used by Pulsar clients!
