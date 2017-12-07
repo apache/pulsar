@@ -73,7 +73,7 @@ spec:
 ---
 
 ##
-## Define the Bookie headless service
+## Define the Broker headless service
 ## In practice, in this case, it is only useful to have a view of
 ## all the broker pods that are present
 ##
