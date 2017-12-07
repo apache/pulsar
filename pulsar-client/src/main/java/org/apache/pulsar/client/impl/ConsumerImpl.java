@@ -965,7 +965,12 @@ public class ConsumerImpl extends ConsumerBase {
             if (id instanceof BatchMessageIdImpl) {
                 id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
             }
-            unAckedMessageTracker.add(id);
+            if (partitionIndex != -1) {
+                // we should no longer track this message, PartitionedConsumerImpl will take care from now onwards
+                unAckedMessageTracker.remove(id);
+            } else {
+                unAckedMessageTracker.add(id);
+            }
         }
     }
 
