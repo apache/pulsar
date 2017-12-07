@@ -1,14 +1,14 @@
 {
   "id": "/pulsar",
+  "// Notice:" : "mem, cpus, volume size, zkServers, may need change according to your DC/OS deployment.",
   "groups": [
     {
       "id": "/pulsar/bookkeeper",
-      "// TODO:" : "change all mem, cpu, volume size, zkServers...",
       "apps": [
         {
           "id": "/pulsar/bookkeeper/bookie",
-          "cpus": 0.2,
-          "mem": 256,
+          "cpus": 1,
+          "mem": 1024,
           "instances": 3,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
@@ -24,7 +24,7 @@
                 "containerPath": "journal",
                 "mode": "RW",
                 "persistent": {
-                  "size": 1000
+                  "size": 7000
                 }
               },
 
@@ -37,7 +37,7 @@
                 "containerPath": "index",
                 "mode": "RW",
                 "persistent": {
-                  "size": 1000
+                  "size": 7000
                 }
               },
 
@@ -50,7 +50,7 @@
                 "containerPath": "ledgers",
                 "mode": "RW",
                 "persistent": {
-                  "size": 1000
+                  "size": 30000
                 }
               }
             ],
@@ -83,6 +83,7 @@
           "requirePorts": true,
 
           "env": {
+            "// Notice": "add PULSAR_MEM, PULSAR_GC, according to your environment.",
             "zkServers":  "master.mesos:2181",
             "ledgerManagerType": "hierarchical",
             "statsProviderClass": "org.apache.bookkeeper.stats.PrometheusMetricsProvider",
@@ -112,8 +113,8 @@
         },
         {
           "id": "/pulsar/bookkeeper/bookie-autorecovery",
-          "cpus": 0.2,
-          "mem": 128,
+          "cpus": 1,
+          "mem": 1024,
           "instances": 1,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
@@ -146,10 +147,10 @@
       "dependencies": ["/pulsar/bookkeeper/bookie"],
       "apps": [
         {
-          "// TODO:" : "change all mem, cpu, volume size, zkServers...",
+          "// Notice:" : "change mem, cpu, volume size, zkServers, according to your DC/OS deployment.",
           "id": "/pulsar/brokers/broker",
-          "cpus": 0.2,
-          "mem": 256,
+          "cpus": 1,
+          "mem": 1024,
           "instances": 3,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
@@ -178,7 +179,7 @@
           "requirePorts": true,
 
           "env": {
-            "//TODO": "add Pulsar_memory, pulsar_gc",
+            "// Notice": "add PULSAR_MEM, PULSAR_GC, according to your environment.",
             "webServicePort": "8082",
             "zookeeperServers":  "master.mesos:2181",
             "globalZookeeperServers":  "master.mesos:2181",
@@ -206,8 +207,8 @@
         },
         {
           "id": "/pulsar/brokers/brokeradmin",
-          "cpus": 0.2,
-          "mem": 256,
+          "cpus": 1,
+          "mem": 1024,
           "instances": 1,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
@@ -239,8 +240,8 @@
       "apps": [
         {
           "id": "/pulsar/monitor/prom",
-          "cpus": 0.2,
-          "mem": 128,
+          "cpus": 0.5,
+          "mem": 512,
           "instances": 1,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
@@ -298,8 +299,8 @@
         {
           "id": "/pulsar/monitor/grafana",
           "dependencies": ["/pulsar/monitor/prom"],
-          "cpus": 0.2,
-          "mem": 128,
+          "cpus": 0.5,
+          "mem": 512,
           "instances": 1,
           "constraints": [["hostname", "UNIQUE"]],
           "container": {
