@@ -272,7 +272,7 @@
                 "containerPath": "data-volume",
                 "mode": "RW",
                 "persistent": {
-                  "size": 1000
+                  "size": 7000
                 }
               }
             ]
