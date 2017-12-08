@@ -78,7 +78,7 @@ public final class ServiceUnitZkUtils {
         checkArgument(parts.length > 5);
 
         Range<Long> range = getHashRange(parts[5]);
-        return factory.getBundle(new NamespaceName(parts[2], parts[3], parts[4]), range);
+        return factory.getBundle(NamespaceName.get(parts[2], parts[3], parts[4]), range);
     }
 
     private static Range<Long> getHashRange(String rangePathPart) {

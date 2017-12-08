@@ -234,7 +234,7 @@ public class NamespaceService {
         String myUrl = pulsar.getBrokerServiceUrl();
 
         try {
-            NamespaceName nsname = new NamespaceName(namespace);
+            NamespaceName nsname = NamespaceName.get(namespace);
 
             String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
@@ -760,7 +760,7 @@ public class NamespaceService {
 
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
-        NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
+        NamespaceBundle nsFullBundle = getFullBundle(NamespaceName.get(namespaceName));
         if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
             // Next lookup will assign the bundle to this broker.

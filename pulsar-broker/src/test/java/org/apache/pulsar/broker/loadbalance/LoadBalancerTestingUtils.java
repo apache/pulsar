@@ -30,7 +30,7 @@ public class LoadBalancerTestingUtils {
     public static NamespaceBundle[] makeBundles(final NamespaceBundleFactory nsFactory, final String property,
             final String cluster, final String namespace, final int numBundles) {
         final NamespaceBundle[] result = new NamespaceBundle[numBundles];
-        final NamespaceName namespaceName = new NamespaceName(property, cluster, namespace);
+        final NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
         for (int i = 0; i < numBundles - 1; ++i) {
             final long lower = NamespaceBundles.FULL_UPPER_BOUND * i / numBundles;
             final long upper = NamespaceBundles.FULL_UPPER_BOUND * (i + 1) / numBundles;

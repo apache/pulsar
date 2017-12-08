@@ -106,7 +106,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        NamespaceName nsname = new NamespaceName("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(dn);
@@ -176,7 +176,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        NamespaceName nsname = new NamespaceName("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(dn);
@@ -229,7 +229,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        NamespaceName nsname = new NamespaceName("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(dn);
@@ -252,7 +252,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.set(pulsar.getNamespaceService(), ownershipCache);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        NamespaceName nsname = new NamespaceName("prop/use/ns1");
+        NamespaceName nsname = NamespaceName.get("prop/use/ns1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
         NamespaceBundle bundle = bundles.getBundles().get(0);
@@ -341,7 +341,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        NamespaceName nsname = new NamespaceName("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(dn);
