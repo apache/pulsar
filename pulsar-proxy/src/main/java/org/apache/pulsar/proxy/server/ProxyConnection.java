@@ -162,11 +162,18 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             return;
         }
 
-        if (connect.hasProxyToBrokerUrl() || service.getConfiguration().isDiscoveryServiceEnabled()) {
+        if (connect.hasProxyToBrokerUrl()) {
             // Client already knows which broker to connect. Let's open a connection
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+        } else if (!service.getConfiguration().isDiscoveryServiceEnabled()) {
+            // Client already knows which broker to connect. Let's open a connection
+            // there and just pass bytes in both directions
+            state = State.ProxyConnectionToBroker;
+            ProxyConfiguration pc = service.getConfiguration();
+            directProxyHandler = new DirectProxyHandler(service, this,
+                    pc.isTlsEnabledWithBroker() ? pc.getDiscoveryServiceURLTLS() : pc.getDiscoveryServiceURL());
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
