@@ -26,7 +26,7 @@ package org.apache.pulsar.functions.api;
 
 import org.slf4j.Logger;
 
-interface Context {
+public interface Context {
     /**
      * Returns the messageId of the message that we are processing
      * This messageId is a stringified version of the actual MessageId
