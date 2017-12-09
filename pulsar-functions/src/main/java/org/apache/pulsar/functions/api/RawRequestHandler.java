@@ -28,7 +28,7 @@ package org.apache.pulsar.functions.api;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-interface RawRequestHandler {
+public interface RawRequestHandler {
     /**
      * Process the input coming as an input stream. The process function
      * can optionally output any bytes into the Outputstream output.
