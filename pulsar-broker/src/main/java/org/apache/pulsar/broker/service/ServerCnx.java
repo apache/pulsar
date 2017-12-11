@@ -335,7 +335,7 @@ public class ServerCnx extends PulsarHandler {
         remoteEndpointProtocolVersion = connect.getProtocolVersion();
         String version = connect.hasClientVersion() ? connect.getClientVersion() : null;
         if (isNotBlank(version) && !version.contains(" ") /* ignore default version: pulsar client */) {
-            this.clientVersion = version;
+            this.clientVersion = version.intern();
         }
     }
 

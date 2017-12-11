@@ -253,7 +253,7 @@ public class Namespaces extends AdminResource {
             @PathParam("namespace") String namespace,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
@@ -359,7 +359,7 @@ public class Namespaces extends AdminResource {
     public void deleteNamespaceBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
@@ -573,7 +573,7 @@ public class Namespaces extends AdminResource {
         }
 
         Entry<Policies, Stat> policiesNode = null;
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         try {
             // Force to read the data s.t. the watch to the cache content is setup.
@@ -634,7 +634,7 @@ public class Namespaces extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         Entry<Policies, Stat> policiesNode = null;
 
         try {
@@ -677,7 +677,7 @@ public class Namespaces extends AdminResource {
         validateAdminAccessOnProperty(property);
         validatePoliciesReadOnlyAccess();
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         Entry<Policies, Stat> policiesNode = null;
 
         try {
@@ -788,11 +788,11 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
         Policies policies = getNamespacePolicies(property, cluster, namespace);
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
@@ -827,10 +827,10 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         validatePoliciesReadOnlyAccess();
 
         if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
@@ -868,10 +868,10 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         validatePoliciesReadOnlyAccess();
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, authoritative,
                 true);
@@ -900,7 +900,7 @@ public class Namespaces extends AdminResource {
         validateSuperUserAccess();
 
         Entry<Policies, Stat> policiesNode = null;
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         try {
             final String path = path(POLICIES, property, cluster, namespace);
@@ -1231,7 +1231,7 @@ public class Namespaces extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateAdminAccessOnProperty(property);
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(nsName);
             Exception exception = null;
@@ -1284,10 +1284,10 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership  for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         validateNamespaceBundleOwnership(nsName, policies.bundles, bundleRange, authoritative, true);
 
         clearBacklog(nsName, bundleRange, null);
@@ -1306,7 +1306,7 @@ public class Namespaces extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateAdminAccessOnProperty(property);
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(nsName);
             Exception exception = null;
@@ -1359,10 +1359,10 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership  for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         validateNamespaceBundleOwnership(nsName, policies.bundles, bundleRange, authoritative, true);
 
         clearBacklog(nsName, bundleRange, subscription);
@@ -1380,7 +1380,7 @@ public class Namespaces extends AdminResource {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateAdminAccessOnProperty(property);
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(nsName);
             Exception exception = null;
@@ -1432,10 +1432,10 @@ public class Namespaces extends AdminResource {
             validateClusterForProperty(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
 
-        NamespaceName nsName = new NamespaceName(property, cluster, namespace);
+        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
         validateNamespaceBundleOwnership(nsName, policies.bundles, bundleRange, authoritative, true);
 
         unsubscribe(nsName, bundleRange, subscription);

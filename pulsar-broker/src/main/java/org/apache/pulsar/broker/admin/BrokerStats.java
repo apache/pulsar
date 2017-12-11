@@ -173,7 +173,7 @@ public class BrokerStats extends AdminResource {
     public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) throws Exception {
         try {
-            NamespaceName ns = new NamespaceName(property, cluster, namespace);
+            NamespaceName ns = NamespaceName.get(property, cluster, namespace);
             LoadManager lm = pulsar().getLoadManager().get();
             if (lm instanceof SimpleLoadManagerImpl) {
                 return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(ns).asMap();

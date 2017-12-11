@@ -618,7 +618,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     localData.getLastStats().remove(bundleName);
                     // Clear namespace bundle-cache
                     this.pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .invalidateBundleCache(new NamespaceName(namespaceName));
+                            .invalidateBundleCache(NamespaceName.get(namespaceName));
                     deleteBundleDataFromZookeeper(bundleName);
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
