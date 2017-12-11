@@ -117,6 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>5.8.6</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <bouncycastle.version>1.55</bouncycastle.version>
+    <jackson.version>2.9.3</jackson.version>
   </properties>
 
   <dependencyManagement>
@@ -388,19 +389,19 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.fasterxml.jackson.jaxrs</groupId>
         <artifactId>jackson-jaxrs-json-provider</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
