@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -56,7 +57,7 @@ public class DestinationName implements ServiceUnitId {
     private final int partitionIndex;
 
     private static final LoadingCache<String, DestinationName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .build(new CacheLoader<String, DestinationName>() {
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, DestinationName>() {
                 @Override
                 public DestinationName load(String name) throws Exception {
                     return new DestinationName(name);
@@ -123,7 +124,7 @@ public class DestinationName implements ServiceUnitId {
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid destination name: " + destination, e);
         }
-        namespaceName = new NamespaceName(property, cluster, namespacePortion);
+        namespaceName = NamespaceName.get(property, cluster, namespacePortion);
     }
 
     /**

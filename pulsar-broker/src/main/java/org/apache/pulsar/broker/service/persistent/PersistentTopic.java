@@ -102,7 +102,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -888,7 +888,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topic).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topic).toString();
     }
 
     @Override

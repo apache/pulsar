@@ -53,7 +53,6 @@
 package org.apache.pulsar.common.util.protobuf;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.WireFormat;
@@ -72,7 +71,7 @@ public class ByteBufCodedOutputStream {
 
     private ByteBuf buf;
 
-    private final Handle recyclerHandle;
+    private final Handle<ByteBufCodedOutputStream> recyclerHandle;
 
     public static ByteBufCodedOutputStream get(ByteBuf buf) {
         ByteBufCodedOutputStream stream = RECYCLER.get();
@@ -82,15 +81,15 @@ public class ByteBufCodedOutputStream {
 
     public void recycle() {
         buf = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
-    private ByteBufCodedOutputStream(Handle handle) {
+    private ByteBufCodedOutputStream(Handle<ByteBufCodedOutputStream> handle) {
         this.recyclerHandle = handle;
     }
 
     private static final Recycler<ByteBufCodedOutputStream> RECYCLER = new Recycler<ByteBufCodedOutputStream>() {
-        protected ByteBufCodedOutputStream newObject(Recycler.Handle handle) {
+        protected ByteBufCodedOutputStream newObject(Recycler.Handle<ByteBufCodedOutputStream> handle) {
             return new ByteBufCodedOutputStream(handle);
         }
     };
@@ -219,7 +218,7 @@ public class ByteBufCodedOutputStream {
     }
 
     public void writeSFixed64NoTag(long value) throws IOException {
-        buf.order(ByteOrder.LITTLE_ENDIAN).writeLong(value);
+        buf.writeLongLE(value);
     }
 
     /**
@@ -261,7 +260,6 @@ public class ByteBufCodedOutputStream {
     /** Write an double field, including tag, to the stream. */
     public void writeDouble(final int fieldNumber, double value) throws IOException {
         writeTag(fieldNumber, WireFormat.WIRETYPE_FIXED64);
-        buf.order(ByteOrder.LITTLE_ENDIAN).writeDouble(value);
+        buf.writeLongLE(Double.doubleToLongBits(value));
     }
-
 }

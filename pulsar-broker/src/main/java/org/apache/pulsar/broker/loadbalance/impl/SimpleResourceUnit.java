@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class SimpleResourceUnit implements ResourceUnit {
 
@@ -71,7 +71,7 @@ public class SimpleResourceUnit implements ResourceUnit {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("resourceId", resourceId).toString();
+        return MoreObjects.toStringHelper(this).add("resourceId", resourceId).toString();
     }
     
 }

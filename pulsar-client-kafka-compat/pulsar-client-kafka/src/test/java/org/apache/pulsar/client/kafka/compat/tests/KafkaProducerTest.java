@@ -41,6 +41,7 @@ public class KafkaProducerTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        isTcpLookup = true;
         super.baseSetup();
     }
 
@@ -57,7 +58,7 @@ public class KafkaProducerTest extends BrokerTestBase {
         Consumer pulsarConsumer = pulsarClient.subscribe(topic, "my-subscription");
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
 
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());
@@ -85,7 +86,7 @@ public class KafkaProducerTest extends BrokerTestBase {
         Consumer pulsarConsumer = pulsarClient.subscribe(topic, "my-subscription");
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", brokerUrl.toString());
+        props.put("bootstrap.servers", lookupUrl.toString());
 
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());

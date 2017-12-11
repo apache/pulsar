@@ -40,7 +40,7 @@ abstract class CliCommand {
 
     String validateNamespace(List<String> params) {
         String namespace = checkArgument(params);
-        return new NamespaceName(namespace).toString();
+        return NamespaceName.get(namespace).toString();
     }
 
     String validateDestination(List<String> params) {

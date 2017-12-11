@@ -76,13 +76,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 
 public class NonPersistentTopic implements Topic {
@@ -176,7 +175,7 @@ public class NonPersistentTopic implements Topic {
         data.retain(2);
         this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
             subscriptions.forEach((name, subscription) -> {
-                ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
@@ -196,7 +195,7 @@ public class NonPersistentTopic implements Topic {
 
         this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
             replicators.forEach((name, replicator) -> {
-                ByteBuf duplicateBuffer = RecyclableDuplicateByteBuf.create(data);
+                ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
@@ -563,7 +562,7 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topic).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topic).toString();
     }
 
     @Override

@@ -35,7 +35,11 @@ PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar
 auth_pid=$!;
 sleep 10
 
-PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin clusters create \
+# create property for test
+PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin properties create prop -r "" -c "unit"
+PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin properties create property -r "" -c "cluster"
+
+PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin clusters create \
         --url http://localhost:9765/ --url-secure https://localhost:9766/ \
         --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ \
         cluster

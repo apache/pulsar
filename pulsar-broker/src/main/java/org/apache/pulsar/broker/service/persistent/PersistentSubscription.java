@@ -55,7 +55,7 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class PersistentSubscription implements Subscription {
     private final PersistentTopic topic;
@@ -229,7 +229,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
     }
 
     @Override

@@ -174,6 +174,16 @@ public abstract class PulsarWebResource {
     }
 
     protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) throws RestException, Exception{
+        PropertyAdmin propertyAdmin;
+
+        try {
+            propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("Failed to get property admin data for non existing property {}", property);
+            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+        }
+
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
                     (isClientAuthenticated(clientAppId)), clientAppId);
@@ -186,15 +196,6 @@ public abstract class PulsarWebResource {
                 // Super-user has access to configure all the policies
                 log.debug("granting access to super-user {} on property {}", clientAppId, property);
             } else {
-                PropertyAdmin propertyAdmin;
-
-                try {
-                    propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
-                            .orElseThrow(() -> new RestException(Status.UNAUTHORIZED, "Property does not exist"));
-                } catch (KeeperException.NoNodeException e) {
-                    log.warn("Failed to get property admin data for non existing property {}", property);
-                    throw new RestException(Status.UNAUTHORIZED, "Property does not exist");
-                }
 
                 if (!propertyAdmin.getAdminRoles().contains(clientAppId)) {
                     throw new RestException(Status.UNAUTHORIZED,
@@ -329,7 +330,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateNamespaceOwnershipWithBundles(String property, String cluster, String namespace,
             boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
 
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
@@ -348,7 +349,7 @@ public abstract class PulsarWebResource {
 
     protected void validateBundleOwnership(String property, String cluster, String namespace, boolean authoritative,
             boolean readOnly, NamespaceBundle bundle) {
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
 
         try {
             validateBundleOwnership(bundle, authoritative, readOnly);

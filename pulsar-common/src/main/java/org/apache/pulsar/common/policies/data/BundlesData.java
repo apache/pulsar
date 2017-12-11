@@ -19,8 +19,9 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class BundlesData {
     public List<String> boundaries;
@@ -61,7 +62,7 @@ public class BundlesData {
     public boolean equals(Object obj) {
         if (obj instanceof BundlesData) {
             BundlesData other = (BundlesData) obj;
-            return Objects.equal(boundaries, other.boundaries);
+            return Objects.equals(boundaries, other.boundaries);
         }
 
         return false;
@@ -69,7 +70,7 @@ public class BundlesData {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("numBundles", numBundles).add("boundaries", boundaries).toString();
+        return MoreObjects.toStringHelper(this).add("numBundles", numBundles).add("boundaries", boundaries).toString();
     }
 
 }

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -98,6 +99,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
 
         PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePortTls(), conf);
+        admin.properties().createProperty("sample", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();

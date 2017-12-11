@@ -1,6 +1,6 @@
 ---
 title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-tags: [admin, deployment, cluster, ansible]
+tags: [admin, deployment, cluster, ansible, terraform]
 ---
 
 {% include admonition.html type="info"

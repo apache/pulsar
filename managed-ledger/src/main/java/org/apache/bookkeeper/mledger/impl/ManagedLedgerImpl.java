@@ -511,7 +511,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx);
             }
         } else {
-            checkArgument(state == State.LedgerOpened);
+            checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
 
             // Write into lastLedger
             addOperation.setLedger(currentLedger);

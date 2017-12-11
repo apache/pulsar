@@ -63,7 +63,7 @@
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../NOTICE</source>
+      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
       <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
@@ -82,6 +82,10 @@
       <excludes>
         <!-- All these dependencies are already included in netty-all -->
         <exclude>io.netty:netty-common</exclude>
+        <exclude>io.netty:netty-resolver</exclude>
+        <exclude>io.netty:netty-resolver-dns</exclude>
+        <exclude>io.netty:netty-codec-dns</exclude>
+        <exclude>io.netty:netty-transport-native-unix-common</exclude>
         <exclude>io.netty:netty-buffer</exclude>
         <exclude>io.netty:netty-codec-http</exclude>
         <exclude>io.netty:netty-codec</exclude>

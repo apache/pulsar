@@ -566,7 +566,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         unloadTopic(dn, authoritative);
     }
@@ -614,7 +614,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         } 
         List<String> subscriptions = Lists.newArrayList();
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
@@ -655,7 +655,7 @@ public class PersistentTopics extends AdminResource {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminAndClientPermission(dn);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         } 
         validateDestinationOwnership(dn, authoritative);
         Topic topic = getTopicReference(dn);
@@ -675,7 +675,7 @@ public class PersistentTopics extends AdminResource {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminAndClientPermission(dn);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         } 
         validateDestinationOwnership(dn, authoritative);
         Topic topic = getTopicReference(dn);
@@ -694,7 +694,7 @@ public class PersistentTopics extends AdminResource {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         validateAdminAccessOnProperty(dn.getProperty());
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         String managedLedger = dn.getPersistenceNamingEncoding();
         pulsar().getManagedLedgerFactory().asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
@@ -729,7 +729,7 @@ public class PersistentTopics extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
         }
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicStats stats = new PartitionedTopicStats(partitionMetadata);
         try {
@@ -758,7 +758,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -769,7 +769,14 @@ public class PersistentTopics extends AdminResource {
                             subName);
                 }
             } catch (Exception e) {
-                throw new RestException(e);
+                if (e instanceof NotFoundException) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                } else if (e instanceof PreconditionFailedException) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
+                } else {
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
+                    throw new RestException(e);
+                }
             }
         } else {
             validateAdminOperationOnDestination(dn, authoritative);
@@ -781,12 +788,12 @@ public class PersistentTopics extends AdminResource {
                 log.info("[{}][{}] Deleted subscription {}", clientAppId(), dn, subName);
             } catch (Exception e) {
                 Throwable t = e.getCause();
-                log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
                 if (e instanceof NullPointerException) {
                     throw new RestException(Status.NOT_FOUND, "Subscription not found");
                 } else if (t instanceof SubscriptionBusyException) {
                     throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
                 } else {
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), dn, subName, e);
                     throw new RestException(t);
                 }
             }
@@ -807,7 +814,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -857,7 +864,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -911,7 +918,7 @@ public class PersistentTopics extends AdminResource {
         final String destination = decode(destinationName);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -952,7 +959,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -1030,7 +1037,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), destination,
                 subName, messageId);
@@ -1082,7 +1089,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -1177,7 +1184,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         validateAdminAccessOnProperty(property);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip validateAdminOperationOnDestination()
@@ -1228,7 +1235,7 @@ public class PersistentTopics extends AdminResource {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -1249,7 +1256,7 @@ public class PersistentTopics extends AdminResource {
             int expireTimeInSeconds, boolean authoritative) {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);

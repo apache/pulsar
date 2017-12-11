@@ -85,7 +85,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
         try {
-            NamespaceName ns = new NamespaceName(namespace);
+            NamespaceName ns = NamespaceName.get(namespace);
             return request(persistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())).get(
                     new GenericType<List<String>>() {
                     });
@@ -97,7 +97,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     @Override
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
         try {
-            NamespaceName ns = new NamespaceName(namespace);
+            NamespaceName ns = NamespaceName.get(namespace);
             return request(persistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("partitioned")).get(
                     new GenericType<List<String>>() {
                     });

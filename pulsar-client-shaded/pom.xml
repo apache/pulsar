@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.21.0-incubating-SNAPSHOT</version>
+    <version>1.22.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -84,6 +84,12 @@
               <filters>
                 <filter>
                   <artifact>net.jpountz.lz4:lz4</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

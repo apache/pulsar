@@ -33,10 +33,12 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
-  - title: Deploy on AWS using Ansible
-    endpoint: bare-metal/ansible
-  - title: Deploying on bare metal
-    endpoint: InstanceSetup
+  - title: Deploy on Amazon Web Services
+    endpoint: aws-cluster
+  - title: Single cluster on bare metal
+    endpoint: cluster
+  - title: Multi-cluster instance on bare metal
+    endpoint: instance
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
   - title: Pulsar on Google Container Engine

@@ -611,7 +611,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.persistentTopics().delete("persistent://prop-xyz/use/ns1/my-topic");
 
         admin.namespaces().unloadNamespaceBundle("prop-xyz/use/ns1", "0x00000000_0xffffffff");
-        NamespaceName ns = new NamespaceName("prop-xyz/use/ns1");
+        NamespaceName ns = NamespaceName.get("prop-xyz/use/ns1");
         // Now, w/ bundle policies, we will use default bundle
         NamespaceBundle defaultBundle = bundleFactory.getFullBundle(ns);
         int i = 0;
@@ -756,6 +756,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.persistentTopics().getSubscriptions(partitionedTopicName), Lists.newArrayList("my-sub"));
 
+        try {
+            admin.persistentTopics().deleteSubscription(partitionedTopicName, "my-sub");
+            fail("should have failed");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // ok
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
         Consumer consumer1 = client.subscribe(partitionedTopicName, "my-sub-1", conf);
 
         assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(partitionedTopicName)),
@@ -891,7 +900,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // bundle-factory cache must have updated split bundles
-        NamespaceBundles bundles = bundleFactory.getBundles(new NamespaceName(namespace));
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
         String[] splitRange = { namespace + "/0x00000000_0x7fffffff", namespace + "/0x7fffffff_0xffffffff" };
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
@@ -933,7 +942,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // check that no one owns the namespace
-        NamespaceBundle bundle = bundleFactory.getBundle(new NamespaceName("prop-xyz/use/ns1"),
+        NamespaceBundle bundle = bundleFactory.getBundle(NamespaceName.get("prop-xyz/use/ns1"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
         assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle));
