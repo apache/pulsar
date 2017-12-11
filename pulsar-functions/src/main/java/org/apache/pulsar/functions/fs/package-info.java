@@ -16,23 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
-
-import lombok.Getter;
-import lombok.Setter;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * Function State.
  */
-@Getter
-@Setter
-class JavaInstanceConfig {
-    private String functionName;
-    private String functionId;
-    private String functionVersion;
-    private String nameSpace;
-    private String userName;
-    private int timeBudgetInMs;
-    private int maxMemory;
-}
+package org.apache.pulsar.functions.fs;

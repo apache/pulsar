@@ -44,9 +44,40 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-tools</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <version>2.9.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.9.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.9.2</version>
+    </dependency>
+
+    <dependency>
       <groupId>net.jodah</groupId>
       <artifactId>typetools</artifactId>
       <version>0.5.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.16.12</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -54,6 +85,19 @@
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-testng</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
 </project>

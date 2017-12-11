@@ -16,23 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.fs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.File;
+import java.io.IOException;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * Function Configuration.
  */
-@Getter
 @Setter
-class JavaInstanceConfig {
-    private String functionName;
-    private String functionId;
-    private String functionVersion;
-    private String nameSpace;
-    private String userName;
-    private int timeBudgetInMs;
-    private int maxMemory;
+@Getter
+public class FunctionConfig {
+
+    // function name
+    private String name;
+    // source topic
+    private String sourceTopic;
+    // sink topic
+    private String sinkTopic;
+
+    public static FunctionConfig load(String yamlFile) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return mapper.readValue(new File(yamlFile), FunctionConfig.class);
+    }
+
 }
