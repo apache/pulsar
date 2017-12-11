@@ -23,9 +23,9 @@
 #  become: true
 #  tasks:
 #    - shell: >
-#        sudo tuned-adm profile latency-performance &&
-#        mkfs.xfs -f /dev/nvme0n1 &&
-#        mkfs.xfs -f /dev/nvme1n1 &&
+#        tuned-adm profile latency-performance &&
+#        mkfs.xfs /dev/nvme0n1 -f &&
+#        mkfs.xfs /dev/nvme1n1 -f &&
 #        mkdir -p /mnt/journal &&
 #        mkdir -p /mnt/storage &&
 #        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&

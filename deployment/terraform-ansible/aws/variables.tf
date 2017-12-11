@@ -9,8 +9,8 @@ Default: ~/.ssh/id_rsa.pub
 DESCRIPTION
 }
 
-variable "key_name" {
-  description = "The name for the AWS key pair to be used for SSH connections"
+variable "key_name_prefix" {
+  description = "The prefix for the randomly generated name for the AWS key pair to be used for SSH connections (e.g. `pulsar-terraform-ssh-keys-0a1b2cd3`)"
   default     = "pulsar-terraform-ssh-keys"
 }
 
