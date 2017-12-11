@@ -17,22 +17,6 @@
 # under the License.
 #
 
-#- name: Format and mount disks
-#  hosts: pulsar
-#  connection: ssh
-#  become: true
-#  tasks:
-#    - shell: >
-#        tuned-adm profile latency-performance &&
-#        mkfs.xfs /dev/nvme0n1 -f &&
-#        mkfs.xfs /dev/nvme1n1 -f &&
-#        mkdir -p /mnt/journal &&
-#        mkdir -p /mnt/storage &&
-#        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme0n1 /mnt/journal &&
-#        mount -o defaults,noatime,nodiscard,nobarrier /dev/nvme1n1 /mnt/storage
-#      args:
-#        creates: /mnt/journal
-
 - name: Pulsar setup
   hosts: all
   connection: ssh
@@ -144,19 +128,9 @@
         daemon_reload: yes
         name: "pulsar"
 
-- name: Get Maven version
-  hosts: localhost
-  tasks:
-     - shell: >
-          cat ../../pom.xml | xmllint --format - \
-            | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - \
-            | grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"
-       register: maven_version
-     - set_fact:
-         benchmark_version: "{{ maven_version.stdout }}"
-
 - name:  Hosts addresses
   hosts: localhost
+  become: false
   tasks:
     - debug:
         msg: "Zookeeper servers {{ item }}"
