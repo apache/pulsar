@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.lang.reflect.ParameterizedType;
+import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.slf4j.Logger;
@@ -140,20 +142,9 @@ class JavaInstance {
     }
 
     private void computeInputAndOutputTypes() {
-        try {
-            Method[] allMethods = requestHandler.getClass().getDeclaredMethods();
-            for (Method m : allMethods) {
-                if (!m.getName().equals("handleRequest")) {
-                    continue;
-                }
-                inputType = computeSupportedType(m.getGenericParameterTypes()[0]);
-                outputType = computeSupportedType(m.getGenericReturnType());
-                return;
-            }
-            throw new RuntimeException("Strange that RequestHandler object does not have handleRequest method");
-        } catch (ArrayIndexOutOfBoundsException ex) {
-            throw new RuntimeException(ex + " Strange that requestHandle method does not take any arguments");
-        }
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
+        inputType = computeSupportedType(typeArgs[0]);
+        outputType = computeSupportedType(typeArgs[1]);
     }
 
     private SupportedTypes computeSupportedType(Type type) {

@@ -44,6 +44,12 @@
     </dependency>
 
     <dependency>
+      <groupId>net.jodah</groupId>
+      <artifactId>typetools</artifactId>
+      <version>0.5.0</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
