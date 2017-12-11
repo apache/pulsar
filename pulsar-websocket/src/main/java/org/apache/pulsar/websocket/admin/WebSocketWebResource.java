@@ -64,13 +64,16 @@ public class WebSocketWebResource {
      * @return the web service caller identification
      */
     public String clientAppId() {
-        if (isBlank(clientId) && service().getConfig().isAuthenticationEnabled()) {
+        if (isBlank(clientId)) {
             try {
                 clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
             } catch (AuthenticationException e) {
-                throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
+                if (service().getConfig().isAuthenticationEnabled()) {
+                    throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
+                }
             }
-            if (isBlank(clientId)) {
+
+            if (isBlank(clientId) && service().getConfig().isAuthenticationEnabled()) {
                 throw new RestException(Status.UNAUTHORIZED, "Failed to get auth data from the request");
             }
         }
