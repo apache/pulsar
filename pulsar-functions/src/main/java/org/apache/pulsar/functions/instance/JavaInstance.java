@@ -167,7 +167,7 @@ class JavaInstance {
         } else if (type.equals(List.class)) {
             return SupportedTypes.LIST;
         } else {
-            throw new RuntimeException("Non Basic types not yet supported");
+            throw new RuntimeException("Non Basic types not yet supported: " + type);
         }
     }
 
