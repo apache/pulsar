@@ -95,7 +95,7 @@ public class ResourceQuotas extends AdminResource {
             validateClusterForProperty(property, cluster);
         }
 
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, policies.bundles, bundleRange);
 
         try {
@@ -124,7 +124,7 @@ public class ResourceQuotas extends AdminResource {
             validateClusterForProperty(property, cluster);
         }
 
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, policies.bundles, bundleRange);
 
         try {
@@ -160,7 +160,7 @@ public class ResourceQuotas extends AdminResource {
             validateClusterForProperty(property, cluster);
         }
 
-        NamespaceName fqnn = new NamespaceName(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, policies.bundles, bundleRange);
 
         try {

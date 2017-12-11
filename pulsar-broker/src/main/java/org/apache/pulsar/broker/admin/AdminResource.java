@@ -231,7 +231,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(new NamespaceName(property, cluster, namespace));
+                    .getBundles(NamespaceName.get(property, cluster, namespace));
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
             return policies;

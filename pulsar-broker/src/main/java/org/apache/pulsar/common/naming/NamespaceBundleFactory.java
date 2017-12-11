@@ -95,7 +95,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
                 .registerListener((String path, LocalPolicies data, Stat stat) -> {
                     String[] paths = path.split(LOCAL_POLICIES_ROOT + "/");
                     if (paths.length == 2) {
-                        invalidateBundleCache(new NamespaceName(paths[1]));
+                        invalidateBundleCache(NamespaceName.get(paths[1]));
                     }
                 });
 
@@ -108,7 +108,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
 
     @Override
     public void onUpdate(String path, LocalPolicies data, Stat stat) {
-        final NamespaceName namespace = new NamespaceName(getNamespaceFromPoliciesPath(path));
+        final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(path));
 
         try {
             LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
@@ -155,7 +155,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         Long upperEndpoint = Long.decode(boundaries[1]);
         Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
                 (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
-        return getBundle(new NamespaceName(namespace), hashRange);
+        return getBundle(NamespaceName.get(namespace), hashRange);
     }
     
     public NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
