@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.*;
 
 public class JavaInstanceTest {
@@ -81,10 +82,28 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(config, new LongRunningHandler(), log);
         String testString = "ABC123";
         JavaInstance.ExecutionResult result =
-                instance.handleMessage("1", "random", testString.getBytes());
+                instance.handleMessage("1", "random", testString.getBytes(UTF_8));
 
         assertNotNull(result.getTimeoutException());
         assertNull(result.getUserException());
+    }
+
+    /**
+     * Verify that be able to run lambda functions.
+     * @throws Exception
+     */
+    @Test
+    public void testLambda() throws Exception {
+        JavaInstanceConfig config = new JavaInstanceConfig();
+        config.setTimeBudgetInMs(2000);
+        JavaInstance instance = new JavaInstance(
+            config,
+            (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+            log);
+        String testString = "ABC123";
+        JavaInstance.ExecutionResult result =
+            instance.handleMessage("1", "random", testString.getBytes(UTF_8));
+        assertEquals(testString + "-lambda", result.getResultValue());
     }
 
     /**

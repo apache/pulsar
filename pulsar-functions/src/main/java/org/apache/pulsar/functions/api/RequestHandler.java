@@ -25,6 +25,7 @@ package org.apache.pulsar.functions.api;
  * Map, and List types) and for org.Json type. If this serialization approach does not
  * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
+@FunctionalInterface
 public interface RequestHandler<I, O> {
     /**
      * Process the input.

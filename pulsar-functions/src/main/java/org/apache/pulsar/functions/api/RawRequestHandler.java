@@ -29,6 +29,7 @@ import java.io.OutputStream;
  * deserialize this in any way they want before processing. Any output goes into
  * OutputStream.
  */
+@FunctionalInterface
 public interface RawRequestHandler {
     /**
      * Process the input coming as an input stream. The process function
