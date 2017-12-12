@@ -38,6 +38,8 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -46,7 +48,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
@@ -68,9 +69,9 @@ public class ConnectionPool implements Closeable {
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
 
-    public ConnectionPool(final PulsarClientImpl client, EventLoopGroup eventLoopGroup) {
+    public ConnectionPool(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
-        this.maxConnectionsPerHosts = client.getConfiguration().getConnectionsPerBroker();
+        this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
 
         pool = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();
@@ -78,27 +79,26 @@ public class ConnectionPool implements Closeable {
         bootstrap.channel(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup));
 
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000);
-        bootstrap.option(ChannelOption.TCP_NODELAY, client.getConfiguration().isUseTcpNoDelay());
+        bootstrap.option(ChannelOption.TCP_NODELAY, conf.isUseTcpNoDelay());
         bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             public void initChannel(SocketChannel ch) throws Exception {
-                ClientConfiguration clientConfig = client.getConfiguration();
-                if (clientConfig.isUseTls()) {
+                if (conf.isUseTls()) {
                     SslContextBuilder builder = SslContextBuilder.forClient();
-                    if (clientConfig.isTlsAllowInsecureConnection()) {
+                    if (conf.isTlsAllowInsecureConnection()) {
                         builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
                     } else {
-                        if (clientConfig.getTlsTrustCertsFilePath().isEmpty()) {
+                        if (conf.getTlsTrustCertsFilePath().isEmpty()) {
                             // Use system default
                             builder.trustManager((File) null);
                         } else {
-                            File trustCertCollection = new File(clientConfig.getTlsTrustCertsFilePath());
+                            File trustCertCollection = new File(conf.getTlsTrustCertsFilePath());
                             builder.trustManager(trustCertCollection);
                         }
                     }
 
                     // Set client certificate if available
-                    AuthenticationDataProvider authData = clientConfig.getAuthentication().getAuthData();
+                    AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
                         builder.keyManager(authData.getTlsPrivateKey(),
                                 (X509Certificate[]) authData.getTlsCertificates());
@@ -108,7 +108,7 @@ public class ConnectionPool implements Closeable {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
-                ch.pipeline().addLast("handler", new ClientCnx(client));
+                ch.pipeline().addLast("handler", new ClientCnx(conf, eventLoopGroup));
             }
         });
 
@@ -255,7 +255,8 @@ public class ConnectionPool implements Closeable {
         return future;
     }
 
-    private CompletableFuture<List<InetAddress>> resolveName(String hostname) {
+    @VisibleForTesting
+    CompletableFuture<List<InetAddress>> resolveName(String hostname) {
         CompletableFuture<List<InetAddress>> future = new CompletableFuture<>();
         dnsResolver.resolveAll(hostname).addListener((Future<List<InetAddress>> resolveFuture) -> {
             if (resolveFuture.isSuccess()) {
