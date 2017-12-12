@@ -18,8 +18,6 @@
 #
 
 language: java C++ ruby
-jdk:
-  - oraclejdk8
 
 sudo: required
 
@@ -37,15 +35,26 @@ before_deploy:
   - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import --batch || true
   - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust --batch || true
 
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode8
+    - os: linux
+      env: CUSTOM_JDK="oraclejdk8"
+    - os: linux
+      dist: trusty
+      env: CUSTOM_JDK="openjdk8"
+
 # Upgrade to maven 3.5.0
 before_install:
   - export M2_HOME=$HOME/apache-maven-3.5.0
   - if [ ! -d $M2_HOME/bin ]; then curl https://archive.apache.org/dist/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz | tar zxf - -C $HOME; fi
   - export PATH=$M2_HOME/bin:$PATH
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
 
 install:
-  - sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR dep
-  - (cd site && make travis_setup)
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo bash -x $TRAVIS_BUILD_DIR/pulsar-client-cpp/travis-build.sh $HOME/pulsar-dep $TRAVIS_BUILD_DIR dep; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then (cd site && make travis_setup); fi
 
 script:
     # Build Java and C++
