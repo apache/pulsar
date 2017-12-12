@@ -81,6 +81,10 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
 
+        if (!authResult) {
+            return;
+        }
+
         try {
             this.reader = service.getPulsarClient().createReader(topic, getMessageId(), conf);
             this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
