@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import static org.testng.Assert.fail;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -28,6 +29,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import org.apache.bookkeeper.bookie.LedgerDirsManager;
 import org.apache.pulsar.PulsarBrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.Assert;
@@ -40,15 +42,8 @@ import com.google.common.collect.Sets;
  *          Created on Sep 6, 2012
  */
 public class PulsarBrokerStarterTest {
-    /**
-     * Tests the private static <code>loadConfig</code> method of {@link PulsarBrokerStarter} class: verifies (1) if the
-     * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
-     * if the property variables inside the given property file are correctly referred to that returned object.
-     */
-    @Test
-    public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
-            IllegalAccessException, InvocationTargetException {
 
+    private File createValidBrokerConfigFile() throws FileNotFoundException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
             testConfigFile.delete();
@@ -85,7 +80,19 @@ public class PulsarBrokerStarterTest {
 
         printWriter.close();
         testConfigFile.deleteOnExit();
+        return testConfigFile;
+    }
 
+    /**
+     * Tests the private static <code>loadConfig</code> method of {@link PulsarBrokerStarter} class: verifies (1) if the
+     * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
+     * if the property variables inside the given property file are correctly referred to that returned object.
+     */
+    @Test
+    public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
+            IllegalAccessException, InvocationTargetException {
+
+        File testConfigFile = createValidBrokerConfigFile();
         Method targetMethod = PulsarBrokerStarter.class.getDeclaredMethod("loadConfig", String.class);
         targetMethod.setAccessible(true);
 
@@ -268,6 +275,72 @@ public class PulsarBrokerStarterTest {
             Assert.fail("No argument to main should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
             // code should reach here.
+        }
+    }
+
+
+    /**
+     * Verifies that the main throws {@link IllegalArgumentException}
+     * when no config file for bookie and bookie auto recovery is given.
+     */
+    @Test
+    public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
+        try {
+            File testConfigFile = createValidBrokerConfigFile();
+            String[] args = {testConfigFile.getAbsolutePath(), "-a", "-b"};
+            PulsarBrokerStarter.main(args);
+            Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
+        } catch (IllegalArgumentException e) {
+            // code should reach here.
+            Assert.assertEquals(e.getMessage(), "No configuration file for bookie");
+        }
+    }
+
+    /**
+     * Verifies that the main throws {@link IllegalArgumentException}
+     * when no config file for bookie auto recovery is given.
+     */
+    @Test
+    public void testMainRunBookieRecoveryNoConfig() throws Exception {
+        try {
+            File testConfigFile = createValidBrokerConfigFile();
+            String[] args = {testConfigFile.getAbsolutePath(), "-a"};
+            PulsarBrokerStarter.main(args);
+            Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
+        } catch (IllegalArgumentException e) {
+            // code should reach here.
+            Assert.assertEquals(e.getMessage(), "No configuration file for bookie auto recovery");
+        }
+    }
+
+    /**
+     * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie is given.
+     */
+    @Test
+    public void testMainRunBookieNoConfig() throws Exception {
+        try {
+            File testConfigFile = createValidBrokerConfigFile();
+            String[] args = {testConfigFile.getAbsolutePath(), "-b"};
+            PulsarBrokerStarter.main(args);
+            Assert.fail("No Config file for bookie should've raised IllegalArgumentException!");
+        } catch (IllegalArgumentException e) {
+            // code should reach here
+            Assert.assertEquals(e.getMessage(), "No configuration file for bookie");
+        }
+    }
+
+    /**
+     * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie is given.
+     */
+    @Test
+    public void testMainRunBookieEmptyConfig() throws Exception {
+        try {
+            File testConfigFile = createValidBrokerConfigFile();
+            String[] args = {testConfigFile.getAbsolutePath(), "-a", "-b", "-c", testConfigFile.getAbsolutePath()};
+            PulsarBrokerStarter.main(args);
+            Assert.fail("Effectively empty config file for bookie should've raised NoWritableLedgerDirException!");
+        } catch (LedgerDirsManager.NoWritableLedgerDirException e) {
+            // code should reach here
         }
     }
 }
