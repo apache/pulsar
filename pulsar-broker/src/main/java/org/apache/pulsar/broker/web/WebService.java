@@ -66,12 +66,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class WebService implements AutoCloseable {
 
-    /**
-     * The set of path regexes on which the ApiVersionFilter is installed if needed
-     */
-    private static final List<Pattern> API_VERSION_FILTER_PATTERNS = ImmutableList.of(
-            Pattern.compile("^/lookup.*") // V2 lookups
-    );
     private static final String MATCH_ALL = "/*";
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
@@ -159,23 +153,6 @@ public class WebService implements AutoCloseable {
         resHandler.setCacheControl(WebService.HANDLER_CACHE_CONTROL);
         capHandler.setHandler(resHandler);
         handlers.add(capHandler);
-    }
-
-    /**
-     * Checks to see if the given path matches any of the api version filter paths.
-     *
-     * @param path
-     *            the path to check
-     * @return true if the ApiVersionFilter can be installed on the path
-     */
-    private boolean shouldCheckApiVersionOnPath(String path) {
-        for (Pattern filterPattern : API_VERSION_FILTER_PATTERNS) {
-            Matcher matcher = filterPattern.matcher(path);
-            if (matcher.matches()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public void start() throws PulsarServerException {
