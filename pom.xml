@@ -676,6 +676,7 @@ flexible messaging model and an intuitive client API.</description>
             </goals>
             <configuration>
               <outputFile>target/classpath.txt</outputFile>
+              <includeScope>runtime</includeScope>
             </configuration>
           </execution>
         </executions>
