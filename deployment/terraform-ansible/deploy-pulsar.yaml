@@ -94,7 +94,7 @@
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
 
-- name: Setup Bookkeeper
+- name: Set up Bookkeeper
   hosts: pulsar
   connection: ssh
   become: true
@@ -111,7 +111,7 @@
         daemon_reload: yes
         name: "bookkeeper"
 
-- name: Setup Pulsar
+- name: Set up Pulsar
   hosts: pulsar
   connection: ssh
   become: true
@@ -127,6 +127,17 @@
         state: restarted
         daemon_reload: yes
         name: "pulsar"
+
+- name: Set up properties and namespaces
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - command: >
+        bin/pulsar-admin properties create public
+        --allowed-clusters local
+    - command: >
+        bin/pulsar-admin namespaces create public/local/default
 
 - name:  Hosts addresses
   hosts: localhost
