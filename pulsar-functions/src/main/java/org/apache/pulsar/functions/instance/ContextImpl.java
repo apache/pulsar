@@ -61,7 +61,12 @@ class ContextImpl implements Context {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId();
+        return config.getFunctionId().toString();
+    }
+
+    @Override
+    public String getInstanceId() {
+        return config.getInstanceId().toString();
     }
 
     @Override

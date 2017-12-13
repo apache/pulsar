@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import java.lang.reflect.ParameterizedType;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
@@ -27,7 +26,6 @@ import org.slf4j.Logger;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -39,7 +37,7 @@ import java.util.concurrent.*;
  * program if invoking via a process based invocation or using JavaInstance using a thread
  * based invocation.
  */
-class JavaInstance {
+public class JavaInstance {
     enum SupportedTypes {
         INTEGER,
         STRING,

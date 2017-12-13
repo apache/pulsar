@@ -18,19 +18,30 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
+import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.FunctionID;
+import org.apache.pulsar.functions.runtime.InstanceID;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
  * passed to run functions
  */
+@Data
 @Getter
 @Setter
-class JavaInstanceConfig {
+@EqualsAndHashCode
+@ToString
+public class JavaInstanceConfig {
     private String functionName;
-    private String functionId;
+    private FunctionID functionId;
+    private InstanceID instanceId;
     private String functionVersion;
+    private FunctionConfig functionConfig;
     private String nameSpace;
     private String userName;
     private int timeBudgetInMs;

@@ -22,18 +22,29 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 /**
  * Function Configuration.
  */
+@Data
 @Setter
 @Getter
+@EqualsAndHashCode
+@ToString
 public class FunctionConfig {
 
     // function name
     private String name;
+    // function class name
+    private String className;
+    // function jar name
+    private List<String> jarFiles;
     // source topic
     private String sourceTopic;
     // sink topic

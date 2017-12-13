@@ -53,6 +53,13 @@ public interface Context {
     String getFunctionId();
 
     /**
+     * The id of the instance that invokes this function.
+     *
+     * @return the instance id
+     */
+    String getInstanceId();
+
+    /**
      * The version of the function that we are executing
      * @return The version id
      */

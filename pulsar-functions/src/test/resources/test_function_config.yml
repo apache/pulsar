@@ -18,5 +18,6 @@
 #
 
 name: test-function
+className: org.apache.pulsar.functions.test.TestFunction
 sourceTopic: test-source-topic
 sinkTopic: test-sink-topic
