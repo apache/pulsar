@@ -86,6 +86,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
 
+        if (!authResult) {
+            return;
+        }
+
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             if (!this.service.addConsumer(this)) {
