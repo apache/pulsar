@@ -29,5 +29,5 @@ do
    gpg --print-md MD5 $FILE > $FILE.md5
 
    # SHA-512 signature
-   gpg --print-md SHA512 $FILE > $FILE.sha
+   gpg --print-md SHA512 $FILE > $FILE.sha512
 done
