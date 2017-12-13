@@ -17,14 +17,32 @@
 # under the License.
 #
 
+- name: Format and mount disks
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - shell: |
+        tuned-adm profile latency-performance
+        mkfs.xfs /dev/nvme0n1
+        mkfs.xfs /dev/nvme1n1
+        mkdir -p /mnt/journal
+        mkdir -p /mnt/storage
+        mount -o defaults,noatime,nodiscard /dev/nvme0n1 /mnt/journal
+        mount -o defaults,noatime,nodiscard /dev/nvme1n1 /mnt/storage
+      args:
+        creates: /mnt/journal
+
 - name: Pulsar setup
   hosts: all
   connection: ssh
   become: true
   tasks:
-    - file:
-        path: /opt/pulsar
+    - name: Create necessary directories
+      file:
+        path: "{{ item }}"
         state: directory
+      with_items: ["/opt/pulsar"]
     - name: Install RPM packages
       yum: pkg={{ item }} state=latest
       with_items:
@@ -32,27 +50,27 @@
         - java
         - sysstat
         - vim
-
     - set_fact:
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
-        service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].private_ip }}:6650/"
-        http_url: "http://{{ hostvars[groups['pulsar'][0]].private_ip }}:8080/"
+        service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
+        http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
         pulsar_version: "1.20.0-incubating"
 
-    - unarchive:
+    - name: Download Pulsar binary package
+      unarchive:
         src: http://apache.mirrors.hoobly.com/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         remote_src: yes
         dest: /opt/pulsar
         extra_opts: ["--strip-components=1"]
     - set_fact:
-        private_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
         max_heap_memory: "24g"
         max_direct_memory: "24g"
-    - template:
+    - name: Add pulsar_env.sh configuration file
+      template:
         src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
 
-- name: Setup ZooKeeper
+- name: Set up ZooKeeper
   hosts: zookeeper
   connection: ssh
   become: true
@@ -62,24 +80,30 @@
         max_heap_memory: "512m"
         max_direct_memory: "512m"
         cluster_name: "local"
-    - file:
+    - name: Create ZooKeeper data directory
+      file:
         path: "/opt/pulsar/{{ item }}"
         state: directory
       with_items:
         - data/zookeeper
-    - template:
+    - name: Add pulsar_env.sh configuration file 
+      template:
         src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
-    - template:
+    - name: Add zookeeper.conf file
+      template:
         src: "../templates/zoo.cfg"
         dest: "/opt/pulsar/conf/zookeeper.conf"
-    - template:
+    - name: Add myid file for ZooKeeper
+      template:
         src: "../templates/myid"
         dest: "/opt/pulsar/data/zookeeper/myid"
-    - template:
+    - name: Add zookeeper.service systemd file
+      template:
         src: "../templates/zookeeper.service"
         dest: "/etc/systemd/system/zookeeper.service"
-    - systemd:
+    - name: 
+      systemd:
         state: restarted
         daemon_reload: yes
         name: "zookeeper"
@@ -128,17 +152,21 @@
         daemon_reload: yes
         name: "pulsar"
 
-- name: Set up properties and namespaces
+- name: Pulsar multi-tenancy setup
   hosts: pulsar
   connection: ssh
   become: true
   tasks:
-    - command: >
-        bin/pulsar-admin properties create public
-        --allowed-clusters local
-    - command: >
+    - name: Create default property and namespace
+      shell: |
+        bin/pulsar-admin properties create public \
+          --allowed-clusters local \
+          --admin-roles all
         bin/pulsar-admin namespaces create public/local/default
-
+      args:
+        chdir: /opt/pulsar
+      when: groups['zookeeper'][0] == inventory_hostname
+      
 - name:  Hosts addresses
   hosts: localhost
   become: false
