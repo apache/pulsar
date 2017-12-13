@@ -287,12 +287,12 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-a", "-b"};
+            String[] args = {testConfigFile.getAbsolutePath(), "-rb", "-ra"};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
             // code should reach here.
-            Assert.assertEquals(e.getMessage(), "No configuration file for bookie");
+            Assert.assertEquals(e.getMessage(), "No configuration file for Bookie");
         }
     }
 
@@ -304,12 +304,12 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-a"};
+            String[] args = {testConfigFile.getAbsolutePath(), "-ra"};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
             // code should reach here.
-            Assert.assertEquals(e.getMessage(), "No configuration file for bookie auto recovery");
+            Assert.assertEquals(e.getMessage(), "No configuration file for Bookie");
         }
     }
 
@@ -320,12 +320,12 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-b"};
+            String[] args = {testConfigFile.getAbsolutePath(), "-rb"};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
             // code should reach here
-            Assert.assertEquals(e.getMessage(), "No configuration file for bookie");
+            Assert.assertEquals(e.getMessage(), "No configuration file for Bookie");
         }
     }
 
@@ -336,11 +336,12 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieEmptyConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-a", "-b", "-c", testConfigFile.getAbsolutePath()};
+            String[] args = {testConfigFile.getAbsolutePath(), "-ra", "-rb", "-bc", testConfigFile.getAbsolutePath()};
             PulsarBrokerStarter.main(args);
             Assert.fail("Effectively empty config file for bookie should've raised NoWritableLedgerDirException!");
         } catch (LedgerDirsManager.NoWritableLedgerDirException e) {
             // code should reach here
+            // Since empty config file will have empty ledgerDirs, it should raise exception when bookie init.
         }
     }
 }
