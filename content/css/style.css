@@ -9487,7 +9487,8 @@ span.popover-term {
       margin-right: 2px; }
     .rest-api-container article section.content p img, .docs-container article section.content p img {
       display: block;
-      margin: 20px auto; }
+      margin: 20px auto;
+      max-width: 100%; }
       .rest-api-container article section.content p img[alt="Maven Central"], .docs-container article section.content p img[alt="Maven Central"] {
         width: 20%;
         margin: 0;

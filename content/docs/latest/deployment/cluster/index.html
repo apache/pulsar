@@ -1731,22 +1731,6 @@
 
 <p>On <code class="highlighter-rouge">zk2.us-west.example.com</code> the command would be <code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 
-<p>Once you’ve done that, add a server configuration in the <a href="../../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a> configuration file that includes the same ZooKeeper hosts as the <code class="highlighter-rouge">conf/zookeeper.conf</code> file but specifies different ports, as well as a <code class="highlighter-rouge">clientPort</code> parameter. Here’s an example:</p>
-
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
-<span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
-<span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
-<span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
-</code></pre>
-</div>
-
-<p>As before, create <code class="highlighter-rouge">myid</code> files for each server in <code class="highlighter-rouge">data/global-zookeeper/myid</code>, and then make sure that the server IDs match up across <code class="highlighter-rouge">data/global-zookeeper/myid</code> and <code class="highlighter-rouge">data/zookeeper/myid</code>.</p>
-
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat data/zookeeper/myid
-<span class="gp">$ </span>cat data/global-zookeeper/myid
-</code></pre>
-</div>
-
 <p>Once each server has been added to the <code class="highlighter-rouge">zookeeper.conf</code> configuration and has the appropriate <code class="highlighter-rouge">myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="../../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
@@ -1762,7 +1746,7 @@
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
   --cluster pulsar-cluster-1 <span class="se">\</span>
   --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
+  --global-zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
   --web-service-url http://pulsar.us-west.example.com:8080 <span class="se">\</span>
   --web-service-url-tls https://pulsar.us-west.example.com:8443 <span class="se">\</span>
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 <span class="se">\</span>
@@ -1849,14 +1833,16 @@
 
 <p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar’s administrative interface. We recommend running <strong>3 brokers</strong>, one for each machine that’s already running a BookKeeper bookie.</p>
 
-<p>The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you’ve deployed. Make sure that the <a href="../../../reference/Configuration#broker-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> and <a href="../../../reference/Configuration#broker-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a> parameters</p>
+<p>The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you’ve deployed. Make sure that the <a href="../../../reference/Configuration#broker-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> and <a href="../../../reference/Configuration#broker-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a> parameters.
+In this case, since we only have 1 cluster and no global ZooKeeper setup, the <code class="highlighter-rouge">globalZookeeperServers</code>
+will point to the same <code class="highlighter-rouge">zookeeperServers</code>.</p>
 
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
-<span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
+<span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
 </div>
 
-<p>The only difference between the two connection strings should be the port for each host (2181 and 2184 are the defaults). You also need to specify the cluster name (matching the name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster’s metadata</a>:</p>
+<p>You also need to specify the cluster name (matching the name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster’s metadata</a>:</p>
 
 <div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clusterName</span><span class="p">=</span><span class="s">pulsar-cluster-1</span>
 </code></pre>
