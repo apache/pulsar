@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -41,7 +42,9 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 
@@ -54,6 +57,7 @@ import org.testng.annotations.Test;
 
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(RawReaderTest.class);
+    private static final int BATCH_MAX_MESSAGES = 10;
 
     @BeforeMethod
     @Override
@@ -73,21 +77,35 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    private Set<String> publishMessages(String topic, int count) throws Exception {
+    private Set<String> publishMessagesBase(String topic, int count, boolean batching) throws Exception {
         Set<String> keys = new HashSet<>();
         ProducerConfiguration producerConf = new ProducerConfiguration();
-        try (Producer producer = pulsarClient.createProducer(topic, producerConf)) {
+        producerConf.setMaxPendingMessages(count);
+        producerConf.setBatchingEnabled(batching);
+        producerConf.setBatchingMaxMessages(BATCH_MAX_MESSAGES);
+        producerConf.setBatchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.DAYS);
 
+        try (Producer producer = pulsarClient.createProducer(topic, producerConf)) {
+            Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
                 String key = "key"+i;
                 byte[] data = ("my-message-" + i).getBytes();
-                producer.send(MessageBuilder.create()
-                              .setKey(key)
-                              .setContent(data).build());
+                lastFuture = producer.sendAsync(MessageBuilder.create()
+                                                .setKey(key)
+                                                .setContent(data).build());
                 keys.add(key);
             }
+            lastFuture.get();
         }
         return keys;
+    }
+
+    private Set<String> publishMessages(String topic, int count) throws Exception {
+        return publishMessagesBase(topic, count, false);
+    }
+
+    private Set<String> publishMessagesInBatches(String topic, int count) throws Exception {
+        return publishMessagesBase(topic, count, true);
     }
 
     private static String extractKey(RawMessage m) throws Exception {
@@ -225,5 +243,48 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(timeouts, 1);
         Assert.assertEquals(keys.size(), numMessages);
+    }
+
+    @Test
+    public void testBatching() throws Exception {
+        int numMessages = BATCH_MAX_MESSAGES * 5;
+        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+
+        Set<String> keys = publishMessagesInBatches(topic, numMessages);
+
+        RawReader reader = RawReader.create(pulsarClient, topic).get();
+        List<Future<RawMessage>> futures = new ArrayList<>();
+
+        Consumer<RawMessage> consumer = new Consumer<RawMessage>() {
+                BatchMessageIdImpl lastId = new BatchMessageIdImpl(-1, -1, -1, -1);
+
+                @Override
+                public void accept(RawMessage m) {
+                    try {
+                        Assert.assertTrue(keys.remove(extractKey(m)));
+                        Assert.assertTrue(m.getMessageId() instanceof BatchMessageIdImpl);
+                        BatchMessageIdImpl id = (BatchMessageIdImpl)m.getMessageId();
+
+                        // id should be greater than lastId
+                        Assert.assertEquals(id.compareTo(lastId), 1);
+                    } catch (Exception e) {
+                        Assert.fail("Error checking message", e);
+                    }
+                }
+            };
+        try {
+            while (true) { // should break out with TimeoutException
+                try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
+                    if (RawBatchConverter.isBatch(m)) {
+                        RawBatchConverter.explodeBatch(m).forEach(consumer);
+                    } else {
+                        consumer.accept(m);
+                    }
+                }
+            }
+        } catch (TimeoutException te) {
+            // ok
+        }
+        Assert.assertTrue(keys.isEmpty());
     }
 }

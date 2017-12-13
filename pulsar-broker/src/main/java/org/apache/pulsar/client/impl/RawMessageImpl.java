@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 
 public class RawMessageImpl implements RawMessage {
     private final MessageIdData id;
@@ -35,7 +35,8 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public MessageId getMessageId() {
-        return new MessageIdImpl(id.getLedgerId(), id.getEntryId(), id.getPartition());
+        return new BatchMessageIdImpl(id.getLedgerId(), id.getEntryId(),
+                                      id.getPartition(), id.getBatchIndex());
     }
 
     @Override
