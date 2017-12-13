@@ -20,7 +20,10 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import java.util.List;
 import lombok.Getter;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -38,6 +41,13 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--name", description = "Function Name\n")
         private String name;
+        @Parameter(names = "--function-classname", description = "Function Class Name\n")
+        private String className;
+        @Parameter(
+            names = "--function-classpath",
+            description = "Function Classpath\n",
+            listConverter = StringConverter.class)
+        private List<String> jarFiles;
         @Parameter(names = "--source-topic", description = "Input Topic Name\n")
         private String sourceTopicName;
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
@@ -62,6 +72,14 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != name) {
                 fc.setName(name);
+            }
+            if (null != className) {
+                fc.setClassName(className);
+            }
+            if (null != jarFiles) {
+                fc.setJarFiles(jarFiles);
+            } else {
+                fc.setJarFiles(Lists.newArrayList());
             }
             // TODO: execute the runner here
 
