@@ -769,8 +769,8 @@ public class ConsumerImpl extends ConsumerBase {
             uncompressedPayload.release();
             msgMetadata.recycle();
 
+            lock.readLock().lock();
             try {
-                lock.readLock().lock();
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
@@ -916,12 +916,15 @@ public class ConsumerImpl extends ConsumerBase {
                 final MessageImpl message = new MessageImpl(batchMessageIdImpl, msgMetadata,
                         singleMessageMetadataBuilder.build(), singleMessagePayload, cnx);
                 lock.readLock().lock();
-                if (pendingReceives.isEmpty()) {
-                    incomingMessages.add(message);
-                } else {
-                    notifyPendingReceivedCallback(message, null);
+                try {
+                    if (pendingReceives.isEmpty()) {
+                        incomingMessages.add(message);
+                    } else {
+                        notifyPendingReceivedCallback(message, null);
+                    }
+                } finally {
+                    lock.readLock().unlock();
                 }
-                lock.readLock().unlock();
                 singleMessagePayload.release();
                 singleMessageMetadataBuilder.recycle();
             }

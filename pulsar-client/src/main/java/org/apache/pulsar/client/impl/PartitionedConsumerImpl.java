@@ -138,10 +138,12 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
 
-            lock.readLock().lock();
+            // we're modifying pausedConsumers
+            lock.writeLock().lock();
             try {
-                if (incomingMessages.size() >= maxReceiverQueueSize
-                        || (incomingMessages.size() > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
+                int size = incomingMessages.size();
+                if (size >= maxReceiverQueueSize
+                        || (size > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
                     // mark this consumer to be resumed later: if No more space left in shared queue,
                     // or if any consumer is already paused (to create fair chance for already paused consumers)
                     pausedConsumers.add(consumer);
@@ -153,7 +155,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     });
                 }
             } finally {
-                lock.readLock().unlock();
+                lock.writeLock().unlock();
             }
         });
     }
@@ -168,7 +170,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                         break;
                     }
 
-                    receiveMessageFromConsumer(consumer);
+                    // if messages are readily available on consumer we will attempt to writeLock on the same thread
+                    client.eventLoopGroup().execute(() -> {
+                        receiveMessageFromConsumer(consumer);
+                    });
                 }
             }
         } finally {
@@ -375,7 +380,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     void messageReceived(Message message) {
-        lock.readLock().lock();
+        lock.writeLock().lock();
         try {
             unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
             if (log.isDebugEnabled()) {
@@ -388,12 +393,13 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // Waits for the queue to have space for the message
+                // This should never block cause PartitonedConsumerImpl should always use GrowableArrayBlockingQueue
                 incomingMessages.put(message);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
 
         if (listener != null) {
