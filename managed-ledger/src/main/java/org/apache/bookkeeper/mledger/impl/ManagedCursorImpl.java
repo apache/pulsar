@@ -267,7 +267,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Read the last entry in the ledger
             lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
-                    log.debug("readComplete rc={} entryId={}", rc1, lh1.getLastAddConfirmed());
+                    log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
                 }
                 if (isBkErrorNotRecoverable(rc1)) {
                     log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
@@ -984,7 +984,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long allEntries = ledger.getNumberOfEntries(range);
 
         if (log.isDebugEnabled()) {
-            log.debug("getNumberOfEntries. {} allEntries: {}", range, allEntries);
+            log.debug("[{}] getNumberOfEntries. {} allEntries: {}", ledger.getName(), range, allEntries);
         }
 
         long deletedEntries = 0;
@@ -1007,7 +1007,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("Found {} entries - deleted: {}", allEntries - deletedEntries, deletedEntries);
+            log.debug("[{}] Found {} entries - deleted: {}", ledger.getName(), allEntries - deletedEntries, deletedEntries);
         }
         return allEntries - deletedEntries;
     }
@@ -1235,7 +1235,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             readPosition = ledger.getNextValidPosition(newMarkDeletePosition);
 
             if (log.isDebugEnabled()) {
-                log.debug("Moved read position from: {} to: {}", oldReadPosition, readPosition);
+                log.debug("[{}] Moved read position from: {} to: {}", ledger.getName(), oldReadPosition, readPosition);
             }
         }
 
@@ -1258,8 +1258,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("Moved ack position from: {} to: {} -- skipped: {}", oldMarkDeletePosition,
-                        newMarkDeletePosition, skippedEntries);
+                log.debug("[{}] Moved ack position from: {} to: {} -- skipped: {}", ledger.getName(),
+                        oldMarkDeletePosition, newMarkDeletePosition, skippedEntries);
             }
             messagesConsumedCounter += skippedEntries;
         }
@@ -1664,7 +1664,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
-            log.info("[{}] Rewind from {} to {}", name, oldReadPosition, newReadPosition);
+            log.info("[{}-{}] Rewind from {} to {}", ledger.getName(), name, oldReadPosition, newReadPosition);
 
             readPosition = newReadPosition;
         } finally {
@@ -2156,47 +2156,55 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void asyncDeleteLedger(final LedgerHandle lh) {
-        if (lh == null) {
+        asyncDeleteLedger(lh, 3);
+    }
+    
+    private void asyncDeleteLedger(final LedgerHandle lh, int retry) {
+        if (lh == null || retry <= 0) {
             return;
         }
 
         ledger.mbean.startCursorLedgerDeleteOp();
         bookkeeper.asyncDeleteLedger(lh.getId(), (rc, ctx) -> {
-            ledger.getExecutor().submit(safeRun(() -> {
-                ledger.mbean.endCursorLedgerDeleteOp();
-                if (rc != BKException.Code.OK) {
-                    log.warn("[{}] Failed to delete ledger {}: {}", ledger.getName(), lh.getId(),
-                            BKException.getMessage(rc));
-                    return;
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Successfully closed&deleted ledger {} in cursor", ledger.getName(), name,
-                                lh.getId());
-                    }
+            ledger.mbean.endCursorLedgerDeleteOp();
+            if (rc != BKException.Code.OK) {
+                log.warn("[{}] Failed to delete ledger {}: {}", ledger.getName(), lh.getId(),
+                        BKException.getMessage(rc));
+                if (rc != BKException.Code.NoSuchLedgerExistsException) {
+                    asyncDeleteLedger(lh, retry - 1);
                 }
-            }));
+                return;
+            } else {
+                log.info("[{}][{}] Successfully closed & deleted ledger {} in cursor", ledger.getName(), name,
+                        lh.getId());
+            }
         }, null);
     }
 
     void asyncDeleteCursorLedger() {
+        asyncDeleteCursorLedger(3);
+    }
+    
+    private void asyncDeleteCursorLedger(int retry) {
         STATE_UPDATER.set(this, State.Closed);
 
-        if (cursorLedger == null) {
+        if (cursorLedger == null || retry <= 0) {
             // No ledger was created
             return;
         }
 
         ledger.mbean.startCursorLedgerDeleteOp();
         bookkeeper.asyncDeleteLedger(cursorLedger.getId(), (rc, ctx) -> {
-            ledger.getExecutor().submit(safeRun(() -> {
-                ledger.mbean.endCursorLedgerDeleteOp();
-                if (rc == BKException.Code.OK) {
-                    log.debug("[{}][{}] Deleted cursor ledger", cursorLedger.getId());
-                } else {
-                    log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
-                            BKException.getMessage(rc));
+            ledger.mbean.endCursorLedgerDeleteOp();
+            if (rc == BKException.Code.OK) {
+                log.info("[{}][{}] Deleted cursor ledger {}", ledger.getName(), name, cursorLedger.getId());
+            } else {
+                log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
+                        BKException.getMessage(rc));
+                if (rc != BKException.Code.NoSuchLedgerExistsException) {
+                    asyncDeleteCursorLedger(retry - 1);
                 }
-            }));
+            }
         }, null);
     }
 
