@@ -347,8 +347,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(size, 0);
     }
 
-    private static long getUnackedMessagesCountInPartitionedConsumer(Consumer c) {
-        return ((PartitionedConsumerImpl) c).getConsumers().stream()
+    private static long getUnackedMessagesCountInPartitionedConsumer(Consumer<byte[]> c) {
+        return ((PartitionedConsumerImpl<byte[]>) c).getConsumers().stream()
                 .mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
     }
 
@@ -373,7 +373,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         conf.setReceiverQueueSize(50);
         conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
         conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -417,7 +417,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((PartitionedConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        ((PartitionedConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {

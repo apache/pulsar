@@ -135,9 +135,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Thread.sleep(1000L);
         // Make sure that the internal replicators map contains remote cluster info
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients1 = ns1.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients2 = ns2.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients3 = ns3.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients1 = ns1.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients2 = ns2.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients3 = ns3.getReplicationClients();
 
         Assert.assertNotNull(replicationClients1.get("r2"));
         Assert.assertNotNull(replicationClients1.get("r3"));

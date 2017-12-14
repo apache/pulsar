@@ -30,7 +30,7 @@ import org.apache.pulsar.client.impl.ProducerStats;
  *
  *
  */
-public interface Producer extends Closeable {
+public interface Producer<T> extends Closeable {
 
     /**
      * @return the topic which producer is publishing to

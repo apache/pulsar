@@ -127,7 +127,7 @@ public class PulsarClientImpl<T> implements PulsarClient<T> {
     }
 
     @Override
-    public Producer createProducer(final String destination, final ProducerConfiguration conf)
+    public Producer<T> createProducer(final String destination, final ProducerConfiguration conf)
             throws PulsarClientException {
         try {
             return createProducerAsync(destination, conf).get();
@@ -145,11 +145,11 @@ public class PulsarClientImpl<T> implements PulsarClient<T> {
     }
 
     @Override
-    public CompletableFuture<Producer> createProducerAsync(String topic) {
+    public CompletableFuture<Producer<T>> createProducerAsync(String topic) {
         return createProducerAsync(topic, new ProducerConfiguration());
     }
 
-    public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf) {
+    public CompletableFuture<Producer<T>> createProducerAsync(final String topic, final ProducerConfiguration conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -162,19 +162,19 @@ public class PulsarClientImpl<T> implements PulsarClient<T> {
                     new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
         }
 
-        CompletableFuture<Producer> producerCreatedFuture = new CompletableFuture<>();
+        CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            ProducerBase producer;
+            ProducerBase<T> producer;
             if (metadata.partitions > 1) {
-                producer = new PartitionedProducerImpl(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture);
             } else {
-                producer = new ProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
+                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
             }
 
             synchronized (producers) {

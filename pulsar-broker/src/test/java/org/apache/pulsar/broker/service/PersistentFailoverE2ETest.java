@@ -490,8 +490,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         producer.close();
 
         // two consumers subscribe at almost the same time
-        CompletableFuture<Consumer> subscribeFuture2 = pulsarClient.subscribeAsync(topicName, subName, consumerConf2);
-        CompletableFuture<Consumer> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
+        CompletableFuture<Consumer<byte[]>> subscribeFuture2 = pulsarClient.subscribeAsync(topicName, subName, consumerConf2);
+        CompletableFuture<Consumer<byte[]>> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
 
         // wait for all messages to be dequeued
         int retry = 20;

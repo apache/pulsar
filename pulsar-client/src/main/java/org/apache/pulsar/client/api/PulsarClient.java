@@ -73,7 +73,7 @@ public interface PulsarClient<T> extends Closeable {
      * @throws PulsarClientException.AuthorizationException
      *             if the authorization to publish on topic was denied
      */
-    Producer createProducer(String topic) throws PulsarClientException;
+    Producer<T> createProducer(String topic) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -82,7 +82,7 @@ public interface PulsarClient<T> extends Closeable {
      *            The name of the topic where to produce
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer> createProducerAsync(String topic);
+    CompletableFuture<Producer<T>> createProducerAsync(String topic);
 
     /**
      * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -96,7 +96,7 @@ public interface PulsarClient<T> extends Closeable {
      *             if it was not possible to create the producer
      * @throws InterruptedException
      */
-    Producer createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
+    Producer<T> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -107,7 +107,7 @@ public interface PulsarClient<T> extends Closeable {
      *            The {@code ProducerConfiguration} object
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer> createProducerAsync(String topic, ProducerConfiguration conf);
+    CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
      * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}

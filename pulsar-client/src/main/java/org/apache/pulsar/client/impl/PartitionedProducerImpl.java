@@ -38,15 +38,15 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedProducerImpl extends ProducerBase {
+public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
-    private List<ProducerImpl> producers;
+    private List<ProducerImpl<T>> producers;
     private int numPartitions;
     private MessageRouter routerPolicy;
     private final ProducerStats stats;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
-            CompletableFuture<Producer> producerCreatedFuture) {
+            CompletableFuture<Producer<T>> producerCreatedFuture) {
         super(client, topic, conf, producerCreatedFuture);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
         this.numPartitions = numPartitions;
@@ -72,7 +72,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
+            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
                     partitionIndex);
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
@@ -129,7 +129,7 @@ public class PartitionedProducerImpl extends ProducerBase {
 
     @Override
     public boolean isConnected() {
-        for (ProducerImpl producer : producers) {
+        for (ProducerImpl<T> producer : producers) {
             // returns false if any of the partition is not connected
             if (!producer.isConnected()) {
                 return false;
@@ -149,7 +149,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Producer producer : producers) {
+        for (Producer<T> producer : producers) {
             if (producer != null) {
                 producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
