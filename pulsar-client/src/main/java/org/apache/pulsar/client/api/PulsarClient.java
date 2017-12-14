@@ -28,7 +28,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
  *
  *
  */
-public interface PulsarClient extends Closeable {
+public interface PulsarClient<T> extends Closeable {
 
     /**
      * Create a new PulsarClient object using default client configuration
@@ -120,7 +120,7 @@ public interface PulsarClient extends Closeable {
      * @throws PulsarClientException
      * @throws InterruptedException
      */
-    Consumer subscribe(String topic, String subscription) throws PulsarClientException;
+    Consumer<T> subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using default
@@ -132,7 +132,7 @@ public interface PulsarClient extends Closeable {
      *            The subscription name
      * @return Future of the {@code Consumer} object
      */
-    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription);
+    CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription);
 
     /**
      * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
@@ -146,7 +146,7 @@ public interface PulsarClient extends Closeable {
      * @return The {@code Consumer} object
      * @throws PulsarClientException
      */
-    Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
+    Consumer<T> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
@@ -160,7 +160,7 @@ public interface PulsarClient extends Closeable {
      *            The {@code ConsumerConfiguration} object
      * @return Future of the {@code Consumer} object
      */
-    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
+    CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.

@@ -37,13 +37,13 @@ import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 
-public class ReaderImpl implements Reader {
+public class ReaderImpl<T> implements Reader<T> {
 
-    private final ConsumerImpl consumer;
+    private final ConsumerImpl<T> consumer;
 
-    public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
+    public ReaderImpl(PulsarClientImpl<T> client, String topic, MessageId startMessageId,
             ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
-            CompletableFuture<Consumer> consumerFuture) {
+            CompletableFuture<Consumer<T>> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
@@ -77,7 +77,7 @@ public class ReaderImpl implements Reader {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
-        consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
+        consumer = new ConsumerImpl<T>(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
                 consumerFuture, SubscriptionMode.NonDurable, startMessageId);
     }
 

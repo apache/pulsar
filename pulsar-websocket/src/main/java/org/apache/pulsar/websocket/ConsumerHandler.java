@@ -61,11 +61,11 @@ import com.google.common.base.Splitter;
  * </P>
  *
  */
-public class ConsumerHandler extends AbstractWebSocketHandler {
+public class ConsumerHandler<T> extends AbstractWebSocketHandler {
 
     private final String subscription;
     private final ConsumerConfiguration conf;
-    private Consumer consumer;
+    private Consumer<T> consumer;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

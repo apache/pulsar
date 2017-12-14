@@ -46,13 +46,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedConsumerImpl extends ConsumerBase {
+public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
-    private final List<ConsumerImpl> consumers;
+    private final List<ConsumerImpl<T>> consumers;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
-    private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
+    private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
 
     // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
     // resume receiving from the paused consumer partitions
@@ -62,8 +62,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
 
-    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
+    PartitionedConsumerImpl(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
+            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture) {
         super(client, topic, subscription, conf, Math.max(numPartitions, conf.getReceiverQueueSize()), listenerExecutor,
                 subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
@@ -83,8 +83,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         ConsumerConfiguration internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
+            ConsumerImpl<T> consumer = new ConsumerImpl<T>(client, partitionName, subscription, internalConfig,
+                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<>());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
                 if (subscribeException != null) {
@@ -125,7 +125,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl consumer) {
+    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
         consumer.receiveAsync().thenAccept(message -> {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
@@ -238,7 +238,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        for (Consumer consumer : consumers) {
+        for (Consumer<T> consumer : consumers) {
             if (consumer != null) {
                 consumer.unsubscribeAsync().handle((unsubscribed, ex) -> {
                     if (ex != null) {
@@ -277,7 +277,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Consumer consumer : consumers) {
+        for (Consumer<T> consumer : consumers) {
             if (consumer != null) {
                 consumer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
@@ -467,7 +467,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return state;
     }
 
-    List<ConsumerImpl> getConsumers() {
+    List<ConsumerImpl<T>> getConsumers() {
         return consumers;
     }
 

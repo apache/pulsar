@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 import com.google.common.collect.Queues;
 
-public abstract class ConsumerBase extends HandlerBase implements Consumer {
+public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -50,15 +50,15 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final String subscription;
     protected final ConsumerConfiguration conf;
     protected final String consumerName;
-    protected final CompletableFuture<Consumer> subscribeFuture;
+    protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener listener;
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
     protected final int maxReceiverQueueSize;
 
-    protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
+    protected ConsumerBase(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
+            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0 , TimeUnit.MILLISECONDS));
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = subscription;
@@ -307,7 +307,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     abstract public int numMessagesInQueue();
 
-    public CompletableFuture<Consumer> subscribeFuture() {
+    public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
     }
 

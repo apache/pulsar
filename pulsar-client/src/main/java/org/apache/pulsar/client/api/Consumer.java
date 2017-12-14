@@ -29,7 +29,7 @@ import org.apache.pulsar.client.impl.ConsumerStats;
  *
  *
  */
-public interface Consumer extends Closeable {
+public interface Consumer<T> extends Closeable {
 
     /**
      * Get a topic for the consumer

@@ -72,7 +72,7 @@ import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-public class ConsumerImpl extends ConsumerBase {
+public class ConsumerImpl<T> extends ConsumerBase<T> {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     private final long consumerId;
@@ -118,14 +118,14 @@ public class ConsumerImpl extends ConsumerBase {
         NonDurable
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
+    ConsumerImpl(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture) {
         this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
                 SubscriptionMode.Durable, null);
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture,
+    ConsumerImpl(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
