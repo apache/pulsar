@@ -14,6 +14,7 @@ In order install a Pulsar cluster on AWS using Terraform and Ansible, you'll nee
 
 * An [AWS account](https://aws.amazon.com/account/) and the [`aws`](https://aws.amazon.com/cli/) command-line tool
 * Python and [pip](https://pip.pypa.io/en/stable/)
+* The [`terraform-inventory`](https://github.com/adammck/terraform-inventory) tool, which enables Ansible to use Terraform artifacts
 
 You'll also need to make sure that you're currently logged into your AWS account via the `aws` tool:
 
@@ -31,14 +32,14 @@ $ pip install ansible
 
 You can install Terraform using the instructions [here](https://www.terraform.io/intro/getting-started/install.html).
 
-You'll also need to have the Terraform and Ansible configurations locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/incubator-pulsar), which you can fetch using Git:
+You'll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/incubator-pulsar), which you can fetch using Git:
 
 ```bash
 $ git clone https://github.com/apache/incubator-pulsar
 $ cd incubator-pulsar/deployment/terraform-ansible/aws
 ```
 
-## Creating AWS resources using Terraform
+## SSH setup
 
 In order to create the necessary AWS resources using Terraform, you'll need to create an SSH key. To create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
@@ -53,10 +54,13 @@ $ ls ~/.ssh
 id_rsa               id_rsa.pub
 ```
 
-Now you'll need to install all Terraform dependencies:
+## Creating AWS resources using Terraform
+
+To get started building AWS resources with Terraform, you'll need to install all Terraform dependencies:
 
 ```bash
 $ terraform init
+# This will create a .terraform folder
 ```
 
 Once you've done that, you can apply the default Terraform configuration:
@@ -109,13 +113,13 @@ All EC2 instances for the cluster will run in the [us-west-2](http://docs.aws.am
 
 ### Fetching your Pulsar connection URL
 
-When you apply the Terraform configuration by running `terraform apply`, Terraform will output a value for the `pulsar_connection_url`. It should look something like this:
+When you apply the Terraform configuration by running `terraform apply`, Terraform will output a value for the `pulsar_service_url`. It should look something like this:
 
 ```
 pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
 ```
 
-You can fetch that value at any time by running `terraform output` or parse the `terraform.tstate` file:
+You can fetch that value at any time by running `terraform output pulsar_service_url` or parsing the `terraform.tstate` file (which is JSON, even though the filename doesn't reflect that):
 
 ```bash
 $ cat terraform.tfstate | jq '.modules | .[0].outputs.pulsar_connection_url.value'
