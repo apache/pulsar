@@ -72,7 +72,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         
         // enable tls and auth&auth at broker 
         conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
+        conf.setAuthorizationEnabled(false);
 
         conf.setTlsEnabled(true);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
@@ -81,7 +81,6 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         conf.setTlsAllowInsecureConnection(true);
 
         Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add("localhost");
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
 
@@ -99,8 +98,12 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
-        proxyConfig.setAuthenticationEnabled(true);
-
+        proxyConfig.setAuthorizationEnabled(false);
+        proxyConfig.setDiscoveryServiceEnabled(false);
+        proxyConfig.setDiscoveryServiceURL("pulsar://localhost:" + BROKER_PORT);
+        proxyConfig.setDiscoveryServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        proxyConfig.setSendClientAuthRole(false);
+        
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
@@ -117,9 +120,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         proxyConfig.setAuthenticationProviders(providers);
-
+ 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
 
         proxyService.start();
     }

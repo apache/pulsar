@@ -126,6 +126,7 @@ enum ProtocolVersion {
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
+	v11 = 11;// Added more security checks to Pulsar Proxy
 }
 
 message CommandConnect {

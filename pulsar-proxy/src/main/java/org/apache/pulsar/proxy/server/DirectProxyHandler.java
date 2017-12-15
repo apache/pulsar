@@ -104,8 +104,12 @@ public class DirectProxyHandler {
 
         URI targetBroker;
         try {
-            // targetBrokerUrl is coming in the "hostname:6650" form, so we need to extract host and port
-            targetBroker = new URI("pulsar://" + targetBrokerUrl);
+            if (!targetBrokerUrl.startsWith("pulsar://")) {
+                // targetBrokerUrl is coming in the "hostname:6650" form, so we need to extract host and port
+                targetBroker = new URI("pulsar://" + targetBrokerUrl);
+            } else {
+                targetBroker = new URI(targetBrokerUrl);
+            }
         } catch (URISyntaxException e) {
             log.warn("[{}] Failed to parse broker url '{}'", inboundChannel, targetBrokerUrl, e);
             inboundChannel.close();
