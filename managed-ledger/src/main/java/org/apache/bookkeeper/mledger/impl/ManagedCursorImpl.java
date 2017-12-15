@@ -80,6 +80,8 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 
 public class ManagedCursorImpl implements ManagedCursor {
 
@@ -2156,11 +2158,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void asyncDeleteLedger(final LedgerHandle lh) {
-        asyncDeleteLedger(lh, 3);
+        asyncDeleteLedger(lh, DEFAULT_LEDGER_DELETE_RETRIES);
     }
     
     private void asyncDeleteLedger(final LedgerHandle lh, int retry) {
         if (lh == null || retry <= 0) {
+            if (lh != null) {
+                log.warn("[{}-{}] Failed to delete ledger after retries {}", ledger.getName(), name, lh.getId());
+            }
             return;
         }
 
@@ -2171,7 +2176,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}] Failed to delete ledger {}: {}", ledger.getName(), lh.getId(),
                         BKException.getMessage(rc));
                 if (rc != BKException.Code.NoSuchLedgerExistsException) {
-                    asyncDeleteLedger(lh, retry - 1);
+                    ledger.getScheduledExecutor().schedule(safeRun(() -> {
+                        asyncDeleteLedger(lh, retry - 1);
+                    }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 }
                 return;
             } else {
@@ -2182,14 +2189,17 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void asyncDeleteCursorLedger() {
-        asyncDeleteCursorLedger(3);
+        asyncDeleteCursorLedger(DEFAULT_LEDGER_DELETE_RETRIES);
     }
     
     private void asyncDeleteCursorLedger(int retry) {
         STATE_UPDATER.set(this, State.Closed);
 
         if (cursorLedger == null || retry <= 0) {
-            // No ledger was created
+            if (cursorLedger != null) {
+                log.warn("[{}-{}] Failed to delete ledger after retries {}", ledger.getName(), name,
+                        cursorLedger.getId());
+            }
             return;
         }
 
@@ -2202,7 +2212,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
                         BKException.getMessage(rc));
                 if (rc != BKException.Code.NoSuchLedgerExistsException) {
-                    asyncDeleteCursorLedger(retry - 1);
+                    ledger.getScheduledExecutor().schedule(safeRun(() -> {
+                        asyncDeleteCursorLedger(retry - 1);
+                    }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 }
             }
         }, null);
