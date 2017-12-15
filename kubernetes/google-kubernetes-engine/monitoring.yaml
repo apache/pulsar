@@ -23,7 +23,7 @@ metadata:
     name: prometheus-config
 data:
     # Include prometheus configuration file, setup to monitor all the
-    # Kubernetes pods the the "scrape=true" annotation.
+    # Kubernetes pods with the "scrape=true" annotation.
     prometheus.yml: |
         global:
             scrape_interval: 15s
@@ -147,7 +147,7 @@ spec:
               - name: grafana
                 image: apachepulsar/pulsar-grafana:latest
                 ports:
-                  - containerPort: 9090
+                  - containerPort: 3000
                 env:
                   - name: PROMETHEUS_URL
                     value: http://prometheus:9090/

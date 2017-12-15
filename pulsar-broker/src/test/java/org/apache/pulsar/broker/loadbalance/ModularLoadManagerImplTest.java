@@ -202,7 +202,7 @@ public class ModularLoadManagerImplTest {
     }
 
     private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(new NamespaceName(property, cluster, namespace),
+        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }

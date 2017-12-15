@@ -91,7 +91,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                     final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     try {
                         final int bundleCount = pulsar.getNamespaceService()
-                                .getBundleCount(new NamespaceName(namespace));
+                                .getBundleCount(NamespaceName.get(namespace));
                         if (bundleCount < maxBundleCount) {
                             bundleCache.add(bundle);
                         } else {

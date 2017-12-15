@@ -62,8 +62,8 @@ public abstract class AbstractReplicator {
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
-        this.localCluster = localCluster;
-        this.remoteCluster = remoteCluster;
+        this.localCluster = localCluster.intern();
+        this.remoteCluster = remoteCluster.intern();
         this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
@@ -211,7 +211,7 @@ public abstract class AbstractReplicator {
     }
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {
-        return String.format("%s.%s", replicatorPrefix, cluster);
+        return (replicatorPrefix + "." + cluster).intern();
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

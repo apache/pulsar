@@ -159,15 +159,27 @@ public class MockZooKeeper extends ZooKeeper {
 
             tree.put(path, Pair.create(data, 0));
 
-            if (!parent.isEmpty()) {
-                final Set<Watcher> toNotifyParent = Sets.newHashSet();
-                toNotifyParent.addAll(watchers.get(parent));
+            final Set<Watcher> toNotifyCreate = Sets.newHashSet();
+            toNotifyCreate.addAll(watchers.get(path));
 
-                executor.execute(() -> {
-                    toNotifyParent.forEach(watcher -> watcher.process(
-                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
-                });
+            final Set<Watcher> toNotifyParent = Sets.newHashSet();
+            if (!parent.isEmpty()) {
+                toNotifyParent.addAll(watchers.get(parent));
             }
+            watchers.removeAll(path);
+            final String finalPath = path;
+            executor.execute(() -> {
+                    toNotifyCreate.forEach(
+                            watcher -> watcher.process(
+                                    new WatchedEvent(EventType.NodeCreated,
+                                                     KeeperState.SyncConnected,
+                                                     finalPath)));
+                    toNotifyParent.forEach(
+                            watcher -> watcher.process(
+                                    new WatchedEvent(EventType.NodeChildrenChanged,
+                                                     KeeperState.SyncConnected,
+                                                     parent)));
+                });
 
             return path;
         } finally {
@@ -184,9 +196,17 @@ public class MockZooKeeper extends ZooKeeper {
             return;
         }
 
-        executor.execute(() -> {
-            String parent = path.substring(0, path.lastIndexOf("/"));
+        final Set<Watcher> toNotifyCreate = Sets.newHashSet();
+        toNotifyCreate.addAll(watchers.get(path));
 
+        final Set<Watcher> toNotifyParent = Sets.newHashSet();
+        final String parent = path.substring(0, path.lastIndexOf("/"));
+        if (!parent.isEmpty()) {
+            toNotifyParent.addAll(watchers.get(parent));
+        }
+        watchers.removeAll(path);
+
+        executor.execute(() -> {
             mutex.lock();
             if (getProgrammedFailStatus()) {
                 mutex.unlock();
@@ -204,10 +224,17 @@ public class MockZooKeeper extends ZooKeeper {
                 tree.put(path, Pair.create(data, 0));
                 mutex.unlock();
                 cb.processResult(0, path, ctx, null);
-                if (!parent.isEmpty()) {
-                    watchers.get(parent).forEach(watcher -> watcher.process(
-                            new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
-                }
+
+                toNotifyCreate.forEach(
+                        watcher -> watcher.process(
+                                new WatchedEvent(EventType.NodeCreated,
+                                                 KeeperState.SyncConnected,
+                                                 path)));
+                toNotifyParent.forEach(
+                        watcher -> watcher.process(
+                                new WatchedEvent(EventType.NodeChildrenChanged,
+                                                 KeeperState.SyncConnected,
+                                                 parent)));
             }
         });
 
@@ -505,6 +532,34 @@ public class MockZooKeeper extends ZooKeeper {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
                 return;
+            }
+
+            if (tree.containsKey(path)) {
+                mutex.unlock();
+                cb.processResult(0, path, ctx, new Stat());
+            } else {
+                mutex.unlock();
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
+            }
+        });
+    }
+
+    @Override
+    public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
+        executor.execute(() -> {
+            mutex.lock();
+            if (getProgrammedFailStatus()) {
+                mutex.unlock();
+                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                return;
+            } else if (stopped) {
+                mutex.unlock();
+                cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null);
+                return;
+            }
+
+            if (watcher != null) {
+                watchers.put(path, watcher);
             }
 
             if (tree.containsKey(path)) {

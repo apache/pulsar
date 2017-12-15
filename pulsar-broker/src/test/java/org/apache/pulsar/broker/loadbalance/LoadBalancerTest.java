@@ -829,7 +829,7 @@ public class LoadBalancerTest {
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
         ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
-                .getLeastLoaded(new NamespaceName("pulsar/use/primary-ns.10"));
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
         assertEquals("http://prod1-broker1.messaging.use.example.com:8080", found.getResourceId());
 
         zkCacheField.set(pulsarServices[0], originalLZK1);
