@@ -17,32 +17,28 @@
 # under the License.
 #
 
-- name: Format and mount disks
-  hosts: pulsar
-  connection: ssh
-  become: true
-  tasks:
-    - shell: |
-        tuned-adm profile latency-performance
-        mkfs.xfs /dev/nvme0n1
-        mkfs.xfs /dev/nvme1n1
-        mkdir -p /mnt/journal
-        mkdir -p /mnt/storage
-        mount -o defaults,noatime,nodiscard /dev/nvme0n1 /mnt/journal
-        mount -o defaults,noatime,nodiscard /dev/nvme1n1 /mnt/storage
-      args:
-        creates: /mnt/journal
-
 - name: Pulsar setup
   hosts: all
   connection: ssh
   become: true
   tasks:
+    - shell: |
+        tuned-adm profile latency-performance
     - name: Create necessary directories
       file:
         path: "{{ item }}"
         state: directory
       with_items: ["/opt/pulsar"]
+    - name: Create and mount disks
+      mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        fstype: xfs
+        opts: defaults,noatime,nodiscard
+        state: present
+      with_items:
+        - { path: "/mnt/journal", src: "/dev/nvme0n1" }
+        - { path: "/mnt/storage", src: "/dev/nvme1n1" }
     - name: Install RPM packages
       yum: pkg={{ item }} state=latest
       with_items:
@@ -102,18 +98,18 @@
       template:
         src: "../templates/zookeeper.service"
         dest: "/etc/systemd/system/zookeeper.service"
-    - name: 
+    - name: Systemd ZooKeeper start
       systemd:
         state: restarted
         daemon_reload: yes
         name: "zookeeper"
-    - command: >
-        bin/pulsar initialize-cluster-metadata
-        --cluster {{ cluster_name }}
-        --zookeeper localhost:2181
-        --global-zookeeper localhost:2181
-        --web-service-url {{ http_url }}
-        --broker-service-url {{ service_url }}
+    - shell: |
+        bin/pulsar initialize-cluster-metadata \
+          --cluster {{ cluster_name }} \
+          --zookeeper localhost:2181 \
+          --global-zookeeper localhost:2181 \
+          --web-service-url {{ http_url }} \
+          --broker-service-url {{ service_url }}
       args:
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
