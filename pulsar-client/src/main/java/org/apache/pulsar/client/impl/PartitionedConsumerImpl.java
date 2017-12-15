@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -61,6 +62,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
+    private final UnAckedMessageTracker unAckedMessageTracker;
 
     PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -74,6 +76,12 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
         checkArgument(conf.getReceiverQueueSize() > 0,
                 "Receiver queue size needs to be greater than 0 for Partitioned Topics");
+
+        if (conf.getAckTimeoutMillis() != 0) {
+            this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
+        } else {
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+        }
         start();
     }
 
@@ -107,6 +115,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     }
                     closeAsync().handle((ok, closeException) -> {
                         subscribeFuture().completeExceptionally(subscribeFail.get());
+                        unAckedMessageTracker.close();
                         client.cleanupConsumer(this);
                         return null;
                     });
@@ -221,8 +230,13 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                     "Cumulative acknowledge not supported for partitioned topics"));
         } else {
 
-            ConsumerImpl consumer = consumers.get(((MessageIdImpl) messageId).getPartitionIndex());
-            return consumer.doAcknowledge(messageId, ackType);
+            MessageIdImpl msgId = (MessageIdImpl) messageId;
+            ConsumerImpl consumer = consumers.get(msgId.getPartitionIndex());
+            return consumer.doAcknowledge(messageId, ackType).whenComplete((aVoid, throwable) -> {
+                if (throwable != null) {
+                    unAckedMessageTracker.remove(msgId);
+                }
+            });
         }
 
     }
@@ -238,6 +252,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
+        unAckedMessageTracker.close();
         for (Consumer consumer : consumers) {
             if (consumer != null) {
                 consumer.unsubscribeAsync().handle((unsubscribed, ex) -> {
@@ -277,6 +292,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        unAckedMessageTracker.close();
         for (Consumer consumer : consumers) {
             if (consumer != null) {
                 consumer.closeAsync().handle((closed, ex) -> {
@@ -355,6 +371,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
             }
+
+            unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message> receivedFuture = pendingReceives.poll();
@@ -434,7 +452,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 }
                 return false;
             });
-            c.redeliverUnacknowledgedMessages(consumerMessageIds);
+            c.redeliverUnacknowledgedMessages(consumerMessageIds, incomingMessages);
         }
     }
 

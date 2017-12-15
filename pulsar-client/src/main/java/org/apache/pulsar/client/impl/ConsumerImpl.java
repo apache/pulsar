@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -1145,8 +1146,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
     }
 
-    @Override
-    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
+    void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds, BlockingQueue<Message> incomingMessages) {
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
@@ -1154,7 +1154,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getNumber()) {
-            int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds);
+            int messagesFromQueue = removeExpiredMessagesFromQueue(messageIds, incomingMessages);
             Iterable<List<MessageIdImpl>> batches = Iterables.partition(messageIds, MAX_REDELIVER_UNACKNOWLEDGED);
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
@@ -1186,6 +1186,11 @@ public class ConsumerImpl extends ConsumerBase {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    @Override
+    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
+        redeliverUnacknowledgedMessages(messageIds, incomingMessages);
     }
 
     @Override
@@ -1237,7 +1242,7 @@ public class ConsumerImpl extends ConsumerBase {
         return messageId;
     }
 
-    private int removeExpiredMessagesFromQueue(Set<MessageIdImpl> messageIds) {
+    private int removeExpiredMessagesFromQueue(Set<MessageIdImpl> messageIds, BlockingQueue<Message> incomingMessages) {
         int messagesFromQueue = 0;
         Message peek = incomingMessages.peek();
         if (peek != null) {
@@ -1254,7 +1259,6 @@ public class ConsumerImpl extends ConsumerBase {
                 MessageIdImpl id = getMessageIdImpl(message);
                 if (!messageIds.contains(id)) {
                     messageIds.add(id);
-                    break;
                 }
                 message = incomingMessages.poll();
             }
