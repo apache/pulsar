@@ -27,6 +27,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -66,6 +73,8 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
+        config.setGlobalZookeeperServers("dummy-zk-servers");
+        config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
@@ -83,11 +92,10 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut=10000)
-    public void socketTest() throws InterruptedException {
-        String consumerUri = "ws://localhost:" + port
-                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + port
-                + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+    public void socketTest() throws Exception {
+        final String topic = "my-property/use/my-ns/my-topic1";
+        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -114,8 +122,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             produceSocket.awaitClose(1, TimeUnit.SECONDS);
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
-        } catch (Throwable t) {
-            log.error(t.getMessage());
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
@@ -133,6 +139,61 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             }
             executor.shutdownNow();
         }
+    }
+
+    @Test(timeOut=10000)
+    public void statsTest() throws Exception {
+        final String topic = "my-property/use/my-ns/my-topic2";
+        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        final String baseUrl = "http://localhost:" + port + "/admin/proxy-stats/";
+        Client client = ClientBuilder.newClient();
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            Assert.assertTrue(consumerFuture.get().isOpen());
+
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Assert.assertTrue(producerFuture.get().isOpen());
+
+            int retry = 0;
+            int maxRetry = 500;
+            while (consumeSocket.getReceivedMessagesCount() < 3) {
+                Thread.sleep(10);
+                if (retry++ > maxRetry) {
+                    break;
+                }
+            }
+
+            service.getProxyStats().generate();
+
+            verifyResponseStatus(client, baseUrl + "metrics");
+            verifyResponseStatus(client, baseUrl + "stats");
+            verifyResponseStatus(client, baseUrl + topic + "/stats");
+        } finally {
+            consumeClient.stop();
+            produceClient.stop();
+            client.close();
+        }
+    }
+
+    private void verifyResponseStatus(Client client, String url) {
+        WebTarget webTarget = client.target(url);
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        Response response = (Response) invocationBuilder.get();
+        Assert.assertEquals(response.getStatus(), 200);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
