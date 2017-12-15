@@ -31,10 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -61,11 +58,11 @@ import com.google.common.base.Splitter;
  * </P>
  *
  */
-public class ConsumerHandler<T> extends AbstractWebSocketHandler {
+public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private final String subscription;
     private final ConsumerConfiguration conf;
-    private Consumer<T> consumer;
+    private Consumer<Message> consumer;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

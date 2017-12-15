@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
+public class PartitionedConsumerImpl<T> extends ConsumerBase {
 
     private final List<ConsumerImpl<T>> consumers;
 
@@ -62,8 +62,8 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
 
-    PartitionedConsumerImpl(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture) {
+    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
         super(client, topic, subscription, conf, Math.max(numPartitions, conf.getReceiverQueueSize()), listenerExecutor,
                 subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
@@ -238,7 +238,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        for (Consumer<T> consumer : consumers) {
+        for (Consumer<Message> consumer : consumers) {
             if (consumer != null) {
                 consumer.unsubscribeAsync().handle((unsubscribed, ex) -> {
                     if (ex != null) {
@@ -277,7 +277,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Consumer<T> consumer : consumers) {
+        for (Consumer<Message> consumer : consumers) {
             if (consumer != null) {
                 consumer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {

@@ -22,13 +22,14 @@ import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TypedPulsarClientImpl;
 
 /**
  * Class that provides a client interface to Pulsar
  *
  *
  */
-public interface PulsarClient<T> extends Closeable {
+public interface PulsarClient<T extends Message> extends Closeable {
 
     /**
      * Create a new PulsarClient object using default client configuration
@@ -39,8 +40,12 @@ public interface PulsarClient<T> extends Closeable {
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
      */
-    public static PulsarClient create(String serviceUrl) throws PulsarClientException {
+    public static PulsarClient<Message> create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
+    }
+
+    public static <U> PulsarClient<TypedMessage<U>> createTyped(String serviceUrl) throws PulsarClientException {
+        return createTyped(serviceUrl, new ClientConfiguration());
     }
 
     /**
@@ -54,8 +59,12 @@ public interface PulsarClient<T> extends Closeable {
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
      */
-    public static PulsarClient create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        return new PulsarClientImpl(serviceUrl, conf);
+    public static PulsarClient<Message> create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
+        return new PulsarClientImpl<>(serviceUrl, conf);
+    }
+
+    public static <U> PulsarClient<TypedMessage<U>> createTyped(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
+        return new TypedPulsarClientImpl<>((PulsarClientImpl<Message>) create(serviceUrl, conf));
     }
 
     /**
@@ -73,7 +82,7 @@ public interface PulsarClient<T> extends Closeable {
      * @throws PulsarClientException.AuthorizationException
      *             if the authorization to publish on topic was denied
      */
-    Producer<T> createProducer(String topic) throws PulsarClientException;
+    Producer<Message> createProducer(String topic) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -82,7 +91,7 @@ public interface PulsarClient<T> extends Closeable {
      *            The name of the topic where to produce
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer<T>> createProducerAsync(String topic);
+    CompletableFuture<Producer<Message>> createProducerAsync(String topic);
 
     /**
      * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -96,7 +105,7 @@ public interface PulsarClient<T> extends Closeable {
      *             if it was not possible to create the producer
      * @throws InterruptedException
      */
-    Producer<T> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
+    Producer<Message> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -107,7 +116,7 @@ public interface PulsarClient<T> extends Closeable {
      *            The {@code ProducerConfiguration} object
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf);
+    CompletableFuture<Producer<Message>> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
      * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}

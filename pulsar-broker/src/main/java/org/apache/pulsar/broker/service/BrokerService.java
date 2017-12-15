@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -135,7 +136,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics;
 
-    private final ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients;
+    private final ConcurrentOpenHashMap<String, PulsarClient<Message>> replicationClients;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
@@ -485,8 +486,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return future;
     }
 
-    public PulsarClient<byte[]> getReplicationClient(String cluster) {
-        PulsarClient client = replicationClients.get(cluster);
+    public PulsarClient<Message> getReplicationClient(String cluster) {
+        PulsarClient<Message> client = replicationClients.get(cluster);
         if (client != null) {
             return client;
         }
@@ -516,7 +517,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clusterUrl = isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl()
                             : data.getServiceUrl();
                 }
-                return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
+                return new PulsarClientImpl<byte[]>(clusterUrl, configuration, this.workerGroup);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -972,7 +973,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return workerGroup;
     }
 
-    public ConcurrentOpenHashMap<String, PulsarClient<byte[]>> getReplicationClients() {
+    public ConcurrentOpenHashMap<String, PulsarClient<Message>> getReplicationClients() {
         return replicationClients;
     }
 

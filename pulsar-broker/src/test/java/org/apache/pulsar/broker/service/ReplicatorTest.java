@@ -43,6 +43,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Producer;
 import org.mockito.Mockito;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -52,11 +54,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -135,9 +132,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Thread.sleep(1000L);
         // Make sure that the internal replicators map contains remote cluster info
-        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients1 = ns1.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients2 = ns2.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient<byte[]>> replicationClients3 = ns3.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<Message>> replicationClients1 = ns1.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<Message>> replicationClients2 = ns2.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient<Message>> replicationClients3 = ns3.getReplicationClients();
 
         Assert.assertNotNull(replicationClients1.get("r2"));
         Assert.assertNotNull(replicationClients1.get("r3"));

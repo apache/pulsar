@@ -112,10 +112,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
-            Consumer<byte[]> consumer1 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            Consumer<byte[]> consumer2 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            Consumer<byte[]> consumer3 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            List<Consumer<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+            Consumer<Message> consumer1 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            Consumer<Message> consumer2 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            Consumer<Message> consumer3 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            List<Consumer<Message>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 

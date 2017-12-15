@@ -106,7 +106,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     private ScheduledExecutorService keyGenExecutor = null;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex) {
+            CompletableFuture<Producer<Message>> producerCreatedFuture, int partitionIndex) {
         super(client, topic, conf, producerCreatedFuture);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();

@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -62,7 +63,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected ServiceConfiguration conf;
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
-    protected PulsarClient<byte[]> pulsarClient;
+    protected PulsarClient<Message> pulsarClient;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 

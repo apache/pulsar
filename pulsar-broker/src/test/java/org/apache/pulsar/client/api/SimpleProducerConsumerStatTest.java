@@ -346,7 +346,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         int batchSize = 5;
         ConsumerConfiguration consumerConf = new ConsumerConfiguration();
         consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer<byte[]> consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
+        Consumer<Message> consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setBatchingMaxMessages(batchSize);
         producerConf.setBatchingEnabled(true);

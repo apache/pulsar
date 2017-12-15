@@ -29,13 +29,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 
-public abstract class ProducerBase<T> extends HandlerBase<T> implements Producer<T> {
+public abstract class ProducerBase<T> extends HandlerBase<T> implements Producer<Message> {
 
-    protected final CompletableFuture<Producer<T>> producerCreatedFuture;
+    protected final CompletableFuture<Producer<Message>> producerCreatedFuture;
     protected final ProducerConfiguration conf;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfiguration conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture) {
+            CompletableFuture<Producer<Message>> producerCreatedFuture) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
@@ -102,7 +102,7 @@ public abstract class ProducerBase<T> extends HandlerBase<T> implements Producer
         return conf;
     }
 
-    public CompletableFuture<Producer<T>> producerCreatedFuture() {
+    public CompletableFuture<Producer<Message>> producerCreatedFuture() {
         return producerCreatedFuture;
     }
 }

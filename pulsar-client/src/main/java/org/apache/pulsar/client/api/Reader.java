@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * A Reader can be used to scan through all the messages currently available in a topic.
  *
  */
-public interface Reader<T> extends Closeable {
+public interface Reader<T, M extends Message> extends Closeable {
 
     /**
      * @return the topic from which this reader is reading from
@@ -39,7 +39,7 @@ public interface Reader<T> extends Closeable {
      * @return the next messasge
      * @throws PulsarClientException
      */
-    Message readNext() throws PulsarClientException;
+    M readNext() throws PulsarClientException;
 
     /**
      * Read the next message in the topic.
@@ -47,7 +47,7 @@ public interface Reader<T> extends Closeable {
      * @return the next messasge
      * @throws PulsarClientException
      */
-    Message readNext(int timeout, TimeUnit unit) throws PulsarClientException;
+    M readNext(int timeout, TimeUnit unit) throws PulsarClientException;
 
     CompletableFuture<Message> readNextAsync();
 

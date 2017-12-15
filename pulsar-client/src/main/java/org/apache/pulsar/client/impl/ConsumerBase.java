@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 import com.google.common.collect.Queues;
 
-public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T> {
+public abstract class ConsumerBase extends HandlerBase implements Consumer<Message> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -50,15 +50,15 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     protected final String subscription;
     protected final ConsumerConfiguration conf;
     protected final String consumerName;
-    protected final CompletableFuture<Consumer<T>> subscribeFuture;
+    protected final CompletableFuture<Consumer<Message>> subscribeFuture;
     protected final MessageListener listener;
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
     protected final int maxReceiverQueueSize;
 
-    protected ConsumerBase(PulsarClientImpl<T> client, String topic, String subscription, ConsumerConfiguration conf,
-            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture) {
+    protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0 , TimeUnit.MILLISECONDS));
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = subscription;
@@ -307,7 +307,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
 
     abstract public int numMessagesInQueue();
 
-    public CompletableFuture<Consumer<T>> subscribeFuture() {
+    public CompletableFuture<Consumer<Message>> subscribeFuture() {
         return subscribeFuture;
     }
 

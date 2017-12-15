@@ -46,7 +46,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private final ProducerStats stats;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
-            CompletableFuture<Producer<T>> producerCreatedFuture) {
+            CompletableFuture<Producer<Message>> producerCreatedFuture) {
         super(client, topic, conf, producerCreatedFuture);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
         this.numPartitions = numPartitions;
@@ -149,7 +149,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Producer<T> producer : producers) {
+        for (Producer<Message> producer : producers) {
             if (producer != null) {
                 producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {

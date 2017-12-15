@@ -32,11 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -62,7 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 public class ReaderHandler<T> extends AbstractWebSocketHandler {
     private String subscription;
     private final ReaderConfiguration conf;
-    private Reader<T> reader;
+    private Reader<T, Message> reader;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

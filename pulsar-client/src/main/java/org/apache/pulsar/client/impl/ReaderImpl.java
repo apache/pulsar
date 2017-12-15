@@ -37,13 +37,13 @@ import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 
-public class ReaderImpl<T> implements Reader<T> {
+public class ReaderImpl<T> implements Reader<T, Message> {
 
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl<T> client, String topic, MessageId startMessageId,
             ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
-            CompletableFuture<Consumer<T>> consumerFuture) {
+            CompletableFuture<Consumer<Message>> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
