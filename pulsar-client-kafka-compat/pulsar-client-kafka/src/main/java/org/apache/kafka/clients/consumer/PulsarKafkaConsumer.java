@@ -67,7 +67,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private static final long serialVersionUID = 1L;
 
-    private final PulsarClient<Message> client;
+    private final PulsarClient<byte[], Message> client;
 
     private final Deserializer<K> keyDeserializer;
     private final Deserializer<V> valueDeserializer;
@@ -198,7 +198,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             for (String topic : topics) {
                 // Create individual subscription on each partition, that way we can keep using the
                 // acknowledgeCumulative()
-                int numberOfPartitions = ((PulsarClientImpl<byte[]>) client).getNumberOfPartitions(topic).get();
+                int numberOfPartitions = ((PulsarClientImpl) client).getNumberOfPartitions(topic).get();
 
                 ConsumerConfiguration conf = new ConsumerConfiguration();
                 conf.setSubscriptionType(SubscriptionType.Failover);

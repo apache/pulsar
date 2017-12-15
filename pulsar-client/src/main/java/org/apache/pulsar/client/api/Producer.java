@@ -30,7 +30,7 @@ import org.apache.pulsar.client.impl.ProducerStats;
  *
  *
  */
-public interface Producer<M extends Message> extends Closeable {
+public interface Producer<T> extends Closeable {
 
     /**
      * @return the topic which producer is publishing to
@@ -53,7 +53,7 @@ public interface Producer<M extends Message> extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the producer was already closed
      */
-    MessageId send(byte[] message) throws PulsarClientException;
+    MessageId send(T message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
@@ -67,7 +67,7 @@ public interface Producer<M extends Message> extends Closeable {
      *            a byte array with the payload of the message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(byte[] message);
+    CompletableFuture<MessageId> sendAsync(T message);
 
     /**
      * Send a message
@@ -78,7 +78,7 @@ public interface Producer<M extends Message> extends Closeable {
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
      */
-    MessageId send(M message) throws PulsarClientException;
+    MessageId send(Message message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
@@ -106,7 +106,7 @@ public interface Producer<M extends Message> extends Closeable {
      *            a message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(M message);
+    CompletableFuture<MessageId> sendAsync(Message message);
 
     /**
      * Get the last sequence id that was published by this producer.

@@ -609,7 +609,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
             ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-            List<CompletableFuture<Producer>> futures = Lists.newArrayList();
+            List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
             final int totalProducers = 10;
             CountDownLatch latch = new CountDownLatch(totalProducers);
             final ProducerConfiguration config1 = new ProducerConfiguration();

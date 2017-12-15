@@ -41,7 +41,7 @@ public class ReaderImpl<T> implements Reader<T, Message> {
 
     private final ConsumerImpl<T> consumer;
 
-    public ReaderImpl(PulsarClientImpl<T> client, String topic, MessageId startMessageId,
+    public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
             ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
             CompletableFuture<Consumer<Message>> consumerFuture) {
 

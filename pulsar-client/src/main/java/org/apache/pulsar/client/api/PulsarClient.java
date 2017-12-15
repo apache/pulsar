@@ -29,7 +29,7 @@ import org.apache.pulsar.client.impl.TypedPulsarClientImpl;
  *
  *
  */
-public interface PulsarClient<T extends Message> extends Closeable {
+public interface PulsarClient<T, M extends Message> extends Closeable {
 
     /**
      * Create a new PulsarClient object using default client configuration
@@ -40,12 +40,12 @@ public interface PulsarClient<T extends Message> extends Closeable {
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
      */
-    public static PulsarClient<Message> create(String serviceUrl) throws PulsarClientException {
+    public static PulsarClient<byte[], Message> create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
     }
 
-    public static <U> PulsarClient<TypedMessage<U>> createTyped(String serviceUrl) throws PulsarClientException {
-        return createTyped(serviceUrl, new ClientConfiguration());
+    public static <U> PulsarClient<U, TypedMessage<U>> createTyped(String serviceUrl, Codec<U> codec) throws PulsarClientException {
+        return createTyped(serviceUrl, new ClientConfiguration(), codec);
     }
 
     /**
@@ -59,12 +59,12 @@ public interface PulsarClient<T extends Message> extends Closeable {
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
      */
-    public static PulsarClient<Message> create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        return new PulsarClientImpl<>(serviceUrl, conf);
+    public static PulsarClient<byte[], Message> create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
+        return new PulsarClientImpl(serviceUrl, conf);
     }
 
-    public static <U> PulsarClient<TypedMessage<U>> createTyped(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        return new TypedPulsarClientImpl<>((PulsarClientImpl<Message>) create(serviceUrl, conf));
+    public static <U> PulsarClient<U, TypedMessage<U>> createTyped(String serviceUrl, ClientConfiguration conf, Codec<U> codec) throws PulsarClientException {
+        return new TypedPulsarClientImpl<>((PulsarClientImpl) create(serviceUrl, conf), codec);
     }
 
     /**
@@ -82,7 +82,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      * @throws PulsarClientException.AuthorizationException
      *             if the authorization to publish on topic was denied
      */
-    Producer<Message> createProducer(String topic) throws PulsarClientException;
+    Producer<T> createProducer(String topic) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -91,7 +91,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      *            The name of the topic where to produce
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer<Message>> createProducerAsync(String topic);
+    CompletableFuture<Producer<T>> createProducerAsync(String topic);
 
     /**
      * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -105,7 +105,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      *             if it was not possible to create the producer
      * @throws InterruptedException
      */
-    Producer<Message> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
+    Producer<T> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -116,7 +116,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      *            The {@code ProducerConfiguration} object
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Producer<Message>> createProducerAsync(String topic, ProducerConfiguration conf);
+    CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
      * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
@@ -129,7 +129,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      * @throws PulsarClientException
      * @throws InterruptedException
      */
-    Consumer<T> subscribe(String topic, String subscription) throws PulsarClientException;
+    Consumer<M> subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using default
@@ -141,7 +141,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      *            The subscription name
      * @return Future of the {@code Consumer} object
      */
-    CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription);
+    CompletableFuture<Consumer<M>> subscribeAsync(String topic, String subscription);
 
     /**
      * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
@@ -155,7 +155,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      * @return The {@code Consumer} object
      * @throws PulsarClientException
      */
-    Consumer<T> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
+    Consumer<M> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
@@ -169,7 +169,7 @@ public interface PulsarClient<T extends Message> extends Closeable {
      *            The {@code ConsumerConfiguration} object
      * @return Future of the {@code Consumer} object
      */
-    CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
+    CompletableFuture<Consumer<M>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.

@@ -7,11 +7,13 @@ import java.util.concurrent.TimeUnit;
 
 class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
 
-    TypedConsumerImpl(ConsumerImpl<Message> untypedConsumer) {
+    TypedConsumerImpl(ConsumerImpl<Message> untypedConsumer, Codec<T> codec) {
         this.untypedConsumer = untypedConsumer;
+        this.codec = codec;
     }
 
     private final ConsumerImpl<Message> untypedConsumer;
+    private final Codec<T> codec;
 
     @Override
     public String getTopic() {
@@ -35,20 +37,20 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
 
     @Override
     public TypedMessage<T> receive() throws PulsarClientException {
-        return new TypedMessageImpl<>(untypedConsumer.receive());
+        return new TypedMessageImpl<>(untypedConsumer.receive(), codec);
     }
 
     @Override
     public CompletableFuture<TypedMessage<T>> receiveAsync() {
         return untypedConsumer.receiveAsync().thenApply((message) -> {
             MessageImpl impl = (MessageImpl) message;
-            return new TypedMessageImpl<>(impl);
+            return new TypedMessageImpl<>(impl, codec);
         });
     }
 
     @Override
     public TypedMessage<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
-        return new TypedMessageImpl<>(untypedConsumer.receive());
+        return new TypedMessageImpl<>(untypedConsumer.receive(), codec);
     }
 
     @Override

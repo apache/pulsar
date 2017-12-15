@@ -26,8 +26,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class HandlerBase<T> {
-    protected final PulsarClientImpl<T> client;
+abstract class HandlerBase {
+    protected final PulsarClientImpl client;
     protected final String topic;
     private static final AtomicReferenceFieldUpdater<HandlerBase, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerBase.class, State.class, "state");

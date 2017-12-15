@@ -67,7 +67,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class ProducerHandler extends AbstractWebSocketHandler {
 
-    private Producer<Message> producer;
+    private Producer<byte[]> producer;
     private final LongAdder numMsgsSent;
     private final LongAdder numMsgsFailed;
     private final LongAdder numBytesSent;

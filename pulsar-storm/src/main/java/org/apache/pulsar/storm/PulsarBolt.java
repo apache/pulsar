@@ -61,7 +61,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     private String componentId;
     private String boltId;
     private OutputCollector collector;
-    private Producer<Message> producer;
+    private Producer<byte[]> producer;
     private volatile long messagesSent = 0;
     private volatile long messageSizeSent = 0;
 

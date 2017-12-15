@@ -47,7 +47,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-public class PulsarClientImpl<T> implements PulsarClient<Message> {
+public class PulsarClientImpl implements PulsarClient<byte[], Message> {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
@@ -101,7 +101,7 @@ public class PulsarClientImpl<T> implements PulsarClient<Message> {
     }
 
     @Override
-    public Producer<Message> createProducer(String destination) throws PulsarClientException {
+    public Producer<byte[]> createProducer(String destination) throws PulsarClientException {
         try {
             return createProducerAsync(destination, new ProducerConfiguration()).get();
         } catch (ExecutionException e) {
@@ -118,7 +118,7 @@ public class PulsarClientImpl<T> implements PulsarClient<Message> {
     }
 
     @Override
-    public Producer<Message> createProducer(final String destination, final ProducerConfiguration conf)
+    public Producer<byte[]> createProducer(final String destination, final ProducerConfiguration conf)
             throws PulsarClientException {
         try {
             return createProducerAsync(destination, conf).get();
@@ -136,11 +136,11 @@ public class PulsarClientImpl<T> implements PulsarClient<Message> {
     }
 
     @Override
-    public CompletableFuture<Producer<Message>> createProducerAsync(String topic) {
+    public CompletableFuture<Producer<byte[]>> createProducerAsync(String topic) {
         return createProducerAsync(topic, new ProducerConfiguration());
     }
 
-    public CompletableFuture<Producer<Message>> createProducerAsync(final String topic, final ProducerConfiguration conf) {
+    public CompletableFuture<Producer<byte[]>> createProducerAsync(final String topic, final ProducerConfiguration conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -153,19 +153,19 @@ public class PulsarClientImpl<T> implements PulsarClient<Message> {
                     new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
         }
 
-        CompletableFuture<Producer<Message>> producerCreatedFuture = new CompletableFuture<>();
+        CompletableFuture<Producer<byte[]>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            ProducerBase<T> producer;
+            ProducerBase producer;
             if (metadata.partitions > 1) {
-                producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                producer = new PartitionedProducerImpl(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture);
             } else {
-                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
+                producer = new ProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
             }
 
             synchronized (producers) {
@@ -237,10 +237,10 @@ public class PulsarClientImpl<T> implements PulsarClient<Message> {
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 1) {
-                consumer = new PartitionedConsumerImpl<T>(PulsarClientImpl.this, topic, subscription, conf,
+                consumer = new PartitionedConsumerImpl(PulsarClientImpl.this, topic, subscription, conf,
                         metadata.partitions, listenerThread, consumerSubscribedFuture);
             } else {
-                consumer = new ConsumerImpl<T>(PulsarClientImpl.this, topic, subscription, conf, listenerThread, -1,
+                consumer = new ConsumerImpl(PulsarClientImpl.this, topic, subscription, conf, listenerThread, -1,
                         consumerSubscribedFuture);
             }
 
