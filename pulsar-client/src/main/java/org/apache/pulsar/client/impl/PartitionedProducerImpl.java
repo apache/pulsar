@@ -40,7 +40,7 @@ import com.google.common.collect.Lists;
 
 public class PartitionedProducerImpl<T> extends ProducerBase {
 
-    private List<ProducerImpl<T>> producers;
+    private List<ProducerImpl> producers;
     private int numPartitions;
     private MessageRouter routerPolicy;
     private final ProducerStats stats;
@@ -72,7 +72,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase {
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
+            ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<>(),
                     partitionIndex);
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
@@ -129,7 +129,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase {
 
     @Override
     public boolean isConnected() {
-        for (ProducerImpl<T> producer : producers) {
+        for (ProducerImpl producer : producers) {
             // returns false if any of the partition is not connected
             if (!producer.isConnected()) {
                 return false;

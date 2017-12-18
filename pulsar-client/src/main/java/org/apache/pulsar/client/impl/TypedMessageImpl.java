@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
-public class TypedMessageImpl<T> implements TypedMessage<T> {
+class TypedMessageImpl<T> implements TypedMessage<T> {
     private final Message message;
     private final FutureTask<T> expanded;
 

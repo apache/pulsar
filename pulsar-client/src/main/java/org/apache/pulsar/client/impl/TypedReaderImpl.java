@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public class TypedReaderImpl<T> implements Reader<TypedMessage<T>> {
+class TypedReaderImpl<T> implements Reader<TypedMessage<T>> {
 
     private final Reader<Message> untypedReader;
     private final Codec<T> codec;

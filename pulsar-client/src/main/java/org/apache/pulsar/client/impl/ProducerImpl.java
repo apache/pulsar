@@ -69,7 +69,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import static java.lang.String.format;
 
-public class ProducerImpl<T> extends ProducerBase implements TimerTask {
+public class ProducerImpl extends ProducerBase implements TimerTask {
 
     // Producer id, used to identify a producer within a single connection
     private final long producerId;

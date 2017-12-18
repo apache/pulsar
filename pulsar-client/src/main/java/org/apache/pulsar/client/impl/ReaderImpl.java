@@ -33,12 +33,12 @@ public class ReaderImpl implements Reader<Message> {
     private final ConsumerImpl consumer;
 
     public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
-        ReaderConfig readerConfiguration, ExecutorService listenerExecutor,
+        ReaderConfig<Message> readerConfiguration, ExecutorService listenerExecutor,
         CompletableFuture<Consumer<Message>> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
-        ConsumerConfiguration consumerConfiguration = new ConsumerConfiguration();
+        ConsumerConfiguration<Message> consumerConfiguration = new ConsumerConfiguration<>();
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         if (readerConfiguration.getReaderName() != null) {
@@ -46,12 +46,12 @@ public class ReaderImpl implements Reader<Message> {
         }
 
         if (readerConfiguration.getReaderListener() != null) {
-            ReaderListener readerListener = readerConfiguration.getReaderListener();
-            consumerConfiguration.setMessageListener(new MessageListener() {
+            ReaderListener<Message> readerListener = readerConfiguration.getReaderListener();
+            consumerConfiguration.setMessageListener(new MessageListener<Message>() {
                 private static final long serialVersionUID = 1L;
 
                 @Override
-                public void received(Consumer consumer, Message msg) {
+                public void received(Consumer<Message> consumer, Message msg) {
                     readerListener.received(ReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(msg);
                 }

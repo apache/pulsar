@@ -2,7 +2,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
 
-public class TypedConsumerConfigAdapter<T> implements ConsumerConfig<Message> {
+class TypedConsumerConfigAdapter<T> implements ConsumerConfig<Message> {
     private final ConsumerConfig<TypedMessage<T>> typedConfig;
     private final Codec<T> codec;
 
