@@ -116,7 +116,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -124,6 +124,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
               
           
         </div>
@@ -676,8 +678,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -823,6 +823,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -863,8 +865,6 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
-          
-          
           
           
           
@@ -1021,6 +1021,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1057,7 +1059,7 @@
 
 <p>PulsarのJavaクライアントでは<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>と<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>の両方が利用可能であるだけでなく、<a href="../../admin/AdminInterface">管理タスク</a>も実行可能です。</p>
 
-<p>Javaクライアントの現在のバージョンは <strong>1.20.0-incubating</strong> です。</p>
+<p>Javaクライアントの現在のバージョンは <strong>1.21.0-incubating</strong> です。</p>
 
 <p>PulsarクライアントのJavadocはパッケージ名によって2つに分割されています:</p>
 
@@ -1084,14 +1086,14 @@
 
 <h2 id="インストール">インストール</h2>
 
-<p>最新バージョンのPulsar Javaクライアントライブラリは<a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.20.0-incubating%7Cjar">Maven Central</a>から利用可能です。 最新のバージョンを使うために、ビルド設定に<code class="highlighter-rouge">pulsar-client</code>ライブラリを追加してください。</p>
+<p>最新バージョンのPulsar Javaクライアントライブラリは<a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C1.21.0-incubating%7Cjar">Maven Central</a>から利用可能です。 最新のバージョンを使うために、ビルド設定に<code class="highlighter-rouge">pulsar-client</code>ライブラリを追加してください。</p>
 
 <h3 id="maven">Maven</h3>
 
 <p>Mavenを利用している場合は、以下を<code class="highlighter-rouge">pom.xml</code>に記述してください:</p>
 
 <div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- &lt;properties&gt;ブロック内 --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>1.20.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>1.21.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- &lt;dependencies&gt;ブロック内 --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
@@ -1106,7 +1108,7 @@
 
 <p>Gradleを利用している場合は、<code class="highlighter-rouge">build.gradle</code>ファイルに以下を記述してください:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.20.0-incubating'</span>
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.21.0-incubating'</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>

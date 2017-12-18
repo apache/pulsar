@@ -116,7 +116,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -124,6 +124,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
               
           
         </div>
@@ -724,9 +726,9 @@
           
           
           
-          
-          
           <li><a href="/ja/getting-started/LocalCluster/">ローカルスタンドアローンクラスタのセットアップ</a></li>
+          
+          
           
           
           
@@ -914,9 +916,9 @@
           
           
           
-          
-          
           <li><a href="/ja/getting-started/LocalCluster/">ローカルスタンドアローンクラスタのセットアップ</a></li>
+          
+          
           
           
           
@@ -1108,8 +1110,8 @@
   <li>
     <p>以下のボタンの1つをクリックすることによってダウンロードする:</p>
 
-    <p><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-src.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.20.0-incubating source release</a>
-<a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.20.0-incubating binary release</a></p>
+    <p><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.21.0-incubating source release</a>
+<a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz" class="download-btn btn btn-lg" role="button" aria-pressed="true">Pulsar 1.21.0-incubating binary release</a></p>
   </li>
   <li>Pulsarの<a href="/download">ダウンロードページ</a>からダウンロードする</li>
   <li>Pulsarの<a href="https://github.com/apache/incubator-pulsar/releases/latest">リリースページ</a>からダウンロードする</li>
@@ -1117,10 +1119,10 @@
     <p><a href="https://www.gnu.org/software/wget">wget</a>を使ってダウンロードする:</p>
 
     <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># ソースリリース</span>
-<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-src.tar.gz
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
 
 <span class="c"># バイナリリリース</span>
-<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.20.0-incubating/apache-pulsar-1.20.0-incubating-bin.tar.gz
+<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
 </code></pre>
     </div>
   </li>
@@ -1129,12 +1131,12 @@
 <p>tarballをダウンロードしたら、解凍して解凍結果のディレクトリに<code class="highlighter-rouge">cd</code>してください:</p>
 
 <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># ソースリリース</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.20.0-incubating-src.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.20.0-incubating
+<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 
 <span class="c"># バイナリリリース</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.20.0-incubating-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.20.0-incubating
+<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
+<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 </code></pre>
 </div>
 
@@ -1173,7 +1175,7 @@
   </tbody>
 </table>
 
-<p>ソースパッケージには、<a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsarリポジトリ</a>のバージョン1.20.0-incubating固有のすべてのアセットが含まれています。</p>
+<p>ソースパッケージには、<a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsarリポジトリ</a>のバージョン1.21.0-incubating固有のすべてのアセットが含まれています。</p>
 
 <h2 id="クラスタの起動">クラスタの起動</h2>
 

@@ -116,7 +116,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -124,6 +124,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
               
           
         </div>
@@ -742,9 +744,9 @@
           
           
           
-          
-          
           <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
+          
+          
           
           
           
@@ -932,9 +934,9 @@
           
           
           
-          
-          
           <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
+          
+          
           
           
           
@@ -1047,8 +1049,6 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
-          
-          
           
           
           
@@ -1205,6 +1205,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1251,7 +1253,7 @@
 <p>Mavenの場合は、<code class="highlighter-rouge">pom.xml</code>に下記を追加します:</p>
 
 <div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>1.20.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>1.21.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
@@ -1266,7 +1268,7 @@
 
 <p>Gradleの場合は、<code class="highlighter-rouge">build.gradle</code>に下記を追加します:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.20.0-incubating"</span>
+<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.21.0-incubating"</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
