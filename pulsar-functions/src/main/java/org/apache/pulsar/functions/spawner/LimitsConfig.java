@@ -18,26 +18,17 @@
  */
 package org.apache.pulsar.functions.spawner;
 
+import lombok.*;
+
 /**
  * This represents the config related to the resource limits of function calls
  */
+@Data
+@Setter
+@Getter
+@EqualsAndHashCode
+@ToString
 class LimitsConfig {
     private int timeBudgetInMs;
     private int maxMemory;
-
-    public int getTimeBudgetInMs() {
-        return timeBudgetInMs;
-    }
-
-    public void setTimeBudgetInMs(int timeBudgetInMs) {
-        this.timeBudgetInMs = timeBudgetInMs;
-    }
-
-    public int getMaxMemory() {
-        return maxMemory;
-    }
-
-    public void setMaxMemory(int maxMemory) {
-        this.maxMemory = maxMemory;
-    }
 }
