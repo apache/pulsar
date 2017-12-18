@@ -43,6 +43,8 @@ groups:
     endpoint: Kubernetes/#pulsar-on-google-container-engine
   - title: Pulsar on AWS
     endpoint: Kubernetes/#pulsar-on-amazon-web-services
+  - title: Pulsar on DC/OS
+    endpoint: dcos
   - title: Monitoring
     endpoint: Monitoring
 
