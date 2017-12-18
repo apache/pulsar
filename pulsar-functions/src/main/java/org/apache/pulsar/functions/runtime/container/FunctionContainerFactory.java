@@ -30,12 +30,10 @@ public interface FunctionContainerFactory extends AutoCloseable {
      * Create a function container to execute a java instance.
      *
      * @param instanceConfig java instance config
-     * @param instanceRunnable java instance runnable
      * @return function container to start/stop instance
      */
     FunctionContainer createContainer(
-        JavaInstanceConfig instanceConfig,
-        Runnable instanceRunnable);
+        JavaInstanceConfig instanceConfig);
 
     @Override
     void close();

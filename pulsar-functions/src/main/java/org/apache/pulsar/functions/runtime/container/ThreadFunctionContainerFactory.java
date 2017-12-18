@@ -20,26 +20,27 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 
 /**
  * Thread based function container factory implementation.
  */
-public class ThreadFunctionContainerFactory extends AbstractFunctionContainerFactory {
+public class ThreadFunctionContainerFactory implements FunctionContainerFactory {
 
     private final ThreadGroup threadGroup;
+    protected final FunctionCacheManager fnCache;
 
     public ThreadFunctionContainerFactory() {
-        super();
+        this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(
             "Pulsar Function Container Threads");
     }
 
     @Override
-    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig,
-                                                   Runnable instanceRunnable) {
+    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig) {
         return new ThreadFunctionContainer(
             instanceConfig,
-            instanceRunnable,
             fnCache,
             threadGroup);
     }
@@ -47,6 +48,6 @@ public class ThreadFunctionContainerFactory extends AbstractFunctionContainerFac
     @Override
     public void close() {
         threadGroup.interrupt();
-        super.close();
+        fnCache.close();
     }
 }

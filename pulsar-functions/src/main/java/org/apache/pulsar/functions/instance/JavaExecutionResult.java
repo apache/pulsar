@@ -18,29 +18,31 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
+import lombok.*;
+import org.apache.pulsar.functions.spawner.ExecutionResult;
+
+
+import java.io.ByteArrayOutputStream;
+import java.util.concurrent.TimeoutException;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
+ * program if invoking via a process based invocation or using JavaInstance using a thread
+ * based invocation.
  */
 @Data
-@Getter
 @Setter
+@Getter
 @EqualsAndHashCode
 @ToString
-public class JavaInstanceConfig {
-    private InstanceID instanceId;
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
-    private int timeBudgetInMs;
-    private int maxMemory;
+public class JavaExecutionResult implements ExecutionResult {
+    private Exception userException;
+    private TimeoutException timeoutException;
+    private byte[] result;
+
+    public void reset() {
+        this.setUserException(null);
+        this.setTimeoutException(null);
+        this.setResult((byte[])null);
+    }
 }

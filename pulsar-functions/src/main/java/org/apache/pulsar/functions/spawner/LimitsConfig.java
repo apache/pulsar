@@ -16,31 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
+package org.apache.pulsar.functions.spawner;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * This represents the config related to the resource limits of function calls
  */
-@Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
-public class JavaInstanceConfig {
-    private InstanceID instanceId;
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
+class LimitsConfig {
     private int timeBudgetInMs;
     private int maxMemory;
+
+    public int getTimeBudgetInMs() {
+        return timeBudgetInMs;
+    }
+
+    public void setTimeBudgetInMs(int timeBudgetInMs) {
+        this.timeBudgetInMs = timeBudgetInMs;
+    }
+
+    public int getMaxMemory() {
+        return maxMemory;
+    }
+
+    public void setMaxMemory(int maxMemory) {
+        this.maxMemory = maxMemory;
+    }
 }
