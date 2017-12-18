@@ -55,7 +55,8 @@ public class TopicSubscription {
 
     public void start() throws Exception {
         String subscriptionName = "fn-" + subscriptionId + "-" + topicName + "-subscriber";
-        consumer = client.subscribe(topicName, subscriptionName);
+        consumer = client.subscribe(topicName, subscriptionName,
+                new ConsumerConfiguration().setSubscriptionType(SubscriptionType.Shared));
         running = true;
         thread = new Thread(() -> {
             try {
