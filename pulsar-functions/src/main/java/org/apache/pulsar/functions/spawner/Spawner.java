@@ -23,17 +23,13 @@
  */
 package org.apache.pulsar.functions.spawner;
 
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.functions.instance.JavaExecutionResult;
-import org.apache.pulsar.functions.instance.JavaInstance;
+
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.subscribermanager.SubscriberManager;
 
-class Spawner {
+public class Spawner {
     private LimitsConfig limitsConfig;
     private AssignmentInfo assignmentInfo;
     private String pulsarBrokerRootUrl;

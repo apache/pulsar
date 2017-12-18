@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.functions.spawner;
 
-import java.io.ByteArrayOutputStream;
 import java.util.concurrent.TimeoutException;
 
 /**
  * An interface that represents the result of a function call.
  */
 public interface ExecutionResult {
-
+    
     Exception getUserException();
 
     TimeoutException getTimeoutException();
