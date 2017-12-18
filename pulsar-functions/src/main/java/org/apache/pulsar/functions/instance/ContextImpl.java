@@ -30,7 +30,7 @@ class ContextImpl implements Context {
 
     // Per Message related
     private String messageId;
-    private String topicName;
+    private String currentTopicName;
     private long startTime;
 
     public ContextImpl(JavaInstanceConfig config, Logger logger) {
@@ -40,7 +40,7 @@ class ContextImpl implements Context {
 
     public void setCurrentMessageContext(String messageId, String topicName) {
         this.messageId = messageId;
-        this.topicName = topicName;
+        this.currentTopicName = topicName;
         this.startTime = System.currentTimeMillis();
     }
 
@@ -51,12 +51,12 @@ class ContextImpl implements Context {
 
     @Override
     public String getTopicName() {
-        return topicName;
+        return currentTopicName;
     }
 
     @Override
     public String getFunctionName() {
-        return config.getFunctionName();
+        return config.getFunctionConfig().getName();
     }
 
     @Override

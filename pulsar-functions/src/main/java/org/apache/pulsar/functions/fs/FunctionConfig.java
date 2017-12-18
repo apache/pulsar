@@ -38,7 +38,10 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class FunctionConfig {
-
+    // namespace that the function resides in
+    private String nameSpace;
+    // Username that the function belongs to
+    private String userName;
     // function name
     private String name;
     // function class name

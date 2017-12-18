@@ -20,9 +20,15 @@ package org.apache.pulsar.functions.instance;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.spawner.ExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.*;
@@ -41,6 +47,25 @@ public class JavaInstanceTest {
             }
             return input;
         }
+    }
+
+    private byte[] serialize(Object resultValue) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutput out = null;
+        try {
+            out = new ObjectOutputStream(bos);
+            out.writeObject(resultValue);
+            out.flush();
+            return bos.toByteArray();
+        } catch (Exception ex) {
+        } finally {
+            try {
+                bos.close();
+            } catch (IOException ex) {
+                // ignore close exception
+            }
+        }
+        return null;
     }
 
     private class UnSupportedClass {
@@ -79,13 +104,12 @@ public class JavaInstanceTest {
     public void testLongRunningFunction() throws Exception {
         JavaInstanceConfig config = new JavaInstanceConfig();
         config.setTimeBudgetInMs(2000);
-        JavaInstance instance = new JavaInstance(config, new LongRunningHandler(), log);
+        JavaInstance instance = new JavaInstance(config, new LongRunningHandler());
         String testString = "ABC123";
-        JavaInstance.ExecutionResult result =
-                instance.handleMessage("1", "random", testString.getBytes(UTF_8));
+        ExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
 
-        assertNotNull(result.getTimeoutException());
         assertNull(result.getUserException());
+        assertNotNull(result.getTimeoutException());
     }
 
     /**
@@ -93,17 +117,16 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testLambda() throws Exception {
+    public void testLambda() {
         JavaInstanceConfig config = new JavaInstanceConfig();
         config.setTimeBudgetInMs(2000);
         JavaInstance instance = new JavaInstance(
             config,
-            (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-            log);
+            (RequestHandler<String, String>) (input, context) -> input + "-lambda");
         String testString = "ABC123";
-        JavaInstance.ExecutionResult result =
-            instance.handleMessage("1", "random", testString.getBytes(UTF_8));
-        assertEquals(testString + "-lambda", result.getResultValue());
+        ExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
+        assertNotNull(result.getResult());
+        assertEquals(serialize(new String(testString + "-lambda")), result.getResult());
     }
 
     /**
@@ -111,10 +134,10 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testUnsupportedClasses() throws Exception {
+    public void testUnsupportedClasses() {
         JavaInstanceConfig config = new JavaInstanceConfig();
         try {
-            JavaInstance instance = new JavaInstance(config, new UnsupportedHandler(), log);
+            JavaInstance instance = new JavaInstance(config, new UnsupportedHandler());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good

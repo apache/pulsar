@@ -16,26 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.spawner;
 
-package org.apache.pulsar.functions.runtime.container;
-
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
+import java.io.ByteArrayOutputStream;
+import java.util.concurrent.TimeoutException;
 
 /**
- * An abstract implementation of {@link FunctionContainerFactory}.
+ * An interface that represents the result of a function call.
  */
-public abstract class AbstractFunctionContainerFactory implements FunctionContainerFactory {
+public interface ExecutionResult {
 
-    protected final FunctionCacheManager fnCache;
+    Exception getUserException();
 
-    protected AbstractFunctionContainerFactory() {
-        this.fnCache = new FunctionCacheManagerImpl();
-    }
+    TimeoutException getTimeoutException();
 
-    @Override
-    public void close() {
-        fnCache.close();
-    }
-
+    byte[] getResult();
 }

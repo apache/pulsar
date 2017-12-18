@@ -20,10 +20,17 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.instance.JavaExecutionResult;
+import org.apache.pulsar.functions.instance.JavaInstance;
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.spawner.ExecutionResult;
 
 /**
  * A function container implemented using java thread.
@@ -31,8 +38,16 @@ import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 @Slf4j
 class ThreadFunctionContainer implements FunctionContainer {
 
-    private final JavaInstanceConfig instanceConfig;
-    private final FunctionCacheManager fnCache;
+    class Payload {
+        public String topicName;
+        public String messageId;
+        public byte[] msgData;
+        Payload(String topicName, String messageId, byte[] msgData) {
+            this.topicName = topicName;
+            this.messageId = messageId;
+            this.msgData = msgData;
+        }
+    }
 
     // The thread that invokes the function
     @Getter
@@ -41,16 +56,37 @@ class ThreadFunctionContainer implements FunctionContainer {
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
 
+    private final JavaInstanceConfig javaInstanceConfig;
+    private JavaInstance javaInstance;
+    private final FunctionCacheManager fnCache;
+    private LinkedBlockingQueue<Payload> queue;
+    private LinkedBlockingQueue<JavaExecutionResult> resultQueue;
+    private String id;
+
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
-                            Runnable instanceRunnable,
-                            FunctionCacheManager fnCache,
-                            ThreadGroup containerThreadGroup) {
-        this.instanceConfig = instanceConfig;
+                            FunctionCacheManager fnCache, ThreadGroup threadGroup) {
+        this.javaInstanceConfig = instanceConfig;
         this.fnCache = fnCache;
-        this.fnThread = new Thread(
-            containerThreadGroup,
-            instanceRunnable,
-            "fn-" + instanceConfig.getFunctionName() + "-instance-" + instanceConfig.getInstanceId());
+        this.queue = new LinkedBlockingQueue<>();
+        this.resultQueue = new LinkedBlockingQueue<>();
+        this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
+        this.fnThread = new Thread(threadGroup,
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        while (true) {
+                            Payload payload = queue.poll();
+                            JavaExecutionResult result = javaInstance.handleMessage(payload.messageId,
+                                    payload.topicName, payload.msgData);
+                            resultQueue.offer(result);
+                        }
+                    }
+                }, this.id);
+    }
+
+    @Override
+    public String getId() {
+        return id;
     }
 
     /**
@@ -59,24 +95,26 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public void start() throws Exception {
 
-        log.info("Loading JAR files for function {}", instanceConfig);
+        log.info("Loading JAR files for function {}", javaInstanceConfig);
 
         // create the function class loader
         fnCache.registerFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId(),
-            instanceConfig.getFunctionConfig().getJarFiles(),
+            javaInstanceConfig.getFunctionId(),
+            javaInstanceConfig.getInstanceId(),
+            javaInstanceConfig.getFunctionConfig().getJarFiles(),
             Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
-            instanceConfig.getFunctionName());
+            javaInstanceConfig.getFunctionConfig().getName());
 
-        this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
+        this.fnClassLoader = fnCache.getClassLoader(javaInstanceConfig.getFunctionId());
         if (null == fnClassLoader) {
             throw new Exception("No function class loader available.");
         }
 
         // make sure the function class loader is accessible thread-locally
         fnThread.setContextClassLoader(fnClassLoader);
+
+        javaInstance = new JavaInstance(javaInstanceConfig);
 
         // start the function thread
         fnThread.start();
@@ -98,9 +136,19 @@ class ThreadFunctionContainer implements FunctionContainer {
         }
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId());
-        log.info("Unloading JAR files for function {}", instanceConfig);
+            javaInstanceConfig.getFunctionId(),
+            javaInstanceConfig.getInstanceId());
+        log.info("Unloading JAR files for function {}", javaInstanceConfig);
     }
 
+    @Override
+    public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
+        queue.offer(new Payload(topicName, messageId, data));
+        return CompletableFuture.completedFuture(resultQueue.poll());
+    }
+
+    @Override
+    public FunctionConfig getFunctionConfig() {
+        return javaInstanceConfig.getFunctionConfig();
+    }
 }

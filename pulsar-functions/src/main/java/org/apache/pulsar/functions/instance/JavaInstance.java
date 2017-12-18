@@ -21,11 +21,11 @@ package org.apache.pulsar.functions.instance;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -38,6 +38,7 @@ import java.util.concurrent.*;
  * based invocation.
  */
 public class JavaInstance {
+    private static final Logger log = LoggerFactory.getLogger(JavaInstance.class);
     enum SupportedTypes {
         INTEGER,
         STRING,
@@ -50,59 +51,12 @@ public class JavaInstance {
         LIST
     }
     private ContextImpl context;
-    private Logger logger;
     private SupportedTypes inputType;
     private SupportedTypes outputType;
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
-    private ExecutionResult executionResult;
-
-    class ExecutionResult {
-        private Exception userException;
-        private TimeoutException timeoutException;
-        private Object resultValue;
-        private ByteArrayOutputStream outputStream;
-
-        public Exception getUserException() {
-            return userException;
-        }
-
-        public void setUserException(Exception userException) {
-            this.userException = userException;
-        }
-
-        public TimeoutException getTimeoutException() {
-            return timeoutException;
-        }
-
-        public void setTimeoutException(TimeoutException timeoutException) {
-            this.timeoutException = timeoutException;
-        }
-
-        public Object getResultValue() {
-            return resultValue;
-        }
-
-        public void setResultValue(Object resultValue) {
-            this.resultValue = resultValue;
-        }
-
-        public ByteArrayOutputStream getOutputStream() {
-            return outputStream;
-        }
-
-        public void setOutputStream(ByteArrayOutputStream outputStream) {
-            this.outputStream = outputStream;
-        }
-
-        public void reset() {
-            this.setUserException(null);
-            this.setTimeoutException(null);
-            this.setResultValue(null);
-            this.setOutputStream(null);
-        }
-    }
+    private JavaExecutionResult executionResult;
 
     public static Object createObject(String userClassName) {
         Object object;
@@ -119,13 +73,12 @@ public class JavaInstance {
         return object;
     }
 
-    public JavaInstance(JavaInstanceConfig config, String userClassName, Logger logger) {
-        this(config, createObject(userClassName), logger);
+    public JavaInstance(JavaInstanceConfig config) {
+        this(config, createObject(config.getFunctionConfig().getClassName()));
     }
 
-    public JavaInstance(JavaInstanceConfig config, Object object, Logger logger) {
-        this.context = new ContextImpl(config, logger);
-        this.logger = logger;
+    public JavaInstance(JavaInstanceConfig config, Object object) {
+        this.context = new ContextImpl(config, log);
         if (object instanceof RequestHandler) {
             requestHandler = (RequestHandler) object;
             computeInputAndOutputTypes();
@@ -136,7 +89,7 @@ public class JavaInstance {
         }
 
         executorService = Executors.newFixedThreadPool(1);
-        this.executionResult = new ExecutionResult();
+        this.executionResult = new JavaExecutionResult();
     }
 
     private void computeInputAndOutputTypes() {
@@ -169,7 +122,7 @@ public class JavaInstance {
         }
     }
 
-    public ExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
+    public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
         context.setCurrentMessageContext(messageId, topicName);
         executionResult.reset();
         Future<?> future = executorService.submit(new Runnable() {
@@ -177,8 +130,9 @@ public class JavaInstance {
             public void run() {
                 if (requestHandler != null) {
                     try {
-                        Object obj = deserialize(data);
-                        executionResult.setResultValue(requestHandler.handleRequest(obj, context));
+                        Object input = deserialize(data);
+                        Object output = requestHandler.handleRequest(input, context);
+                        executionResult.setResult(serialize(output));
                     } catch (Exception ex) {
                         executionResult.setUserException(ex);
                     }
@@ -187,7 +141,7 @@ public class JavaInstance {
                         ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                         rawRequestHandler.handleRequest(inputStream, outputStream, context);
-                        executionResult.setOutputStream(outputStream);
+                        executionResult.setResult(outputStream.toByteArray());
                     } catch (Exception ex) {
                         executionResult.setUserException(ex);
                     }
@@ -197,49 +151,66 @@ public class JavaInstance {
         try {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            logger.error("handleMessage was interrupted");
+            log.error("handleMessage was interrupted");
             executionResult.setUserException(e);
         } catch (ExecutionException e) {
-            logger.error("handleMessage threw exception: " + e.getCause());
+            log.error("handleMessage threw exception: " + e.getCause());
             executionResult.setUserException(e);
         } catch (TimeoutException e) {
             future.cancel(true);              //     <-- interrupt the job
-            logger.error("handleMessage timed out");
+            log.error("handleMessage timed out");
             executionResult.setTimeoutException(e);
         }
 
         return executionResult;
     }
 
+    private byte[] serialize(Object resultValue) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutput out = null;
+        try {
+            out = new ObjectOutputStream(bos);
+            out.writeObject(resultValue);
+            out.flush();
+            return bos.toByteArray();
+        } catch (Exception ex) {
+        } finally {
+            try {
+                bos.close();
+            } catch (IOException ex) {
+                // ignore close exception
+            }
+        }
+        return null;
+    }
+
     private Object deserialize(byte[] data) throws Exception {
+        Object obj = null;
+        ByteArrayInputStream bis = null;
+        ObjectInputStream ois = null;
+        try {
+            bis = new ByteArrayInputStream(data);
+            ois = new ObjectInputStream(bis);
+            obj = ois.readObject();
+        } finally {
+            if (bis != null) {
+                bis.close();
+            }
+            if (ois != null) {
+                ois.close();
+            }
+        }
         switch (inputType) {
-            case INTEGER: {
-                return ByteBuffer.wrap(data).getInt();
-            }
-            case LONG: {
-                return ByteBuffer.wrap(data).getLong();
-            }
-            case DOUBLE: {
-                return ByteBuffer.wrap(data).getDouble();
-            }
-            case FLOAT: {
-                return ByteBuffer.wrap(data).getFloat();
-            }
-            case SHORT: {
-                return ByteBuffer.wrap(data).getShort();
-            }
-            case BYTE: {
-                return ByteBuffer.wrap(data).get();
-            }
-            case STRING: {
-                return new String(data);
-            }
+            case INTEGER:
+            case LONG:
+            case DOUBLE:
+            case FLOAT:
+            case SHORT:
+            case BYTE:
+            case STRING:
             case MAP:
-            case LIST: {
-                ByteArrayInputStream byteIn = new ByteArrayInputStream(data);
-                ObjectInputStream in = new ObjectInputStream(byteIn);
-                return in.readObject();
-            }
+            case LIST:
+                return obj;
             default: {
                 throw new RuntimeException("Unknown SupportedType " + inputType);
             }
