@@ -51,7 +51,6 @@ public class SubscriberManager {
     public void addSubscriber(String topicName, FunctionContainer subscriber) throws Exception {
         if (!topicSubscriptionMap.containsKey(topicName)) {
             topicSubscriptionMap.put(topicName, new TopicSubscription(topicName, workerId, pulsarClient, resultsProcessor));
-            topicSubscriptionMap.get(topicName).start();
         }
         topicSubscriptionMap.get(topicName).addSubscriber(subscriber);
     }
