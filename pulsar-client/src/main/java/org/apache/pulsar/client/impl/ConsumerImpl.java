@@ -43,13 +43,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -72,7 +66,7 @@ import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-public class ConsumerImpl<T> extends ConsumerBase {
+public class ConsumerImpl extends ConsumerBase {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     private final long consumerId;
@@ -118,13 +112,13 @@ public class ConsumerImpl<T> extends ConsumerBase {
         NonDurable
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<Message>> subscribeFuture) {
         this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
                 SubscriptionMode.Durable, null);
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<Message>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);

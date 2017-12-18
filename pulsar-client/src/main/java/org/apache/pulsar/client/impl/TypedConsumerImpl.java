@@ -7,13 +7,17 @@ import java.util.concurrent.TimeUnit;
 
 class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
 
-    TypedConsumerImpl(ConsumerImpl<Message> untypedConsumer, Codec<T> codec) {
+    private final Consumer<Message> untypedConsumer;
+    private final Codec<T> codec;
+
+    TypedConsumerImpl(Consumer<Message> untypedConsumer, Codec<T> codec) {
         this.untypedConsumer = untypedConsumer;
         this.codec = codec;
     }
 
-    private final ConsumerImpl<Message> untypedConsumer;
-    private final Codec<T> codec;
+    Codec<T> getCodec() {
+        return codec;
+    }
 
     @Override
     public String getTopic() {
@@ -42,10 +46,9 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
 
     @Override
     public CompletableFuture<TypedMessage<T>> receiveAsync() {
-        return untypedConsumer.receiveAsync().thenApply((message) -> {
-            MessageImpl impl = (MessageImpl) message;
-            return new TypedMessageImpl<>(impl, codec);
-        });
+        return untypedConsumer.receiveAsync().thenApply((message) ->
+            new TypedMessageImpl<>(message, codec)
+        );
     }
 
     @Override

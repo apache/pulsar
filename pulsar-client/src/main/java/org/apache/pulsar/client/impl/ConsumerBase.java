@@ -26,13 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -48,7 +42,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
     }
 
     protected final String subscription;
-    protected final ConsumerConfiguration conf;
+    protected final ConsumerConfig conf;
     protected final String consumerName;
     protected final CompletableFuture<Consumer<Message>> subscribeFuture;
     protected final MessageListener listener;
@@ -57,7 +51,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
     protected final int maxReceiverQueueSize;
 
-    protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
             int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0 , TimeUnit.MILLISECONDS));
         this.maxReceiverQueueSize = receiverQueueSize;

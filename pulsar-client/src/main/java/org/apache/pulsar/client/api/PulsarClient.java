@@ -155,7 +155,7 @@ public interface PulsarClient<T, M extends Message> extends Closeable {
      * @return The {@code Consumer} object
      * @throws PulsarClientException
      */
-    Consumer<M> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
+    Consumer<M> subscribe(String topic, String subscription, ConsumerConfig<M> conf) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
@@ -169,7 +169,7 @@ public interface PulsarClient<T, M extends Message> extends Closeable {
      *            The {@code ConsumerConfiguration} object
      * @return Future of the {@code Consumer} object
      */
-    CompletableFuture<Consumer<M>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
+    CompletableFuture<Consumer<M>> subscribeAsync(String topic, String subscription, ConsumerConfig<M> conf);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
@@ -195,7 +195,7 @@ public interface PulsarClient<T, M extends Message> extends Closeable {
      *            The {@code ReaderConfiguration} object
      * @return The {@code Reader} object
      */
-    Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
+    Reader<M> createReader(String topic, MessageId startMessageId, ReaderConfig<M> conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a topic reader with given {@code ReaderConfiguration} for reading messages from the
@@ -222,7 +222,7 @@ public interface PulsarClient<T, M extends Message> extends Closeable {
      *            The {@code ReaderConfiguration} object
      * @return Future of the asynchronously created producer object
      */
-    CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
+    CompletableFuture<Reader<M>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<M> conf);
 
     /**
      * Close the PulsarClient and release all the resources.

@@ -33,11 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -46,13 +42,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedConsumerImpl<T> extends ConsumerBase {
+public class PartitionedConsumerImpl extends ConsumerBase {
 
-    private final List<ConsumerImpl<T>> consumers;
+    private final List<ConsumerImpl> consumers;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
-    private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
+    private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
 
     // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
     // resume receiving from the paused consumer partitions
@@ -62,7 +58,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
 
-    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
             int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
         super(client, topic, subscription, conf, Math.max(numPartitions, conf.getReceiverQueueSize()), listenerExecutor,
                 subscribeFuture);
@@ -83,7 +79,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase {
         ConsumerConfiguration internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ConsumerImpl<T> consumer = new ConsumerImpl<T>(client, partitionName, subscription, internalConfig,
+            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
                     client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<>());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
@@ -125,7 +121,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
+    private void receiveMessageFromConsumer(ConsumerImpl consumer) {
         consumer.receiveAsync().thenAccept(message -> {
             // Process the message, add to the queue and trigger listener or async callback
             messageReceived(message);
@@ -467,7 +463,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase {
         return state;
     }
 
-    List<ConsumerImpl<T>> getConsumers() {
+    List<ConsumerImpl> getConsumers() {
         return consumers;
     }
 

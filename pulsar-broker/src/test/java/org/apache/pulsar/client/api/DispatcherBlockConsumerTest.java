@@ -219,10 +219,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
-            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl<byte[]> consumer3 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+            ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            List<ConsumerImpl> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -410,10 +410,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setSubscriptionType(SubscriptionType.Shared);
             conf.setReceiverQueueSize(receiverQueueSize);
-            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl<byte[]> consumer3 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName, conf);
-            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList( consumer1, consumer2, consumer3 );
+            ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
+            List<ConsumerImpl> consumers = Lists.newArrayList( consumer1, consumer2, consumer3 );
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -785,7 +785,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
              * maxUnAckPerDispatcher limit
              **/
-            ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl<byte[]>) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            ConsumerImpl consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);

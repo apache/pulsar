@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * A Reader can be used to scan through all the messages currently available in a topic.
  *
  */
-public interface Reader<T, M extends Message> extends Closeable {
+public interface Reader<M extends Message> extends Closeable {
 
     /**
      * @return the topic from which this reader is reading from

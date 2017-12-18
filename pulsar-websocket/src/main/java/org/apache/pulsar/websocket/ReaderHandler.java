@@ -55,10 +55,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
  * </P>
  *
  */
-public class ReaderHandler<T> extends AbstractWebSocketHandler {
+public class ReaderHandler extends AbstractWebSocketHandler {
     private String subscription;
     private final ReaderConfiguration conf;
-    private Reader<T, Message> reader;
+    private Reader<Message> reader;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

@@ -24,6 +24,7 @@ import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.pulsar.client.api.ConsumerConfig;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ public class ConsumerStats implements Serializable {
         throughputFormat = null;
     }
 
-    public ConsumerStats(PulsarClientImpl pulsarClient, ConsumerConfiguration conf, ConsumerImpl consumer) {
+    public ConsumerStats(PulsarClientImpl pulsarClient, ConsumerConfig conf, ConsumerImpl consumer) {
         this.pulsarClient = pulsarClient;
         this.consumer = consumer;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
@@ -92,7 +93,7 @@ public class ConsumerStats implements Serializable {
         init(conf);
     }
 
-    private void init(ConsumerConfiguration conf) {
+    private void init(ConsumerConfig conf) {
         ObjectMapper m = new ObjectMapper();
         m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();

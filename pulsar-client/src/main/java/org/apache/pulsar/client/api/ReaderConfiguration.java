@@ -23,11 +23,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
-public class ReaderConfiguration implements Serializable {
+public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
 
     private int receiverQueueSize = 1000;
 
-    private ReaderListener readerListener;
+    private ReaderListener<M> readerListener;
 
     private String readerName = null;
 
@@ -37,7 +37,8 @@ public class ReaderConfiguration implements Serializable {
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
-    public ReaderListener getReaderListener() {
+    @Override
+    public ReaderListener<M> getReaderListener() {
         return this.readerListener;
     }
 
@@ -50,7 +51,7 @@ public class ReaderConfiguration implements Serializable {
      * @param readerListener
      *            the listener object
      */
-    public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
+    public ReaderConfiguration<M> setReaderListener(ReaderListener<M> readerListener) {
         checkNotNull(readerListener);
         this.readerListener = readerListener;
         return this;
@@ -59,6 +60,7 @@ public class ReaderConfiguration implements Serializable {
     /**
      * @return the configure receiver queue size value
      */
+    @Override
     public int getReceiverQueueSize() {
         return this.receiverQueueSize;
     }
@@ -76,7 +78,7 @@ public class ReaderConfiguration implements Serializable {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ReaderConfiguration<M> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
         this.cryptoKeyReader = cryptoKeyReader;
         return this;
@@ -94,6 +96,7 @@ public class ReaderConfiguration implements Serializable {
     /**
      * @return The ConsumerCryptoFailureAction
      */
+    @Override
     public ConsumerCryptoFailureAction getCryptoFailureAction() {
         return this.cryptoFailureAction;
     }
@@ -110,7 +113,7 @@ public class ReaderConfiguration implements Serializable {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ReaderConfiguration setReceiverQueueSize(int receiverQueueSize) {
+    public ReaderConfiguration<M> setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
         this.receiverQueueSize = receiverQueueSize;
         return this;
@@ -119,6 +122,7 @@ public class ReaderConfiguration implements Serializable {
     /**
      * @return the consumer name
      */
+    @Override
     public String getReaderName() {
         return readerName;
     }
@@ -128,7 +132,7 @@ public class ReaderConfiguration implements Serializable {
      *
      * @param readerName
      */
-    public ReaderConfiguration setReaderName(String readerName) {
+    public ReaderConfiguration<M> setReaderName(String readerName) {
         checkArgument(readerName != null && !readerName.equals(""));
         this.readerName = readerName;
         return this;

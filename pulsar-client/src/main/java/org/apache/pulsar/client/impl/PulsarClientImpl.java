@@ -182,11 +182,11 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
 
     @Override
     public Consumer<Message> subscribe(final String topic, final String subscription) throws PulsarClientException {
-        return subscribe(topic, subscription, new ConsumerConfiguration());
+        return subscribe(topic, subscription, new ConsumerConfiguration<>());
     }
 
     @Override
-    public Consumer<Message> subscribe(String topic, String subscription, ConsumerConfiguration conf)
+    public Consumer<Message> subscribe(String topic, String subscription, ConsumerConfig<Message> conf)
             throws PulsarClientException {
         try {
             return subscribeAsync(topic, subscription, conf).get();
@@ -205,12 +205,12 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
 
     @Override
     public CompletableFuture<Consumer<Message>> subscribeAsync(String topic, String subscription) {
-        return subscribeAsync(topic, subscription, new ConsumerConfiguration());
+        return subscribeAsync(topic, subscription, new ConsumerConfiguration<>());
     }
 
     @Override
     public CompletableFuture<Consumer<Message>> subscribeAsync(final String topic, final String subscription,
-            final ConsumerConfiguration conf) {
+            final ConsumerConfig<Message> conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -257,7 +257,7 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
     }
 
     @Override
-    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf)
+    public Reader<Message> createReader(String topic, MessageId startMessageId, ReaderConfig<Message> conf)
             throws PulsarClientException {
         try {
             return createReaderAsync(topic, startMessageId, conf).get();
@@ -275,8 +275,8 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
     }
 
     @Override
-    public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
-            ReaderConfiguration conf) {
+    public CompletableFuture<Reader<Message>> createReaderAsync(String topic, MessageId startMessageId,
+            ReaderConfig<Message> conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -292,7 +292,7 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        CompletableFuture<Reader> readerFuture = new CompletableFuture<>();
+        CompletableFuture<Reader<Message>> readerFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
@@ -308,7 +308,7 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
             CompletableFuture<Consumer<Message>> consumerSubscribedFuture = new CompletableFuture<>();
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            ReaderImpl reader = new ReaderImpl<>(PulsarClientImpl.this, topic, startMessageId, conf, listenerThread,
+            ReaderImpl reader = new ReaderImpl(PulsarClientImpl.this, topic, startMessageId, conf, listenerThread,
                     consumerSubscribedFuture);
 
             synchronized (consumers) {

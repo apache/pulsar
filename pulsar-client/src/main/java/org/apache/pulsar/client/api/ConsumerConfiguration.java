@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
  *
  *
  */
-public class ConsumerConfiguration implements Serializable {
+public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<M> {
 
     /**
      * Resend shouldn't be requested before minAckTimeoutMillis.
@@ -42,7 +42,7 @@ public class ConsumerConfiguration implements Serializable {
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    private MessageListener messageListener;
+    private MessageListener<M> messageListener;
 
     private int receiverQueueSize = 1000;
 
@@ -58,6 +58,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
+    @Override
     public long getAckTimeoutMillis() {
         return ackTimeoutMillis;
     }
@@ -72,7 +73,7 @@ public class ConsumerConfiguration implements Serializable {
      *            unit in which the timeout is provided.
      * @return {@link ConsumerConfiguration}
      */
-    public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
+    public ConsumerConfiguration<M> setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
         long ackTimeoutMillis = timeUnit.toMillis(ackTimeout);
         checkArgument(ackTimeoutMillis >= minAckTimeoutMillis,
                 "Ack timeout should be should be greater than " + minAckTimeoutMillis + " ms");
@@ -83,6 +84,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured subscription type
      */
+    @Override
     public SubscriptionType getSubscriptionType() {
         return this.subscriptionType;
     }
@@ -95,7 +97,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param subscriptionType
      *            the subscription type value
      */
-    public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType) {
+    public ConsumerConfiguration<M> setSubscriptionType(SubscriptionType subscriptionType) {
         checkNotNull(subscriptionType);
         this.subscriptionType = subscriptionType;
         return this;
@@ -104,7 +106,8 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured {@link MessageListener} for the consumer
      */
-    public MessageListener getMessageListener() {
+    @Override
+    public MessageListener<M> getMessageListener() {
         return this.messageListener;
     }
 
@@ -117,7 +120,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param messageListener
      *            the listener object
      */
-    public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
+    public ConsumerConfiguration<M> setMessageListener(MessageListener<M> messageListener) {
         checkNotNull(messageListener);
         this.messageListener = messageListener;
         return this;
@@ -126,6 +129,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configure receiver queue size value
      */
+    @Override
     public int getReceiverQueueSize() {
         return this.receiverQueueSize;
     }
@@ -133,6 +137,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the CryptoKeyReader
      */
+    @Override
     public CryptoKeyReader getCryptoKeyReader() {
         return this.cryptoKeyReader;
     }
@@ -152,7 +157,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      * 
-     * @param The consumer action
+     * @param action The consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
         cryptoFailureAction = action;
@@ -161,6 +166,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return The ConsumerCryptoFailureAction
      */
+    @Override
     public ConsumerCryptoFailureAction getCryptoFailureAction() {
         return this.cryptoFailureAction;
     }
@@ -191,7 +197,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ConsumerConfiguration setReceiverQueueSize(int receiverQueueSize) {
+    public ConsumerConfiguration<M> setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
         this.receiverQueueSize = receiverQueueSize;
         return this;
@@ -200,6 +206,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the consumer name
      */
+    @Override
     public String getConsumerName() {
         return consumerName;
     }
@@ -209,12 +216,13 @@ public class ConsumerConfiguration implements Serializable {
      *
      * @param consumerName
      */
-    public ConsumerConfiguration setConsumerName(String consumerName) {
+    public ConsumerConfiguration<M> setConsumerName(String consumerName) {
         checkArgument(consumerName != null && !consumerName.equals(""));
         this.consumerName = consumerName;
         return this;
     }
     
+    @Override
     public int getPriorityLevel() {
         return priorityLevel;
     }

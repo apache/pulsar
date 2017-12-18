@@ -25,25 +25,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
-import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 
-public class ReaderImpl<T> implements Reader<T, Message> {
+public class ReaderImpl implements Reader<Message> {
 
-    private final ConsumerImpl<T> consumer;
+    private final ConsumerImpl consumer;
 
     public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
-            ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
-            CompletableFuture<Consumer<Message>> consumerFuture) {
+        ReaderConfig readerConfiguration, ExecutorService listenerExecutor,
+        CompletableFuture<Consumer<Message>> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
@@ -77,7 +68,7 @@ public class ReaderImpl<T> implements Reader<T, Message> {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
-        consumer = new ConsumerImpl<T>(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
+        consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
                 consumerFuture, SubscriptionMode.NonDurable, startMessageId);
     }
 
