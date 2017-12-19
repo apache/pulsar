@@ -202,6 +202,7 @@ public class BrokerBkEnsemblesTests {
 
         producer.close();
         consumer.close();
+        client.close();
 
     }
 
