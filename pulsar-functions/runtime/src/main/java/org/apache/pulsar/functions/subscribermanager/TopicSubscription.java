@@ -63,6 +63,10 @@ public class TopicSubscription {
                 while (running) {
                     // Wait for a message
                     Message msg = consumer.receive(1000, TimeUnit.MILLISECONDS);
+                    if (null == msg) {
+                        continue;
+                    }
+                    log.info("Received message {}", msg);
                     String messageId = convertMessageIdToString(msg.getMessageId());
                     for (FunctionContainer subscriber : subscriberMap.values()) {
                         subscriber.sendMessage(topicName, messageId, msg.getData())

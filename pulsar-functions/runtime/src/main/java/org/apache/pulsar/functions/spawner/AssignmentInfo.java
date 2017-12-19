@@ -32,6 +32,7 @@ import org.apache.pulsar.functions.runtime.FunctionID;
 @Getter
 @EqualsAndHashCode
 @ToString
+@AllArgsConstructor
 class AssignmentInfo {
     private FunctionConfig functionConfig;
     private FunctionID functionId;

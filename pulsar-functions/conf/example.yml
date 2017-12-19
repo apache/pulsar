@@ -1,0 +1,4 @@
+nameSpace: "test"
+userName: "test"
+name: "example"
+className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
