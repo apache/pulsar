@@ -39,7 +39,9 @@ public class ResultsProcessor {
 
     public boolean handleResult(FunctionContainer container, ExecutionResult result) {
         if (result.getUserException() != null) {
-            log.info("Exception", result.getUserException());
+            log.info("User Exception", result.getUserException());
+        } else if (result.getSystemException() != null) {
+            log.info("System Exception", result.getSystemException());
         } else if (result.isTimedOut()) {
             log.info("Timedout");
         } else if (result.getResult() != null && container.getFunctionConfig().getSinkTopic() != null) {

@@ -34,11 +34,13 @@ import java.util.concurrent.TimeoutException;
 @ToString
 public class JavaExecutionResult {
     private Exception userException;
+    private Exception systemException;
     private TimeoutException timeoutException;
     private Object result;
 
     public void reset() {
         setUserException(null);
+        setSystemException(null);
         setTimeoutException(null);
         setResult(null);
     }

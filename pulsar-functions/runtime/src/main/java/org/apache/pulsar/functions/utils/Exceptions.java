@@ -20,6 +20,8 @@
 package org.apache.pulsar.functions.utils;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 /**
  * Util to handle exceptions.
@@ -37,6 +39,13 @@ public class Exceptions {
         } else {
             throw new IOException(cause.getMessage(), cause);
         }
+    }
+
+    public static String toString(Exception ex) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        ex.printStackTrace(pw);
+        return sw.toString();
     }
 
 }
