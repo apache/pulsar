@@ -307,19 +307,14 @@ public class ServerCnx extends PulsarHandler {
                     // Legacy client is passing enum
                     authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
                 }
+
                 String authData = connect.getAuthData().toStringUtf8();
                 ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
                 SSLSession sslSession = null;
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-                if (connect.hasOriginalAuthData()) {
-                    originalPrincipal = getBrokerService().getAuthenticationService()
-                            .authenticate(new AuthenticationDataCommand(connect.getOriginalAuthData(), remoteAddress, sslSession), authMethod);
-                } else if (connect.hasOriginalPrincipal()) {
-                    originalPrincipal = connect.getOriginalPrincipal();
-                }
-                
+                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 
