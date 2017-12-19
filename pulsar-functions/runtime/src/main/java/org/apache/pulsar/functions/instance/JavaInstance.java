@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -38,20 +39,18 @@ import java.util.concurrent.*;
  */
 public class JavaInstance {
     private static final Logger log = LoggerFactory.getLogger(JavaInstance.class);
-    enum SupportedTypes {
-        INTEGER,
-        STRING,
-        LONG,
-        DOUBLE,
-        BYTE,
-        SHORT,
-        FLOAT,
-        MAP,
-        LIST
-    }
+    private final List<Type> supportedInputTypes = Arrays.asList(
+            Integer.TYPE,
+            Double.TYPE,
+            Long.TYPE,
+            String.class,
+            Short.TYPE,
+            Byte.TYPE,
+            Float.TYPE,
+            Map.class,
+            List.class
+    );
     private ContextImpl context;
-    private SupportedTypes inputType;
-    private SupportedTypes outputType;
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
@@ -95,30 +94,12 @@ public class JavaInstance {
 
     private void computeInputAndOutputTypes() {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
-        inputType = computeSupportedType(typeArgs[0]);
-        outputType = computeSupportedType(typeArgs[1]);
+        verifySupportedType(typeArgs[0], false);
+        verifySupportedType(typeArgs[1], true);
     }
 
-    private SupportedTypes computeSupportedType(Type type) {
-        if (type.equals(Integer.TYPE)) {
-            return SupportedTypes.INTEGER;
-        } else if (type.equals(Double.TYPE)) {
-            return SupportedTypes.DOUBLE;
-        } else if (type.equals(Long.TYPE)) {
-            return SupportedTypes.LONG;
-        } else if (type.equals(String.class)) {
-            return SupportedTypes.STRING;
-        } else if (type.equals(Short.TYPE)) {
-            return SupportedTypes.SHORT;
-        } else if (type.equals(Byte.TYPE)) {
-            return SupportedTypes.BYTE;
-        } else if (type.equals(Float.TYPE)) {
-            return SupportedTypes.FLOAT;
-        } else if (type.equals(Map.class)) {
-            return SupportedTypes.MAP;
-        } else if (type.equals(List.class)) {
-            return SupportedTypes.LIST;
-        } else {
+    private void verifySupportedType(Type type, boolean allowVoid) {
+        if (!(supportedInputTypes.contains(type) || (allowVoid && !type.equals(Void.TYPE)))) {
             throw new RuntimeException("Non Basic types not yet supported: " + type);
         }
     }
