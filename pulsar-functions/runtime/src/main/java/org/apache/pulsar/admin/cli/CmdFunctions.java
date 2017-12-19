@@ -99,9 +99,7 @@ public class CmdFunctions extends CmdBase {
                 admin.getServiceUrl().toString());
 
             spawner.start();
-
-            CountDownLatch latch = new CountDownLatch(1);
-            latch.await();
+            spawner.join();
         }
 
     }
