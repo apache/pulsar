@@ -131,10 +131,10 @@ public class JavaInstance {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             log.error("handleMessage was interrupted");
-            executionResult.setUserException(e);
+            executionResult.setSystemException(e);
         } catch (ExecutionException e) {
             log.error("handleMessage threw exception: " + e.getCause());
-            executionResult.setUserException(e);
+            executionResult.setSystemException(e);
         } catch (TimeoutException e) {
             future.cancel(true);              //     <-- interrupt the job
             log.error("handleMessage timed out");

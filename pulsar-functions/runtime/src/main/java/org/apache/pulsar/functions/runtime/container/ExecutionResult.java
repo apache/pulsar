@@ -20,9 +20,7 @@ package org.apache.pulsar.functions.runtime.container;
 
 import lombok.*;
 import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import org.apache.pulsar.functions.utils.Exceptions;
 
 /**
  * An interface that represents the result of a function call.
@@ -35,21 +33,23 @@ import java.io.StringWriter;
 @AllArgsConstructor
 public class ExecutionResult {
     private String userException;
+    private String systemException;
     private boolean timedOut;
     private byte[] result;
     public static ExecutionResult fromJavaResult(JavaExecutionResult result, SerDe serDe) {
         String userException = null;
         if (result.getUserException() != null ) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            result.getUserException().printStackTrace(pw);
-            userException = sw.toString();
+            userException = Exceptions.toString(result.getUserException());
+        }
+        String systemException = null;
+        if (result.getSystemException() != null ) {
+            systemException = Exceptions.toString(result.getSystemException());
         }
         boolean timedOut = result.getTimeoutException() != null;
         byte[] output = null;
         if (result.getResult() != null) {
             output = serDe.serialize(result.getResult());
         }
-        return new ExecutionResult(userException, timedOut, output);
+        return new ExecutionResult(userException, systemException, timedOut, output);
     }
 }

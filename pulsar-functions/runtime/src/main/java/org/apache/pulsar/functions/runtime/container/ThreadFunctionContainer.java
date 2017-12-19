@@ -30,6 +30,7 @@ import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
 import org.apache.pulsar.functions.runtime.instance.JavaInstance;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.utils.Exceptions;
 
 /**
  * A function container implemented using java thread.
@@ -149,9 +150,15 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
-        Payload payload = new Payload(topicName, messageId, data);
-        queue.offer(payload);
-        return payload.result;
+        try {
+            Payload payload = new Payload(topicName, messageId, data);
+            queue.put(payload);
+            return payload.result;
+        } catch (InterruptedException ex) {
+            ExecutionResult result = new ExecutionResult(null, Exceptions.toString(ex),
+                    false, null);
+            return CompletableFuture.completedFuture(result);
+        }
     }
 
     @Override
