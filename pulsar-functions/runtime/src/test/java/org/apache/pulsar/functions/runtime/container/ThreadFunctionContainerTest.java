@@ -55,7 +55,7 @@ public class ThreadFunctionContainerTest {
         URL jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
         this.jarFiles = Lists.newArrayList(jarUrl.getPath());
         this.classpaths = Collections.emptyList();
-        this.factory = new ThreadFunctionContainerFactory();
+        this.factory = new ThreadFunctionContainerFactory(1024);
     }
 
     @After

@@ -32,4 +32,5 @@ import lombok.*;
 public class LimitsConfig {
     private int timeBudgetInMs;
     private int maxMemory;
+    private int maxBufferedTuples;
 }
