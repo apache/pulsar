@@ -59,7 +59,10 @@ public class JavaInstance {
     public static Object createObject(String userClassName) {
         Object object;
         try {
-            Class<?> clazz = Class.forName(userClassName);
+            Class<?> clazz = Class.forName(
+                userClassName,
+                true,
+                Thread.currentThread().getContextClassLoader());
             object = clazz.newInstance();
         } catch (ClassNotFoundException ex) {
             throw new RuntimeException(ex + " User class must be in class path.");
