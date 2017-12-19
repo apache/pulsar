@@ -43,4 +43,7 @@ public interface RawMessage extends AutoCloseable {
      * by decoding the headers which are not.
      */
     ByteBuf getHeadersAndPayload();
+
+    @Override
+    void close();
 }

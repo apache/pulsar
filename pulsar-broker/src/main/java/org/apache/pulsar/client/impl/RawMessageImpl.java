@@ -30,8 +30,7 @@ public class RawMessageImpl implements RawMessage {
 
     RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
         this.id = id;
-        this.headersAndPayload = headersAndPayload.slice();
-        this.headersAndPayload.retain();
+        this.headersAndPayload = headersAndPayload.retainedSlice();
     }
 
     @Override
