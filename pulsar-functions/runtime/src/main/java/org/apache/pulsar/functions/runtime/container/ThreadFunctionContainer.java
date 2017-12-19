@@ -63,11 +63,11 @@ class ThreadFunctionContainer implements FunctionContainer {
     private LinkedBlockingQueue<Payload> queue;
     private String id;
 
-    ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
+    ThreadFunctionContainer(JavaInstanceConfig instanceConfig, int maxBufferedTuples,
                             FunctionCacheManager fnCache, ThreadGroup threadGroup) {
         this.javaInstanceConfig = instanceConfig;
         this.fnCache = fnCache;
-        this.queue = new LinkedBlockingQueue<>();
+        this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
         this.fnThread = new Thread(threadGroup,
                 new Runnable() {

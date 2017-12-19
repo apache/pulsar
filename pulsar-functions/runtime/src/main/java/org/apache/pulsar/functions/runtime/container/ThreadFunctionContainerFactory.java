@@ -30,17 +30,20 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
 
     private final ThreadGroup threadGroup;
     protected final FunctionCacheManager fnCache;
+    private int maxBufferedTuples;
 
-    public ThreadFunctionContainerFactory() {
+    public ThreadFunctionContainerFactory(int maxBufferedTuples) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(
             "Pulsar Function Container Threads");
+        this.maxBufferedTuples = maxBufferedTuples;
     }
 
     @Override
     public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig) {
         return new ThreadFunctionContainer(
             instanceConfig,
+            maxBufferedTuples,
             fnCache,
             threadGroup);
     }

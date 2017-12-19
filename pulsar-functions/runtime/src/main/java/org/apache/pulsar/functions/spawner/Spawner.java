@@ -61,7 +61,7 @@ public class Spawner {
         this.limitsConfig = limitsConfig;
         this.assignmentInfo = assignmentInfo;
         this.pulsarBrokerRootUrl = pulsarBrokerRootUrl;
-        this.threadFunctionContainerFactory = new ThreadFunctionContainerFactory();
+        this.threadFunctionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples());
     }
 
     public void start() throws Exception {
