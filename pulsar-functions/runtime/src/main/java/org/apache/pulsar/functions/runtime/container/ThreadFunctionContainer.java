@@ -121,8 +121,6 @@ class ThreadFunctionContainer implements FunctionContainer {
         // make sure the function class loader is accessible thread-locally
         fnThread.setContextClassLoader(fnClassLoader);
 
-        // javaInstance = new JavaInstance(javaInstanceConfig);
-
         // start the function thread
         fnThread.start();
     }

@@ -68,6 +68,10 @@ public class Spawner {
         functionContainer.start();
     }
 
+    public void join() throws Exception {
+        functionContainer.join();
+    }
+
     private String createSubscriptionName() {
         return "spawner-" + assignmentInfo.getFunctionConfig().getName() + "-" + assignmentInfo.getFunctionVersion()
                 + "-" + assignmentInfo.getFunctionId();
