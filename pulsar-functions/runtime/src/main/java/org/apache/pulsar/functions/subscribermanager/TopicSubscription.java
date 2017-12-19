@@ -66,7 +66,6 @@ public class TopicSubscription {
                     if (null == msg) {
                         continue;
                     }
-                    log.info("Received message {}", msg);
                     String messageId = convertMessageIdToString(msg.getMessageId());
                     for (FunctionContainer subscriber : subscriberMap.values()) {
                         subscriber.sendMessage(topicName, messageId, msg.getData())

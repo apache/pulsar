@@ -24,7 +24,6 @@ import org.apache.pulsar.functions.api.RequestHandler;
 public class ExclamationFunction implements RequestHandler<String, String> {
     @Override
     public String handleRequest(String input, Context context) {
-        System.out.println("input = " + input);
         return input + "!";
     }
 }

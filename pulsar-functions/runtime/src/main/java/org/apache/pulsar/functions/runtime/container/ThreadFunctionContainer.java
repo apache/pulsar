@@ -41,10 +41,12 @@ class ThreadFunctionContainer implements FunctionContainer {
         public String topicName;
         public String messageId;
         public byte[] msgData;
+        CompletableFuture<ExecutionResult> result;
         Payload(String topicName, String messageId, byte[] msgData) {
             this.topicName = topicName;
             this.messageId = messageId;
             this.msgData = msgData;
+            this.result = new CompletableFuture<>();
         }
     }
 
@@ -59,7 +61,6 @@ class ThreadFunctionContainer implements FunctionContainer {
     private JavaInstance javaInstance;
     private final FunctionCacheManager fnCache;
     private LinkedBlockingQueue<Payload> queue;
-    private LinkedBlockingQueue<JavaExecutionResult> resultQueue;
     private String id;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
@@ -67,7 +68,6 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.javaInstanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingQueue<>();
-        this.resultQueue = new LinkedBlockingQueue<>();
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
         this.fnThread = new Thread(threadGroup,
                 new Runnable() {
@@ -81,7 +81,9 @@ class ThreadFunctionContainer implements FunctionContainer {
                                 Payload payload = queue.take();
                                 result = javaInstance.handleMessage(payload.messageId,
                                     payload.topicName, payload.msgData);
-                                resultQueue.offer(result);
+                                ExecutionResult actualResult = ExecutionResult.fromJavaResult(result,
+                                        javaInstanceConfig.getSerDe());
+                                payload.result.complete(actualResult);
                             } catch (InterruptedException ie) {
                                 log.info("Function thread {} is interrupted", ie);
                             }
@@ -147,16 +149,9 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
-        queue.offer(new Payload(topicName, messageId, data));
-        try {
-            JavaExecutionResult result = resultQueue.take();
-            return CompletableFuture.completedFuture(ExecutionResult.fromJavaResult(result,
-                    javaInstanceConfig.getSerDe()));
-        } catch (InterruptedException e) {
-            CompletableFuture<ExecutionResult> future = new CompletableFuture<>();
-            future.completeExceptionally(e);
-            return future;
-        }
+        Payload payload = new Payload(topicName, messageId, data);
+        queue.offer(payload);
+        return payload.result;
     }
 
     @Override
