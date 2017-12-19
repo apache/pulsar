@@ -23,13 +23,30 @@
  */
 package org.apache.pulsar.functions.spawner;
 
-
+import java.util.UUID;
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.subscribermanager.SubscriberManager;
 
 public class Spawner {
+
+    public static Spawner createSpawner(FunctionConfig fnConfig,
+                                        LimitsConfig limitsConfig,
+                                        String pulsarBrokerRootUrl) {
+        AssignmentInfo assignmentInfo = new AssignmentInfo(
+            fnConfig,
+            new FunctionID(),
+            UUID.randomUUID().toString()
+        );
+        return new Spawner(
+            limitsConfig,
+            assignmentInfo,
+            pulsarBrokerRootUrl);
+    }
+
     private LimitsConfig limitsConfig;
     private AssignmentInfo assignmentInfo;
     private String pulsarBrokerRootUrl;
@@ -48,6 +65,7 @@ public class Spawner {
         subscriberManager = new SubscriberManager(createSubscriptionName(), pulsarBrokerRootUrl);
         functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig());
         subscriberManager.addSubscriber(assignmentInfo.getFunctionConfig().getSourceTopic(), functionContainer);
+        functionContainer.start();
     }
 
     private String createSubscriptionName() {

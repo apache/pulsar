@@ -1,0 +1,1 @@
+CLASSPATH=`pwd`/api-examples/target/pulsar-functions-api-examples.jar bin/pulsar-functions functions run --function-config conf/example.yml --sink-topic persistent://sample/standalone/ns1/test_result --source-topic persistent://sample/standalone/ns1/test_src --function-classpath `pwd`/api-examples/target/pulsar-functions-api-examples.jar

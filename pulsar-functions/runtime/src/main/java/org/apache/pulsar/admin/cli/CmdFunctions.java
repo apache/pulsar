@@ -24,11 +24,15 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import lombok.Getter;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.spawner.LimitsConfig;
+import org.apache.pulsar.functions.spawner.Spawner;
 
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
@@ -81,9 +85,23 @@ public class CmdFunctions extends CmdBase {
             } else {
                 fc.setJarFiles(Lists.newArrayList());
             }
-            // TODO: execute the runner here
 
-            System.out.println(ReflectionToStringBuilder.toString(fc, ToStringStyle.MULTI_LINE_STYLE));
+            // Construct the spawner
+
+            LimitsConfig limitsConfig = new LimitsConfig(
+                60000,   // 60 seconds
+                1024        // 1GB
+            );
+
+            Spawner spawner = Spawner.createSpawner(
+                fc,
+                limitsConfig,
+                admin.getServiceUrl().toString());
+
+            spawner.start();
+
+            CountDownLatch latch = new CountDownLatch(1);
+            latch.await();
         }
 
     }

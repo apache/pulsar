@@ -74,11 +74,18 @@ class ThreadFunctionContainer implements FunctionContainer {
                 new Runnable() {
                     @Override
                     public void run() {
+                        javaInstance = new JavaInstance(javaInstanceConfig);
+
                         while (true) {
-                            Payload payload = queue.poll();
-                            JavaExecutionResult result = javaInstance.handleMessage(payload.messageId,
+                            JavaExecutionResult result;
+                            try {
+                                Payload payload = queue.take();
+                                result = javaInstance.handleMessage(payload.messageId,
                                     payload.topicName, payload.msgData);
-                            resultQueue.offer(result);
+                                resultQueue.offer(result);
+                            } catch (InterruptedException ie) {
+                                log.info("Function thread {} is interrupted", ie);
+                            }
                         }
                     }
                 }, this.id);
@@ -114,7 +121,7 @@ class ThreadFunctionContainer implements FunctionContainer {
         // make sure the function class loader is accessible thread-locally
         fnThread.setContextClassLoader(fnClassLoader);
 
-        javaInstance = new JavaInstance(javaInstanceConfig);
+        // javaInstance = new JavaInstance(javaInstanceConfig);
 
         // start the function thread
         fnThread.start();
@@ -144,7 +151,13 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
         queue.offer(new Payload(topicName, messageId, data));
-        return CompletableFuture.completedFuture(resultQueue.poll());
+        try {
+            return CompletableFuture.completedFuture(resultQueue.take());
+        } catch (InterruptedException e) {
+            CompletableFuture<ExecutionResult> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
     }
 
     @Override
