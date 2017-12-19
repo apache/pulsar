@@ -16,30 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
-
-import lombok.*;
-
-import java.util.concurrent.TimeoutException;
-
 /**
- * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
- * program if invoking via a process based invocation or using JavaInstance using a thread
- * based invocation.
+ * Provides the implementation of the Instance module for Pulsar Functions.
  */
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-public class JavaExecutionResult {
-    private Exception userException;
-    private TimeoutException timeoutException;
-    private Object result;
-
-    public void reset() {
-        setUserException(null);
-        setTimeoutException(null);
-        setResult(null);
-    }
-}
+package org.apache.pulsar.functions.runtime.instance;

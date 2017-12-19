@@ -26,9 +26,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.instance.JavaExecutionResult;
-import org.apache.pulsar.functions.instance.JavaInstance;
-import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
+import org.apache.pulsar.functions.runtime.instance.JavaInstance;
+import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 
 /**

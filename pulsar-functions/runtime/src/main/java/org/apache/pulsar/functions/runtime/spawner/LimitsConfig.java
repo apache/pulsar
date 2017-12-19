@@ -16,26 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.runtime.spawner;
 
-package org.apache.pulsar.functions.runtime.container;
+import lombok.*;
 
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-
+@Data
+@Setter
+@Getter
+@EqualsAndHashCode
+@ToString
+@AllArgsConstructor
 /**
- * A factory to create {@link FunctionContainer}s to invoke functions.
+ * This represents the config related to the resource limits of function calls
  */
-public interface FunctionContainerFactory extends AutoCloseable {
-
-    /**
-     * Create a function container to execute a java instance.
-     *
-     * @param instanceConfig java instance config
-     * @return function container to start/stop instance
-     */
-    FunctionContainer createContainer(
-        JavaInstanceConfig instanceConfig);
-
-    @Override
-    void close();
-
+public class LimitsConfig {
+    private int timeBudgetInMs;
+    private int maxMemory;
+    private int maxBufferedTuples;
 }

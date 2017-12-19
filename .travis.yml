@@ -60,4 +60,4 @@ script:
     # Build Java and C++
     - mvn license:check test install -DskipTests
     # Only test pulsar functions
-    - mvn -pl :pulsar-functions clean test package
+    - cd pulsar-functions && mvn clean test package

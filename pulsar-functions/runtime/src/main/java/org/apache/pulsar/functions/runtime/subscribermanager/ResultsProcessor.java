@@ -21,7 +21,7 @@
  * function. It is responsible for starting/stopping the instance and passing data to the
  * instance and getting the results back.
  */
-package org.apache.pulsar.functions.subscribermanager;
+package org.apache.pulsar.functions.runtime.subscribermanager;
 
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.runtime.container.ExecutionResult;

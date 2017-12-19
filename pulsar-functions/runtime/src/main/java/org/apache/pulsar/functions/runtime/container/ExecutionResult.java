@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import lombok.*;
-import org.apache.pulsar.functions.instance.JavaExecutionResult;
+import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

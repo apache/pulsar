@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
-import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 

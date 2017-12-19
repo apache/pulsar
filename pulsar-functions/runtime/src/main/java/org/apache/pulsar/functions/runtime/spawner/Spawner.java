@@ -21,16 +21,16 @@
  * function. It is responsible for starting/stopping the instance and passing data to the
  * instance and getting the results back.
  */
-package org.apache.pulsar.functions.spawner;
+package org.apache.pulsar.functions.runtime.spawner;
 
 import java.util.UUID;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.container.SerDe;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.subscribermanager.SubscriberManager;
+import org.apache.pulsar.functions.runtime.subscribermanager.SubscriberManager;
 
 public class Spawner {
 
