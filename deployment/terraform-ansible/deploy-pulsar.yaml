@@ -17,18 +17,13 @@
 # under the License.
 #
 
-- name: Pulsar setup
-  hosts: all
+- name: Disk setup
+  hosts: pulsar
   connection: ssh
   become: true
   tasks:
-    - shell: |
-        tuned-adm profile latency-performance
-    - name: Create necessary directories
-      file:
-        path: "{{ item }}"
-        state: directory
-      with_items: ["/opt/pulsar"]
+    - command: >
+      tuned-adm profile latency-performance
     - name: Create and mount disks
       mount:
         path: "{{ item.path }}"
@@ -39,6 +34,17 @@
       with_items:
         - { path: "/mnt/journal", src: "/dev/nvme0n1" }
         - { path: "/mnt/storage", src: "/dev/nvme1n1" }
+
+- name: Pulsar setup
+  hosts: all
+  connection: ssh
+  become: true
+  tasks:
+    - name: Create necessary directories
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items: ["/opt/pulsar"]
     - name: Install RPM packages
       yum: pkg={{ item }} state=latest
       with_items:
