@@ -24,8 +24,8 @@
 package org.apache.pulsar.functions.subscribermanager;
 
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.functions.runtime.container.ExecutionResult;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
-import org.apache.pulsar.functions.spawner.ExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +40,8 @@ public class ResultsProcessor {
     public boolean handleResult(FunctionContainer container, ExecutionResult result) {
         if (result.getUserException() != null) {
             log.info("Exception", result.getUserException());
-        } else if (result.getTimeoutException() != null) {
-            log.info("Timedout", result.getTimeoutException());
+        } else if (result.isTimedOut()) {
+            log.info("Timedout");
         } else if (result.getResult() != null && container.getFunctionConfig().getSinkTopic() != null) {
             try {
                 producer.publish(container.getFunctionConfig().getSinkTopic(), result.getResult());

@@ -19,10 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.*;
-import org.apache.pulsar.functions.spawner.ExecutionResult;
 
-
-import java.io.ByteArrayOutputStream;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -35,14 +32,14 @@ import java.util.concurrent.TimeoutException;
 @Getter
 @EqualsAndHashCode
 @ToString
-public class JavaExecutionResult implements ExecutionResult {
+public class JavaExecutionResult {
     private Exception userException;
     private TimeoutException timeoutException;
-    private byte[] result;
+    private Object result;
 
     public void reset() {
-        this.setUserException(null);
-        this.setTimeoutException(null);
-        this.setResult((byte[])null);
+        setUserException(null);
+        setTimeoutException(null);
+        setResult(null);
     }
 }

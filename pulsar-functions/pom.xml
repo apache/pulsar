@@ -28,7 +28,7 @@
     <version>1.22.0-incubating-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-functions-parent</artifactId>
+  <artifactId>pulsar-functions</artifactId>
   <name>Pulsar Functions :: Parent</name>
 
   <modules>

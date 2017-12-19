@@ -30,7 +30,6 @@ import org.apache.pulsar.functions.instance.JavaExecutionResult;
 import org.apache.pulsar.functions.instance.JavaInstance;
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.spawner.ExecutionResult;
 
 /**
  * A function container implemented using java thread.
@@ -150,7 +149,9 @@ class ThreadFunctionContainer implements FunctionContainer {
     public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
         queue.offer(new Payload(topicName, messageId, data));
         try {
-            return CompletableFuture.completedFuture(resultQueue.take());
+            JavaExecutionResult result = resultQueue.take();
+            return CompletableFuture.completedFuture(ExecutionResult.fromJavaResult(result,
+                    javaInstanceConfig.getSerDe()));
         } catch (InterruptedException e) {
             CompletableFuture<ExecutionResult> future = new CompletableFuture<>();
             future.completeExceptionally(e);

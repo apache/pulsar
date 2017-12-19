@@ -26,6 +26,7 @@ import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.runtime.container.SerDe;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -41,6 +42,7 @@ public class JavaInstanceConfig {
     private FunctionConfig functionConfig;
     private FunctionID functionId;
     private String functionVersion;
+    private SerDe serDe;
     private int timeBudgetInMs;
     private int maxMemory;
 }

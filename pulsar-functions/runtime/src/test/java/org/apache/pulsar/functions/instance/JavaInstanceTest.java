@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.instance;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.spawner.ExecutionResult;
+import org.apache.pulsar.functions.runtime.container.JavaSerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -104,9 +104,10 @@ public class JavaInstanceTest {
     public void testLongRunningFunction() throws Exception {
         JavaInstanceConfig config = new JavaInstanceConfig();
         config.setTimeBudgetInMs(2000);
+        config.setSerDe(new JavaSerDe());
         JavaInstance instance = new JavaInstance(config, new LongRunningHandler());
         String testString = "ABC123";
-        ExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
+        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
 
         assertNull(result.getUserException());
         assertNotNull(result.getTimeoutException());
@@ -120,13 +121,14 @@ public class JavaInstanceTest {
     public void testLambda() {
         JavaInstanceConfig config = new JavaInstanceConfig();
         config.setTimeBudgetInMs(2000);
+        config.setSerDe(new JavaSerDe());
         JavaInstance instance = new JavaInstance(
             config,
             (RequestHandler<String, String>) (input, context) -> input + "-lambda");
         String testString = "ABC123";
-        ExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
+        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
         assertNotNull(result.getResult());
-        assertEquals(serialize(new String(testString + "-lambda")), result.getResult());
+        assertEquals(new String(testString + "-lambda"), result.getResult());
     }
 
     /**

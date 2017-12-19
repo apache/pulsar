@@ -101,7 +101,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>tests</module>
     <module>pulsar-log4j2-appender</module>
     <!-- functions related modules -->
-    <module>pulsar-functions-parent</module>
+    <module>pulsar-functions</module>
   </modules>
 
   <issueManagement>
