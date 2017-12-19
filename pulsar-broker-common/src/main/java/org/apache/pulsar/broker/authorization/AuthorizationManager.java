@@ -71,6 +71,19 @@ public class AuthorizationManager {
     }
 
     /**
+     * Check if the specified role has permission to access the destination via a proxy
+     *
+     * @param destination
+     *            the fully qualified destination name associated with the destination.
+     * @param role
+     *            the app id used to receive messages from the destination.
+     */
+    public CompletableFuture<Boolean> canProxyAsync(DestinationName destination, String role) {
+        return checkAuthorization(destination, role, AuthAction.proxy);
+    }
+
+    
+    /**
      * Check if the specified role has permission to receive messages from the specified fully qualified destination
      * name.
      *
