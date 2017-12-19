@@ -1,4 +1,4 @@
-package org.apache.pulsar.broker.schema;
+package org.apache.pulsar.common.schema;
 
 public interface Schema {
 
