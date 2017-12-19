@@ -54,7 +54,6 @@ public class JavaInstance {
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
-    private JavaExecutionResult executionResult;
     private SerDe serDe;
 
     public static Object createObject(String userClassName) {
@@ -88,7 +87,6 @@ public class JavaInstance {
         }
 
         executorService = Executors.newFixedThreadPool(1);
-        this.executionResult = new JavaExecutionResult();
         this.serDe = config.getSerDe();
     }
 
@@ -99,14 +97,16 @@ public class JavaInstance {
     }
 
     private void verifySupportedType(Type type, boolean allowVoid) {
-        if (!(supportedInputTypes.contains(type) || (allowVoid && !type.equals(Void.TYPE)))) {
+        if (!allowVoid && !supportedInputTypes.contains(type)) {
+            throw new RuntimeException("Non Basic types not yet supported: " + type);
+        } else if (!(supportedInputTypes.contains(type) || type.equals(Void.class))) {
             throw new RuntimeException("Non Basic types not yet supported: " + type);
         }
     }
 
     public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
         context.setCurrentMessageContext(messageId, topicName);
-        executionResult.reset();
+        JavaExecutionResult executionResult = new JavaExecutionResult();
         Future<?> future = executorService.submit(() -> {
             if (requestHandler != null) {
                 try {
