@@ -96,6 +96,19 @@ public class JavaInstanceTest {
         }
     }
 
+    private class VoidInputHandler implements RequestHandler<Void, String> {
+        @Override
+        public String handleRequest(Void input, Context context) throws Exception {
+            return new String("Interesting");
+        }
+    }
+
+    private class VoidOutputHandler implements RequestHandler<String, Void> {
+        @Override
+        public Void handleRequest(String input, Context context) throws Exception {
+            return null;
+        }
+    }
     /**
      * Verify that functions running longer than time budget fails with Timeout exception
      * @throws Exception
@@ -146,5 +159,37 @@ public class JavaInstanceTest {
         } catch (Exception ex) {
             assertFalse(true);
         }
+    }
+
+    /**
+     * Verify that JavaInstance does not support functions that take Void type as input
+     */
+    @Test
+    public void testVoidInputClasses() {
+        JavaInstanceConfig config = new JavaInstanceConfig();
+        try {
+            JavaInstance instance = new JavaInstance(config, new VoidInputHandler());
+            assertFalse(true);
+        } catch (RuntimeException ex) {
+            // Good
+        } catch (Exception ex) {
+            assertFalse(true);
+        }
+    }
+
+    /**
+     * Verify that JavaInstance does support functions that output Void type
+     */
+    @Test
+    public void testVoidOutputClasses() {
+        JavaInstanceConfig config = new JavaInstanceConfig();
+        config.setTimeBudgetInMs(2000);
+        config.setSerDe(new JavaSerDe());
+        JavaInstance instance = new JavaInstance(config, new VoidOutputHandler());
+        String testString = "ABC123";
+        JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString));
+        assertNull(result.getUserException());
+        assertNull(result.getTimeoutException());
+        assertNull(result.getResult());
     }
 }
