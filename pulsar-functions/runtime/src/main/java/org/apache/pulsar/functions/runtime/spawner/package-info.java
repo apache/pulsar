@@ -16,27 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.spawner;
-
-import lombok.*;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.container.SerDe;
-
 /**
- * This corresponds to all the information about the a particular function assignment
- * to a spawner.
+ * Spanwer for spawning processes, threads, docker containers to execute functions.
  */
-
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-class AssignmentInfo {
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
-    private SerDe serDe;
-}
+package org.apache.pulsar.functions.runtime.spawner;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.runtime.instance;
 
 import org.apache.pulsar.functions.api.Context;
 import org.slf4j.Logger;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.runtime.instance;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 
-import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.*;
 
 public class JavaInstanceTest {

@@ -16,33 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.runtime.instance;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
-import org.apache.pulsar.functions.runtime.container.SerDe;
+import lombok.*;
+
+import java.util.concurrent.TimeoutException;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
+ * program if invoking via a process based invocation or using JavaInstance using a thread
+ * based invocation.
  */
 @Data
-@Getter
 @Setter
+@Getter
 @EqualsAndHashCode
 @ToString
-public class JavaInstanceConfig {
-    private InstanceID instanceId;
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
-    private SerDe serDe;
-    private int timeBudgetInMs;
-    private int maxMemory;
+public class JavaExecutionResult {
+    private Exception userException;
+    private TimeoutException timeoutException;
+    private Object result;
+
+    public void reset() {
+        setUserException(null);
+        setTimeoutException(null);
+        setResult(null);
+    }
 }
