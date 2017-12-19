@@ -24,25 +24,39 @@ layout: content
 
 -->
 
-Download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
+You can download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
 
-### Version {{ site.current_version }}
+### Version {{ site.current_version }} releases
 
-| Type   | Link                                                                                                                                           |
-|:-------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
-| Source | [apache-pulsar-{{ site.current_version }}-src.tar.gz](http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz) |
-| Binary | [apache-pulsar-{{ site.current_version }}-bin.tar.gz](http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz) |
+#### Binary release
 
+File | Link
+:----|:----
+Tarball | [apache-pulsar-{{ site.current_version }}-bin.tar.gz](http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz)
+[ASCII-armored detached signature](http://www.apache.org/dev/release-signing#ascii) | [apache-pulsar-{{ site.current_version }}-bin.tar.gz.asc](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz.asc)
+[MD5 checksum](http://www.apache.org/dev/release-signing#md5) | [apache-pulsar-{{ site.current_version }}-bin.tar.gz.md5](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz.md5)
+[SHA512 checksum](http://www.apache.org/dev/release-signing#sha-checksum) | [apache-pulsar-{{ site.current_version }}-bin.tar.gz.sha512](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz.md5)
 
-### Release notes
+#### Source release
+
+File | Link
+:----|:----
+Tarball | [apache-pulsar-{{ site.current_version }}-src.tar.gz](http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz)
+[ASCII-armored detached signature](http://www.apache.org/dev/release-signing#ascii) | [apache-pulsar-{{ site.current_version }}-src.tar.gz.asc](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz.asc)
+[MD5 checksum](http://www.apache.org/dev/release-signing#md5) | [apache-pulsar-{{ site.current_version }}-src.tar.gz.md5](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz.md5)
+[SHA512 checksum](http://www.apache.org/dev/release-signing#sha-checksum) | [apache-pulsar-{{ site.current_version }}-src.tar.gz.sha512](http://archive.apache.org/dist/incubator/pulsar//pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz.md5)
+
+{% include admonition.html type="info" content='You can download the [KEYS](http://www.apache.org/dev/release-signing#keys-policy) file for Pulsar <a href="https://dist.apache.org/repos/dist/release/incubator/pulsar/KEYS" download>here</a>.' %}
+
+### Release notes for the {{ site.current_version }} release
 
 [https://github.com/apache/incubator-pulsar/releases/tag/v{{site.current_version}}](https://github.com/apache/incubator-pulsar/releases/tag/v{{site.current_version}})
 
 ### Getting started
 
-Once you've downloaded a Pulsar release, instructions on getting up and running with a {% popover standalone %} cluster that you can run your laptop can be found in [Run Pulsar locally](/docs/latest/getting-started/LocalCluster).
+Once you've downloaded a Pulsar release, instructions on getting up and running with a {% popover standalone %} cluster that you can run on your laptop can be found in the [Run Pulsar locally](/docs/latest/getting-started/LocalCluster) tutorial.
 
-If you need to connect to an existing Pulsar {% popover cluster %} or {% popover instance %} using an officially supported client, see client docs for these languages:
+If you need to connect to an existing Pulsar {% popover cluster %} or {% popover instance %} using an officially supported client, see the client docs for these languages:
 
 Client guide | API docs
 :------------|:--------
