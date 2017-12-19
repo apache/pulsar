@@ -21,13 +21,12 @@ package org.apache.pulsar.functions.instance;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.container.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Type;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -57,6 +56,7 @@ public class JavaInstance {
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
     private JavaExecutionResult executionResult;
+    private SerDe serDe;
 
     public static Object createObject(String userClassName) {
         Object object;
@@ -90,6 +90,7 @@ public class JavaInstance {
 
         executorService = Executors.newFixedThreadPool(1);
         this.executionResult = new JavaExecutionResult();
+        this.serDe = config.getSerDe();
     }
 
     private void computeInputAndOutputTypes() {
@@ -125,26 +126,23 @@ public class JavaInstance {
     public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
         context.setCurrentMessageContext(messageId, topicName);
         executionResult.reset();
-        Future<?> future = executorService.submit(new Runnable() {
-            @Override
-            public void run() {
-                if (requestHandler != null) {
-                    try {
-                        Object input = deserialize(data);
-                        Object output = requestHandler.handleRequest(input, context);
-                        executionResult.setResult(serialize(output));
-                    } catch (Exception ex) {
-                        executionResult.setUserException(ex);
-                    }
-                } else if (rawRequestHandler != null) {
-                    try {
-                        ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                        rawRequestHandler.handleRequest(inputStream, outputStream, context);
-                        executionResult.setResult(outputStream.toByteArray());
-                    } catch (Exception ex) {
-                        executionResult.setUserException(ex);
-                    }
+        Future<?> future = executorService.submit(() -> {
+            if (requestHandler != null) {
+                try {
+                    Object input = serDe.deserialize(data);
+                    Object output = requestHandler.handleRequest(input, context);
+                    executionResult.setResult(output);
+                } catch (Exception ex) {
+                    executionResult.setUserException(ex);
+                }
+            } else if (rawRequestHandler != null) {
+                try {
+                    ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    rawRequestHandler.handleRequest(inputStream, outputStream, context);
+                    executionResult.setResult(outputStream.toByteArray());
+                } catch (Exception ex) {
+                    executionResult.setUserException(ex);
                 }
             }
         });
@@ -163,57 +161,5 @@ public class JavaInstance {
         }
 
         return executionResult;
-    }
-
-    private byte[] serialize(Object resultValue) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutput out = null;
-        try {
-            out = new ObjectOutputStream(bos);
-            out.writeObject(resultValue);
-            out.flush();
-            return bos.toByteArray();
-        } catch (Exception ex) {
-        } finally {
-            try {
-                bos.close();
-            } catch (IOException ex) {
-                // ignore close exception
-            }
-        }
-        return null;
-    }
-
-    private Object deserialize(byte[] data) throws Exception {
-        Object obj = null;
-        ByteArrayInputStream bis = null;
-        ObjectInputStream ois = null;
-        try {
-            bis = new ByteArrayInputStream(data);
-            ois = new ObjectInputStream(bis);
-            obj = ois.readObject();
-        } finally {
-            if (bis != null) {
-                bis.close();
-            }
-            if (ois != null) {
-                ois.close();
-            }
-        }
-        switch (inputType) {
-            case INTEGER:
-            case LONG:
-            case DOUBLE:
-            case FLOAT:
-            case SHORT:
-            case BYTE:
-            case STRING:
-            case MAP:
-            case LIST:
-                return obj;
-            default: {
-                throw new RuntimeException("Unknown SupportedType " + inputType);
-            }
-        }
     }
 }

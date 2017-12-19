@@ -31,6 +31,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.container.SerDe;
 import org.apache.pulsar.functions.spawner.LimitsConfig;
 import org.apache.pulsar.functions.spawner.Spawner;
 
@@ -57,12 +58,16 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
         private String sinkTopicName;
 
+        @Parameter(names = "--serde-classname", description = "SerDe\n")
+        private String serDeClassName;
+
         @Parameter(names = "--function-config", description = "Function Config\n")
         private String fnConfigFile;
 
         @Override
         void run() throws Exception {
             FunctionConfig fc;
+            SerDe serDe = null;
             if (null != fnConfigFile) {
                 fc = FunctionConfig.load(fnConfigFile);
             } else {
@@ -80,6 +85,9 @@ public class CmdFunctions extends CmdBase {
             if (null != className) {
                 fc.setClassName(className);
             }
+            if (null != serDeClassName) {
+                serDe = createSerDe(serDeClassName);
+            }
             if (null != jarFiles) {
                 fc.setJarFiles(jarFiles);
             } else {
@@ -96,12 +104,28 @@ public class CmdFunctions extends CmdBase {
             Spawner spawner = Spawner.createSpawner(
                 fc,
                 limitsConfig,
+                serDe,
                 admin.getServiceUrl().toString());
 
             spawner.start();
             spawner.join();
         }
 
+    }
+
+    SerDe createSerDe(String className) {
+        SerDe retval;
+        try {
+            Class<?> clazz = Class.forName(className);
+            retval = (SerDe) clazz.newInstance();
+        } catch (ClassNotFoundException ex) {
+            throw new RuntimeException(ex + " User class must be in class path.");
+        } catch (InstantiationException ex) {
+            throw new RuntimeException(ex + " User class must be concrete.");
+        } catch (IllegalAccessException ex) {
+            throw new RuntimeException(ex + " User class must have a no-arg constructor.");
+        }
+        return retval;
     }
 
     public CmdFunctions(PulsarAdmin admin) {

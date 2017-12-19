@@ -16,18 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.spawner;
-
-import java.util.concurrent.TimeoutException;
+package org.apache.pulsar.functions.runtime.container;
 
 /**
- * An interface that represents the result of a function call.
+ * An interface for serializer/deserializer.
  */
-public interface ExecutionResult {
-    
-    Exception getUserException();
-
-    TimeoutException getTimeoutException();
-
-    byte[] getResult();
+public interface SerDe {
+    Object deserialize(byte[] input);
+    byte[] serialize(Object input);
 }

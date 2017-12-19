@@ -20,7 +20,6 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.spawner.ExecutionResult;
 
 import java.util.concurrent.CompletableFuture;
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.spawner;
 import lombok.*;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
+import org.apache.pulsar.functions.runtime.container.SerDe;
 
 /**
  * This corresponds to all the information about the a particular function assignment
@@ -37,4 +38,5 @@ class AssignmentInfo {
     private FunctionConfig functionConfig;
     private FunctionID functionId;
     private String functionVersion;
+    private SerDe serDe;
 }
