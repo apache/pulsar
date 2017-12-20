@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -42,6 +43,10 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -103,6 +108,9 @@ public class PerformanceProducer {
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
 
+        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        public String adminURL;
+        
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
@@ -152,6 +160,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
+        
+        @Parameter(names = { "-np", "--num-partitions" }, description = "Number of partitions")
+        public int numPartitions = 0;
+        
 
     }
 
@@ -197,6 +209,10 @@ public class PerformanceProducer {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
             }
 
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("brokerAdminUrl");
+            }
+
             if (arguments.authPluginClassName == null) {
                 arguments.authPluginClassName = prop.getProperty("authPlugin", null);
             }
@@ -215,6 +231,10 @@ public class PerformanceProducer {
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
+        
+        if (arguments.adminURL == null && arguments.serviceURL != null && arguments.serviceURL.startsWith("http")) {
+            arguments.adminURL = arguments.serviceURL;
+        }
 
         // Dump config variables
         ObjectMapper m = new ObjectMapper();
@@ -287,10 +307,29 @@ public class PerformanceProducer {
             producerConf.setCryptoKeyReader(keyReader);
         }
 
+        PulsarAdmin admin = null;
+        if (StringUtils.isNoneBlank(arguments.adminURL)) {
+            admin = new PulsarAdmin(new URL(arguments.adminURL), clientConf);
+        }
+
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
             log.info("Adding {} publishers on destination {}", arguments.numProducers, topic);
 
+            if (arguments.numPartitions > 0) {
+                if (admin != null) {
+                    try {
+                        admin.persistentTopics().createPartitionedTopic(topic, arguments.numPartitions);
+                    } catch (PulsarAdminException.ConflictException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Partitioned topic {} is already created ", topic);
+                        }
+                    }
+                } else {
+                    throw new IllegalArgumentException("admin-url must be present to create partitioned topics");
+                }
+            }
+            
             for (int j = 0; j < arguments.numProducers; j++) {
                 futures.add(client.createProducerAsync(topic, producerConf));
             }
@@ -416,6 +455,11 @@ public class PerformanceProducer {
         }
 
         client.close();
+        
+        if (admin != null) {
+            admin.close();
+        }
+
     }
 
     private static void printAggregatedStats() {
