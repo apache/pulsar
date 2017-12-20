@@ -38,10 +38,10 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class FunctionConfig {
-    // namespace that the function resides in
+    // tenant that the function resides in
+    private String tenant;
+    // namespace that the function belongs to
     private String nameSpace;
-    // Username that the function belongs to
-    private String userName;
     // function name
     private String name;
     // function class name
@@ -51,7 +51,9 @@ public class FunctionConfig {
     // output serde class name
     private String outputSerdeClassName;
     // function jar name
-    private List<String> jarFiles;
+    private String codeFile;
+    // function code in byte
+    private byte[] code;
     // source topic
     private String sourceTopic;
     // sink topic

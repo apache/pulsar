@@ -47,12 +47,12 @@ public class ThreadFunctionContainerTest {
     public final TestName runtime = new TestName();
 
     private final ThreadFunctionContainerFactory factory;
-    private final List<String> jarFiles;
+    private final String jarFile;
     private final List<URL> classpaths;
 
     public ThreadFunctionContainerTest() {
         URL jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
-        this.jarFiles = Lists.newArrayList(jarUrl.getPath());
+        this.jarFile = jarUrl.getPath();
         this.classpaths = Collections.emptyList();
         this.factory = new ThreadFunctionContainerFactory(1024);
     }
@@ -74,7 +74,7 @@ public class ThreadFunctionContainerTest {
     FunctionConfig createFunctionConfig() {
         FunctionConfig config = new FunctionConfig();
         config.setName(runtime.getMethodName());
-        config.setJarFiles(jarFiles);
+        config.setCodeFile(jarFile);
         config.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
         config.setSourceTopic(runtime.getMethodName() + "-source");
         config.setSinkTopic(runtime.getMethodName() + "-sink");

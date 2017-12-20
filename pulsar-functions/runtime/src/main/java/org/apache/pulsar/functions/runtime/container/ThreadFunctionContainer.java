@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -110,7 +111,7 @@ class ThreadFunctionContainer implements FunctionContainer {
         fnCache.registerFunctionInstance(
             javaInstanceConfig.getFunctionId(),
             javaInstanceConfig.getInstanceId(),
-            javaInstanceConfig.getFunctionConfig().getJarFiles(),
+            Arrays.asList(javaInstanceConfig.getFunctionConfig().getCodeFile()),
             Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
             javaInstanceConfig.getFunctionConfig().getName());
