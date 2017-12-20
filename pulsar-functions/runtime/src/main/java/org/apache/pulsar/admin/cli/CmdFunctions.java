@@ -22,8 +22,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
-import java.util.List;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
@@ -45,7 +43,7 @@ public class CmdFunctions extends CmdBase {
                 names = "--function-classpath",
                 description = "Function Classpath\n",
                 listConverter = StringConverter.class)
-        protected List<String> jarFiles;
+        protected String jarFile;
         @Parameter(names = "--source-topic", description = "Input Topic Name\n")
         protected String sourceTopicName;
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
@@ -86,10 +84,8 @@ public class CmdFunctions extends CmdBase {
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
-            if (null != jarFiles) {
-                functionConfig.setJarFiles(jarFiles);
-            } else {
-                functionConfig.setJarFiles(Lists.newArrayList());
+            if (null != jarFile) {
+                functionConfig.setCodeFile(jarFile);
             }
 
             run_functions_cmd();
