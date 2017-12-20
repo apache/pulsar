@@ -16,33 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.instance;
+package org.apache.pulsar.functions.runtime.serde;
 
+import static org.testng.Assert.assertEquals;
+
+import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
+import org.junit.Test;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * Unit test of {@link JavaSerDeTest}.
  */
-@Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
-public class JavaInstanceConfig {
-    private InstanceID instanceId;
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
-    private SerDe serDe;
-    private int timeBudgetInMs;
-    private int maxMemory;
+public class JavaSerDeTest {
+
+    @Data
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    @ToString
+    private static class TestObject implements Serializable {
+
+        private int intField;
+        private String stringField;
+
+    }
+
+    @Test
+    public void testSerDe() {
+        TestObject to = new TestObject(1234, "test-serde-java-object");
+
+        byte[] data = JavaSerDe.of().serialize(to);
+        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
+
+        assertEquals(to, deserializeTo);
+    }
+
 }

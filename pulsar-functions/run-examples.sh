@@ -17,4 +17,4 @@
 # under the License.
 #
 
-bin/pulsar-functions functions run --function-config conf/example.yml --sink-topic persistent://sample/standalone/ns1/test_result --source-topic persistent://sample/standalone/ns1/test_src --serde-classname org.apache.pulsar.functions.runtime.container.SimpleStringSerDe --function-classpath `pwd`/api-examples/target/pulsar-functions-api-examples.jar
+bin/pulsar-functions functions run --function-config conf/example.yml --sink-topic persistent://sample/standalone/ns1/test_result --source-topic persistent://sample/standalone/ns1/test_src --serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe --function-classpath `pwd`/api-examples/target/pulsar-functions-api-examples.jar

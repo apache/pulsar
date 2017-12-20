@@ -16,20 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime.serde;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Java Serialization based SerDe
  */
+@Slf4j
 public class JavaSerDe implements SerDe {
-    private static final Logger log = LoggerFactory.getLogger(JavaSerDe.class);
 
-    public JavaSerDe() { }
+    public static JavaSerDe of() {
+        return INSTANCE;
+    }
+
+    private static final JavaSerDe INSTANCE = new JavaSerDe();
 
     @Override
     public byte[] serialize(Object resultValue) {

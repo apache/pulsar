@@ -27,7 +27,7 @@ import java.util.List;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.container.SerDe;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 

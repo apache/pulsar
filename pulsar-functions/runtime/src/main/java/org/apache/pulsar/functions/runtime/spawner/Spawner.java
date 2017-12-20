@@ -28,7 +28,7 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
-import org.apache.pulsar.functions.runtime.container.SerDe;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.subscribermanager.SubscriberManager;
 
