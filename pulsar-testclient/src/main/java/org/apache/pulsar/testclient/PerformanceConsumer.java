@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -36,6 +37,9 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -106,6 +110,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
+        
+        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        public String adminURL;
 
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
@@ -128,6 +135,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
+        
+        @Parameter(names = { "-np", "--num-partitions" }, description = "Number of partitions")
+        public int numPartitions = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -171,6 +181,10 @@ public class PerformanceConsumer {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
             }
 
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("brokerAdminUrl");
+            }
+            
             if (arguments.authPluginClassName == null) {
                 arguments.authPluginClassName = prop.getProperty("authPlugin", null);
             }
@@ -188,6 +202,10 @@ public class PerformanceConsumer {
             }
         }
 
+        if (arguments.adminURL == null && arguments.serviceURL != null && arguments.serviceURL.startsWith("http")) {
+            arguments.adminURL = arguments.serviceURL;
+        }
+        
         // Dump config variables
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
@@ -258,11 +276,31 @@ public class PerformanceConsumer {
             consumerConfig.setCryptoKeyReader(keyReader);
         }
 
+        PulsarAdmin pulsarAdmin = null;
+        if (StringUtils.isNoneBlank(arguments.adminURL)) {
+            pulsarAdmin = new PulsarAdmin(new URL(arguments.adminURL), clientConf);
+        }
+        
         for (int i = 0; i < arguments.numDestinations; i++) {
             final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName
                     : DestinationName.get(String.format("%s-%d", prefixDestinationName, i));
             log.info("Adding {} consumers on destination {}", arguments.numConsumers, destinationName);
 
+            if (arguments.numPartitions > 0) {
+                if (pulsarAdmin != null) {
+                    try {
+                        pulsarAdmin.persistentTopics().createPartitionedTopic(destinationName.toString(),
+                                arguments.numPartitions);
+                    } catch (PulsarAdminException.ConflictException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Partitioned topic {} is already created ", destinationName.toString());
+                        }
+                    }
+                } else {
+                    throw new IllegalArgumentException("admin-url must be present to create partitioned topics");
+                }
+            }
+            
             for (int j = 0; j < arguments.numConsumers; j++) {
                 String subscriberName;
                 if (arguments.numConsumers > 1) {
@@ -326,6 +364,10 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
+        
+        if (pulsarAdmin != null) {
+            pulsarAdmin.close();
+        }
     }
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
