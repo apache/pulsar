@@ -95,7 +95,7 @@ public class ServerCnx extends PulsarHandler {
     private String clientVersion = null;
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
-    private String proxyClientAuthRole;
+    private String proxyClientAuthRole = null;
 
     enum State {
         Start, Connected
@@ -206,7 +206,7 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 final String msg = "Proxy Client is not authorized to Lookup";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
             }
             return null;
         });
@@ -257,13 +257,14 @@ public class ServerCnx extends PulsarHandler {
                         log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}",
                                 remoteAddress, topicName);
                     }
+                    // TODO
                     ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
                             "Failed due to too many pending lookup requests", requestId));
                 }
             } else {
                 final String msg = "Proxy Client is not authorized to Get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
             }
             return null;
         });
@@ -339,11 +340,16 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-                proxyClientAuthRole = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                if (connect.hasOriginalPrincipal()) {
+                    proxyClientAuthRole = connect.getOriginalPrincipal();
+                } else if (connect.hasOriginalAuthData()) {
+                    proxyClientAuthRole =  getBrokerService().getAuthenticationService()
+                            .authenticate(new AuthenticationDataCommand(connect.getOriginalAuthData(), remoteAddress, null), authMethod);
+                }
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 
-                log.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod, authRole);
+                log.info("[{}] Client successfully authenticated with {} role {} and proxyClientAuthRole {}", remoteAddress, authMethod, authRole, proxyClientAuthRole);
             } catch (AuthenticationException e) {
                 String msg = "Unable to authenticate";
                 log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
@@ -651,7 +657,7 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled() && isRequestViaProxy()) {
             authorizationFuture = service.getAuthorizationManager().canProxyAsync(DestinationName.get(topicName),
-                    proxyClientAuthRole);
+                    authRole);
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }
