@@ -3,12 +3,12 @@ package org.apache.pulsar.broker.schema;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 
-public interface SchemaRegistry {
+public interface SchemaRegistry extends AutoCloseable {
 
     Schema getSchema(String schemaId);
 
-    Schema getSchema(String schemaId, int version);
+    Schema getSchema(String schemaId, long version);
 
-    int putSchema(String schemaId, SchemaType type, String schema);
+    long putSchema(String schemaId, SchemaType type, String schema);
 
 }

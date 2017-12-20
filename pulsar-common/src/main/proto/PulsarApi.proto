@@ -22,6 +22,35 @@ package pulsar.proto;
 option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
+message Schema {
+	enum Format {
+		AVRO = 0;
+		JSON = 1;
+		PROTOBUF = 2;
+		THRIFT = 3;
+	}
+
+	enum State {
+		STAGED = 1;
+		ACTIVE = 2;
+	}
+
+	optional string name = 1;
+	optional int64 version = 2;
+	optional Format format = 3;
+	optional State state = 4;
+	optional string modified_user = 5;
+	optional string modified_time = 6;
+	optional bytes schema_data = 7;
+}
+
+message Tombstone {}
+
+message SchemaEntry {
+	optional Schema schema = 3;
+	optional Tombstone tombstone = 4;
+}
+
 message MessageIdData {
 	required uint64 ledgerId = 1;
 	required uint64 entryId  = 2;
@@ -76,6 +105,7 @@ message MessageMetadata {
 	optional string encryption_algo = 14;
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
+	optional int64 schema_version = 16;
 }
 
 
@@ -173,6 +203,7 @@ message CommandSubscribe {
 	// markd-delete position  on the particular message id and
 	// will send messages from that point
 	optional MessageIdData start_message_id = 9;
+	optional int64 schema_version = 10;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -230,6 +261,7 @@ message CommandProducer {
 	/// If a producer name is specified, the name will be used,
 	/// otherwise the broker will generate a unique name
 	optional string producer_name = 4;
+	optional int64 schema_version = 5;
 }
 
 message CommandSend {
@@ -325,6 +357,7 @@ message CommandRedeliverUnacknowledgedMessages {
 
 message CommandSuccess {
 	required uint64 request_id = 1;
+	optional Schema schema = 2;
 }
 
 /// Response from CommandProducer
@@ -335,6 +368,7 @@ message CommandProducerSuccess {
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
+	optional Schema schema = 4;
 }
 
 message CommandError {

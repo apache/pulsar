@@ -91,6 +91,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -1475,4 +1476,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
+
+    @Override
+    public Schema getSchema() {
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(topic);
+    }
 }

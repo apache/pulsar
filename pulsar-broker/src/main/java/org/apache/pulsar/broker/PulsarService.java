@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.SchemaRegistryService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -115,6 +116,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
     private final String brokerVersion;
+    private SchemaRegistryService schemaRegistryService = null;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -216,6 +218,10 @@ public class PulsarService implements AutoCloseable {
                 loadManager.stop();
             }
 
+            if (schemaRegistryService != null) {
+                schemaRegistryService.close();
+            }
+
             state = State.Closed;
 
         } catch (Exception e) {
@@ -244,6 +250,8 @@ public class PulsarService implements AutoCloseable {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
             }
+
+            schemaRegistryService = new SchemaRegistryService(this);
 
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
@@ -668,5 +676,9 @@ public class PulsarService implements AutoCloseable {
 
     public String getBrokerVersion() {
         return brokerVersion;
+    }
+
+    public SchemaRegistryService getSchemaRegistryService() {
+        return schemaRegistryService;
     }
 }

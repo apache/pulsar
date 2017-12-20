@@ -132,6 +132,8 @@ public class ServerCnxTest {
     public void setup() throws Exception {
         svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
+        doReturn(new SchemaRegistryService(pulsar)).when(pulsar).getSchemaRegistryService();
+
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
         doReturn(svcConfig).when(pulsar).getConfiguration();

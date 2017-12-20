@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.api;
 
+import static com.google.protobuf.ByteString.copyFromUtf8;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
@@ -62,6 +63,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -107,7 +110,7 @@ public class Commands {
         }
 
         if (authData != null) {
-            connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
+            connectBuilder.setAuthData(copyFromUtf8(authData));
         }
 
         if (originalPrincipal != null) {
@@ -140,7 +143,7 @@ public class Commands {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion("Pulsar Client");
         connectBuilder.setAuthMethod(authMethod);
-        connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
+        connectBuilder.setAuthData(copyFromUtf8(authData));
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
@@ -177,11 +180,46 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName) {
-        return newProducerSuccess(requestId, producerName, -1);
+    private static PulsarApi.Schema.Format getSchemaFormat(SchemaType type) {
+        switch (type) {
+            case AVRO:
+                return PulsarApi.Schema.Format.AVRO;
+            case THRIFT:
+                return PulsarApi.Schema.Format.THRIFT;
+            case JSON:
+                return PulsarApi.Schema.Format.JSON;
+            case PROTOBUF:
+                return PulsarApi.Schema.Format.PROTOBUF;
+        }
+        return null;
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId) {
+    public static ByteBuf newSuccess(long requestId, Schema schema) {
+        CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
+        successBuilder.setRequestId(requestId);
+        PulsarApi.Schema.Builder schemaBuilder = null;
+        if (schema != null && !schema.isDeleted()) {
+            schemaBuilder = PulsarApi.Schema.newBuilder();
+            schemaBuilder.setFormat(getSchemaFormat(schema.getType()));
+            schemaBuilder.setVersion(schema.getVersion());
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.getSchemaInfo()));
+            successBuilder.setSchema(schemaBuilder.build());
+        }
+        CommandSuccess success = successBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success));
+        successBuilder.recycle();
+        success.recycle();
+        if (schemaBuilder != null) {
+            schemaBuilder.recycle();
+        }
+        return res;
+    }
+
+    public static ByteBuf newProducerSuccess(long requestId, String producerName) {
+        return newProducerSuccess(requestId, producerName, -1, null);
+    }
+
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, Schema schema) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
@@ -189,8 +227,19 @@ public class Commands {
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
+        PulsarApi.Schema.Builder schemaBuilder = null;
+        if (schema != null && !schema.isDeleted()) {
+            schemaBuilder = PulsarApi.Schema.newBuilder();
+            schemaBuilder.setFormat(getSchemaFormat(schema.getType()));
+            schemaBuilder.setVersion(schema.getVersion());
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.getSchemaInfo()));
+            producerSuccessBuilder.setSchema(schemaBuilder.build());
+        }
         producerSuccess.recycle();
         producerSuccessBuilder.recycle();
+        if (schemaBuilder != null) {
+            schemaBuilder.recycle();
+        }
         return res;
     }
 
