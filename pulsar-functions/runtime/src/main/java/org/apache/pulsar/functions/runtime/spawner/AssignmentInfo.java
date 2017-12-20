@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.functions.runtime.spawner;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
 
 /**
  * This corresponds to all the information about the a particular function assignment
@@ -38,5 +42,4 @@ class AssignmentInfo {
     private FunctionConfig functionConfig;
     private FunctionID functionId;
     private String functionVersion;
-    private SerDe serDe;
 }

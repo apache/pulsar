@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
+import lombok.Getter;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +41,7 @@ import java.util.concurrent.*;
  */
 public class JavaInstance {
     private static final Logger log = LoggerFactory.getLogger(JavaInstance.class);
-    private final List<Type> supportedInputTypes = Arrays.asList(
+    private static final List<Type> supportedInputTypes = Arrays.asList(
             Integer.TYPE,
             Double.TYPE,
             Long.TYPE,
@@ -48,41 +50,44 @@ public class JavaInstance {
             Byte.TYPE,
             Float.TYPE,
             Map.class,
-            List.class
+            List.class,
+            Object.class
     );
     private ContextImpl context;
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
+    @Getter
     private SerDe serDe;
 
-    public static Object createObject(String userClassName) {
-        Object object;
-        try {
-            Class<?> clazz = Class.forName(
-                userClassName,
-                true,
-                Thread.currentThread().getContextClassLoader());
-            object = clazz.newInstance();
-        } catch (ClassNotFoundException ex) {
-            throw new RuntimeException(ex + " User class must be in class path.");
-        } catch (InstantiationException ex) {
-            throw new RuntimeException(ex + " User class must be concrete.");
-        } catch (IllegalAccessException ex) {
-            throw new RuntimeException(ex + " User class must have a no-arg constructor.");
-        }
-        return object;
-    }
-
     public JavaInstance(JavaInstanceConfig config) {
-        this(config, createObject(config.getFunctionConfig().getClassName()));
+        this(config, Thread.currentThread().getContextClassLoader());
     }
 
-    public JavaInstance(JavaInstanceConfig config, Object object) {
+    public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader) {
+        this(
+            config,
+            Reflections.createInstance(
+                config.getFunctionConfig().getClassName(),
+                clsLoader),
+            clsLoader);
+    }
+
+    JavaInstance(JavaInstanceConfig config, Object object, ClassLoader clsLoader) {
         this.context = new ContextImpl(config, log);
+
+        // create the serde
+        if (null == config.getFunctionConfig().getSerdeClassName()) {
+            this.serDe = null;
+        } else {
+            this.serDe = Reflections.createInstance(
+                config.getFunctionConfig().getSerdeClassName(),
+                SerDe.class,
+                clsLoader);
+        }
         if (object instanceof RequestHandler) {
             requestHandler = (RequestHandler) object;
-            computeInputAndOutputTypes();
+            computeInputAndOutputTypesAndVerifySerDe();
         } else if (object instanceof RawRequestHandler) {
             rawRequestHandler = (RawRequestHandler) object;
         } else {
@@ -90,13 +95,20 @@ public class JavaInstance {
         }
 
         executorService = Executors.newFixedThreadPool(1);
-        this.serDe = config.getSerDe();
     }
 
-    private void computeInputAndOutputTypes() {
+    private void computeInputAndOutputTypesAndVerifySerDe() {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
         verifySupportedType(typeArgs[0], false);
         verifySupportedType(typeArgs[1], true);
+
+        Class<?>[] serdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+        verifySupportedType(serdeTypeArgs[0], false);
+
+        if (!typeArgs[0].equals(serdeTypeArgs[0])) {
+            throw new RuntimeException("Inconsistent types found between function class and serde class: "
+                + " function type = " + typeArgs[0] + ", serde type = " + serdeTypeArgs[0]);
+        }
     }
 
     private void verifySupportedType(Type type, boolean allowVoid) {

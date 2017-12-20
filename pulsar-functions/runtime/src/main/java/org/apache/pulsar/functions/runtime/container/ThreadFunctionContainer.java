@@ -83,7 +83,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                                 result = javaInstance.handleMessage(payload.messageId,
                                     payload.topicName, payload.msgData);
                                 ExecutionResult actualResult = ExecutionResult.fromJavaResult(result,
-                                        javaInstanceConfig.getSerDe());
+                                        javaInstance.getSerDe());
                                 payload.result.complete(actualResult);
                             } catch (InterruptedException ie) {
                                 log.info("Function thread {} is interrupted", ie);

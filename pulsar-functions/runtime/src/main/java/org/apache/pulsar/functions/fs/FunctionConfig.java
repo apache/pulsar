@@ -46,6 +46,8 @@ public class FunctionConfig {
     private String name;
     // function class name
     private String className;
+    // serde class name
+    private String serdeClassName;
     // function jar name
     private List<String> jarFiles;
     // source topic

@@ -18,23 +18,23 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
+
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.testng.annotations.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-
-import static org.testng.Assert.*;
-
 public class JavaInstanceTest {
-
-    private static final Logger log = LoggerFactory.getLogger(JavaInstanceTest.class);
 
     private class LongRunningHandler implements RequestHandler<String, String> {
         @Override
@@ -48,44 +48,15 @@ public class JavaInstanceTest {
         }
     }
 
-    private byte[] serialize(Object resultValue) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutput out = null;
-        try {
-            out = new ObjectOutputStream(bos);
-            out.writeObject(resultValue);
-            out.flush();
-            return bos.toByteArray();
-        } catch (Exception ex) {
-        } finally {
-            try {
-                bos.close();
-            } catch (IOException ex) {
-                // ignore close exception
-            }
-        }
-        return null;
+    private byte[] serialize(String resultValue) {
+        return Utf8StringSerDe.of().serialize(resultValue);
     }
 
+    @Getter
+    @Setter
     private class UnSupportedClass {
         private String name;
         private Integer age;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public Integer getAge() {
-            return age;
-        }
-
-        public void setAge(Integer age) {
-            this.age = age;
-        }
     }
 
     private class UnsupportedHandler implements RequestHandler<String, UnSupportedClass> {
@@ -108,16 +79,25 @@ public class JavaInstanceTest {
             return null;
         }
     }
+
+    private static JavaInstanceConfig createInstanceConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setSerdeClassName(Utf8StringSerDe.class.getName());
+        JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
+        instanceConfig.setFunctionConfig(functionConfig);
+        return instanceConfig;
+    }
+
     /**
      * Verify that functions running longer than time budget fails with Timeout exception
      * @throws Exception
      */
     @Test
     public void testLongRunningFunction() throws Exception {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+        JavaInstanceConfig config = createInstanceConfig();
         config.setTimeBudgetInMs(2000);
-        config.setSerDe(new JavaSerDe());
-        JavaInstance instance = new JavaInstance(config, new LongRunningHandler());
+        JavaInstance instance = new JavaInstance(
+            config, new LongRunningHandler(), Thread.currentThread().getContextClassLoader());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
 
@@ -131,12 +111,12 @@ public class JavaInstanceTest {
      */
     @Test
     public void testLambda() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+        JavaInstanceConfig config = createInstanceConfig();
         config.setTimeBudgetInMs(2000);
-        config.setSerDe(new JavaSerDe());
         JavaInstance instance = new JavaInstance(
             config,
-            (RequestHandler<String, String>) (input, context) -> input + "-lambda");
+            (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+            Thread.currentThread().getContextClassLoader());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
         assertNotNull(result.getResult());
@@ -149,9 +129,10 @@ public class JavaInstanceTest {
      */
     @Test
     public void testUnsupportedClasses() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+        JavaInstanceConfig config = createInstanceConfig();
         try {
-            JavaInstance instance = new JavaInstance(config, new UnsupportedHandler());
+            new JavaInstance(
+                config, new UnsupportedHandler(), Thread.currentThread().getContextClassLoader());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -165,9 +146,10 @@ public class JavaInstanceTest {
      */
     @Test
     public void testVoidInputClasses() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+        JavaInstanceConfig config = createInstanceConfig();
         try {
-            JavaInstance instance = new JavaInstance(config, new VoidInputHandler());
+            new JavaInstance(
+                config, new VoidInputHandler(), Thread.currentThread().getContextClassLoader());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -181,14 +163,34 @@ public class JavaInstanceTest {
      */
     @Test
     public void testVoidOutputClasses() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+        JavaInstanceConfig config = createInstanceConfig();
         config.setTimeBudgetInMs(2000);
-        config.setSerDe(new JavaSerDe());
-        JavaInstance instance = new JavaInstance(config, new VoidOutputHandler());
+        JavaInstance instance = new JavaInstance(
+            config, new VoidOutputHandler(), Thread.currentThread().getContextClassLoader());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString));
         assertNull(result.getUserException());
         assertNull(result.getTimeoutException());
         assertNull(result.getResult());
+    }
+
+    /**
+     * Verify that function type should be consistent with serde type.
+     */
+    @Test
+    public void testInconsistentType() {
+        JavaInstanceConfig config = createInstanceConfig();
+        config.setTimeBudgetInMs(2000);
+        config.getFunctionConfig().setSerdeClassName(JavaSerDe.class.getName());
+
+        try {
+            new JavaInstance(
+                config,
+                (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                Thread.currentThread().getContextClassLoader());
+            fail("Should fail constructing java instance if function type is inconsistent with serde type");
+        } catch (RuntimeException re) {
+            assertTrue(re.getMessage().startsWith("Inconsistent types found between function class and serde class:"));
+        }
     }
 }

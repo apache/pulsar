@@ -23,7 +23,7 @@ import static com.google.common.base.Charsets.UTF_8;
 /**
  * A simple Serde that treats the bytes as Java String
  */
-public class Utf8StringSerDe implements SerDe {
+public class Utf8StringSerDe implements SerDe<String> {
 
     public static Utf8StringSerDe of() {
         return INSTANCE;
@@ -32,13 +32,12 @@ public class Utf8StringSerDe implements SerDe {
     private static final Utf8StringSerDe INSTANCE = new Utf8StringSerDe();
 
     @Override
-    public byte[] serialize(Object resultValue) {
-        String string = (String) resultValue;
+    public byte[] serialize(String string) {
         return string.getBytes(UTF_8);
     }
 
     @Override
-    public Object deserialize(byte[] data) {
+    public String deserialize(byte[] data) {
         return new String(data, UTF_8);
     }
 }

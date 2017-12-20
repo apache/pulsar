@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * Java Serialization based SerDe
  */
 @Slf4j
-public class JavaSerDe implements SerDe {
+public class JavaSerDe implements SerDe<Object> {
 
     public static JavaSerDe of() {
         return INSTANCE;

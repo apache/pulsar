@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime.serde;
 /**
  * An interface for serializer/deserializer.
  */
-public interface SerDe {
-    Object deserialize(byte[] input);
-    byte[] serialize(Object input);
+public interface SerDe<T> {
+    T deserialize(byte[] input);
+    byte[] serialize(T input);
 }
