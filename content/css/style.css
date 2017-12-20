@@ -9421,6 +9421,8 @@ span.popover-term {
     margin-bottom: 50px; } }
 .rest-api-container, .docs-container {
   margin-top: 50px; }
+  .rest-api-container h4 + ul, .docs-container h4 + ul {
+    margin-top: 1rem; }
   .rest-api-container ul ul, .docs-container ul ul {
     margin: 8px 0; }
   .rest-api-container article section.docs-header, .docs-container article section.docs-header {
@@ -9541,7 +9543,7 @@ span.popover-term {
       .rest-api-container article section.content table.env-var th:first-child, .docs-container article section.content table.env-var th:first-child {
         min-width: 200px; }
     .rest-api-container article section.content p + table, .rest-api-container article section.content table + p, .rest-api-container article section.content table + h4, .rest-api-container article section.content h4 + .highlighter-rouge, .docs-container article section.content p + table, .docs-container article section.content table + p, .docs-container article section.content table + h4, .docs-container article section.content h4 + .highlighter-rouge {
-      margin-top: 20px; }
+      margin-top: 15px; }
     .rest-api-container article section.content .highlighter-rouge + table, .rest-api-container article section.content .highlighter-rouge + h4, .docs-container article section.content .highlighter-rouge + table, .docs-container article section.content .highlighter-rouge + h4 {
       margin-top: 20px; }
 
