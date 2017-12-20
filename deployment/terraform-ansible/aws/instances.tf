@@ -1,5 +1,5 @@
 resource "aws_instance" "zookeeper" {
-  ami                    = "${var.ami}"
+  ami                    = "${var.aws_ami}"
   instance_type          = "${var.instance_types["zookeeper"]}"
   key_name               = "${aws_key_pair.default.id}"
   subnet_id              = "${aws_subnet.default.id}"
@@ -12,7 +12,7 @@ resource "aws_instance" "zookeeper" {
 }
 
 resource "aws_instance" "pulsar" {
-  ami                         = "${var.ami}"
+  ami                         = "${var.aws_ami}"
   instance_type               = "${var.instance_types["pulsar"]}"
   key_name                    = "${aws_key_pair.default.id}"
   subnet_id                   = "${aws_subnet.default.id}"

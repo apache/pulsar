@@ -22,7 +22,7 @@ variable "availability_zone" {
   description = "The AWS availability zone in which the cluster will run"
 }
 
-variable "ami" {
+variable "aws_ami" {
   description = "The AWS AMI to be used by the Pulsar cluster"
 }
 
