@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.runtime.instance;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.runtime.container.JavaSerDe;
+import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;

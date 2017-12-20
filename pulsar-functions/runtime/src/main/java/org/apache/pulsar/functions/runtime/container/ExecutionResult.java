@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.runtime.container;
 
 import lombok.*;
 import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 /**

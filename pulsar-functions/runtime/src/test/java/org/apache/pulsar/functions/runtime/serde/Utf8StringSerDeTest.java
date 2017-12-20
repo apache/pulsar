@@ -16,27 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime.serde;
 
-import lombok.*;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
+import static org.testng.Assert.assertEquals;
+
+import org.junit.Test;
 
 /**
- * This corresponds to all the information about the a particular function assignment
- * to a spawner.
+ * Unit test of {@link Utf8StringSerDe}.
  */
+public class Utf8StringSerDeTest {
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-class AssignmentInfo {
-    private FunctionConfig functionConfig;
-    private FunctionID functionId;
-    private String functionVersion;
-    private SerDe serDe;
+    @Test
+    public void testSerDe() {
+        String message = "test-serde-utf8-string";
+
+        byte[] data = Utf8StringSerDe.of().serialize(message);
+        String deserializedMsg = (String) Utf8StringSerDe.of().deserialize(data);
+
+        assertEquals(message, deserializedMsg);
+    }
+
 }

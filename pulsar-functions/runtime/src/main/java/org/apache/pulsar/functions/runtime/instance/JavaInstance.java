@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime.instance;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.runtime.container.SerDe;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
