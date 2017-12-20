@@ -27,7 +27,6 @@ import java.util.List;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
@@ -54,7 +53,6 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--serde-classname", description = "SerDe\n")
         protected String serDeClassName;
-        protected SerDe serDe;
 
         @Parameter(names = "--function-config", description = "Function Config\n")
         protected String fnConfigFile;
@@ -80,7 +78,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setClassName(className);
             }
             if (null != serDeClassName) {
-                serDe = createSerDe(serDeClassName);
+                functionConfig.setSerdeClassName(serDeClassName);
             }
             if (null != jarFiles) {
                 functionConfig.setJarFiles(jarFiles);
@@ -109,28 +107,12 @@ public class CmdFunctions extends CmdBase {
             Spawner spawner = Spawner.createSpawner(
                 functionConfig,
                 limitsConfig,
-                serDe,
                 admin.getServiceUrl().toString());
 
             spawner.start();
             spawner.join();
         }
 
-    }
-
-    SerDe createSerDe(String className) {
-        SerDe retval;
-        try {
-            Class<?> clazz = Class.forName(className);
-            retval = (SerDe) clazz.newInstance();
-        } catch (ClassNotFoundException ex) {
-            throw new RuntimeException(ex + " User class must be in class path.");
-        } catch (InstantiationException ex) {
-            throw new RuntimeException(ex + " User class must be concrete.");
-        } catch (IllegalAccessException ex) {
-            throw new RuntimeException(ex + " User class must have a no-arg constructor.");
-        }
-        return retval;
     }
 
     public CmdFunctions(PulsarAdmin admin) {

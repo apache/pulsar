@@ -28,7 +28,6 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.subscribermanager.SubscriberManager;
 
@@ -36,13 +35,11 @@ public class Spawner {
 
     public static Spawner createSpawner(FunctionConfig fnConfig,
                                         LimitsConfig limitsConfig,
-                                        SerDe serDe,
                                         String pulsarBrokerRootUrl) {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
             new FunctionID(),
-            UUID.randomUUID().toString(),
-            serDe
+            UUID.randomUUID().toString()
         );
         return new Spawner(
             limitsConfig,
@@ -85,7 +82,6 @@ public class Spawner {
         javaInstanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
         javaInstanceConfig.setFunctionId(assignmentInfo.getFunctionId());
         javaInstanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
-        javaInstanceConfig.setSerDe(assignmentInfo.getSerDe());
         javaInstanceConfig.setTimeBudgetInMs(limitsConfig.getTimeBudgetInMs());
         javaInstanceConfig.setMaxMemory(limitsConfig.getMaxMemory());
         return javaInstanceConfig;
