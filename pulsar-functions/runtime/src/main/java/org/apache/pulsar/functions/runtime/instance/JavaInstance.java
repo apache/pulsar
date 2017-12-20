@@ -18,47 +18,67 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
+import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.*;
 import java.lang.reflect.Type;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
 
 /**
  * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
  * program if invoking via a process based invocation or using JavaInstance using a thread
  * based invocation.
  */
+@Slf4j
 public class JavaInstance {
-    private static final Logger log = LoggerFactory.getLogger(JavaInstance.class);
-    private static final List<Type> supportedInputTypes = Arrays.asList(
-            Integer.TYPE,
-            Double.TYPE,
-            Long.TYPE,
-            String.class,
-            Short.TYPE,
-            Byte.TYPE,
-            Float.TYPE,
-            Map.class,
-            List.class,
-            Object.class
+
+    private static final Set<Type> supportedInputTypes = Sets.newHashSet(
+        Integer.TYPE,
+        Double.TYPE,
+        Long.TYPE,
+        String.class,
+        Short.TYPE,
+        Byte.TYPE,
+        Float.TYPE,
+        Map.class,
+        List.class,
+        Object.class
     );
+
+    private static SerDe initializeSerDe(String serdeClassName, ClassLoader classLoader) {
+        if (null == serdeClassName) {
+            return null;
+        } else {
+            return Reflections.createInstance(
+                serdeClassName,
+                SerDe.class,
+                classLoader);
+        }
+    }
+
     private ContextImpl context;
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
+    private SerDe inputSerDe;
     @Getter
-    private SerDe serDe;
+    private SerDe outputSerDe;
 
     public JavaInstance(JavaInstanceConfig config) {
         this(config, Thread.currentThread().getContextClassLoader());
@@ -77,14 +97,9 @@ public class JavaInstance {
         this.context = new ContextImpl(config, log);
 
         // create the serde
-        if (null == config.getFunctionConfig().getSerdeClassName()) {
-            this.serDe = null;
-        } else {
-            this.serDe = Reflections.createInstance(
-                config.getFunctionConfig().getSerdeClassName(),
-                SerDe.class,
-                clsLoader);
-        }
+        this.inputSerDe = initializeSerDe(config.getFunctionConfig().getInputSerdeClassName(), clsLoader);
+        this.outputSerDe = initializeSerDe(config.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
+        // create the functions
         if (object instanceof RequestHandler) {
             requestHandler = (RequestHandler) object;
             computeInputAndOutputTypesAndVerifySerDe();
@@ -102,12 +117,20 @@ public class JavaInstance {
         verifySupportedType(typeArgs[0], false);
         verifySupportedType(typeArgs[1], true);
 
-        Class<?>[] serdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-        verifySupportedType(serdeTypeArgs[0], false);
+        Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, inputSerDe.getClass());
+        verifySupportedType(inputSerdeTypeArgs[0], false);
+        if (!typeArgs[0].equals(inputSerdeTypeArgs[0])) {
+            throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
+                + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
+        }
 
-        if (!typeArgs[0].equals(serdeTypeArgs[0])) {
-            throw new RuntimeException("Inconsistent types found between function class and serde class: "
-                + " function type = " + typeArgs[0] + ", serde type = " + serdeTypeArgs[0]);
+        if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
+            Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
+            verifySupportedType(outputSerdeTypeArgs[0], false);
+            if (!typeArgs[1].equals(outputSerdeTypeArgs[0])) {
+                throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
+                    + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
+            }
         }
     }
 
@@ -125,7 +148,7 @@ public class JavaInstance {
         Future<?> future = executorService.submit(() -> {
             if (requestHandler != null) {
                 try {
-                    Object input = serDe.deserialize(data);
+                    Object input = inputSerDe.deserialize(data);
                     Object output = requestHandler.handleRequest(input, context);
                     executionResult.setResult(output);
                 } catch (Exception ex) {
