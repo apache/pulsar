@@ -82,7 +82,8 @@ public class JavaInstanceTest {
 
     private static JavaInstanceConfig createInstanceConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfig.setInputSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfig.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
         JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
         instanceConfig.setFunctionConfig(functionConfig);
         return instanceConfig;
@@ -175,13 +176,13 @@ public class JavaInstanceTest {
     }
 
     /**
-     * Verify that function type should be consistent with serde type.
+     * Verify that function input type should be consistent with input serde type.
      */
     @Test
-    public void testInconsistentType() {
+    public void testInconsistentInputType() {
         JavaInstanceConfig config = createInstanceConfig();
         config.setTimeBudgetInMs(2000);
-        config.getFunctionConfig().setSerdeClassName(JavaSerDe.class.getName());
+        config.getFunctionConfig().setInputSerdeClassName(JavaSerDe.class.getName());
 
         try {
             new JavaInstance(
@@ -190,7 +191,27 @@ public class JavaInstanceTest {
                 Thread.currentThread().getContextClassLoader());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
-            assertTrue(re.getMessage().startsWith("Inconsistent types found between function class and serde class:"));
+            assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
+        }
+    }
+
+    /**
+     * Verify that function output type should be consistent with output serde type.
+     */
+    @Test
+    public void testInconsistentOutputType() {
+        JavaInstanceConfig config = createInstanceConfig();
+        config.setTimeBudgetInMs(2000);
+        config.getFunctionConfig().setOutputSerdeClassName(JavaSerDe.class.getName());
+
+        try {
+            new JavaInstance(
+                config,
+                (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                Thread.currentThread().getContextClassLoader());
+            fail("Should fail constructing java instance if function type is inconsistent with serde type");
+        } catch (RuntimeException re) {
+            assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
         }
     }
 }

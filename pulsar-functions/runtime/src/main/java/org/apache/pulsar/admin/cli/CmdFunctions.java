@@ -51,8 +51,11 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
         protected String sinkTopicName;
 
-        @Parameter(names = "--serde-classname", description = "SerDe\n")
-        protected String serDeClassName;
+        @Parameter(names = "--input-serde-classname", description = "Input SerDe\n")
+        protected String inputSerdeClassName;
+
+        @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
+        protected String outputSerdeClassName;
 
         @Parameter(names = "--function-config", description = "Function Config\n")
         protected String fnConfigFile;
@@ -77,8 +80,11 @@ public class CmdFunctions extends CmdBase {
             if (null != className) {
                 functionConfig.setClassName(className);
             }
-            if (null != serDeClassName) {
-                functionConfig.setSerdeClassName(serDeClassName);
+            if (null != inputSerdeClassName) {
+                functionConfig.setInputSerdeClassName(inputSerdeClassName);
+            }
+            if (null != outputSerdeClassName) {
+                functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
             if (null != jarFiles) {
                 functionConfig.setJarFiles(jarFiles);
