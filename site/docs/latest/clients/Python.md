@@ -92,7 +92,7 @@ client.close()
 This creates a {% popover consumer %} with the `my-sub` {% popover subscription %} on the `persistent://sample/standalone/ns/my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and {% popover acknowledge %} each message to the Pulsar {% popover broker %}:
 
 ```python
-SUBSCRIPTION = 'my-sub
+SUBSCRIPTION = 'my-sub'
 
 consumer = client.subscribe(TOPIC, SUBSCRIPTION)
 
