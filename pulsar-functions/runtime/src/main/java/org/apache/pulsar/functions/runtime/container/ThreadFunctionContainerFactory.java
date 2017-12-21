@@ -40,12 +40,13 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     }
 
     @Override
-    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig) {
+    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig, String jarFile) {
         return new ThreadFunctionContainer(
             instanceConfig,
             maxBufferedTuples,
             fnCache,
-            threadGroup);
+            threadGroup,
+            jarFile);
     }
 
     @Override
