@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.Iterator;
@@ -156,6 +157,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final static long WaitTimeAfterLedgerCreationFailureMs = 10000;
 
     volatile PositionImpl lastConfirmedEntry;
+    
+    protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
+    protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
     enum State {
         None, // Uninitialized
@@ -1590,18 +1594,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
-                        bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx) -> {
-                            if (rc == BKException.Code.NoSuchLedgerExistsException) {
-                                log.warn("[{}] Ledger was already deleted {}", name, ls.getLedgerId());
-                            } else if (rc != BKException.Code.OK) {
-                                log.error("[{}] Error deleting ledger {}", name, ls.getLedgerId(),
-                                        BKException.getMessage(rc));
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Deleted ledger {}", name, ls.getLedgerId());
-                                }
-                            }
-                        }, null);
+                        asyncDeleteLedger(ls.getLedgerId());
                     }
                 }
 
@@ -1693,6 +1686,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private void asyncDeleteLedger(long ledgerId) {
+        asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+    }
+
+    private void asyncDeleteLedger(long ledgerId, long retry) {
+        if (retry <= 0) {
+            log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
+            return;
+        }
+        bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+            if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
+            } else if (rc != BKException.Code.OK) {
+                log.error("[{}] Error deleting ledger {}", name, ledgerId, BKException.getMessage(rc));
+                scheduledExecutor.schedule(safeRun(() -> {
+                    asyncDeleteLedger(ledgerId, retry - 1);
+                }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Deleted ledger {}", name, ledgerId);
+                }
+            }
+        }, null);
+    }
+    
     private void deleteAllLedgers(DeleteLedgerCallback callback, Object ctx) {
         List<LedgerInfo> ledgers = Lists.newArrayList(ManagedLedgerImpl.this.ledgers.values());
         AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
