@@ -17,7 +17,7 @@
 # under the License.
 #
 
-bin/pulsar-functions functions run \
+bin/pulsar-functions functions localrun \
     --function-config conf/example.yml \
     --sink-topic persistent://sample/standalone/ns1/test_result \
     --source-topic persistent://sample/standalone/ns1/test_src \

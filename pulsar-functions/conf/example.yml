@@ -17,7 +17,7 @@
 # under the License.
 #
 
+tenant: "test"
 nameSpace: "test"
-userName: "test"
 name: "example"
 className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"

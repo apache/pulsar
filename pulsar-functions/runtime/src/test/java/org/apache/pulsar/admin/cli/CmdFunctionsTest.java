@@ -44,7 +44,7 @@ public class CmdFunctionsTest {
         CmdFunctions cmd = new CmdFunctions(admin);
         cmd.run(new String[] { "run" });
 
-        LocalRunner runner = cmd.getCmdRunner();
+        LocalRunner runner = cmd.getLocalRunner();
         assertNull(runner.getName());
         assertNull(runner.getSourceTopicName());
         assertNull(runner.getSinkTopicName());
@@ -59,13 +59,13 @@ public class CmdFunctionsTest {
         String sourceTopicName = runtime.getMethodName() + "-source-topic";
         String sinkTopicName = runtime.getMethodName() + "-sink-topic";
         cmd.run(new String[] {
-            "run",
+            "localrun",
             "--name", fnName,
             "--source-topic", sourceTopicName,
             "--sink-topic", sinkTopicName
         });
 
-        LocalRunner runner = cmd.getCmdRunner();
+        LocalRunner runner = cmd.getLocalRunner();
         assertEquals(fnName, runner.getName());
         assertEquals(sourceTopicName, runner.getSourceTopicName());
         assertEquals(sinkTopicName, runner.getSinkTopicName());
@@ -79,11 +79,11 @@ public class CmdFunctionsTest {
         URL yamlUrl = getClass().getClassLoader().getResource("test_function_config.yml");
         String configFile = yamlUrl.getPath();
         cmd.run(new String[] {
-            "run",
+            "localrun",
             "--function-config", configFile
         });
 
-        LocalRunner runner = cmd.getCmdRunner();
+        LocalRunner runner = cmd.getLocalRunner();
         assertNull(runner.getName());
         assertNull(runner.getSourceTopicName());
         assertNull(runner.getSinkTopicName());
