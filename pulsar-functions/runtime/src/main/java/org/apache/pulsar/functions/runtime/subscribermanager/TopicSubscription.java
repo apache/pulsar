@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
+
+import static java.lang.Thread.sleep;
 
 public class TopicSubscription {
     private static final Logger log = LoggerFactory.getLogger(TopicSubscription.class);
@@ -39,8 +40,8 @@ public class TopicSubscription {
     ConcurrentMap<String, FunctionContainer> subscriberMap;
     private Thread thread;
     private PulsarClient client;
+    private ConsumerConfiguration consumerConfiguration;
     private Consumer consumer;
-    private ResultsProcessor resultsProcessor;
     private volatile boolean running;
 
     TopicSubscription(String topicName, String subscriptionId, PulsarClient client,
@@ -49,31 +50,31 @@ public class TopicSubscription {
         this.subscriptionId = subscriptionId;
         subscriberMap = new ConcurrentHashMap<>();
         this.client = client;
-        this.resultsProcessor = resultsProcessor;
+        this.consumerConfiguration = new ConsumerConfiguration().setSubscriptionType(SubscriptionType.Shared);
+        consumerConfiguration.setMessageListener((consumer, msg) -> {
+            try {
+                String messageId = convertMessageIdToString(msg.getMessageId());
+                for (FunctionContainer subscriber : subscriberMap.values()) {
+                    subscriber.sendMessage(topicName, messageId, msg.getData())
+                            .thenApply(result -> resultsProcessor.handleResult(subscriber, result));
+                }
+                // Acknowledge the message so that it can be deleted by broker
+                consumer.acknowledge(msg);
+            } catch (Exception ex) {
+                log.error("Got exception while dealing with topic " + topicName, ex);
+            }
+        });
         running = false;
     }
 
     public void start() throws Exception {
         String subscriptionName = "fn-" + subscriptionId + "-" + topicName + "-subscriber";
-        consumer = client.subscribe(topicName, subscriptionName,
-                new ConsumerConfiguration().setSubscriptionType(SubscriptionType.Shared));
+        consumer = client.subscribe(topicName, subscriptionName, consumerConfiguration);
         running = true;
         thread = new Thread(() -> {
             try {
                 while (running) {
-                    // Wait for a message
-                    Message msg = consumer.receive(1000, TimeUnit.MILLISECONDS);
-                    if (null == msg) {
-                        continue;
-                    }
-                    String messageId = convertMessageIdToString(msg.getMessageId());
-                    for (FunctionContainer subscriber : subscriberMap.values()) {
-                        subscriber.sendMessage(topicName, messageId, msg.getData())
-                                .thenApply(result -> resultsProcessor.handleResult(subscriber, result));
-                    }
-
-                    // Acknowledge the message so that it can be deleted by broker
-                    consumer.acknowledge(msg);
+                    sleep(1000);
                 }
             } catch (Exception ex) {
                 log.error("Got exception while dealing with topic " + topicName, ex);
