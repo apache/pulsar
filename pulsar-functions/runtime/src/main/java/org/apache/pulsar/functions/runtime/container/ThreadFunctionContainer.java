@@ -64,13 +64,15 @@ class ThreadFunctionContainer implements FunctionContainer {
     private final FunctionCacheManager fnCache;
     private LinkedBlockingQueue<Payload> queue;
     private String id;
+    private String jarFile;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig, int maxBufferedTuples,
-                            FunctionCacheManager fnCache, ThreadGroup threadGroup) {
+                            FunctionCacheManager fnCache, ThreadGroup threadGroup, String jarFile) {
         this.javaInstanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
+        this.jarFile = jarFile;
         this.fnThread = new Thread(threadGroup,
                 new Runnable() {
                     @Override
@@ -111,7 +113,7 @@ class ThreadFunctionContainer implements FunctionContainer {
         fnCache.registerFunctionInstance(
             javaInstanceConfig.getFunctionId(),
             javaInstanceConfig.getInstanceId(),
-            Arrays.asList(javaInstanceConfig.getFunctionConfig().getCodeFile()),
+            Arrays.asList(jarFile),
             Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
             javaInstanceConfig.getFunctionConfig().getName());

@@ -35,7 +35,8 @@ public class Spawner {
 
     public static Spawner createSpawner(FunctionConfig fnConfig,
                                         LimitsConfig limitsConfig,
-                                        String pulsarBrokerRootUrl) {
+                                        String pulsarBrokerRootUrl,
+                                        String codeFile) {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
             new FunctionID(),
@@ -44,7 +45,8 @@ public class Spawner {
         return new Spawner(
             limitsConfig,
             assignmentInfo,
-            pulsarBrokerRootUrl);
+            pulsarBrokerRootUrl,
+            codeFile);
     }
 
     private LimitsConfig limitsConfig;
@@ -53,17 +55,20 @@ public class Spawner {
     private ThreadFunctionContainerFactory threadFunctionContainerFactory;
     private FunctionContainer functionContainer;
     private SubscriberManager subscriberManager;
+    private String codeFile;
 
-    public Spawner(LimitsConfig limitsConfig, AssignmentInfo assignmentInfo, String pulsarBrokerRootUrl) {
+    public Spawner(LimitsConfig limitsConfig, AssignmentInfo assignmentInfo, String pulsarBrokerRootUrl,
+                   String codeFile) {
         this.limitsConfig = limitsConfig;
         this.assignmentInfo = assignmentInfo;
         this.pulsarBrokerRootUrl = pulsarBrokerRootUrl;
         this.threadFunctionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples());
+        this.codeFile = codeFile;
     }
 
     public void start() throws Exception {
         subscriberManager = new SubscriberManager(createSubscriptionName(), pulsarBrokerRootUrl);
-        functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig());
+        functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         subscriberManager.addSubscriber(assignmentInfo.getFunctionConfig().getSourceTopic(), functionContainer);
         functionContainer.start();
     }

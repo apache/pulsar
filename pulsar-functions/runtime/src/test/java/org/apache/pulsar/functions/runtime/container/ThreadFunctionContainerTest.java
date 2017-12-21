@@ -97,7 +97,7 @@ public class ThreadFunctionContainerTest {
     public void testConstructor() {
         JavaInstanceConfig config = createJavaInstanceConfig();
 
-        ThreadFunctionContainer container = factory.createContainer(config);
+        ThreadFunctionContainer container = factory.createContainer(config, jarFile);
         assertEquals(
             "fn-" + config.getFunctionConfig().getName() + "-instance-" + config.getInstanceId(),
             container.getFnThread().getName());

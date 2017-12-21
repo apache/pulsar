@@ -108,7 +108,7 @@ public class CmdFunctions extends CmdBase {
             Spawner spawner = Spawner.createSpawner(
                 functionConfig,
                 limitsConfig,
-                admin.getServiceUrl().toString());
+                admin.getServiceUrl().toString(), jarFile);
 
             spawner.start();
             spawner.join();

@@ -33,7 +33,7 @@ public interface FunctionContainerFactory extends AutoCloseable {
      * @return function container to start/stop instance
      */
     FunctionContainer createContainer(
-        JavaInstanceConfig instanceConfig);
+        JavaInstanceConfig instanceConfig, String codeFile);
 
     @Override
     void close();
