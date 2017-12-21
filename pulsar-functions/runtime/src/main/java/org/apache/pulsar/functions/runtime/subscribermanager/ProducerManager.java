@@ -50,6 +50,6 @@ public class ProducerManager {
         if (!producerMap.containsKey(topicName)) {
             createProducer(topicName);
         }
-        producerMap.get(topicName).send(data);
+        producerMap.get(topicName).sendAsync(data);
     }
 }
