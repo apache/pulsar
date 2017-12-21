@@ -109,7 +109,10 @@ public class JavaInstance {
             throw new RuntimeException("User class must be either a Request or Raw Request Handler");
         }
 
-        executorService = Executors.newFixedThreadPool(1);
+        if (config.getTimeBudgetInMs() > 0) {
+            log.info("Spinning up a executor service since time budget is infinite");
+            executorService = Executors.newFixedThreadPool(1);
+        }
     }
 
     private void computeInputAndOutputTypesAndVerifySerDe() {
@@ -145,25 +148,11 @@ public class JavaInstance {
     public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
         context.setCurrentMessageContext(messageId, topicName);
         JavaExecutionResult executionResult = new JavaExecutionResult();
+        if (executorService == null) {
+            return processMessage(executionResult, data);
+        }
         Future<?> future = executorService.submit(() -> {
-            if (requestHandler != null) {
-                try {
-                    Object input = inputSerDe.deserialize(data);
-                    Object output = requestHandler.handleRequest(input, context);
-                    executionResult.setResult(output);
-                } catch (Exception ex) {
-                    executionResult.setUserException(ex);
-                }
-            } else if (rawRequestHandler != null) {
-                try {
-                    ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    rawRequestHandler.handleRequest(inputStream, outputStream, context);
-                    executionResult.setResult(outputStream.toByteArray());
-                } catch (Exception ex) {
-                    executionResult.setUserException(ex);
-                }
-            }
+            return processMessage(executionResult, data);
         });
         try {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
@@ -179,6 +168,28 @@ public class JavaInstance {
             executionResult.setTimeoutException(e);
         }
 
+        return executionResult;
+    }
+
+    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, byte[] data) {
+        if (requestHandler != null) {
+            try {
+                Object input = inputSerDe.deserialize(data);
+                Object output = requestHandler.handleRequest(input, context);
+                executionResult.setResult(output);
+            } catch (Exception ex) {
+                executionResult.setUserException(ex);
+            }
+        } else if (rawRequestHandler != null) {
+            try {
+                ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                rawRequestHandler.handleRequest(inputStream, outputStream, context);
+                executionResult.setResult(outputStream.toByteArray());
+            } catch (Exception ex) {
+                executionResult.setUserException(ex);
+            }
+        }
         return executionResult;
     }
 }

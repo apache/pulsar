@@ -100,7 +100,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             LimitsConfig limitsConfig = new LimitsConfig(
-                60000,   // 60 seconds
+                -1,   // No timelimit
                 1024,       // 1GB
                 1024   // 1024 outstanding tuples
             );
