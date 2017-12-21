@@ -59,7 +59,7 @@ public class TopicSubscription {
                             .thenApply(result -> resultsProcessor.handleResult(subscriber, result));
                 }
                 // Acknowledge the message so that it can be deleted by broker
-                consumer.acknowledge(msg);
+                consumer.acknowledgeAsync(msg);
             } catch (Exception ex) {
                 log.error("Got exception while dealing with topic " + topicName, ex);
             }
