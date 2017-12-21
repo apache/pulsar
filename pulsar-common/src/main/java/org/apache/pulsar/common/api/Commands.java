@@ -622,7 +622,7 @@ public class Commands {
     }
 
     static ByteBuf newPong() {
-    	return cmdPong.retainedDuplicate();
+        return cmdPong.retainedDuplicate();
     }
 
     private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
