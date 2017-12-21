@@ -74,7 +74,6 @@ public class ThreadFunctionContainerTest {
     FunctionConfig createFunctionConfig() {
         FunctionConfig config = new FunctionConfig();
         config.setName(runtime.getMethodName());
-        config.setCodeFile(jarFile);
         config.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
         config.setSourceTopic(runtime.getMethodName() + "-source");
         config.setSinkTopic(runtime.getMethodName() + "-sink");

@@ -29,6 +29,9 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
     private LocalRunner localRunner;
@@ -84,9 +87,6 @@ public class CmdFunctions extends CmdBase {
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
-            if (null != jarFile) {
-                functionConfig.setCodeFile(jarFile);
-            }
 
             run_functions_cmd();
         }
@@ -120,7 +120,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().createFunction(functionConfig, functionConfig.loadCodeFile());
+            a.functions().createFunction(functionConfig, Files.readAllBytes(Paths.get(jarFile)));
         }
     }
 

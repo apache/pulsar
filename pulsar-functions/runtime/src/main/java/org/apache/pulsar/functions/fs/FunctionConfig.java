@@ -22,9 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -54,8 +51,6 @@ public class FunctionConfig {
     private String inputSerdeClassName;
     // output serde class name
     private String outputSerdeClassName;
-    // function jar name
-    private String codeFile;
     // source topic
     private String sourceTopic;
     // sink topic
@@ -64,9 +59,5 @@ public class FunctionConfig {
     public static FunctionConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FunctionConfig.class);
-    }
-
-    public byte[] loadCodeFile() throws Exception {
-        return Files.readAllBytes(Paths.get(codeFile));
     }
 }
