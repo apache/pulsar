@@ -192,11 +192,17 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 LOG.debug("[{}] Receiving the next message from pulsar consumer to emit to the collector", spoutId);
             }
             try {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
-                if (msg != null) {
-                    ++messagesReceived;
-                    messageSizeReceived += msg.getData().length;
-                    mapToValueAndEmit(msg);
+                boolean done = false;
+                while (!done) {
+                    msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        ++messagesReceived;
+                        messageSizeReceived += msg.getData().length;
+                        done = mapToValueAndEmit(msg);
+                    } else {
+                        // queue is empty and nothing to emit
+                        done = true;
+                    }
                 }
             } catch (PulsarClientException e) {
                 LOG.error("[{}] Error receiving message from pulsar consumer", spoutId, e);
@@ -238,7 +244,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     }
 
-    private void mapToValueAndEmit(Message msg) {
+    private boolean mapToValueAndEmit(Message msg) {
         if (msg != null) {
             Values values = pulsarSpoutConf.getMessageToValuesMapper().toValues(msg);
             ++pendingAcks;
@@ -248,16 +254,16 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     LOG.debug("[{}] Dropping message {}", spoutId, msg.getMessageId());
                 }
                 ack(msg);
-                // tries to emit next available tuple
-                emitNextAvailableTuple();
             } else {
                 collector.emit(values, msg);
                 ++messagesEmitted;
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Emitted message {} to the collector", spoutId, msg.getMessageId());
                 }
+                return true;
             }
         }
+        return false;
     }
 
     public class MessageRetries {
