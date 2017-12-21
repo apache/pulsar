@@ -144,14 +144,8 @@ public class DirectProxyHandler {
             }
             ProxyConfiguration config = proxyService.getConfiguration();
             ByteBuf command = null;
-            if (config.sendClientAuthRole() ) {
-                command = Commands.newConnect(authentication.getAuthMethodName(), authData,
-                        "Pulsar proxy", null /* target broker */, proxyConnection.clientAuthRole);
-            } else {
-                command = Commands.newConnect(authentication.getAuthMethodName(), authData,
-                        "Pulsar proxy", null /* target broker */, null, proxyConnection.clientAuthData);
-                
-            }
+            command = Commands.newConnect(authentication.getAuthMethodName(), authData, "Pulsar proxy",
+                    null /* target broker */, proxyConnection.clientAuthRole);
             outboundChannel.writeAndFlush(command);
             outboundChannel.read();
         }

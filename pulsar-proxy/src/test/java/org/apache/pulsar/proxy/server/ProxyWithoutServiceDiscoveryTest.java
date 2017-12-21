@@ -102,7 +102,6 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setDiscoveryServiceEnabled(false);
         proxyConfig.setDiscoveryServiceURL("pulsar://localhost:" + BROKER_PORT);
         proxyConfig.setDiscoveryServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
-        proxyConfig.setSendClientAuthRole(false);
         
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setServicePortTls(PortManager.nextFreePort());

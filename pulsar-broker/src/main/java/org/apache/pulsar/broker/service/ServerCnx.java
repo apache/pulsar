@@ -340,12 +340,8 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-                if (connect.hasOriginalPrincipal()) {
-                    proxyClientAuthRole = connect.getOriginalPrincipal();
-                } else if (connect.hasOriginalAuthData()) {
-                    proxyClientAuthRole =  getBrokerService().getAuthenticationService()
-                            .authenticate(new AuthenticationDataCommand(connect.getOriginalAuthData(), remoteAddress, null), authMethod);
-                }
+
+                proxyClientAuthRole = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 

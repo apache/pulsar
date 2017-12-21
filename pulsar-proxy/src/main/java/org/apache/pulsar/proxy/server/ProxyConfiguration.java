@@ -63,10 +63,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
-    // Extract authRole a.k.a originalPrincipal and send to the broker
-    // If the value is set to true then the proxy extracts the authRole and sends to the broker for authorization.
-    // If the value is set to false then the proxy sends the authorization header as it is to the broker.
-    private boolean sendClientAuthRole = true;
     
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
@@ -272,13 +268,5 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
-    }
-    
-    public boolean sendClientAuthRole() {
-        return sendClientAuthRole;
-    }
-    
-    public void setSendClientAuthRole(boolean sendClientAuthRole) {
-        this.sendClientAuthRole = sendClientAuthRole;
     }
 }
