@@ -63,7 +63,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected ServiceConfiguration conf;
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
-    protected PulsarClient<byte[], Message> pulsarClient;
+    protected PulsarClient pulsarClient;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 

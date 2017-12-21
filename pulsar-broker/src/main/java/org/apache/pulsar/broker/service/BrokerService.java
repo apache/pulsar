@@ -136,7 +136,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics;
 
-    private final ConcurrentOpenHashMap<String, PulsarClient<byte[], Message>> replicationClients;
+    private final ConcurrentOpenHashMap<String, PulsarClient> replicationClients;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
@@ -486,8 +486,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return future;
     }
 
-    public PulsarClient<byte[], Message> getReplicationClient(String cluster) {
-        PulsarClient<byte[], Message> client = replicationClients.get(cluster);
+    public PulsarClient getReplicationClient(String cluster) {
+        PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
             return client;
         }
@@ -973,7 +973,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return workerGroup;
     }
 
-    public ConcurrentOpenHashMap<String, PulsarClient<byte[], Message>> getReplicationClients() {
+    public ConcurrentOpenHashMap<String, PulsarClient> getReplicationClients() {
         return replicationClients;
     }
 

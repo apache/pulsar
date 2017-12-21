@@ -661,7 +661,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient<byte[], Message> client = PulsarClient.create(pulsarUrl.toString(), clientConf);
+        PulsarClient client = PulsarClient.create(pulsarUrl.toString(), clientConf);
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         Consumer consumer = client.subscribe(persistentTopicName, "my-sub", conf);

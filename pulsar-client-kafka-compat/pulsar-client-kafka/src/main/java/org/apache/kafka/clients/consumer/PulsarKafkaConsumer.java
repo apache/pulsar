@@ -67,7 +67,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private static final long serialVersionUID = 1L;
 
-    private final PulsarClient<byte[], Message> client;
+    private final PulsarClient client;
 
     private final Deserializer<K> keyDeserializer;
     private final Deserializer<V> valueDeserializer;

@@ -47,7 +47,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-public class PulsarClientImpl implements PulsarClient<byte[], Message> {
+public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
@@ -384,6 +384,78 @@ public class PulsarClientImpl implements PulsarClient<byte[], Message> {
         });
 
         return closeFuture;
+    }
+
+    @Override
+    public <T> Producer<T> createProducer(String topic, Codec<T> codec) throws PulsarClientException {
+        return new TypedProducerImpl<>(createProducer(topic), codec);
+    }
+
+    @Override
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, Codec<T> codec) {
+        return createProducerAsync(topic).thenApply((producer ->
+                new TypedProducerImpl<>(producer, codec))
+        );
+    }
+
+    @Override
+    public <T> Producer<T> createProducer(String topic, ProducerConfiguration conf, Codec<T> codec) throws PulsarClientException {
+        return new TypedProducerImpl<>(createProducer(topic, conf), codec);
+    }
+
+    @Override
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf, Codec<T> codec) {
+        return createProducerAsync(topic, conf).thenApply((producer) ->
+                new TypedProducerImpl<>(producer, codec)
+        );
+    }
+
+    @Override
+    public <T> Consumer<TypedMessage<T>> subscribe(String topic, String subscription, Codec<T> codec) throws PulsarClientException {
+        return new TypedConsumerImpl<>(subscribe(topic, subscription), codec);
+    }
+
+    @Override
+    public <T> CompletableFuture<Consumer<TypedMessage<T>>> subscribeAsync(String topic, String subscription, Codec<T> codec) {
+        return subscribeAsync(topic, subscription).thenApply((consumer) ->
+                new TypedConsumerImpl<>(consumer, codec)
+        );
+    }
+
+    @Override
+    public <T> Consumer<TypedMessage<T>> subscribe(String topic, String subscription, ConsumerConfig<TypedMessage<T>> conf, Codec<T> codec) throws PulsarClientException {
+        TypedConsumerConfigAdapter<T> adapted = new TypedConsumerConfigAdapter<>(conf, codec);
+        TypedConsumerImpl<T> typedConsumer = new TypedConsumerImpl<>(subscribe(topic, subscription, adapted), codec);
+        adapted.setTypedConsumer(typedConsumer);
+        return typedConsumer;
+    }
+
+    @Override
+    public <T> CompletableFuture<Consumer<TypedMessage<T>>> subscribeAsync(String topic, String subscription, ConsumerConfig<TypedMessage<T>> conf, Codec<T> codec) {
+        final TypedConsumerConfigAdapter<T> adapted = new TypedConsumerConfigAdapter<>(conf, codec);
+        return subscribeAsync(topic, subscription, adapted).thenApply((consumer) -> {
+            TypedConsumerImpl<T> typedConsumer = new TypedConsumerImpl<>(consumer, codec);
+            adapted.setTypedConsumer(typedConsumer);
+            return typedConsumer;
+        });
+    }
+
+    @Override
+    public <T> Reader<TypedMessage<T>> createReader(String topic, MessageId startMessageId, ReaderConfig<TypedMessage<T>> conf, Codec<T> codec) throws PulsarClientException {
+        TypedReaderConfigAdapter<T> adapted = new TypedReaderConfigAdapter<>(conf, codec);
+        TypedReaderImpl<T> typedReader = new TypedReaderImpl<>(createReader(topic, startMessageId, adapted), codec);
+        adapted.setTypedReader(typedReader);
+        return typedReader;
+    }
+
+    @Override
+    public <T> CompletableFuture<Reader<TypedMessage<T>>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<TypedMessage<T>> conf, Codec<T> codec) {
+        final TypedReaderConfigAdapter<T> adapted = new TypedReaderConfigAdapter<>(conf, codec);
+        return createReaderAsync(topic, startMessageId, adapted).thenApply((reader) -> {
+            TypedReaderImpl<T> typedReader = new TypedReaderImpl<>(reader, codec);
+            adapted.setTypedReader(typedReader);
+            return typedReader;
+        });
     }
 
     @Override

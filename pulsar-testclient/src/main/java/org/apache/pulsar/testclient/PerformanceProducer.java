@@ -231,7 +231,7 @@ public class PerformanceProducer {
 
         // Now processing command line arguments
         String prefixTopicName = arguments.destinations.get(0);
-        List<Future<Producer>> futures = Lists.newArrayList();
+        List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setConnectionsPerBroker(arguments.maxConnections);
@@ -296,8 +296,8 @@ public class PerformanceProducer {
             }
         }
 
-        final List<Producer> producers = Lists.newArrayListWithCapacity(futures.size());
-        for (Future<Producer> future : futures) {
+        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+        for (Future<Producer<byte[]>> future : futures) {
             producers.add(future.get());
         }
 
@@ -321,7 +321,7 @@ public class PerformanceProducer {
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
-                    for (Producer producer : producers) {
+                    for (Producer<byte[]> producer : producers) {
                         if (arguments.testTime > 0) {
                             if (System.currentTimeMillis() - startTime > arguments.testTime) {
                                 log.info("------------------- DONE -----------------------");

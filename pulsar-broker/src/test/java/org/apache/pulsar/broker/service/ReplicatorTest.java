@@ -132,9 +132,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Thread.sleep(1000L);
         // Make sure that the internal replicators map contains remote cluster info
-        ConcurrentOpenHashMap<String, PulsarClient<byte[], Message>> replicationClients1 = ns1.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient<byte[], Message>> replicationClients2 = ns2.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient<byte[], Message>> replicationClients3 = ns3.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient> replicationClients1 = ns1.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient> replicationClients2 = ns2.getReplicationClients();
+        ConcurrentOpenHashMap<String, PulsarClient> replicationClients3 = ns3.getReplicationClients();
 
         Assert.assertNotNull(replicationClients1.get("r2"));
         Assert.assertNotNull(replicationClients1.get("r3"));
@@ -213,7 +213,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
         Thread.sleep(3000);
 
-        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.anyObject());
+        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.anyString(), Mockito.<ProducerConfiguration>anyObject());
 
     }
 
