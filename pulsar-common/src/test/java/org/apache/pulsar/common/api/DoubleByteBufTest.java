@@ -30,7 +30,7 @@ public class DoubleByteBufTest {
     /**
      * Verify that readableBytes() returns writerIndex - readerIndex. In this case writerIndex is the end of the buffer
      * and readerIndex is increased by 64.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -50,5 +50,30 @@ public class DoubleByteBufTest {
             buf.skipBytes(64);
             assertEquals(buf.readableBytes(), 256 - 64 * (i + 1));
         }
+
+        buf.release();
+
+        assertEquals(buf.refCnt(), 0);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
+    }
+
+    @Test
+    public void testCapacity() throws Exception {
+
+        ByteBuf b1 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
+        b1.writerIndex(b1.capacity());
+        ByteBuf b2 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
+        b2.writerIndex(b2.capacity());
+        ByteBuf buf = DoubleByteBuf.get(b1, b2);
+
+        assertEquals(buf.capacity(), 256);
+        assertEquals(buf.maxCapacity(), 256);
+
+        buf.release();
+
+        assertEquals(buf.refCnt(), 0);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
     }
 }

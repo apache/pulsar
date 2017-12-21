@@ -20,8 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -49,15 +50,15 @@ public class Policies {
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
             Policies other = (Policies) obj;
-            return Objects.equal(auth_policies, other.auth_policies)
-                    && Objects.equal(replication_clusters, other.replication_clusters)
-                    && Objects.equal(backlog_quota_map, other.backlog_quota_map)
-                    && Objects.equal(clusterDispatchRate, other.clusterDispatchRate)
-                    && Objects.equal(deduplicationEnabled, other.deduplicationEnabled)
-                    && Objects.equal(persistence, other.persistence) && Objects.equal(bundles, other.bundles)
-                    && Objects.equal(latency_stats_sample_rate, other.latency_stats_sample_rate)
+            return Objects.equals(auth_policies, other.auth_policies)
+                    && Objects.equals(replication_clusters, other.replication_clusters)
+                    && Objects.equals(backlog_quota_map, other.backlog_quota_map)
+                    && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
+                    && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
+                    && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
-                    && Objects.equal(retention_policies, other.retention_policies);
+                    && Objects.equals(retention_policies, other.retention_policies);
         }
 
         return false;
@@ -74,7 +75,7 @@ public class Policies {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("auth_policies", auth_policies)
+        return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)

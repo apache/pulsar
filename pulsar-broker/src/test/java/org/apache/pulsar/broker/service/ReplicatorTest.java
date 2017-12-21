@@ -232,10 +232,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(pulsar1, "pulsar1 is null");
         Assert.assertNotNull(pulsar1.getNamespaceService(), "pulsar1.getNamespaceService() is null");
         NamespaceBundle globalNsBundle = pulsar1.getNamespaceService().getNamespaceBundleFactory()
-                .getFullBundle(new NamespaceName("pulsar/global/ns"));
+                .getFullBundle(NamespaceName.get("pulsar/global/ns"));
         ownerCache.tryAcquiringOwnership(globalNsBundle);
         Assert.assertNotNull(ownerCache.getOwnedBundle(globalNsBundle),
-                "pulsar1.getNamespaceService().getOwnedServiceUnit(new NamespaceName(\"pulsar/global/ns\")) is null");
+                "pulsar1.getNamespaceService().getOwnedServiceUnit(NamespaceName.get(\"pulsar/global/ns\")) is null");
         Field stateField = OwnedBundle.class.getDeclaredField("isActive");
         stateField.setAccessible(true);
         // set the namespace to be disabled

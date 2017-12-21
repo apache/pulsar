@@ -46,6 +46,11 @@ public class RangeCacheTest {
         }
 
         @Override
+        public ReferenceCounted touch(Object hint) {
+            return this;
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if (obj instanceof RefString) {
                 return this.s.equals(((RefString) obj).s);

@@ -21,9 +21,9 @@ package org.apache.pulsar.common.policies.data;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.LinkedHashSet;
-import java.util.SortedSet;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class ClusterData {
     private String serviceUrl;
@@ -45,7 +45,7 @@ public class ClusterData {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
     }
-    
+
     public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls) {
         this.serviceUrl = serviceUrl;
         this.serviceUrlTls = serviceUrlTls;
@@ -60,7 +60,7 @@ public class ClusterData {
         this.brokerServiceUrl = other.brokerServiceUrl;
         this.brokerServiceUrlTls = other.brokerServiceUrlTls;
     }
-    
+
     public String getServiceUrl() {
         return serviceUrl;
     }
@@ -76,7 +76,7 @@ public class ClusterData {
     public void setServiceUrlTls(String serviceUrlTls) {
         this.serviceUrlTls = serviceUrlTls;
     }
-    
+
     public String getBrokerServiceUrl() {
         return brokerServiceUrl;
     }
@@ -105,9 +105,9 @@ public class ClusterData {
     public boolean equals(Object obj) {
         if (obj instanceof ClusterData) {
             ClusterData other = (ClusterData) obj;
-            return Objects.equal(serviceUrl, other.serviceUrl) && Objects.equal(serviceUrlTls, other.serviceUrlTls)
-                    && Objects.equal(brokerServiceUrl, other.brokerServiceUrl)
-                    && Objects.equal(brokerServiceUrlTls, other.brokerServiceUrlTls);
+            return Objects.equals(serviceUrl, other.serviceUrl) && Objects.equals(serviceUrlTls, other.serviceUrlTls)
+                    && Objects.equals(brokerServiceUrl, other.brokerServiceUrl)
+                    && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls);
         }
 
         return false;
@@ -115,14 +115,14 @@ public class ClusterData {
 
     @Override
     public int hashCode() {
-       return Objects.hashCode(this.toString());
+       return Objects.hash(this.toString());
     }
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
+        return MoreObjects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
                 .add("brokerServiceUrl", brokerServiceUrl).add("brokerServiceUrlTls", brokerServiceUrlTls)
                 .add("peerClusterNames", peerClusterNames).toString();
     }
-    
+
 }

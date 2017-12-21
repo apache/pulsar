@@ -66,13 +66,13 @@ public class KafkaApiTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testSimpleProducerConsumer";
 
         Properties producerProperties = new Properties();
-        producerProperties.put("bootstrap.servers", brokerUrl.toString());
+        producerProperties.put("bootstrap.servers", lookupUrl.toString());
         producerProperties.put("key.serializer", IntegerSerializer.class.getName());
         producerProperties.put("value.serializer", StringSerializer.class.getName());
         Producer<Integer, String> producer = new KafkaProducer<>(producerProperties);
 
         Properties consumerProperties = new Properties();
-        consumerProperties.put("bootstrap.servers", brokerUrl.toString());
+        consumerProperties.put("bootstrap.servers", lookupUrl.toString());
         consumerProperties.put("group.id", "my-subscription-name");
         consumerProperties.put("key.deserializer", IntegerDeserializer.class.getName());
         consumerProperties.put("value.deserializer", StringDeserializer.class.getName());

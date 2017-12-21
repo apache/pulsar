@@ -257,7 +257,6 @@ public class ServerCnx extends PulsarHandler {
                         log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}",
                                 remoteAddress, topicName);
                     }
-                    // TODO
                     ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
                             "Failed due to too many pending lookup requests", requestId));
                 }
@@ -362,7 +361,7 @@ public class ServerCnx extends PulsarHandler {
         remoteEndpointProtocolVersion = connect.getProtocolVersion();
         String version = connect.hasClientVersion() ? connect.getClientVersion() : null;
         if (isNotBlank(version) && !version.contains(" ") /* ignore default version: pulsar client */) {
-            this.clientVersion = version;
+            this.clientVersion = version.intern();
         }
     }
 

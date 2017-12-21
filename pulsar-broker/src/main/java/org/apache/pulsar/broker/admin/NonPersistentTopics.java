@@ -143,7 +143,7 @@ public class NonPersistentTopics extends PersistentTopics {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateGlobalNamespaceOwnership(new NamespaceName(property, cluster, namespace));
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         unloadTopic(dn, authoritative);
     }

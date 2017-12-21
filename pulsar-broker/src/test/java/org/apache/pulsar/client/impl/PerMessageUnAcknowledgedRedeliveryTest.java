@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedConsumerImpl;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -359,6 +360,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
+        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect

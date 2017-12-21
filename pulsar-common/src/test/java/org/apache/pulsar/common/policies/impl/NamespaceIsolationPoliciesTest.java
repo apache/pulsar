@@ -120,9 +120,9 @@ public class NamespaceIsolationPoliciesTest {
     @Test
     public void testGetNamespaceIsolationPolicyByNamespace() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
-        NamespaceIsolationPolicy nsPolicy = policies.getPolicyByNamespace(new NamespaceName("no/such/namespace"));
+        NamespaceIsolationPolicy nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("no/such/namespace"));
         assertTrue(nsPolicy == null);
-        nsPolicy = policies.getPolicyByNamespace(new NamespaceName("pulsar/use/testns-1"));
+        nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/testns-1"));
         assertNotNull(nsPolicy);
         assertEquals(new NamespaceIsolationPolicyImpl(policies.getPolicies().get("policy1")), nsPolicy);
     }
@@ -141,7 +141,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(policies.getPolicies().size(), 2);
         assertEquals(policies.getPolicyByName(newPolicyName), new NamespaceIsolationPolicyImpl(nsPolicyData));
         assertTrue(!policies.getPolicyByName(newPolicyName).equals(policies.getPolicyByName("policy1")));
-        assertEquals(policies.getPolicyByNamespace(new NamespaceName("pulsar/use/TESTNS.1")),
+        assertEquals(policies.getPolicyByNamespace(NamespaceName.get("pulsar/use/TESTNS.1")),
                 new NamespaceIsolationPolicyImpl(nsPolicyData));
     }
 
@@ -156,7 +156,7 @@ public class NamespaceIsolationPoliciesTest {
     @Test
     public void testBrokerAssignment() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
-        NamespaceName ns = new NamespaceName("pulsar/use/testns-1");
+        NamespaceName ns = NamespaceName.get("pulsar/use/testns-1");
         SortedSet<BrokerStatus> primaryCandidates = new TreeSet<>();
         BrokerStatus primary = new BrokerStatus("prod1-broker1.messaging.use.example.com", true, 0);
         BrokerStatus secondary = new BrokerStatus("prod1-broker4.use.example.com", true, 0);
@@ -173,7 +173,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(secondaryCandidates.size(), 1);
         assertEquals(sharedCandidates.size(), 0);
         assertTrue(secondaryCandidates.first().equals(secondary));
-        policies.assignBroker(new NamespaceName("pulsar/use1/testns-1"), shared, primaryCandidates, secondaryCandidates,
+        policies.assignBroker(NamespaceName.get("pulsar/use1/testns-1"), shared, primaryCandidates, secondaryCandidates,
                 sharedCandidates);
         assertEquals(primaryCandidates.size(), 1);
         assertEquals(secondaryCandidates.size(), 1);

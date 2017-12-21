@@ -1283,7 +1283,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
     private boolean isBrokerAvailableForRebalancing(String bundleName, long maxLoadLevel) {
-        NamespaceName namespaceName = new NamespaceName(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
+        NamespaceName namespaceName = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
         Map<Long, Set<ResourceUnit>> availableBrokers = sortedRankings.get();
         // this does not have "http://" in front, hacky but no time to pretty up
         Multimap<Long, ResourceUnit> brokers = getFinalCandidates(namespaceName, availableBrokers);
@@ -1427,7 +1427,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);
                 } else {
-                    NamespaceName namespaceName = new NamespaceName(
+                    NamespaceName namespaceName = NamespaceName.get(
                             LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
                     int numBundles = pulsar.getNamespaceService().getBundleCount(namespaceName);
                     if (numBundles >= maxBundleCount) {

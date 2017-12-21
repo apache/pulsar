@@ -43,7 +43,7 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
@@ -144,7 +144,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
     }
 
     @Override

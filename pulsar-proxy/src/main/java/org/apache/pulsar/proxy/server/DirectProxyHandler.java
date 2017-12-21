@@ -28,7 +28,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.PulsarLengthFieldFrameDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.asynchttpclient.config.AsyncHttpClientConfigHelper.Config;
 import org.slf4j.Logger;
@@ -46,6 +45,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
@@ -97,7 +97,7 @@ public class DirectProxyHandler {
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder",
-                        new PulsarLengthFieldFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+                        new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
                 ch.pipeline().addLast(new ProxyBackendHandler());
             }
         });

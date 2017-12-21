@@ -69,7 +69,6 @@ import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.RecyclableDuplicateByteBuf;
 import io.netty.buffer.Unpooled;
 
 public class Commands {
@@ -78,35 +77,19 @@ public class Commands {
     private static final int checksumSize = 4;
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */,
-                null /* originalPrincipal */);
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */, null /* originalPrincipal */);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null);
     }
 
-    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker,
-            String originalPrincipal) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker,
-                originalPrincipal);
+    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker, String originalPrincipal) {
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, originalPrincipal);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
             String targetBroker, String originalPrincipal) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker,
-                originalPrincipal, null);
-    }
-
-    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker,
-            String originalPrincipal, String originalAuthData) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker,
-                originalPrincipal, originalAuthData);
-    }
-
-    public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
-            String targetBroker, String originalPrincipal, String originalAuthData) {
-
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
@@ -131,9 +114,6 @@ public class Commands {
             connectBuilder.setOriginalPrincipal(originalPrincipal);
         }
 
-        if (originalAuthData != null) {
-            connectBuilder.setOriginalAuthData(originalAuthData);
-        }
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
@@ -259,23 +239,23 @@ public class Commands {
         return res;
     }
 
+
     public static boolean hasChecksum(ByteBuf buffer) {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
     }
 
     public static Long readChecksum(ByteBuf buffer) {
-        if (hasChecksum(buffer)) {
-            buffer.skipBytes(2); // skip magic bytes
+        if(hasChecksum(buffer)) {
+            buffer.skipBytes(2); //skip magic bytes
             return buffer.readUnsignedInt();
-        } else {
+        } else{
             return null;
         }
     }
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
-            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to
-            // parse
+            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
             // metadata
             readChecksum(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
@@ -525,8 +505,7 @@ public class Commands {
         connectionBuilder.setResponse(LookupType.Failed);
 
         CommandLookupTopicResponse connectionBroker = connectionBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
         connectionBuilder.recycle();
         connectionBroker.recycle();
         return res;
@@ -609,8 +588,8 @@ public class Commands {
 
     public static ByteBuf newConsumerStatsResponse(CommandConsumerStatsResponse.Builder builder) {
         CommandConsumerStatsResponse commandConsumerStatsResponse = builder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE).setConsumerStatsResponse(builder));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONSUMER_STATS_RESPONSE)
+                .setConsumerStatsResponse(builder));
         commandConsumerStatsResponse.recycle();
         builder.recycle();
         return res;
@@ -620,26 +599,30 @@ public class Commands {
 
     static {
         ByteBuf serializedCmdPing = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PING).setPing(CommandPing.getDefaultInstance()));
+                   BaseCommand.newBuilder()
+                       .setType(Type.PING)
+                       .setPing(CommandPing.getDefaultInstance()));
         cmdPing = Unpooled.copiedBuffer(serializedCmdPing);
         serializedCmdPing.release();
     }
 
     static ByteBuf newPing() {
-        return RecyclableDuplicateByteBuf.create(cmdPing);
+        return cmdPing.retainedDuplicate();
     }
 
     private final static ByteBuf cmdPong;
 
     static {
         ByteBuf serializedCmdPong = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PONG).setPong(CommandPong.getDefaultInstance()));
+                   BaseCommand.newBuilder()
+                       .setType(Type.PONG)
+                       .setPong(CommandPong.getDefaultInstance()));
         cmdPong = Unpooled.copiedBuffer(serializedCmdPong);
         serializedCmdPong.release();
     }
 
     static ByteBuf newPong() {
-        return RecyclableDuplicateByteBuf.create(cmdPong);
+    	return cmdPong.retainedDuplicate();
     }
 
     private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
@@ -673,8 +656,8 @@ public class Commands {
         return buf;
     }
 
-    private static ByteBuf serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType,
-            MessageMetadata msgMetadata, ByteBuf payload) {
+    private static ByteBuf serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType, MessageMetadata msgMetadata,
+            ByteBuf payload) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
 
@@ -682,13 +665,11 @@ public class Commands {
         int cmdSize = cmd.getSerializedSize();
         int msgMetadataSize = msgMetadata.getSerializedSize();
         int payloadSize = payload.readableBytes();
-        int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength */)
-                : 0;
+        int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
         boolean includeChecksum = magicAndChecksumLength > 0;
-        int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize; // cmdLength + cmdSize +
-                                                                                            // magicLength +
-        // checksumSize + msgMetadataLength +
-        // msgMetadataSize
+        int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize; // cmdLength + cmdSize + magicLength +
+                                                                           // checksumSize + msgMetadataLength +
+                                                                           // msgMetadataSize
         int totalSize = headerContentSize + payloadSize;
         int headersSize = 4 + headerContentSize; // totalSize + headerLength
         int checksumReaderIndex = -1;
@@ -705,11 +686,11 @@ public class Commands {
             cmd.recycle();
             cmdBuilder.recycle();
 
-            // Create checksum placeholder
+            //Create checksum placeholder
             if (includeChecksum) {
                 headers.writeShort(magicCrc32c);
                 checksumReaderIndex = headers.writerIndex();
-                headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+                headers.writerIndex(headers.writerIndex() + checksumSize); //skip 4 bytes of checksum
             }
 
             // Write metadata
@@ -810,6 +791,7 @@ public class Commands {
         //
         // metadataAndPayload contains from magic-number to the payload included
 
+
         int cmdSize = cmd.getSerializedSize();
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();
         int headersSize = 4 + 4 + cmdSize;
@@ -838,6 +820,7 @@ public class Commands {
     }
 
     public static enum ChecksumType {
-        Crc32c, None;
+        Crc32c,
+        None;
     }
 }
