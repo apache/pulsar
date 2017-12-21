@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.admin.cli;
 
+import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
+
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
@@ -50,7 +52,15 @@ public class FunctionsTool extends PulsarAdminTool {
 
         FunctionsTool tool = new FunctionsTool(properties);
 
-        if (tool.run(Arrays.copyOfRange(args, 1, args.length))) {
+        if (tool.run(Arrays.copyOfRange(args, 1, args.length), (url, config) -> {
+            try {
+                return new PulsarFunctionsAdmin(url, config);
+            } catch (Exception ex) {
+                System.err.println(ex.getClass() + ": " + ex.getMessage());
+                System.exit(1);
+                return null;
+            }
+        })) {
             System.exit(0);
         } else {
             System.exit(1);

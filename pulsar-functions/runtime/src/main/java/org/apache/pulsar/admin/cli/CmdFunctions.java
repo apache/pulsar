@@ -24,15 +24,15 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
-
-    private final LocalRunner cmdRunner;
-
+    private LocalRunner localRunner;
+    private SubmitFunction submitter;
     @Getter
     abstract class FunctionsCommand extends CliCommand {
         @Parameter(names = "--name", description = "Function Name\n")
@@ -94,7 +94,6 @@ public class CmdFunctions extends CmdBase {
         abstract void run_functions_cmd() throws Exception;
     }
 
-    @Getter
     @Parameters(commandDescription = "Run function locally")
     class LocalRunner extends FunctionsCommand {
 
@@ -114,17 +113,32 @@ public class CmdFunctions extends CmdBase {
             spawner.start();
             spawner.join();
         }
+    }
 
+    @Parameters(commandDescription = "Submit function")
+    class SubmitFunction extends FunctionsCommand {
+        @Override
+        void run_functions_cmd() throws Exception {
+            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
+            a.functions().createFunction(functionConfig, functionConfig.loadCodeFile());
+        }
     }
 
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
-        cmdRunner = new LocalRunner();
-        jcommander.addCommand("run", cmdRunner);
+        localRunner = new LocalRunner();
+        submitter = new SubmitFunction();
+        jcommander.addCommand("localrun", localRunner);
+        jcommander.addCommand("submit", submitter);
     }
 
     @VisibleForTesting
-    LocalRunner getCmdRunner() {
-        return cmdRunner;
+    LocalRunner getLocalRunner() {
+        return localRunner;
+    }
+
+    @VisibleForTesting
+    SubmitFunction getSubmitter() {
+        return submitter;
     }
 }
