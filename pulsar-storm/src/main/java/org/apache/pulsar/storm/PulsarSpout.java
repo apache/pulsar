@@ -158,6 +158,16 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
      */
     @Override
     public void nextTuple() {
+        emitNextAvailableTuple();
+    }
+    
+    /**
+     * It makes sure that it emits next available non-tuple to topology unless consumer queue doesn't have any message
+     * available. It receives message from consumer queue and converts it to tuple and emits to topology. if the
+     * converted tuple is null then it tries to receives next message and perform the same until it finds non-tuple to
+     * emit.
+     */
+    public void emitNextAvailableTuple() {
         Message msg;
 
         // check if there are any failed messages to re-emit in the topology
@@ -186,8 +196,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 if (msg != null) {
                     ++messagesReceived;
                     messageSizeReceived += msg.getData().length;
+                    mapToValueAndEmit(msg);
                 }
-                mapToValueAndEmit(msg);
             } catch (PulsarClientException e) {
                 LOG.error("[{}] Error receiving message from pulsar consumer", spoutId, e);
             }
@@ -238,6 +248,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     LOG.debug("[{}] Dropping message {}", spoutId, msg.getMessageId());
                 }
                 ack(msg);
+                // tries to emit next available tuple
+                emitNextAvailableTuple();
             } else {
                 collector.emit(values, msg);
                 ++messagesEmitted;
