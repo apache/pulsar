@@ -20,8 +20,8 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 
-public interface ReaderConfig<M extends Message> extends Serializable {
-    ReaderListener<M> getReaderListener();
+public interface ReaderConfig<T> extends Serializable {
+    ReaderListener<T> getReaderListener();
 
     int getReceiverQueueSize();
 

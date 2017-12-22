@@ -58,7 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 public class ReaderHandler extends AbstractWebSocketHandler {
     private String subscription;
     private final ReaderConfiguration conf;
-    private Reader<Message> reader;
+    private Reader<byte[]> reader;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

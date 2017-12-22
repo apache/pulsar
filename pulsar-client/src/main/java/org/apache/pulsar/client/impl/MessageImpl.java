@@ -42,7 +42,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class MessageImpl implements Message {
+public class MessageImpl implements Message<byte[]> {
 
     private MessageMetadata.Builder msgMetadataBuilder;
     private MessageId messageId;
@@ -185,6 +185,11 @@ public class MessageImpl implements Message {
             payload.readBytes(data);
             return data;
         }
+    }
+
+    @Override
+    public byte[] getEvent() {
+        return getData();
     }
 
     ByteBuf getDataBuffer() {

@@ -59,7 +59,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final ConsumerStats stats;
 
     PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
+            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
         super(client, topic, subscription, conf, Math.max(numPartitions, conf.getReceiverQueueSize()), listenerExecutor,
                 subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
@@ -181,10 +181,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    protected CompletableFuture<Message> internalReceiveAsync() {
+    protected CompletableFuture<Message<byte[]>> internalReceiveAsync() {
 
-        CompletableFuture<Message> result = new CompletableFuture<Message>();
-        Message message;
+        CompletableFuture<Message<byte[]>> result = new CompletableFuture<>();
+        Message<byte[]> message;
         try {
             lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.SECONDS);
@@ -234,7 +234,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        for (Consumer<Message> consumer : consumers) {
+        for (Consumer<byte[]> consumer : consumers) {
             if (consumer != null) {
                 consumer.unsubscribeAsync().handle((unsubscribed, ex) -> {
                     if (ex != null) {
@@ -273,7 +273,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(numPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Consumer<Message> consumer : consumers) {
+        for (Consumer<byte[]> consumer : consumers) {
             if (consumer != null) {
                 consumer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
@@ -309,7 +309,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
                 while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message> receiveFuture = pendingReceives.poll();
+                    CompletableFuture<Message<byte[]>> receiveFuture = pendingReceives.poll();
                     if (receiveFuture != null) {
                         receiveFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
@@ -353,7 +353,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             }
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
-                CompletableFuture<Message> receivedFuture = pendingReceives.poll();
+                CompletableFuture<Message<byte[]>> receivedFuture = pendingReceives.poll();
                 listenerExecutor.execute(() -> receivedFuture.complete(message));
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()

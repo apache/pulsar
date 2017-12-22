@@ -31,7 +31,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  *
  */
-public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<M> {
+public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
 
     /**
      * Resend shouldn't be requested before minAckTimeoutMillis.
@@ -42,7 +42,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    private MessageListener<M> messageListener;
+    private MessageListener<T> messageListener;
 
     private int receiverQueueSize = 1000;
 
@@ -73,7 +73,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      *            unit in which the timeout is provided.
      * @return {@link ConsumerConfiguration}
      */
-    public ConsumerConfiguration<M> setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
+    public ConsumerConfiguration<T> setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
         long ackTimeoutMillis = timeUnit.toMillis(ackTimeout);
         checkArgument(ackTimeoutMillis >= minAckTimeoutMillis,
                 "Ack timeout should be should be greater than " + minAckTimeoutMillis + " ms");
@@ -97,7 +97,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      * @param subscriptionType
      *            the subscription type value
      */
-    public ConsumerConfiguration<M> setSubscriptionType(SubscriptionType subscriptionType) {
+    public ConsumerConfiguration<T> setSubscriptionType(SubscriptionType subscriptionType) {
         checkNotNull(subscriptionType);
         this.subscriptionType = subscriptionType;
         return this;
@@ -107,7 +107,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      * @return the configured {@link MessageListener} for the consumer
      */
     @Override
-    public MessageListener<M> getMessageListener() {
+    public MessageListener<T> getMessageListener() {
         return this.messageListener;
     }
 
@@ -120,7 +120,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      * @param messageListener
      *            the listener object
      */
-    public ConsumerConfiguration<M> setMessageListener(MessageListener<M> messageListener) {
+    public ConsumerConfiguration<T> setMessageListener(MessageListener<T> messageListener) {
         checkNotNull(messageListener);
         this.messageListener = messageListener;
         return this;
@@ -197,7 +197,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ConsumerConfiguration<M> setReceiverQueueSize(int receiverQueueSize) {
+    public ConsumerConfiguration<T> setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
         this.receiverQueueSize = receiverQueueSize;
         return this;
@@ -216,7 +216,7 @@ public class ConsumerConfiguration<M extends Message> implements ConsumerConfig<
      *
      * @param consumerName
      */
-    public ConsumerConfiguration<M> setConsumerName(String consumerName) {
+    public ConsumerConfiguration<T> setConsumerName(String consumerName) {
         checkArgument(consumerName != null && !consumerName.equals(""));
         this.consumerName = consumerName;
         return this;

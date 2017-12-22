@@ -28,17 +28,17 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 
-public class ReaderImpl implements Reader<Message> {
+public class ReaderImpl implements Reader<byte[]> {
 
     private final ConsumerImpl consumer;
 
     public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
-        ReaderConfig<Message> readerConfiguration, ExecutorService listenerExecutor,
-        CompletableFuture<Consumer<Message>> consumerFuture) {
+        ReaderConfig<byte[]> readerConfiguration, ExecutorService listenerExecutor,
+        CompletableFuture<Consumer<byte[]>> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
-        ConsumerConfiguration<Message> consumerConfiguration = new ConsumerConfiguration<>();
+        ConsumerConfiguration<byte[]> consumerConfiguration = new ConsumerConfiguration<>();
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         if (readerConfiguration.getReaderName() != null) {
@@ -46,12 +46,12 @@ public class ReaderImpl implements Reader<Message> {
         }
 
         if (readerConfiguration.getReaderListener() != null) {
-            ReaderListener<Message> readerListener = readerConfiguration.getReaderListener();
-            consumerConfiguration.setMessageListener(new MessageListener<Message>() {
+            ReaderListener<byte[]> readerListener = readerConfiguration.getReaderListener();
+            consumerConfiguration.setMessageListener(new MessageListener<byte[]>() {
                 private static final long serialVersionUID = 1L;
 
                 @Override
-                public void received(Consumer<Message> consumer, Message msg) {
+                public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
                     readerListener.received(ReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(msg);
                 }
@@ -107,7 +107,7 @@ public class ReaderImpl implements Reader<Message> {
     }
 
     @Override
-    public CompletableFuture<Message> readNextAsync() {
+    public CompletableFuture<Message<byte[]>> readNextAsync() {
         return consumer.receiveAsync().thenApply(msg -> {
             consumer.acknowledgeCumulativeAsync(msg);
             return msg;

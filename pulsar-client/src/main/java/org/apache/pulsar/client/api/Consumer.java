@@ -29,7 +29,7 @@ import org.apache.pulsar.client.impl.ConsumerStats;
  *
  *
  */
-public interface Consumer<M extends Message> extends Closeable {
+public interface Consumer<T> extends Closeable {
 
     /**
      * Get a topic for the consumer
@@ -72,7 +72,7 @@ public interface Consumer<M extends Message> extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    M receive() throws PulsarClientException;
+    Message<T> receive() throws PulsarClientException;
 
     /**
      * Receive a single message
@@ -86,7 +86,7 @@ public interface Consumer<M extends Message> extends Closeable {
      *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
-    CompletableFuture<M> receiveAsync();
+    CompletableFuture<Message<T>> receiveAsync();
 
     /**
      * Receive a single message
@@ -102,7 +102,7 @@ public interface Consumer<M extends Message> extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    M receive(int timeout, TimeUnit unit) throws PulsarClientException;
+    Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
      * Acknowledge the consumption of a single message
@@ -112,7 +112,7 @@ public interface Consumer<M extends Message> extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */
-    void acknowledge(M message) throws PulsarClientException;
+    void acknowledge(Message<?> message) throws PulsarClientException;
 
     /**
      * Acknowledge the consumption of a single message, identified by its MessageId
@@ -139,7 +139,7 @@ public interface Consumer<M extends Message> extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */
-    void acknowledgeCumulative(M message) throws PulsarClientException;
+    void acknowledgeCumulative(Message<?> message) throws PulsarClientException;
 
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
@@ -165,7 +165,7 @@ public interface Consumer<M extends Message> extends Closeable {
      *            The {@code Message} to be acknowledged
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> acknowledgeAsync(M message);
+    CompletableFuture<Void> acknowledgeAsync(Message<?> message);
 
     /**
      * Asynchronously acknowledge the consumption of a single message
@@ -186,7 +186,7 @@ public interface Consumer<M extends Message> extends Closeable {
      *            The {@code Message} to be cumulatively acknowledged
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> acknowledgeCumulativeAsync(M message);
+    CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message);
 
     /**
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided

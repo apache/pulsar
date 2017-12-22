@@ -35,7 +35,7 @@ import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 import com.google.common.collect.Queues;
 
-public abstract class ConsumerBase extends HandlerBase implements Consumer<Message> {
+public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[]> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -44,15 +44,15 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
     protected final String subscription;
     protected final ConsumerConfig conf;
     protected final String consumerName;
-    protected final CompletableFuture<Consumer<Message>> subscribeFuture;
+    protected final CompletableFuture<Consumer<byte[]>> subscribeFuture;
     protected final MessageListener listener;
     protected final ExecutorService listenerExecutor;
-    final BlockingQueue<Message> incomingMessages;
-    protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
+    final BlockingQueue<Message<byte[]>> incomingMessages;
+    protected final ConcurrentLinkedQueue<CompletableFuture<Message<byte[]>>> pendingReceives;
     protected final int maxReceiverQueueSize;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
-            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<Message>> subscribeFuture) {
+            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0 , TimeUnit.MILLISECONDS));
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = subscription;
@@ -93,7 +93,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
     }
 
     @Override
-    public CompletableFuture<Message> receiveAsync() {
+    public CompletableFuture<Message<byte[]>> receiveAsync() {
 
         if (listener != null) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -117,7 +117,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
 
     abstract protected Message internalReceive() throws PulsarClientException;
 
-    abstract protected CompletableFuture<Message> internalReceiveAsync();
+    abstract protected CompletableFuture<Message<byte[]>> internalReceiveAsync();
 
     @Override
     public Message receive(int timeout, TimeUnit unit) throws PulsarClientException {
@@ -301,7 +301,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<Messa
 
     abstract public int numMessagesInQueue();
 
-    public CompletableFuture<Consumer<Message>> subscribeFuture() {
+    public CompletableFuture<Consumer<byte[]>> subscribeFuture() {
         return subscribeFuture;
     }
 

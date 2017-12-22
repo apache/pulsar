@@ -113,13 +113,13 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<Message>> subscribeFuture) {
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
         this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
                 SubscriptionMode.Durable, null);
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<Message>> subscribeFuture,
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<byte[]>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId) {
         super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
@@ -218,10 +218,10 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    protected CompletableFuture<Message> internalReceiveAsync() {
+    protected CompletableFuture<Message<byte[]>> internalReceiveAsync() {
 
-        CompletableFuture<Message> result = new CompletableFuture<Message>();
-        Message message = null;
+        CompletableFuture<Message<byte[]>> result = new CompletableFuture<>();
+        Message<byte[]> message = null;
         try {
             lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
@@ -707,7 +707,7 @@ public class ConsumerImpl extends ConsumerBase {
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
                 while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message> receiveFuture = pendingReceives.poll();
+                    CompletableFuture<Message<byte[]>> receiveFuture = pendingReceives.poll();
                     if (receiveFuture != null) {
                         receiveFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
@@ -843,7 +843,7 @@ public class ConsumerImpl extends ConsumerBase {
     void notifyPendingReceivedCallback(final MessageImpl message, Exception exception) {
         if (!pendingReceives.isEmpty()) {
             // fetch receivedCallback from queue
-            CompletableFuture<Message> receivedFuture = pendingReceives.poll();
+            CompletableFuture<Message<byte[]>> receivedFuture = pendingReceives.poll();
             if (exception == null) {
                 checkNotNull(message, "received message can't be null");
                 if (receivedFuture != null) {

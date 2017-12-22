@@ -20,13 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
 
-class TypedConsumerConfigAdapter<T> implements ConsumerConfig<Message> {
-    private final ConsumerConfig<TypedMessage<T>> typedConfig;
+class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
+    private final ConsumerConfig<T> typedConfig;
     private final Codec<T> codec;
 
     private TypedConsumerImpl<T> typedConsumer;
 
-    TypedConsumerConfigAdapter(ConsumerConfig<TypedMessage<T>> typedConfig, Codec<T> codec) {
+    TypedConsumerConfigAdapter(ConsumerConfig<T> typedConfig, Codec<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }
@@ -46,16 +46,16 @@ class TypedConsumerConfigAdapter<T> implements ConsumerConfig<Message> {
     }
 
     @Override
-    public MessageListener<Message> getMessageListener() {
-        MessageListener<TypedMessage<T>> listener = typedConfig.getMessageListener();
-        return new MessageListener<Message>() {
+    public MessageListener<byte[]> getMessageListener() {
+        MessageListener<T> listener = typedConfig.getMessageListener();
+        return new MessageListener<byte[]>() {
             @Override
-            public void received(Consumer<Message> consumer, Message msg) {
+            public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
                 listener.received(typedConsumer, new TypedMessageImpl<>(msg, codec));
             }
 
             @Override
-            public void reachedEndOfTopic(Consumer<Message> consumer) {
+            public void reachedEndOfTopic(Consumer<byte[]> consumer) {
                 listener.reachedEndOfTopic(typedConsumer);
             }
         };

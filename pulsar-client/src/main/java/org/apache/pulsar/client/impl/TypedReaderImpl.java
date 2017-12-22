@@ -24,12 +24,12 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-class TypedReaderImpl<T> implements Reader<TypedMessage<T>> {
+class TypedReaderImpl<T> implements Reader<T> {
 
-    private final Reader<Message> untypedReader;
+    private final Reader<byte[]> untypedReader;
     private final Codec<T> codec;
 
-    TypedReaderImpl(Reader<Message> untypedReader, Codec<T> codec) {
+    TypedReaderImpl(Reader<byte[]> untypedReader, Codec<T> codec) {
         this.untypedReader = untypedReader;
         this.codec = codec;
     }
@@ -40,17 +40,17 @@ class TypedReaderImpl<T> implements Reader<TypedMessage<T>> {
     }
 
     @Override
-    public TypedMessage<T> readNext() throws PulsarClientException {
+    public Message<T> readNext() throws PulsarClientException {
         return new TypedMessageImpl<>(untypedReader.readNext(), codec);
     }
 
     @Override
-    public TypedMessage<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
+    public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
         return new TypedMessageImpl<>(untypedReader.readNext(timeout, unit), codec);
     }
 
     @Override
-    public CompletableFuture<Message> readNextAsync() {
+    public CompletableFuture<Message<T>> readNextAsync() {
         return untypedReader.readNextAsync().thenApply((message) ->
                 new TypedMessageImpl<>(message, codec)
         );

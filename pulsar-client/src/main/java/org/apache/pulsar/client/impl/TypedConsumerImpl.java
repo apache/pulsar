@@ -23,12 +23,12 @@ import org.apache.pulsar.client.api.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
+class TypedConsumerImpl<T> implements Consumer<T> {
 
-    private final Consumer<Message> untypedConsumer;
+    private final Consumer<byte[]> untypedConsumer;
     private final Codec<T> codec;
 
-    TypedConsumerImpl(Consumer<Message> untypedConsumer, Codec<T> codec) {
+    TypedConsumerImpl(Consumer<byte[]> untypedConsumer, Codec<T> codec) {
         this.untypedConsumer = untypedConsumer;
         this.codec = codec;
     }
@@ -58,24 +58,24 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
     }
 
     @Override
-    public TypedMessage<T> receive() throws PulsarClientException {
-        return new TypedMessageImpl<>(untypedConsumer.receive(), codec);
+    public Message<T> receive() throws PulsarClientException {
+        return new TypedMessageImpl<T>(untypedConsumer.receive(), codec);
     }
 
     @Override
-    public CompletableFuture<TypedMessage<T>> receiveAsync() {
+    public CompletableFuture<Message<T>> receiveAsync() {
         return untypedConsumer.receiveAsync().thenApply((message) ->
             new TypedMessageImpl<>(message, codec)
         );
     }
 
     @Override
-    public TypedMessage<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
+    public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
         return new TypedMessageImpl<>(untypedConsumer.receive(), codec);
     }
 
     @Override
-    public void acknowledge(TypedMessage<T> message) throws PulsarClientException {
+    public void acknowledge(Message<?> message) throws PulsarClientException {
         untypedConsumer.acknowledge(message);
     }
 
@@ -85,7 +85,7 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
     }
 
     @Override
-    public void acknowledgeCumulative(TypedMessage<T> message) throws PulsarClientException {
+    public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
         untypedConsumer.acknowledgeCumulative(message);
     }
 
@@ -95,7 +95,7 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(TypedMessage<T> message) {
+    public CompletableFuture<Void> acknowledgeAsync(Message<?> message) {
         return untypedConsumer.acknowledgeAsync(message);
     }
 
@@ -105,7 +105,7 @@ class TypedConsumerImpl<T> implements Consumer<TypedMessage<T>> {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeCumulativeAsync(TypedMessage<T> message) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         return untypedConsumer.acknowledgeCumulativeAsync(message);
     }
 

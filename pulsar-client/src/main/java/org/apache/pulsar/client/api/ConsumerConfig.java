@@ -20,12 +20,12 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 
-public interface ConsumerConfig<M extends Message> extends Serializable {
+public interface ConsumerConfig<T> extends Serializable {
     long getAckTimeoutMillis();
 
     SubscriptionType getSubscriptionType();
 
-    MessageListener<M> getMessageListener();
+    MessageListener<T> getMessageListener();
 
     int getReceiverQueueSize();
 

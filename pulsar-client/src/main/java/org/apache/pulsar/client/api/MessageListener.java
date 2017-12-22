@@ -25,7 +25,7 @@ import java.io.Serializable;
  *
  *
  */
-public interface MessageListener<M extends Message> extends Serializable {
+public interface MessageListener<T> extends Serializable {
     /**
      * This method is called whenever a new message is received.
      *
@@ -40,7 +40,7 @@ public interface MessageListener<M extends Message> extends Serializable {
      * @param msg
      *            the message object
      */
-    void received(Consumer<M> consumer, M msg);
+    void received(Consumer<T> consumer, Message<T> msg);
 
     /**
      * Get the notification when a topic is terminated
@@ -48,7 +48,7 @@ public interface MessageListener<M extends Message> extends Serializable {
      * @param consumer
      *            the Consumer object associated with the terminated topic
      */
-    default void reachedEndOfTopic(Consumer<M> consumer) {
+    default void reachedEndOfTopic(Consumer<T> consumer) {
         // By default ignore the notification
     }
 }

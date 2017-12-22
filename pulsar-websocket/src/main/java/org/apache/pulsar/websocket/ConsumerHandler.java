@@ -62,7 +62,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private final String subscription;
     private final ConsumerConfiguration conf;
-    private Consumer<Message> consumer;
+    private Consumer<byte[]> consumer;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

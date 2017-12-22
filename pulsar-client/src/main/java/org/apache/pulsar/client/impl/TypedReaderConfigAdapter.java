@@ -20,13 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
 
-class TypedReaderConfigAdapter<T> implements ReaderConfig<Message> {
-    private final ReaderConfig<TypedMessage<T>> typedConfig;
+class TypedReaderConfigAdapter<T> implements ReaderConfig<byte[]> {
+    private final ReaderConfig<T> typedConfig;
     private final Codec<T> codec;
 
     private TypedReaderImpl<T> typedReader;
 
-    public TypedReaderConfigAdapter(ReaderConfig<TypedMessage<T>> typedConfig, Codec<T> codec) {
+    public TypedReaderConfigAdapter(ReaderConfig<T> typedConfig, Codec<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }
@@ -36,16 +36,16 @@ class TypedReaderConfigAdapter<T> implements ReaderConfig<Message> {
     }
 
     @Override
-    public ReaderListener<Message> getReaderListener() {
-        final ReaderListener<TypedMessage<T>> listener = typedConfig.getReaderListener();
-        return new ReaderListener<Message>() {
+    public ReaderListener<byte[]> getReaderListener() {
+        final ReaderListener<T> listener = typedConfig.getReaderListener();
+        return new ReaderListener<byte[]>() {
             @Override
-            public void received(Reader<Message> ignore, Message msg) {
+            public void received(Reader<byte[]> ignore, Message<byte[]> msg) {
                 listener.received(typedReader, new TypedMessageImpl<>(msg, codec));
             }
 
             @Override
-            public void reachedEndOfTopic(Reader<Message> ignore) {
+            public void reachedEndOfTopic(Reader<byte[]> ignore) {
                 listener.reachedEndOfTopic(typedReader);
             }
         };

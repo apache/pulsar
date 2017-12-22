@@ -441,7 +441,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final int numMsgs = 100;
         List<Message> receivedMessages = Lists.newArrayList();
 
-        ConsumerConfiguration consumerConf1 = new ConsumerConfiguration();
+        ConsumerConfiguration<byte[]> consumerConf1 = new ConsumerConfiguration<>();
         consumerConf1.setSubscriptionType(SubscriptionType.Failover);
         consumerConf1.setConsumerName("1");
         consumerConf1.setMessageListener((consumer, msg) -> {
@@ -455,7 +455,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
         });
 
-        ConsumerConfiguration consumerConf2 = new ConsumerConfiguration();
+        ConsumerConfiguration<byte[]> consumerConf2 = new ConsumerConfiguration<>();
         consumerConf2.setSubscriptionType(SubscriptionType.Failover);
         consumerConf2.setConsumerName("2");
         consumerConf2.setMessageListener((consumer, msg) -> {
@@ -490,8 +490,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         producer.close();
 
         // two consumers subscribe at almost the same time
-        CompletableFuture<Consumer<Message>> subscribeFuture2 = pulsarClient.subscribeAsync(topicName, subName, consumerConf2);
-        CompletableFuture<Consumer<Message>> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
+        CompletableFuture<Consumer<byte[]>> subscribeFuture2 = pulsarClient.subscribeAsync(topicName, subName, consumerConf2);
+        CompletableFuture<Consumer<byte[]>> subscribeFuture1 = pulsarClient.subscribeAsync(topicName, subName, consumerConf1);
 
         // wait for all messages to be dequeued
         int retry = 20;

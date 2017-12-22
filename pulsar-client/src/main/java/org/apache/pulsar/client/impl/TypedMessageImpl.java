@@ -21,30 +21,20 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.Codec;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.TypedMessage;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
-class TypedMessageImpl<T> implements TypedMessage<T> {
-    private final Message message;
+class TypedMessageImpl<T> implements Message<T> {
     private final FutureTask<T> expanded;
+    private final Message<byte[]> message;
 
-    public TypedMessageImpl(Message message, Codec<T> codec) {
-        this.message = message;
+    TypedMessageImpl(Message<byte[]> message, Codec<T> codec) {
         this.expanded = new FutureTask<>(() ->
-                codec.decode(message.getData())
+                codec.decode(getData())
         );
-    }
-
-    @Override
-    public T getMessage() {
-        try {
-            return expanded.get();
-        } catch (Exception ignored) {
-        }
-        return null;
+        this.message = message;
     }
 
     @Override
@@ -90,5 +80,14 @@ class TypedMessageImpl<T> implements TypedMessage<T> {
     @Override
     public String getKey() {
         return message.getKey();
+    }
+
+    @Override
+    public T getEvent() {
+        try {
+            return expanded.get();
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }
