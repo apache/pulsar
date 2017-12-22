@@ -35,6 +35,7 @@
     <module>api</module>
     <module>runtime</module>
     <module>api-examples</module>
+    <module>runtime-benchmark</module>
   </modules>
 
 </project>

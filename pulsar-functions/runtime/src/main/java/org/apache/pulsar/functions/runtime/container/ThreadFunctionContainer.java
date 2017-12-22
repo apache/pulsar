@@ -65,6 +65,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     private LinkedBlockingQueue<Payload> queue;
     private String id;
     private String jarFile;
+    private volatile boolean closed = false;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig, int maxBufferedTuples,
                             FunctionCacheManager fnCache, ThreadGroup threadGroup, String jarFile) {
@@ -79,7 +80,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                     public void run() {
                         javaInstance = new JavaInstance(javaInstanceConfig);
 
-                        while (true) {
+                        while (!closed) {
                             JavaExecutionResult result;
                             try {
                                 Payload payload = queue.take();
@@ -92,6 +93,8 @@ class ThreadFunctionContainer implements FunctionContainer {
                                 log.info("Function thread {} is interrupted", ie);
                             }
                         }
+
+                        javaInstance.close();
                     }
                 }, this.id);
     }
@@ -137,6 +140,7 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public void stop() {
+        closed = true;
         // interrupt the function thread
         fnThread.interrupt();
         try {
