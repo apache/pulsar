@@ -35,7 +35,11 @@ import java.nio.file.Paths;
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
     private LocalRunner localRunner;
-    private SubmitFunction submitter;
+    private CreateFunction creater;
+    private DeleteFunction deleter;
+    private UpdateFunction updater;
+    private GetFunction getter;
+    private ListFunctions lister;
     @Getter
     abstract class FunctionsCommand extends CliCommand {
         @Parameter(names = "--name", description = "Function Name\n")
@@ -115,8 +119,8 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Submit function")
-    class SubmitFunction extends FunctionsCommand {
+    @Parameters(commandDescription = "Create function")
+    class CreateFunction extends FunctionsCommand {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
@@ -124,12 +128,56 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get function")
+    class GetFunction extends FunctionsCommand {
+        @Override
+        void run_functions_cmd() throws Exception {
+            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
+            a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName());
+        }
+    }
+
+    @Parameters(commandDescription = "Delete function")
+    class DeleteFunction extends FunctionsCommand {
+        @Override
+        void run_functions_cmd() throws Exception {
+            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
+            a.functions().deleteFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName());
+        }
+    }
+
+    @Parameters(commandDescription = "Update function")
+    class UpdateFunction extends FunctionsCommand {
+        @Override
+        void run_functions_cmd() throws Exception {
+            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
+            a.functions().updateFunction(functionConfig, Files.readAllBytes(Paths.get(jarFile)));
+        }
+    }
+
+    @Parameters(commandDescription = "List function")
+    class ListFunctions extends FunctionsCommand {
+        @Override
+        void run_functions_cmd() throws Exception {
+            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
+            a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNameSpace());
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
         localRunner = new LocalRunner();
-        submitter = new SubmitFunction();
-        jcommander.addCommand("localrun", localRunner);
-        jcommander.addCommand("submit", submitter);
+        creater = new CreateFunction();
+        deleter = new DeleteFunction();
+        updater = new UpdateFunction();
+        getter = new GetFunction();
+        lister = new ListFunctions();
+        jcommander.addCommand("localrun", getLocalRunner());
+        jcommander.addCommand("create", getCreater());
+        jcommander.addCommand("delete", getDeleter());
+        jcommander.addCommand("update", getUpdater());
+        jcommander.addCommand("get", getGetter());
+        jcommander.addCommand("list", getLister());
     }
 
     @VisibleForTesting
@@ -138,7 +186,27 @@ public class CmdFunctions extends CmdBase {
     }
 
     @VisibleForTesting
-    SubmitFunction getSubmitter() {
-        return submitter;
+    CreateFunction getCreater() {
+        return creater;
+    }
+
+    @VisibleForTesting
+    DeleteFunction getDeleter() {
+        return deleter;
+    }
+
+    @VisibleForTesting
+    UpdateFunction getUpdater() {
+        return updater;
+    }
+
+    @VisibleForTesting
+    GetFunction getGetter() {
+        return getter;
+    }
+
+    @VisibleForTesting
+    ListFunctions getLister() {
+        return lister;
     }
 }
