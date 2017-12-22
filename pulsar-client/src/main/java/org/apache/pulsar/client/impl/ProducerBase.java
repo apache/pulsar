@@ -105,4 +105,11 @@ public abstract class ProducerBase extends HandlerBase implements Producer<byte[
     public CompletableFuture<Producer<byte[]>> producerCreatedFuture() {
         return producerCreatedFuture;
     }
+
+    @Override
+    public String toString() {
+        return "ProducerBase{" +
+                "topic='" + topic + '\'' +
+                '}';
+    }
 }

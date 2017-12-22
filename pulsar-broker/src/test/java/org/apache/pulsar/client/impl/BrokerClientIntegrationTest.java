@@ -766,5 +766,5 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
 }

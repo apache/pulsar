@@ -322,4 +322,13 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
      * breaks, the messages are redelivered after reconnect.
      */
     protected abstract void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds);
+
+    @Override
+    public String toString() {
+        return "ConsumerBase{" +
+                "subscription='" + subscription + '\'' +
+                ", consumerName='" + consumerName + '\'' +
+                ", topic='" + topic + '\'' +
+                '}';
+    }
 }
