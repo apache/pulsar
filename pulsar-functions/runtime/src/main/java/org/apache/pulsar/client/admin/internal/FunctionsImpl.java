@@ -30,6 +30,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+import java.io.FileInputStream;
 import java.util.List;
 
 public class FunctionsImpl extends BaseResource implements Functions {
@@ -61,10 +62,10 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void createFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException {
+    public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
-            mp.bodyPart(new FormDataBodyPart("data", code, MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            mp.bodyPart(new FormDataBodyPart("data", new FileInputStream(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
                     MediaType.APPLICATION_JSON_TYPE));
             mp.bodyPart(new FormDataBodyPart("sinkTopic", functionConfig.getSinkTopic(),
@@ -76,7 +77,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("className", functionConfig.getClassName(),
                     MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNameSpace()).path(functionConfig.getName()))
-                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -93,11 +94,11 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void updateFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException {
+    public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
-            if (code != null) {
-                mp.bodyPart(new FormDataBodyPart("data", code, MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            if (fileName != null) {
+                mp.bodyPart(new FormDataBodyPart("data", new FileInputStream(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
             if (functionConfig.getSourceTopic() != null) {
                 mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
