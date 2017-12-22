@@ -61,21 +61,21 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void createFunction(FunctionConfig functionData, byte[] code) throws PulsarAdminException {
+    public void createFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
-            mp.bodyPart(new FormDataBodyPart("code", code, MediaType.APPLICATION_OCTET_STREAM_TYPE));
-            mp.bodyPart(new FormDataBodyPart("sourceTopic", functionData.getSourceTopic(),
+            mp.bodyPart(new FormDataBodyPart("data", code, MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
                     MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("sinkTopic", functionData.getSinkTopic(),
+            mp.bodyPart(new FormDataBodyPart("sinkTopic", functionConfig.getSinkTopic(),
                     MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("inputSerdeClassName", functionData.getInputSerdeClassName(),
+            mp.bodyPart(new FormDataBodyPart("inputSerdeClassName", functionConfig.getInputSerdeClassName(),
                     MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("outputSerdeClassName", functionData.getOutputSerdeClassName(),
+            mp.bodyPart(new FormDataBodyPart("outputSerdeClassName", functionConfig.getOutputSerdeClassName(),
                     MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("className", functionData.getClassName(),
+            mp.bodyPart(new FormDataBodyPart("className", functionConfig.getClassName(),
                     MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionData.getTenant()).path(functionData.getNameSpace()).path(functionData.getName()))
+            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNameSpace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -93,11 +93,34 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void updateFunction(FunctionConfig functionConfig)
-            throws PulsarAdminException {
+    public void updateFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException {
         try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+            if (code != null) {
+                mp.bodyPart(new FormDataBodyPart("data", code, MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+            if (functionConfig.getSourceTopic() != null) {
+                mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+            if (functionConfig.getSinkTopic() != null) {
+                mp.bodyPart(new FormDataBodyPart("sinkTopic", functionConfig.getSinkTopic(),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+            if (functionConfig.getInputSerdeClassName() != null) {
+                mp.bodyPart(new FormDataBodyPart("inputSerdeClassName", functionConfig.getInputSerdeClassName(),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+            if (functionConfig.getOutputSerdeClassName() != null) {
+                mp.bodyPart(new FormDataBodyPart("outputSerdeClassName", functionConfig.getOutputSerdeClassName(),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
+            if (functionConfig.getClassName() != null) {
+                mp.bodyPart(new FormDataBodyPart("className", functionConfig.getClassName(),
+                        MediaType.APPLICATION_JSON_TYPE));
+            }
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNameSpace()).path(functionConfig.getName()))
-                    .post(Entity.entity(functionConfig, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

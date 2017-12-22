@@ -108,7 +108,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig) throws PulsarAdminException;
+    void updateFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException;
 
     /**
      * Delete an existing function
