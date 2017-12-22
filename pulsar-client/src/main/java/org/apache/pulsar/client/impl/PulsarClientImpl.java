@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.io.Closeable;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,16 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -190,15 +182,25 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public Consumer subscribe(final String topic, final String subscription) throws PulsarClientException {
-        return subscribe(topic, subscription, new ConsumerConfiguration());
+    public Consumer subscribe(String topic, String subscription) throws PulsarClientException {
+        return subscribe(topic, subscription, (MessageListener) null);
     }
 
     @Override
-    public Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf)
+    public Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException {
+        return subscribe(topic, subscription, conf, conf.getMessageListener());
+    }
+
+    @Override
+    public Consumer subscribe(final String topic, final String subscription, MessageListener listener) throws PulsarClientException {
+        return subscribe(topic, subscription, new ConsumerConfiguration(), listener);
+    }
+
+    @Override
+    public Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf, MessageListener listener)
             throws PulsarClientException {
         try {
-            return subscribeAsync(topic, subscription, conf).get();
+            return subscribeAsync(topic, subscription, conf, listener).get();
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof PulsarClientException) {
@@ -214,12 +216,22 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync(String topic, String subscription) {
-        return subscribeAsync(topic, subscription, new ConsumerConfiguration());
+        return subscribeAsync(topic, subscription, (MessageListener) null);
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf) {
+        return subscribeAsync(topic, subscription, conf, conf.getMessageListener());
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, MessageListener listener) {
+        return subscribeAsync(topic, subscription, new ConsumerConfiguration(), listener);
     }
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync(final String topic, final String subscription,
-            final ConsumerConfiguration conf) {
+            final ConsumerConfiguration conf, MessageListener listener) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -247,10 +259,10 @@ public class PulsarClientImpl implements PulsarClient {
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 1) {
                 consumer = new PartitionedConsumerImpl(PulsarClientImpl.this, topic, subscription, conf,
-                        metadata.partitions, listenerThread, consumerSubscribedFuture);
+                        metadata.partitions, listenerThread, consumerSubscribedFuture, listener);
             } else {
                 consumer = new ConsumerImpl(PulsarClientImpl.this, topic, subscription, conf, listenerThread, -1,
-                        consumerSubscribedFuture);
+                        consumerSubscribedFuture, listener);
             }
 
             synchronized (consumers) {
@@ -266,10 +278,15 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf)
+    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException {
+        return createReader(topic, startMessageId, conf, conf.getReaderListener());
+    }
+
+    @Override
+    public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf, ReaderListener listener)
             throws PulsarClientException {
         try {
-            return createReaderAsync(topic, startMessageId, conf).get();
+            return createReaderAsync(topic, startMessageId, conf, listener).get();
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof PulsarClientException) {
@@ -284,8 +301,13 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
+    public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf) {
+        return createReaderAsync(topic, startMessageId, conf, conf.getReaderListener());
+    }
+
+    @Override
     public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
-            ReaderConfiguration conf) {
+            ReaderConfiguration conf, ReaderListener listener) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -318,7 +340,7 @@ public class PulsarClientImpl implements PulsarClient {
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             ReaderImpl reader = new ReaderImpl(PulsarClientImpl.this, topic, startMessageId, conf, listenerThread,
-                    consumerSubscribedFuture);
+                    consumerSubscribedFuture, listener);
 
             synchronized (consumers) {
                 consumers.put(reader.getConsumer(), Boolean.TRUE);

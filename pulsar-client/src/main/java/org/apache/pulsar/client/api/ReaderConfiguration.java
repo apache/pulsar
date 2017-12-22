@@ -37,6 +37,7 @@ public class ReaderConfiguration implements Serializable {
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
+    @Deprecated
     public ReaderListener getReaderListener() {
         return this.readerListener;
     }
@@ -50,6 +51,7 @@ public class ReaderConfiguration implements Serializable {
      * @param readerListener
      *            the listener object
      */
+    @Deprecated
     public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
         checkNotNull(readerListener);
         this.readerListener = readerListener;

@@ -43,7 +43,7 @@ public class ReaderImpl implements Reader {
 
     public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
             ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
-            CompletableFuture<Consumer> consumerFuture) {
+            CompletableFuture<Consumer> consumerFuture, ReaderListener readerListener) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
 
@@ -55,7 +55,6 @@ public class ReaderImpl implements Reader {
         }
 
         if (readerConfiguration.getReaderListener() != null) {
-            ReaderListener readerListener = readerConfiguration.getReaderListener();
             consumerConfiguration.setMessageListener(new MessageListener() {
                 private static final long serialVersionUID = 1L;
 

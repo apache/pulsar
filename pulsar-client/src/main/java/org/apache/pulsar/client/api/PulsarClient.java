@@ -122,6 +122,8 @@ public interface PulsarClient extends Closeable {
      */
     Consumer subscribe(String topic, String subscription) throws PulsarClientException;
 
+    Consumer subscribe(String topic, String subscription, MessageListener listener) throws PulsarClientException;
+
     /**
      * Asynchronously subscribe to the given topic and subscription combination using default
      * {@code ConsumerConfiguration}
@@ -133,6 +135,8 @@ public interface PulsarClient extends Closeable {
      * @return Future of the {@code Consumer} object
      */
     CompletableFuture<Consumer> subscribeAsync(String topic, String subscription);
+
+    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, MessageListener listener);
 
     /**
      * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
@@ -148,6 +152,8 @@ public interface PulsarClient extends Closeable {
      */
     Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
+    Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf, MessageListener listener) throws PulsarClientException;
+
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
      * {@code ConsumerConfiguration}
@@ -161,6 +167,8 @@ public interface PulsarClient extends Closeable {
      * @return Future of the {@code Consumer} object
      */
     CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
+
+    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf, MessageListener listener);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
@@ -188,6 +196,8 @@ public interface PulsarClient extends Closeable {
      */
     Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
 
+    Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf, ReaderListener listener) throws PulsarClientException;
+
     /**
      * Asynchronously create a topic reader with given {@code ReaderConfiguration} for reading messages from the
      * specified topic.
@@ -214,6 +224,8 @@ public interface PulsarClient extends Closeable {
      * @return Future of the asynchronously created producer object
      */
     CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
+
+    CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf, ReaderListener listener);
 
     /**
      * Close the PulsarClient and release all the resources.
