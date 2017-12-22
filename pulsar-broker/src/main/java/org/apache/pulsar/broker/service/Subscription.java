@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Entry;
@@ -39,7 +40,7 @@ public interface Subscription {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(PositionImpl position, AckType ackType);
+    void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties);
 
     String getDestination();
 
