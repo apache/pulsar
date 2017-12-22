@@ -58,13 +58,11 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
-
     private final JavaInstanceConfig javaInstanceConfig;
-    private JavaInstance javaInstance;
     private final FunctionCacheManager fnCache;
-    private LinkedBlockingQueue<Payload> queue;
-    private String id;
-    private String jarFile;
+    private final LinkedBlockingQueue<Payload> queue;
+    private final String id;
+    private final String jarFile;
     private volatile boolean closed = false;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig, int maxBufferedTuples,
@@ -78,7 +76,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                 new Runnable() {
                     @Override
                     public void run() {
-                        javaInstance = new JavaInstance(javaInstanceConfig);
+                        JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
                         while (!closed) {
                             JavaExecutionResult result;
