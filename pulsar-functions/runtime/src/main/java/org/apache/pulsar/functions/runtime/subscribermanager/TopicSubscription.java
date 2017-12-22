@@ -23,40 +23,69 @@
  */
 package org.apache.pulsar.functions.runtime.subscribermanager;
 
-import org.apache.pulsar.client.api.*;
+import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
+import org.apache.pulsar.functions.stats.FunctionStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static java.lang.Thread.sleep;
-
 public class TopicSubscription {
+
+    @Data
+    @RequiredArgsConstructor
+    @Getter
+    private static class ContainerWithStats {
+
+        private final FunctionContainer container;
+        private final FunctionStatsImpl stats;
+
+    }
+
     private static final Logger log = LoggerFactory.getLogger(TopicSubscription.class);
-    String topicName;
-    String subscriptionId;
-    ConcurrentMap<String, FunctionContainer> subscriberMap;
-    private Thread thread;
-    private PulsarClient client;
-    private ConsumerConfiguration consumerConfiguration;
+    private final String topicName;
+    private final String subscriptionId;
+    private final ConcurrentMap<String, ContainerWithStats> subscriberMap;
+    private final PulsarClientImpl client;
+    private final ConsumerConfiguration consumerConfiguration;
     private Consumer consumer;
     private volatile boolean running;
 
-    TopicSubscription(String topicName, String subscriptionId, PulsarClient client,
+    TopicSubscription(String topicName,
+                      String subscriptionId,
+                      PulsarClient client,
                       ResultsProcessor resultsProcessor) {
         this.topicName = topicName;
         this.subscriptionId = subscriptionId;
         subscriberMap = new ConcurrentHashMap<>();
-        this.client = client;
+        this.client = (PulsarClientImpl) client;
         this.consumerConfiguration = new ConsumerConfiguration().setSubscriptionType(SubscriptionType.Shared);
         consumerConfiguration.setMessageListener((consumer, msg) -> {
             try {
                 String messageId = convertMessageIdToString(msg.getMessageId());
-                for (FunctionContainer subscriber : subscriberMap.values()) {
-                    subscriber.sendMessage(topicName, messageId, msg.getData())
-                            .thenApply(result -> resultsProcessor.handleResult(subscriber, result));
+                for (ContainerWithStats subscriber : subscriberMap.values()) {
+                    long processedAt = System.nanoTime();
+                    subscriber.stats.incrementProcess();
+                    subscriber.container.sendMessage(topicName, messageId, msg.getData())
+                            .thenApply(result -> resultsProcessor.handleResult(
+                                subscriber.container,
+                                result,
+                                subscriber.stats,
+                                processedAt))
+                            .exceptionally(cause -> {
+                                subscriber.stats.incrementProcessFailure();
+                                return true;
+                            });
                 }
                 // Acknowledge the message so that it can be deleted by broker
                 consumer.acknowledgeAsync(msg);
@@ -71,36 +100,30 @@ public class TopicSubscription {
         String subscriptionName = "fn-" + subscriptionId + "-" + topicName + "-subscriber";
         consumer = client.subscribe(topicName, subscriptionName, consumerConfiguration);
         running = true;
-        thread = new Thread(() -> {
-            try {
-                while (running) {
-                    sleep(1000);
-                }
-            } catch (Exception ex) {
-                log.error("Got exception while dealing with topic " + topicName, ex);
-            }
-        }, subscriptionName);
-        thread.start();
     }
 
     public void stop() {
-        if (thread != null) {
+        if (running) {
             running = false;
-            try {
-                thread.join();
-            } catch (InterruptedException ex) {
-                log.error("Got Interrupted while waiting for the thread to join! Ignoring...");
+            if (null != consumer) {
+                consumer.closeAsync();
             }
-            consumer.closeAsync();
-            thread = null;
         }
     }
 
-    void addSubscriber(FunctionContainer subscriber) throws Exception {
+    void addSubscriber(FunctionContainer container) throws Exception {
         if (subscriberMap.isEmpty()) {
             start();
         }
-        subscriberMap.putIfAbsent(subscriber.getId(), subscriber);
+        ContainerWithStats subscriber = new ContainerWithStats(
+            container,
+            new FunctionStatsImpl(
+                container.getId(),
+                client.getConfiguration().getStatsIntervalSeconds(),
+                client.timer())
+        );
+
+        subscriberMap.putIfAbsent(subscriber.container.getId(), subscriber);
     }
 
     void removeSubscriber(String subscriberId) {
@@ -110,7 +133,7 @@ public class TopicSubscription {
         }
     }
 
-    private String convertMessageIdToString(MessageId messageId) {
+    private static String convertMessageIdToString(MessageId messageId) {
         return messageId.toByteArray().toString();
     }
 }

@@ -26,6 +26,7 @@ package org.apache.pulsar.functions.runtime.subscribermanager;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.runtime.container.ExecutionResult;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
+import org.apache.pulsar.functions.stats.FunctionStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,14 +38,21 @@ public class ResultsProcessor {
         producer = new ProducerManager(client);
     }
 
-    public boolean handleResult(FunctionContainer container, ExecutionResult result) {
+    public boolean handleResult(FunctionContainer container,
+                                ExecutionResult result,
+                                FunctionStatsImpl stats,
+                                long processAt) {
         if (result.getUserException() != null) {
             log.info("User Exception", result.getUserException());
+            stats.incrementProcessFailure();
         } else if (result.getSystemException() != null) {
             log.info("System Exception", result.getSystemException());
+            stats.incrementProcessFailure();
         } else if (result.isTimedOut()) {
             log.info("Timedout");
+            stats.incrementProcessFailure();
         } else if (result.getResult() != null && container.getFunctionConfig().getSinkTopic() != null) {
+            stats.incrementProcessSuccess(System.nanoTime() - processAt);
             try {
                 producer.publish(container.getFunctionConfig().getSinkTopic(), result.getResult());
             } catch (Exception ex) {
