@@ -49,16 +49,16 @@ public class RawReaderImpl implements RawReader {
     private final PulsarClientImpl client;
     private final String topic;
     private final String subscription;
-    private final ConsumerConfiguration consumerConfiguration;
+    private final ConsumerConfiguration<byte[]> consumerConfiguration;
     private RawConsumerImpl consumer;
 
-    public RawReaderImpl(PulsarClientImpl client, String topic, CompletableFuture<Consumer> consumerFuture) {
+    public RawReaderImpl(PulsarClientImpl client, String topic, CompletableFuture<Consumer<byte[]>> consumerFuture) {
         this.client = client;
         this.topic = topic;
 
         subscription = "raw-reader";
 
-        consumerConfiguration = new ConsumerConfiguration();
+        consumerConfiguration = new ConsumerConfiguration<>();
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
 
@@ -86,7 +86,7 @@ public class RawReaderImpl implements RawReader {
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
         RawConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-                        CompletableFuture<Consumer> consumerFuture) {
+                        CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client, topic, subscription, conf,
                   client.externalExecutorProvider().getExecutor(), -1, consumerFuture,
                   SubscriptionMode.Durable, MessageId.earliest);

@@ -348,7 +348,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     }
 
     private static long getUnackedMessagesCountInPartitionedConsumer(Consumer<byte[]> c) {
-        return ((PartitionedConsumerImpl) c).getConsumers().stream()
+        PartitionedConsumerImpl pc = (PartitionedConsumerImpl) c;
+        return pc.getUnAckedMessageTracker().size() + pc.getConsumers().stream()
                 .mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
     }
 
@@ -417,6 +418,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
+        ((PartitionedConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
         ((PartitionedConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 8. producer publish more messages
