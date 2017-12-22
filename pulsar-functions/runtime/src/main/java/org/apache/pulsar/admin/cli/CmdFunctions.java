@@ -29,6 +29,8 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
+import java.util.List;
+
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
     private LocalRunner localRunner;
@@ -122,6 +124,7 @@ public class CmdFunctions extends CmdBase {
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
             a.functions().createFunction(functionConfig, jarFile);
+            print("Created successfully");
         }
     }
 
@@ -130,7 +133,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName());
+            print(a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName()));
         }
     }
 
@@ -140,6 +143,7 @@ public class CmdFunctions extends CmdBase {
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
             a.functions().deleteFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName());
+            print("Deleted successfully");
         }
     }
 
@@ -149,6 +153,7 @@ public class CmdFunctions extends CmdBase {
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
             a.functions().updateFunction(functionConfig, jarFile);
+            print("Updated successfully");
         }
     }
 
@@ -157,7 +162,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNameSpace());
+            print(a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNameSpace()));
         }
     }
 
