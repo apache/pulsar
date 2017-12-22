@@ -26,6 +26,7 @@ import static com.scurrilous.circe.params.CrcParameters.CRC64;
 import static com.scurrilous.circe.params.CrcParameters.CRC64_XZ;
 import static org.testng.Assert.assertEquals;
 
+import com.scurrilous.circe.IncrementalLongHash;
 import java.nio.charset.Charset;
 
 import org.testng.annotations.Test;
@@ -163,18 +164,34 @@ public class CRCTest {
     }
     
     @Test
-    public void testCRC32CIncremental() {
+    public void testCRC32CIncrementalInt() {
         // reflected
-        testIncremental(PROVIDER.getIncrementalInt(CRC32C));
+        testIncrementalInt(PROVIDER.getIncrementalInt(CRC32C));
     }
 
-    private void testIncremental(IncrementalIntHash hash) {
+    private void testIncrementalInt(IncrementalIntHash hash) {
         final String data = "data";
         final String combined = data + data;
 
         final int dataChecksum = hash.calculate(data.getBytes(ASCII));
         final int combinedChecksum = hash.calculate(combined.getBytes(ASCII));
         final int incrementalChecksum = hash.resume(dataChecksum, data.getBytes(ASCII));
+        assertEquals(combinedChecksum, incrementalChecksum);
+    }
+
+    @Test
+    public void testCRC32CIncrementalLong() {
+        // reflected
+        testIncrementalLong(PROVIDER.getIncrementalLong(CRC32C));
+    }
+
+    private void testIncrementalLong(IncrementalLongHash hash) {
+        final String data = "data";
+        final String combined = data + data;
+
+        final long dataChecksum = hash.calculate(data.getBytes(ASCII));
+        final long combinedChecksum = hash.calculate(combined.getBytes(ASCII));
+        final long incrementalChecksum = hash.resume(dataChecksum, data.getBytes(ASCII));
         assertEquals(combinedChecksum, incrementalChecksum);
     }
 }
