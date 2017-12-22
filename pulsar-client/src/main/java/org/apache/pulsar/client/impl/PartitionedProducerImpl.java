@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedProducerImpl<T> extends ProducerBase {
+public class PartitionedProducerImpl extends ProducerBase {
 
     private List<ProducerImpl> producers;
     private int numPartitions;
