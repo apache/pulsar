@@ -120,7 +120,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                         MediaType.APPLICATION_JSON_TYPE));
             }
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNameSpace()).path(functionConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
