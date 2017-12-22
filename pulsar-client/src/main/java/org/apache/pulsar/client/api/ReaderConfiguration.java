@@ -21,13 +21,11 @@ package org.apache.pulsar.client.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.Serializable;
-
-public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
+public class ReaderConfiguration<T> implements ReaderConfig<T> {
 
     private int receiverQueueSize = 1000;
 
-    private ReaderListener<M> readerListener;
+    private ReaderListener<T> readerListener;
 
     private String readerName = null;
 
@@ -38,7 +36,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
      * @return the configured {@link ReaderListener} for the reader
      */
     @Override
-    public ReaderListener<M> getReaderListener() {
+    public ReaderListener<T> getReaderListener() {
         return this.readerListener;
     }
 
@@ -51,7 +49,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
      * @param readerListener
      *            the listener object
      */
-    public ReaderConfiguration<M> setReaderListener(ReaderListener<M> readerListener) {
+    public ReaderConfiguration<T> setReaderListener(ReaderListener<T> readerListener) {
         checkNotNull(readerListener);
         this.readerListener = readerListener;
         return this;
@@ -78,7 +76,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    public ReaderConfiguration<M> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ReaderConfiguration<T> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
         this.cryptoKeyReader = cryptoKeyReader;
         return this;
@@ -87,7 +85,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      * 
-     * @param The consumer action
+     * @param action The consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
         cryptoFailureAction = action;
@@ -113,7 +111,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ReaderConfiguration<M> setReceiverQueueSize(int receiverQueueSize) {
+    public ReaderConfiguration<T> setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
         this.receiverQueueSize = receiverQueueSize;
         return this;
@@ -132,7 +130,7 @@ public class ReaderConfiguration<M extends Message> implements ReaderConfig<M> {
      *
      * @param readerName
      */
-    public ReaderConfiguration<M> setReaderName(String readerName) {
+    public ReaderConfiguration<T> setReaderName(String readerName) {
         checkArgument(readerName != null && !readerName.equals(""));
         this.readerName = readerName;
         return this;

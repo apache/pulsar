@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
