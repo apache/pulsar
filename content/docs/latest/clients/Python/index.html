@@ -1149,15 +1149,40 @@
 
 <h2 id="installation">Installation</h2>
 
-<p>You can install the <code class="highlighter-rouge">pulsar-client</code> library either using <a href="https://pip.pypa.io/en/stable/">pip</a> or by building the library from source.</p>
+<p>You can install the <a href="https://pypi.python.org/pypi/pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> library either via <a href="https://pypi.python.org/pypi">PyPi</a>, using <a href="#installation-using-pip">pip</a>, or by building the library from source.</p>
 
-<p>To install using pip:</p>
+<h3 id="installation-using-pip">Installation using pip</h3>
+
+<p>To install the <code class="highlighter-rouge">pulsar-client</code> library as a pre-built package using the <a href="https://pip.pypa.io/en/stable/">pip</a> package manager:</p>
 
 <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install pulsar-client
 </code></pre>
 </div>
 
-<p>To install by building from source, follow the <a href="../Cpp#compilation">instructions</a> and compile the Pulsar C++ client library. That will also build the Python binding for the library.</p>
+<p>Installation via PyPi is available for the following Python versions:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Platform</th>
+      <th style="text-align: left">Supported Python versions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">MacOS 10.12 (Sierra) and 10.13 (High Sierra)</td>
+      <td style="text-align: left">2.7, 3.6</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Linux</td>
+      <td style="text-align: left">2.7, 3.3, 3.4, 3.5, 3.6</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="installing-from-source">Installing from source</h3>
+
+<p>To install the <code class="highlighter-rouge">pulsar-client</code> library by building from source, follow <a href="../Cpp#compilation">these instructions</a> and compile the Pulsar C++ client library. That will also build the Python binding for the library.</p>
 
 <p>To install the built Python bindings:</p>
 
@@ -1167,37 +1192,9 @@
 </code></pre>
 </div>
 
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    
-    <p>Currently, the only supported Python version is 2.7.</p>
-
-  </div>
-</div>
-
 <h2 id="api-reference">API Reference</h2>
 
-<p>The complete Python API reference is available at <a href="/api/python">api/python</a></p>
+<p>The complete Python API reference is available at <a href="/api/python">api/python</a>.</p>
 
 <h2 id="examples">Examples</h2>
 
@@ -1205,14 +1202,16 @@
 
 <h3 id="producer-example">Producer example</h3>
 
-<p>This would create a Python <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> for the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic and send 10 messages on that topic:</p>
+<p>This creates a Python <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> for the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic and send 10 messages on that topic:</p>
 
 <div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
-<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'persistent://sample/standalone/ns/my-topic'</span>
+<span class="n">PULSAR_SERVICE_URL</span> <span class="o">=</span> <span class="s">'pulsar://localhost:6650'</span>
 
-<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span>
-                <span class="s">'persistent://sample/standalone/ns/my-topic'</span><span class="p">)</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">PULSAR_SERVICE_URL</span><span class="p">)</span>
+
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
     <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
@@ -1223,44 +1222,16 @@
 
 <h3 id="consumer-example">Consumer example</h3>
 
-<p>This would create a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> with the <code class="highlighter-rouge">my-sub</code> <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> on the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic, listen for incoming messages, print the content and ID of messages that arrive, and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> each message to the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>:</p>
+<p>This creates a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> with the <code class="highlighter-rouge">my-sub</code> <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> on the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic, listen for incoming messages, print the content and ID of messages that arrive, and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> each message to the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">SUBSCRIPTION</span> <span class="o">=</span> <span class="s">'my-sub'</span>
 
-<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
-<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
-        <span class="s">'persistent://sample/standalone/ns/my-topic'</span><span class="p">,</span>
-        <span class="s">'my-sub'</span><span class="p">)</span>
+<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">,</span> <span class="n">SUBSCRIPTION</span><span class="p">)</span>
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
     <span class="k">print</span><span class="p">(</span><span class="s">"Received message '</span><span class="si">%</span><span class="s">s' id='</span><span class="si">%</span><span class="s">s'"</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">())</span>
     <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
-<span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
-
-<h3 id="async-producer-example">Async producer example</h3>
-
-<p>This would create a Pulsar <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that sends messages asynchronously and triggers the <code class="highlighter-rouge">send_callback</code> callback function whenever messages are <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>:</p>
-
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
-
-<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span>
-                <span class="s">'persistent://sample/standalone/ns/my-topic'</span><span class="p">,</span>
-                <span class="n">block_if_queue_full</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                <span class="n">batching_enabled</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                <span class="n">batching_max_publish_delay_ms</span><span class="o">=</span><span class="mi">10</span>
-            <span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">send_callback</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">'Message published res=</span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
-
-<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
-    <span class="n">producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">send_callback</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </code></pre>
