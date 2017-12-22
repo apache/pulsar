@@ -1,6 +1,6 @@
 ---
 title: Kubernetes上でのPulsarのデプロイ
-tags_ja: [Kubernetes, Google Container Engine]
+tags_ja: [Kubernetes, Google Kubernetes Engine]
 ---
 
 <!--
@@ -24,7 +24,7 @@ tags_ja: [Kubernetes, Google Container Engine]
 
 -->
 
-Pulsarは[Google Container Engine](#google-container-engine), [Amazon Web Services](https://aws.amazon.com/)の管理クラスタ、[カスタムクラスタ](#カスタムkubernetesクラスタ)の[Kubernetes](https://kubernetes.io/)クラスタに簡単にデプロイできます。
+Pulsarは[Google Kubernetes Engine](#google-kubernetes-engine), [Amazon Web Services](https://aws.amazon.com/)の管理クラスタ、[カスタムクラスタ](#カスタムkubernetesクラスタ)の[Kubernetes](https://kubernetes.io/)クラスタに簡単にデプロイできます。
 
 このガイドのデプロイ方法はKubernetesの[リソース](https://kubernetes.io/docs/resources-reference/v1.6/)の[YAML](http://yaml.org/)定義に依存しています。[Pulsarパッケージ](/download)の[`kubernetes`]({{ site.pulsar_repo }}/kubernetes)サブディレクトリは以下のリソース定義を保持します:
 
@@ -42,9 +42,9 @@ Pulsarは[Google Container Engine](#google-container-engine), [Amazon Web Servic
 
 もしPulsarクラスタのBookie, Broker, ZooKeeperノードの数を変更したい場合は、適切な[`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)リソースの`spec`セクション内の`replicas`パラメータを編集してください。
 
-## Google Container Engine
+## Google Kubernetes Engine
 
-[Google Container Engine](https://cloud.google.com/container-engine) (GKE) は[Google Compute Engine](https://cloud.google.com/compute/) (GCE) 内のKubernetesクラスタの作成、管理を自動化します。
+[Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine) (GKE) は[Google Compute Engine](https://cloud.google.com/compute/) (GCE) 内のKubernetesクラスタの作成、管理を自動化します。
 
 ### 前提条件
 
@@ -156,9 +156,9 @@ $ kubectl proxy
 
 ## Pulsarコンポーネントのデプロイ
 
-ここまでで、[Google Container Engine](#google-container-engine)あるいは[カスタムクラスタ](#カスタムkubernetesクラスタ)のいずれかで、Kubernetesクラスタのセットアップが完了しました。Pulsarを構成するコンポーネントをデプロイすることができます。PulsarのコンポーネントのYAMLのリソース定義は[Pulsarソースパッケージ](/download)の`kubernetes`ディレクトリにあります。
+ここまでで、[Google Kubernetes Engine](#google-kubernetes-engine)あるいは[カスタムクラスタ](#カスタムkubernetesクラスタ)のいずれかで、Kubernetesクラスタのセットアップが完了しました。Pulsarを構成するコンポーネントをデプロイすることができます。PulsarのコンポーネントのYAMLのリソース定義は[Pulsarソースパッケージ](/download)の`kubernetes`ディレクトリにあります。
 
-このパッケージでは、2セットのリソース定義があります。1つは`kubernetes/google-container-engine`ディレクトリに含まれる、Google Container Engine (GKE) のためのもの、もう1つは`kubernetes/generic`ディレクトリに含まれるカスタムKubernetesクラスタのためのものです。まず、`cd`で適切なディレクトリへ移動しましょう。
+このパッケージでは、2セットのリソース定義があります。1つは`kubernetes/google-container-engine`ディレクトリに含まれる、Google Kubernetes Engine (GKE) のためのもの、もう1つは`kubernetes/generic`ディレクトリに含まれるカスタムKubernetesクラスタのためのものです。まず、`cd`で適切なディレクトリへ移動しましょう。
 
 ### ZooKeeper
 
