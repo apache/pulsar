@@ -25,10 +25,10 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -100,6 +100,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     private volatile long lastSequenceIdPublished;
     private MessageCrypto msgCrypto = null;
 
+    private final Map<String, String> metadata;
+
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
@@ -163,6 +165,13 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         } else {
             stats = ProducerStats.PRODUCER_STATS_DISABLED;
         }
+
+        if (conf.getMetadata().isEmpty()) {
+            metadata = Collections.emptyMap();
+        } else {
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getMetadata()));
+        }
+
         grabCnx();
     }
 
@@ -805,7 +814,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
         long requestId = client.newRequestId();
 
-        cnx.sendRequestWithId(Commands.newProducer(topic, producerId, requestId, producerName), requestId)
+        cnx.sendRequestWithId(Commands.newProducer(topic, producerId, requestId, producerName, metadata), requestId)
                 .thenAccept(pair -> {
                     String producerName = pair.getLeft();
                     long lastSequenceId = pair.getRight();

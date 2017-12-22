@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -55,6 +57,8 @@ public class ProducerConfiguration implements Serializable {
 
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
+
+    private final Map<String, String> metadata = new HashMap<>();
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
@@ -421,6 +425,23 @@ public class ProducerConfiguration implements Serializable {
     public ProducerConfiguration setInitialSequenceId(long initialSequenceId) {
         this.initialSequenceId = initialSequenceId;
         return this;
+    }
+
+    /**
+     * Set optional key/value metadata with this producer.
+     * @param key
+     * @param value
+     * @return
+     */
+    public ProducerConfiguration setMetadata(String key, String value) {
+        checkArgument(key != null);
+        checkArgument(value != null);
+        metadata.put(key, value);
+        return this;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
     }
 
     @Override

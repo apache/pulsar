@@ -22,7 +22,11 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -400,7 +404,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName) {
+    /*public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -408,6 +412,25 @@ public class Commands {
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+
+        CommandProducer producer = producerBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
+        producerBuilder.recycle();
+        producer.recycle();
+        return res;
+    }*/
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+        Map<String, String> metadata) {
+        CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
+        producerBuilder.setTopic(topic);
+        producerBuilder.setProducerId(producerId);
+        producerBuilder.setRequestId(requestId);
+        if (producerName != null) {
+            producerBuilder.setProducerName(producerName);
+        }
+
+        producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));

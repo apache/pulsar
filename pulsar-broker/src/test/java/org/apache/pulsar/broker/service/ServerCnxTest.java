@@ -36,6 +36,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -349,7 +350,7 @@ public class ServerCnxTest {
 
         // test PRODUCER success case
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
@@ -359,7 +360,8 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // test PRODUCER error case
-        clientCommand = Commands.newProducer(failTopicName, 2, 2, "prod-name-2");
+        clientCommand = Commands.newProducer(failTopicName, 2, 2,
+                "prod-name-2", Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
         assertTrue(getResponse() instanceof CommandError);
@@ -378,11 +380,12 @@ public class ServerCnxTest {
         doReturn(delayFuture).when(brokerService).getTopic(any(String.class));
         // Create producer first time
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
         // Create producer second time
-        clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */, "prod-name");
+        clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
@@ -401,7 +404,7 @@ public class ServerCnxTest {
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
@@ -426,7 +429,7 @@ public class ServerCnxTest {
 
         // test PRODUCER success case
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertEquals(getResponse().getClass(), CommandProducerSuccess.class);
 
@@ -457,7 +460,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf newProducerCmd = Commands.newProducer(nonExistentTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(newProducerCmd);
         assertTrue(getResponse() instanceof CommandError);
         channel.finish();
@@ -483,14 +486,14 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
         resetChannel();
         setChannelConnected();
         clientCommand = Commands.newProducer(topicWithNonLocalCluster, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandError);
     }
@@ -506,7 +509,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf newProducerCmd = Commands.newProducer(nonExistentTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(newProducerCmd);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
@@ -538,7 +541,8 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
-        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */, null);
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                null, Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandError);
 
@@ -551,7 +555,7 @@ public class ServerCnxTest {
         setChannelConnected();
 
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name");
+                "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
@@ -576,12 +580,12 @@ public class ServerCnxTest {
         String producerName = "my-producer";
 
         ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(clientCommand1);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
         ByteBuf clientCommand2 = Commands.newProducer(successTopicName, 2 /* producer id */, 2 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(clientCommand2);
         assertTrue(getResponse() instanceof CommandError);
 
@@ -598,7 +602,7 @@ public class ServerCnxTest {
         String producerName = "my-producer";
 
         ByteBuf createProducer1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer1);
 
         // Producer create succeeds
@@ -607,7 +611,7 @@ public class ServerCnxTest {
         assertEquals(((CommandProducerSuccess) response).getRequestId(), 1);
 
         ByteBuf createProducer2 = Commands.newProducer(successTopicName, 1 /* producer id */, 2 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
         // 2nd producer create succeeds as well
@@ -701,14 +705,14 @@ public class ServerCnxTest {
         String producerName = "my-producer";
 
         ByteBuf createProducer1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer1);
 
         ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */ );
         channel.writeInbound(closeProducer);
 
         ByteBuf createProducer2 = Commands.newProducer(successTopicName, 1 /* producer id */, 3 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
         // Complete the topic opening
@@ -760,22 +764,22 @@ public class ServerCnxTest {
         String producerName = "my-producer";
 
         ByteBuf createProducer1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer1);
 
         ByteBuf closeProducer1 = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */ );
         channel.writeInbound(closeProducer1);
 
         ByteBuf createProducer2 = Commands.newProducer(successTopicName, 1 /* producer id */, 3 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
         ByteBuf createProducer3 = Commands.newProducer(successTopicName, 1 /* producer id */, 4 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer3);
 
         ByteBuf createProducer4 = Commands.newProducer(successTopicName, 1 /* producer id */, 5 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer4);
 
         // Close succeeds
@@ -839,14 +843,14 @@ public class ServerCnxTest {
         String producerName = "my-producer";
 
         ByteBuf createProducer1 = Commands.newProducer(failTopicName, 1 /* producer id */, 1 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer1);
 
         ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */ );
         channel.writeInbound(closeProducer);
 
         ByteBuf createProducer2 = Commands.newProducer(successTopicName, 1 /* producer id */, 3 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
         // Now the topic gets opened
@@ -865,7 +869,7 @@ public class ServerCnxTest {
         // Wait till the failtopic timeout interval
         Thread.sleep(500);
         ByteBuf createProducer3 = Commands.newProducer(successTopicName, 1 /* producer id */, 4 /* request id */,
-                producerName);
+                producerName, Collections.emptyMap());
         channel.writeInbound(createProducer3);
 
         // 3rd producer succeeds

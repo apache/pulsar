@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -66,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -457,7 +460,7 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
             authorizationFuture = service.getAuthorizationManager().canProduceAsync(
-                    DestinationName.get(cmdProducer.getTopic().toString()),
+                    DestinationName.get(cmdProducer.getTopic()),
                     originalPrincipal != null ? originalPrincipal : authRole);
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
@@ -469,11 +472,20 @@ public class ServerCnx extends PulsarHandler {
         final String topicName = cmdProducer.getTopic();
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to Produce with role {}", remoteAddress, authRole);
                 }
+
+                if (!Metadata.validateMetadata(metadata)) {
+                    final String msg = Metadata.getErrorMessage();
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                    return null;
+                }
+
                 CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
                 CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
 
@@ -524,7 +536,8 @@ public class ServerCnx extends PulsarHandler {
 
                     disableTcpNoDelayIfNeeded(topicName, producerName);
 
-                    Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole);
+                    Producer producer =
+                            new Producer(topic, ServerCnx.this, producerId, producerName, authRole, metadata);
 
                     try {
                         topic.addProducer(producer);

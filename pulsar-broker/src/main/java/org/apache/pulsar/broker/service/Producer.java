@@ -23,6 +23,9 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -73,7 +76,10 @@ public class Producer {
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
 
-    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
+    private final Map<String, String> metadata;
+
+    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
+                    Map<String, String> metadata) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -83,12 +89,17 @@ public class Producer {
         this.msgIn = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
+
+        this.metadata = metadata != null
+                ? Collections.unmodifiableMap(new HashMap<>(metadata)) : Collections.emptyMap();
+
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();
         stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
         stats.producerName = producerName;
         stats.producerId = producerId;
+        stats.metadata = this.metadata;
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
@@ -333,6 +344,10 @@ public class Producer {
 
     public long getProducerId() {
         return producerId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
     }
 
     @Override
