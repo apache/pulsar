@@ -23,6 +23,7 @@
  */
 package org.apache.pulsar.functions.runtime.subscribermanager;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.*;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +40,12 @@ public class ProducerManager {
 
     private void createProducer(String topicName) {
         try {
-            Producer producer = client.createProducer(topicName);
+            ProducerConfiguration conf = new ProducerConfiguration();
+            conf.setBlockIfQueueFull(true);
+            conf.setBatchingEnabled(true);
+            conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+            conf.setMaxPendingMessages(1000000);
+            Producer producer = client.createProducer(topicName, conf);
             producerMap.putIfAbsent(topicName, producer);
         } catch (Exception ex) {
             throw new RuntimeException("Exception occured while creating producer", ex);
