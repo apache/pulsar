@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Codec;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
 class TypedMessageImpl<T> implements Message<T> {
     private final FutureTask<T> expanded;
     private final Message<byte[]> message;
 
-    TypedMessageImpl(Message<byte[]> message, Codec<T> codec) {
+    TypedMessageImpl(Message<byte[]> message, Schema<T> codec) {
         this.expanded = new FutureTask<>(() ->
                 codec.decode(getData())
         );

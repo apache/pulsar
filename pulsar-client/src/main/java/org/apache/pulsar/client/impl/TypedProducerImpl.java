@@ -24,9 +24,9 @@ import java.util.concurrent.CompletableFuture;
 
 class TypedProducerImpl<T> implements Producer<T> {
     private final Producer<byte[]> untypedProducer;
-    private final Codec<T> codec;
+    private final Schema<T> codec;
 
-    TypedProducerImpl(Producer<byte[]> untypedProducer, Codec<T> codec) {
+    TypedProducerImpl(Producer<byte[]> untypedProducer, Schema<T> codec) {
         this.untypedProducer = untypedProducer;
         this.codec = codec;
     }

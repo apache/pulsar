@@ -387,43 +387,43 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public <T> Producer<T> createProducer(String topic, Codec<T> codec) throws PulsarClientException {
+    public <T> Producer<T> createProducer(String topic, Schema<T> codec) throws PulsarClientException {
         return new TypedProducerImpl<>(createProducer(topic), codec);
     }
 
     @Override
-    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, Codec<T> codec) {
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, Schema<T> codec) {
         return createProducerAsync(topic).thenApply((producer ->
                 new TypedProducerImpl<>(producer, codec))
         );
     }
 
     @Override
-    public <T> Producer<T> createProducer(String topic, ProducerConfiguration conf, Codec<T> codec) throws PulsarClientException {
+    public <T> Producer<T> createProducer(String topic, ProducerConfiguration conf, Schema<T> codec) throws PulsarClientException {
         return new TypedProducerImpl<>(createProducer(topic, conf), codec);
     }
 
     @Override
-    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf, Codec<T> codec) {
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf, Schema<T> codec) {
         return createProducerAsync(topic, conf).thenApply((producer) ->
                 new TypedProducerImpl<>(producer, codec)
         );
     }
 
     @Override
-    public <T> Consumer<T> subscribe(String topic, String subscription, Codec<T> codec) throws PulsarClientException {
+    public <T> Consumer<T> subscribe(String topic, String subscription, Schema<T> codec) throws PulsarClientException {
         return new TypedConsumerImpl<T>(subscribe(topic, subscription), codec);
     }
 
     @Override
-    public <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, Codec<T> codec) {
+    public <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, Schema<T> codec) {
         return subscribeAsync(topic, subscription).thenApply((consumer) ->
                 new TypedConsumerImpl<>(consumer, codec)
         );
     }
 
     @Override
-    public <T> Consumer<T> subscribe(String topic, String subscription, ConsumerConfig<T> conf, Codec<T> codec) throws PulsarClientException {
+    public <T> Consumer<T> subscribe(String topic, String subscription, ConsumerConfig<T> conf, Schema<T> codec) throws PulsarClientException {
         TypedConsumerConfigAdapter<T> adapted = new TypedConsumerConfigAdapter(conf, codec);
         TypedConsumerImpl<T> typedConsumer = new TypedConsumerImpl<>(subscribe(topic, subscription, adapted), codec);
         adapted.setTypedConsumer(typedConsumer);
@@ -431,7 +431,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, ConsumerConfig<T> conf, Codec<T> codec) {
+    public <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, ConsumerConfig<T> conf, Schema<T> codec) {
         final TypedConsumerConfigAdapter<T> adapted = new TypedConsumerConfigAdapter<>(conf, codec);
         return subscribeAsync(topic, subscription, adapted).thenApply((consumer) -> {
             TypedConsumerImpl<T> typedConsumer = new TypedConsumerImpl<>(consumer, codec);
@@ -441,7 +441,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public <T> Reader<T> createReader(String topic, MessageId startMessageId, ReaderConfig<T> conf, Codec<T> codec) throws PulsarClientException {
+    public <T> Reader<T> createReader(String topic, MessageId startMessageId, ReaderConfig<T> conf, Schema<T> codec) throws PulsarClientException {
         TypedReaderConfigAdapter<T> adapted = new TypedReaderConfigAdapter<>(conf, codec);
         TypedReaderImpl<T> typedReader = new TypedReaderImpl<>(createReader(topic, startMessageId, adapted), codec);
         adapted.setTypedReader(typedReader);
@@ -449,7 +449,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public <T> CompletableFuture<Reader<T>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<T> conf, Codec<T> codec) {
+    public <T> CompletableFuture<Reader<T>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<T> conf, Schema<T> codec) {
         final TypedReaderConfigAdapter<T> adapted = new TypedReaderConfigAdapter<>(conf, codec);
         return createReaderAsync(topic, startMessageId, adapted).thenApply((reader) -> {
             TypedReaderImpl<T> typedReader = new TypedReaderImpl<>(reader, codec);

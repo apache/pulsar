@@ -22,11 +22,11 @@ import org.apache.pulsar.client.api.*;
 
 class TypedReaderConfigAdapter<T> implements ReaderConfig<byte[]> {
     private final ReaderConfig<T> typedConfig;
-    private final Codec<T> codec;
+    private final Schema<T> codec;
 
     private TypedReaderImpl<T> typedReader;
 
-    public TypedReaderConfigAdapter(ReaderConfig<T> typedConfig, Codec<T> codec) {
+    public TypedReaderConfigAdapter(ReaderConfig<T> typedConfig, Schema<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }

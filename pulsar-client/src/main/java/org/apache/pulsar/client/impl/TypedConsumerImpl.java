@@ -26,14 +26,14 @@ import java.util.concurrent.TimeUnit;
 class TypedConsumerImpl<T> implements Consumer<T> {
 
     private final Consumer<byte[]> untypedConsumer;
-    private final Codec<T> codec;
+    private final Schema<T> codec;
 
-    TypedConsumerImpl(Consumer<byte[]> untypedConsumer, Codec<T> codec) {
+    TypedConsumerImpl(Consumer<byte[]> untypedConsumer, Schema<T> codec) {
         this.untypedConsumer = untypedConsumer;
         this.codec = codec;
     }
 
-    Codec<T> getCodec() {
+    Schema<T> getCodec() {
         return codec;
     }
 

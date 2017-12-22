@@ -22,11 +22,11 @@ import org.apache.pulsar.client.api.*;
 
 class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
     private final ConsumerConfig<T> typedConfig;
-    private final Codec<T> codec;
+    private final Schema<T> codec;
 
     private TypedConsumerImpl<T> typedConsumer;
 
-    TypedConsumerConfigAdapter(ConsumerConfig<T> typedConfig, Codec<T> codec) {
+    TypedConsumerConfigAdapter(ConsumerConfig<T> typedConfig, Schema<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }

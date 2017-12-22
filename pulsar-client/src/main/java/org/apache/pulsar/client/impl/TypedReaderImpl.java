@@ -27,9 +27,9 @@ import java.util.concurrent.TimeUnit;
 class TypedReaderImpl<T> implements Reader<T> {
 
     private final Reader<byte[]> untypedReader;
-    private final Codec<T> codec;
+    private final Schema<T> codec;
 
-    TypedReaderImpl(Reader<byte[]> untypedReader, Codec<T> codec) {
+    TypedReaderImpl(Reader<byte[]> untypedReader, Schema<T> codec) {
         this.untypedReader = untypedReader;
         this.codec = codec;
     }
