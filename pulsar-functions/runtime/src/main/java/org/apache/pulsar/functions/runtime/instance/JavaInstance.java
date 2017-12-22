@@ -46,7 +46,7 @@ import java.util.Map;
  * based invocation.
  */
 @Slf4j
-public class JavaInstance {
+public class JavaInstance implements AutoCloseable {
 
     private static final Set<Type> supportedInputTypes = Sets.newHashSet(
         Integer.TYPE,
@@ -191,5 +191,12 @@ public class JavaInstance {
             }
         }
         return executionResult;
+    }
+
+    @Override
+    public void close() {
+        if (null != executorService) {
+            executorService.shutdown();
+        }
     }
 }
