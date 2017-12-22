@@ -28,13 +28,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -63,7 +57,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
 
         consumer = new RawConsumerImpl(client, topic, subscription, consumerConfiguration,
-                                       consumerFuture);
+                                       consumerFuture, null);
     }
 
     @Override
@@ -86,10 +80,10 @@ public class RawReaderImpl implements RawReader {
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
         RawConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-                        CompletableFuture<Consumer> consumerFuture) {
+                        CompletableFuture<Consumer> consumerFuture, MessageListener listener) {
             super(client, topic, subscription, conf,
                   client.externalExecutorProvider().getExecutor(), -1, consumerFuture,
-                  SubscriptionMode.Durable, MessageId.earliest);
+                  SubscriptionMode.Durable, MessageId.earliest, listener);
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }

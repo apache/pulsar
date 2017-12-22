@@ -88,7 +88,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
             ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
+                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<>(),
+                    internalConfig.getMessageListener());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
                 if (subscribeException != null) {
