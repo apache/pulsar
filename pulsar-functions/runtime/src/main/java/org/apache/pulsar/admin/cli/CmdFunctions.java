@@ -29,9 +29,6 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
     private LocalRunner localRunner;
@@ -124,7 +121,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().createFunction(functionConfig, Files.readAllBytes(Paths.get(jarFile)));
+            a.functions().createFunction(functionConfig, jarFile);
         }
     }
 
@@ -151,7 +148,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().updateFunction(functionConfig, Files.readAllBytes(Paths.get(jarFile)));
+            a.functions().updateFunction(functionConfig, jarFile);
         }
     }
 

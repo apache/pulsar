@@ -92,7 +92,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException;
+    void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
@@ -108,7 +108,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig, byte[] code) throws PulsarAdminException;
+    void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
 
     /**
      * Delete an existing function
