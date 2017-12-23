@@ -166,10 +166,10 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             stats = ProducerStats.PRODUCER_STATS_DISABLED;
         }
 
-        if (conf.getMetadata().isEmpty()) {
+        if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getMetadata()));
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         grabCnx();

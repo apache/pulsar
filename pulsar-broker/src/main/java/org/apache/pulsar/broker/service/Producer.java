@@ -90,8 +90,7 @@ public class Producer {
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
 
-        this.metadata = metadata != null
-                ? Collections.unmodifiableMap(new HashMap<>(metadata)) : Collections.emptyMap();
+        this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();

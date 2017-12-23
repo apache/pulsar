@@ -22,8 +22,7 @@ import java.util.Map;
 
 public class Metadata {
 
-    private static final int MAX_KEY_VALUE_PAIRS = 8;
-    private static final int MAX_KEY_OR_VALUE_LENGTH = 63;
+    private static final int MAX_METADATA_SIZE = 1024; // 1 Kb
 
     private Metadata() {}
 
@@ -32,12 +31,10 @@ public class Metadata {
             return true;
         }
 
-        if (metadata.size() > MAX_KEY_VALUE_PAIRS) {
-            return false;
-        }
-
+        int size = 0;
         for (Map.Entry<String, String> e : metadata.entrySet()) {
-            if (e.getKey().length() > MAX_KEY_OR_VALUE_LENGTH || e.getValue().length() > MAX_KEY_OR_VALUE_LENGTH) {
+            size += (e.getKey().length() + e.getValue().length());
+            if (size > MAX_METADATA_SIZE) {
                 return false;
             }
         }
@@ -46,8 +43,6 @@ public class Metadata {
     }
 
     public static String getErrorMessage() {
-        return "metadata can only have " + MAX_KEY_VALUE_PAIRS
-                + " key value pairs and their length must be less than "
-                + (MAX_KEY_OR_VALUE_LENGTH + 1) + " characters";
+        return "metadata has a max size of 1 Kb";
     }
 }

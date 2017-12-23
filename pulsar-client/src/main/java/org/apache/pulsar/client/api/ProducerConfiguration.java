@@ -58,7 +58,7 @@ public class ProducerConfiguration implements Serializable {
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
 
-    private final Map<String, String> metadata = new HashMap<>();
+    private final Map<String, String> properties = new HashMap<>();
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
@@ -428,20 +428,32 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set optional key/value metadata with this producer.
+     * Set a name/value property with this producer.
      * @param key
      * @param value
      * @return
      */
-    public ProducerConfiguration setMetadata(String key, String value) {
+    public ProducerConfiguration setProperty(String key, String value) {
         checkArgument(key != null);
         checkArgument(value != null);
-        metadata.put(key, value);
+        properties.put(key, value);
         return this;
     }
 
-    public Map<String, String> getMetadata() {
-        return metadata;
+    /**
+     * Add all the properties in the provided map
+     * @param properties
+     * @return
+     */
+    public ProducerConfiguration setProperties(Map<String, String> properties) {
+        if (properties != null) {
+            this.properties.putAll(properties);
+        }
+        return this;
+    }
+
+    public Map<String, String> getProperties() {
+        return properties;
     }
 
     @Override
