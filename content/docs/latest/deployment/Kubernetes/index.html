@@ -352,8 +352,8 @@
           
           
           <li>
-            <a href="../../deployment/Kubernetes/#pulsar-on-google-container-engine">
-              Pulsar on Google Container Engine
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
             </a>
           </li>
           
@@ -920,8 +920,8 @@
 </div>
 
           
-          <!-- <span class="badge badge-pill badge-primary">Google Container Engine</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-container-engine">Google Container Engine</button>
+          <!-- <span class="badge badge-pill badge-primary">Google Kubernetes Engine</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-kubernetes-engine">Google Kubernetes Engine</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -942,11 +942,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-google-container-engine">
+<div class="modal fade" id="modal-google-kubernetes-engine">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>Google Container Engine</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>Google Kubernetes Engine</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -1137,7 +1137,7 @@
 
 -->
 
-<p>Pulsar can be easily deployed in <a href="https://kubernetes.io/">Kubernetes</a> clusters, either in managed clusters on <a href="#pulsar-on-google-container-engine">Google Container Engine</a> or <a href="https://aws.amazon.com/">Amazon Web Services</a> or in <a href="#pulsar-on-a-custom-kubernetes-cluster">custom clusters</a>.</p>
+<p>Pulsar can be easily deployed in <a href="https://kubernetes.io/">Kubernetes</a> clusters, either in managed clusters on <a href="#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> or <a href="https://aws.amazon.com/">Amazon Web Services</a> or in <a href="#pulsar-on-a-custom-kubernetes-cluster">custom clusters</a>.</p>
 
 <p>The deployment method shown in this guide relies on <a href="http://yaml.org/">YAML</a> definitions for Kubernetes <a href="https://kubernetes.io/docs/resources-reference/v1.6/">resources</a>. The <a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><code class="highlighter-rouge">kubernetes</code></a> subdirectory of the <a href="/download">Pulsar package</a> holds resource definitions for:</p>
 
@@ -1183,9 +1183,9 @@
 
 <p>If you’d like to change the number of bookies, brokers, or ZooKeeper nodes in your Pulsar cluster, modify the <code class="highlighter-rouge">replicas</code> parameter in the <code class="highlighter-rouge">spec</code> section of the appropriate <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"><code class="highlighter-rouge">Deployment</code></a> or <a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"><code class="highlighter-rouge">StatefulSet</code></a> resource.</p>
 
-<h2 id="pulsar-on-google-container-engine">Pulsar on Google Container Engine</h2>
+<h2 id="pulsar-on-google-kubernetes-engine">Pulsar on Google Kubernetes Engine</h2>
 
-<p><a href="https://cloud.google.com/container-engine">Google Container Engine</a> (GKE) automates the creation and management of Kubernetes clusters in <a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE).</p>
+<p><a href="https://cloud.google.com/kubernetes-engine">Google Kubernetes Engine</a> (GKE) automates the creation and management of Kubernetes clusters in <a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE).</p>
 
 <h3 id="prerequisites">Prerequisites</h3>
 
@@ -1300,9 +1300,9 @@ NAME           STATUS                     AGE       VERSION
 
 <h2 id="deploying-pulsar-components">Deploying Pulsar components</h2>
 
-<p>Now that you’ve set up a Kubernetes cluster, either on <a href="#pulsar-on-google-container-engine">Google Container Engine</a> or on a <a href="#pulsar-on-a-custom-kubernetes-cluster">custom cluster</a>, you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the <code class="highlighter-rouge">kubernetes</code> folder of the <a href="/download">Pulsar source package</a>.</p>
+<p>Now that you’ve set up a Kubernetes cluster, either on <a href="#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> or on a <a href="#pulsar-on-a-custom-kubernetes-cluster">custom cluster</a>, you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the <code class="highlighter-rouge">kubernetes</code> folder of the <a href="/download">Pulsar source package</a>.</p>
 
-<p>In that package, there are two sets of resource definitions, one for Google Container Engine (GKE) in the <code class="highlighter-rouge">kubernetes/google-container-engine</code> folder and one for a custom Kubernetes cluster in the <code class="highlighter-rouge">kubernetes/generic</code> folder. To begin, <code class="highlighter-rouge">cd</code> into the appropriate folder.</p>
+<p>In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the <code class="highlighter-rouge">kubernetes/google-kubernetes-engine</code> folder and one for a custom Kubernetes cluster in the <code class="highlighter-rouge">kubernetes/generic</code> folder. To begin, <code class="highlighter-rouge">cd</code> into the appropriate folder.</p>
 
 <h3 id="zookeeper">ZooKeeper</h3>
 

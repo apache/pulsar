@@ -338,8 +338,8 @@
           
           
           <li>
-            <a href="/ja/deployment/Kubernetes/#google-container-engine">
-              Google Container Engine
+            <a href="/ja/deployment/Kubernetes/#google-kubernetes-engine">
+              Google Kubernetes Engine
             </a>
           </li>
           
@@ -826,8 +826,8 @@
 </div>
 
           
-          <!-- <span class="badge badge-pill badge-primary">Google Container Engine</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-container-engine">Google Container Engine</button>
+          <!-- <span class="badge badge-pill badge-primary">Google Kubernetes Engine</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-google-kubernetes-engine">Google Kubernetes Engine</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -848,11 +848,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-google-container-engine">
+<div class="modal fade" id="modal-google-kubernetes-engine">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><strong>Google Container Engine</strong>タグのページ一覧</h5>
+        <h5 class="modal-title"><strong>Google Kubernetes Engine</strong>タグのページ一覧</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -1043,7 +1043,7 @@
 
 -->
 
-<p>Pulsarは<a href="#google-container-engine">Google Container Engine</a>, <a href="https://aws.amazon.com/">Amazon Web Services</a>の管理クラスタ、<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>の<a href="https://kubernetes.io/">Kubernetes</a>クラスタに簡単にデプロイできます。</p>
+<p>Pulsarは<a href="#google-kubernetes-engine">Google Kubernetes Engine</a>, <a href="https://aws.amazon.com/">Amazon Web Services</a>の管理クラスタ、<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>の<a href="https://kubernetes.io/">Kubernetes</a>クラスタに簡単にデプロイできます。</p>
 
 <p>このガイドのデプロイ方法はKubernetesの<a href="https://kubernetes.io/docs/resources-reference/v1.6/">リソース</a>の<a href="http://yaml.org/">YAML</a>定義に依存しています。<a href="/download">Pulsarパッケージ</a>の<a href="https://github.com/apache/incubator-pulsar/tree/master/kubernetes"><code class="highlighter-rouge">kubernetes</code></a>サブディレクトリは以下のリソース定義を保持します:</p>
 
@@ -1089,9 +1089,9 @@
 
 <p>もしPulsarクラスタのBookie, Broker, ZooKeeperノードの数を変更したい場合は、適切な<a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"><code class="highlighter-rouge">Deployment</code></a>, <a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"><code class="highlighter-rouge">StatefulSet</code></a>リソースの<code class="highlighter-rouge">spec</code>セクション内の<code class="highlighter-rouge">replicas</code>パラメータを編集してください。</p>
 
-<h2 id="google-container-engine">Google Container Engine</h2>
+<h2 id="google-kubernetes-engine">Google Kubernetes Engine</h2>
 
-<p><a href="https://cloud.google.com/container-engine">Google Container Engine</a> (GKE) は<a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE) 内のKubernetesクラスタの作成、管理を自動化します。</p>
+<p><a href="https://cloud.google.com/kubernetes-engine">Google Kubernetes Engine</a> (GKE) は<a href="https://cloud.google.com/compute/">Google Compute Engine</a> (GCE) 内のKubernetesクラスタの作成、管理を自動化します。</p>
 
 <h3 id="前提条件">前提条件</h3>
 
@@ -1206,9 +1206,9 @@ NAME           STATUS                     AGE       VERSION
 
 <h2 id="pulsarコンポーネントのデプロイ">Pulsarコンポーネントのデプロイ</h2>
 
-<p>ここまでで、<a href="#google-container-engine">Google Container Engine</a>あるいは<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>のいずれかで、Kubernetesクラスタのセットアップが完了しました。Pulsarを構成するコンポーネントをデプロイすることができます。PulsarのコンポーネントのYAMLのリソース定義は<a href="/download">Pulsarソースパッケージ</a>の<code class="highlighter-rouge">kubernetes</code>ディレクトリにあります。</p>
+<p>ここまでで、<a href="#google-kubernetes-engine">Google Kubernetes Engine</a>あるいは<a href="#カスタムkubernetesクラスタ">カスタムクラスタ</a>のいずれかで、Kubernetesクラスタのセットアップが完了しました。Pulsarを構成するコンポーネントをデプロイすることができます。PulsarのコンポーネントのYAMLのリソース定義は<a href="/download">Pulsarソースパッケージ</a>の<code class="highlighter-rouge">kubernetes</code>ディレクトリにあります。</p>
 
-<p>このパッケージでは、2セットのリソース定義があります。1つは<code class="highlighter-rouge">kubernetes/google-container-engine</code>ディレクトリに含まれる、Google Container Engine (GKE) のためのもの、もう1つは<code class="highlighter-rouge">kubernetes/generic</code>ディレクトリに含まれるカスタムKubernetesクラスタのためのものです。まず、<code class="highlighter-rouge">cd</code>で適切なディレクトリへ移動しましょう。</p>
+<p>このパッケージでは、2セットのリソース定義があります。1つは<code class="highlighter-rouge">kubernetes/google-container-engine</code>ディレクトリに含まれる、Google Kubernetes Engine (GKE) のためのもの、もう1つは<code class="highlighter-rouge">kubernetes/generic</code>ディレクトリに含まれるカスタムKubernetesクラスタのためのものです。まず、<code class="highlighter-rouge">cd</code>で適切なディレクトリへ移動しましょう。</p>
 
 <h3 id="zookeeper">ZooKeeper</h3>
 
