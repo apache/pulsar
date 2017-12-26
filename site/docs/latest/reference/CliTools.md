@@ -40,6 +40,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`pulsar-daemon`](#pulsar-daemon)
 * [`pulsar-perf`](#pulsar-perf)
 * [`bookkeeper`](#bookkeeper)
+* [`pulsar-managed-ledger-admin`](#pulsar-managed-ledger-admin)
 
 {% include admonition.html type='success' title='Getting help' content="
 You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
@@ -60,3 +61,5 @@ $ bin/pulsar-admin clusters --help
 {% include cli.html tool="pulsar-perf" %}
 
 {% include cli.html tool="bookkeeper" %}
+
+{% include cli.html tool="pulsar-managed-ledger-admin" %}
