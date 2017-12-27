@@ -1318,7 +1318,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             String bundleName = bundle.getValue();
             try {
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
-                    if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+                    if (LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
