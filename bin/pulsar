@@ -78,6 +78,7 @@ where command is one of:
 
     initialize-cluster-metadata     One-time metadata initialization
     zookeeper-shell     Open a ZK shell client
+    zookeeper-ml-shell  Open a ZK shell client that can parse managed-ledger binary data to human readable format
 
     help                This help message
 
@@ -224,6 +225,8 @@ elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
+elif [ $COMMAND == "zookeeper-ml-shell" ]; then
+    exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperManagedLedgerMain $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else
