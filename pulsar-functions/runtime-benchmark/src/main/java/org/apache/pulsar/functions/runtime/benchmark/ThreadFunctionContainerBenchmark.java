@@ -70,7 +70,7 @@ public class ThreadFunctionContainerBenchmark {
         fnConfig.setSinkTopic("test-sink");
         fnConfig.setSourceTopic("test-source");
         fnConfig.setTenant("test-tenant");
-        fnConfig.setNameSpace("test-namespace");
+        fnConfig.setNamespace("test-namespace");
         fnConfig.setVersion(UUID.randomUUID().toString());
 
         JavaInstanceConfig config =

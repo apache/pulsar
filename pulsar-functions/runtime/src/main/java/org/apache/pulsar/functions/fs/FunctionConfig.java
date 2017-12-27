@@ -40,7 +40,7 @@ public class FunctionConfig {
     // tenant that the function resides in
     private String tenant;
     // namespace that the function belongs to
-    private String nameSpace;
+    private String namespace;
     // function name
     private String name;
     // Function version

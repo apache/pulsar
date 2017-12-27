@@ -16,21 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime.worker.request;
 
-import lombok.*;
+import com.google.gson.Gson;
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-/**
- * This represents the config related to the resource limits of function calls
- */
-public class LimitsConfig {
-    private int maxTimeMs;
-    private int maxMemoryMb;
-    private int maxBufferedTuples;
+public class RequestResult {
+    private boolean success;
+    private String message;
+
+    private ServiceRequest requestDetails;
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public ServiceRequest getRequestDetails() {
+        return requestDetails;
+    }
+
+    public void setRequestDetails(ServiceRequest requestDetails) {
+        this.requestDetails = requestDetails;
+    }
+
+    public String toJson() {
+        return new Gson().toJson(this);
+    }
 }

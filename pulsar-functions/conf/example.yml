@@ -18,6 +18,6 @@
 #
 
 tenant: "test"
-nameSpace: "test"
+namespace: "test-namespace"
 name: "example"
 className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"

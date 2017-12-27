@@ -133,7 +133,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            print(a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName()));
+            print(a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName()));
         }
     }
 
@@ -142,7 +142,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().deleteFunction(functionConfig.getTenant(), functionConfig.getNameSpace(), functionConfig.getName());
+            a.functions().deleteFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
             print("Deleted successfully");
         }
     }
@@ -162,7 +162,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void run_functions_cmd() throws Exception {
             PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            print(a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNameSpace()));
+            print(a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNamespace()));
         }
     }
 

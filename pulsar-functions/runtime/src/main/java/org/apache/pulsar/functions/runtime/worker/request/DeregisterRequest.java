@@ -16,21 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime.worker.request;
 
-import lombok.*;
+import org.apache.pulsar.functions.runtime.worker.FunctionState;
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-/**
- * This represents the config related to the resource limits of function calls
- */
-public class LimitsConfig {
-    private int maxTimeMs;
-    private int maxMemoryMb;
-    private int maxBufferedTuples;
+public class DeregisterRequest extends ServiceRequest{
+
+    private String functionName;
+
+    public DeregisterRequest(String workerId, FunctionState functionState) {
+        super(workerId, functionState, ServiceRequestType.DELETE);
+        this.functionName = functionName;
+    }
+
+    public static DeregisterRequest of(String workerId, FunctionState functionState) {
+        return new DeregisterRequest(workerId, functionState);
+    }
+
+    @Override
+    public String toString() {
+        return "DeregisterRequest{"
+                + super.toString()
+                + "}";
+    }
 }
