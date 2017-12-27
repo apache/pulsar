@@ -16,21 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime.worker.request;
 
-import lombok.*;
+import org.apache.pulsar.functions.runtime.worker.FunctionState;
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-/**
- * This represents the config related to the resource limits of function calls
- */
-public class LimitsConfig {
-    private int maxTimeMs;
-    private int maxMemoryMb;
-    private int maxBufferedTuples;
+public class UpdateRequest extends ServiceRequest {
+
+    private UpdateRequest(String workerId, FunctionState functionState) {
+        super(workerId, functionState, ServiceRequestType.UPDATE);
+    }
+
+    public static UpdateRequest of(String workerId, FunctionState functionState) {
+        return new UpdateRequest(workerId, functionState);
+    }
+
+    @Override
+    public String toString() {
+        return "UpdateRequest{"
+                + super.toString()
+                + "}";
+    }
 }

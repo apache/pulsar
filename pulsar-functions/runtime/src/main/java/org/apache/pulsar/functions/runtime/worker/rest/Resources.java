@@ -16,21 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime.worker.rest;
 
-import lombok.*;
+import org.apache.pulsar.functions.runtime.worker.rest.api.v1.ApiV1Resource;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-/**
- * This represents the config related to the resource limits of function calls
- */
-public class LimitsConfig {
-    private int maxTimeMs;
-    private int maxMemoryMb;
-    private int maxBufferedTuples;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public final class Resources {
+
+    private Resources() {
+    }
+
+    static Set<Class<?>> get() {
+        return new HashSet<>(getClasses());
+    }
+
+    private static List<Class<?>> getClasses() {
+        return Arrays.asList(
+                ConfigurationResource.class,
+                ApiV1Resource.class,
+                MultiPartFeature.class
+        );
+    }
 }

@@ -87,8 +87,8 @@ public class Spawner {
         javaInstanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
         javaInstanceConfig.setFunctionId(assignmentInfo.getFunctionId());
         javaInstanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
-        javaInstanceConfig.setTimeBudgetInMs(limitsConfig.getTimeBudgetInMs());
-        javaInstanceConfig.setMaxMemory(limitsConfig.getMaxMemory());
+        javaInstanceConfig.setTimeBudgetInMs(limitsConfig.getMaxTimeMs());
+        javaInstanceConfig.setMaxMemory(limitsConfig.getMaxMemoryMb());
         return javaInstanceConfig;
     }
 }
