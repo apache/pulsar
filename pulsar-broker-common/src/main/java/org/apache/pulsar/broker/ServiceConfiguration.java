@@ -291,6 +291,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
+    // Enable/disable automatic bundle unloading for load-shedding 
+    @FieldContext(dynamic = true)
+    private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
     private int loadBalancerSheddingIntervalMinutes = 5;
@@ -1028,6 +1031,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setLoadBalancerHostUsageCheckIntervalMinutes(int loadBalancerHostUsageCheckIntervalMinutes) {
         this.loadBalancerHostUsageCheckIntervalMinutes = loadBalancerHostUsageCheckIntervalMinutes;
+    }
+
+    public boolean isLoadBalancerSheddingEnabled() {
+        return loadBalancerSheddingEnabled;
+    }
+
+    public void setLoadBalancerSheddingEnabled(boolean loadBalancerSheddingEnabled) {
+        this.loadBalancerSheddingEnabled = loadBalancerSheddingEnabled;
     }
 
     public int getLoadBalancerSheddingIntervalMinutes() {

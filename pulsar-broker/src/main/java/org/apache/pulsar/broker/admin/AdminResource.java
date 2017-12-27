@@ -69,7 +69,6 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
-    public static final String LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH = "/admin/flags/load-shedding-unload-disabled";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
     protected ZooKeeper globalZk() {
