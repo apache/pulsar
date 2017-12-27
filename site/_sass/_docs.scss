@@ -28,6 +28,12 @@
 
 
 .rest-api-container, .docs-container {
+  blockquote {
+    border: 1px solid $sx-light-gray;
+    background-color: lighten($sx-light-gray, 20%);
+    padding: 0.75rem;
+  }
+
   margin-top: $top-margin;
 
   h4 + ul {
