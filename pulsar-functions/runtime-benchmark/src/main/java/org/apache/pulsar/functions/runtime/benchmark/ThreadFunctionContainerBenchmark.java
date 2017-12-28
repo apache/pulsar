@@ -71,7 +71,6 @@ public class ThreadFunctionContainerBenchmark {
         fnConfig.setSourceTopic("test-source");
         fnConfig.setTenant("test-tenant");
         fnConfig.setNamespace("test-namespace");
-        fnConfig.setVersion(UUID.randomUUID().toString());
 
         JavaInstanceConfig config =
             new JavaInstanceConfig();

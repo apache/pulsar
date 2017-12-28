@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
@@ -34,6 +36,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * A manager manages function states.
+ */
 public class FunctionStateManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(FunctionStateManager.class);
@@ -72,7 +77,7 @@ public class FunctionStateManager {
             return ret;
         }
         for (FunctionState entry : this.functionStateMap.get(tenant).get(namespace).values()) {
-           ret.add(entry.getName());
+           ret.add(entry.getFunctionConfig().getName());
         }
         return ret;
     }
@@ -81,21 +86,22 @@ public class FunctionStateManager {
 
         long version = 0;
 
-        if (!this.functionStateMap.containsKey(functionState.getTenant())) {
-            this.functionStateMap.put(functionState.getTenant(), new ConcurrentHashMap<>());
+        String tenant = functionState.getFunctionConfig().getTenant();
+        if (!this.functionStateMap.containsKey(tenant)) {
+            this.functionStateMap.put(tenant, new ConcurrentHashMap<>());
         }
 
-        if (!this.functionStateMap.get(functionState.getTenant()).containsKey(functionState.getNamespace())) {
-            this.functionStateMap.get(functionState.getTenant())
-                    .put(functionState.getNamespace(), new ConcurrentHashMap<>());
+        Map<String, Map<String, FunctionState>> namespaces = this.functionStateMap.get(tenant);
+        String namespace = functionState.getFunctionConfig().getNamespace();
+        if (!namespaces.containsKey(namespace)) {
+            namespaces.put(namespace, new ConcurrentHashMap<>());
         }
 
-        if (this.functionStateMap.get(functionState.getTenant()).get(functionState.getNamespace())
-                .containsKey(functionState.getName())) {
-            version = this.functionStateMap.get(functionState.getTenant())
-                    .get(functionState.getNamespace()).get(functionState.getName()).getVersion() + 1;
+        Map<String, FunctionState> functionStates = namespaces.get(namespace);
+        String functionName = functionState.getFunctionConfig().getName();
+        if (functionStates.containsKey(functionName)) {
+            version = functionStates.get(functionName).getVersion() + 1;
         }
-
         functionState.setVersion(version);
 
         UpdateRequest updateRequest = UpdateRequest.of(this.workerConfig.getWorkerId(), functionState);
@@ -115,7 +121,12 @@ public class FunctionStateManager {
     }
 
     public boolean containsFunction(FunctionState functionState) {
-        return containsFunction(functionState.getTenant(), functionState.getNamespace(), functionState.getName());
+        return containsFunction(functionState.getFunctionConfig());
+    }
+
+    private boolean containsFunction(FunctionConfig functionConfig) {
+        return containsFunction(
+            functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
     }
 
     public boolean containsFunction(String tenant, String namespace, String functionName) {
@@ -173,6 +184,7 @@ public class FunctionStateManager {
         }
 
         FunctionState deregisterRequestFs = deregisterRequest.getFunctionState();
+        String functionName = deregisterRequestFs.getFunctionConfig().getName();
 
         LOG.debug("Process deregister request: {}", deregisterRequest);
 
@@ -183,10 +195,10 @@ public class FunctionStateManager {
                 // Check if this worker is suppose to run the function
                 if (isMyRequest(deregisterRequest)) {
                     // stop running the function
-                    stopFunction(deregisterRequestFs.getName());
+                    stopFunction(functionName);
                 }
                 // remove function from in memory function state store
-                this.functionStateMap.remove(deregisterRequestFs.getName());
+                this.functionStateMap.remove(functionName);
                 completeRequest(deregisterRequest, true);
             } else {
                 completeRequest(deregisterRequest, false,
@@ -209,6 +221,7 @@ public class FunctionStateManager {
         LOG.debug("Process update request: {}", updateRequest);
 
         FunctionState updateRequestFs = updateRequest.getFunctionState();
+        String functionName = updateRequestFs.getFunctionConfig().getName();
 
         // Worker doesn't know about the function so far
         if(!this.containsFunction(updateRequestFs)) {
@@ -217,7 +230,7 @@ public class FunctionStateManager {
             // Check if this worker is suppose to run the function
             if (this.workerConfig.getWorkerId().equals(updateRequestFs.getWorkerId())) {
                 // start the function
-                startFunction(updateRequestFs.getName());
+                startFunction(functionName);
             }
             completeRequest(updateRequest, true);
         } else {
@@ -230,7 +243,7 @@ public class FunctionStateManager {
                 // check if this worker should run the update
                 if (isMyRequest(updateRequest)) {
                     // Update the function
-                    updateFunction(updateRequestFs.getName());
+                    updateFunction(functionName);
                 }
                 completeRequest(updateRequest, true);
             } else {
@@ -241,22 +254,24 @@ public class FunctionStateManager {
     }
 
     private void addFunctionToFunctionStateMap(FunctionState functionState) {
-        if (!this.functionStateMap.containsKey(functionState.getTenant())) {
-            this.functionStateMap.put(functionState.getTenant(), new ConcurrentHashMap<>());
+        FunctionConfig functionConfig = functionState.getFunctionConfig();
+        if (!this.functionStateMap.containsKey(functionConfig.getTenant())) {
+            this.functionStateMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
         }
 
-        if (!this.functionStateMap.get(functionState.getTenant()).containsKey(functionState.getNamespace())) {
-            this.functionStateMap.get(functionState.getTenant())
-                    .put(functionState.getNamespace(), new ConcurrentHashMap<>());
+        if (!this.functionStateMap.get(functionConfig.getTenant()).containsKey(functionConfig.getNamespace())) {
+            this.functionStateMap.get(functionConfig.getTenant())
+                    .put(functionConfig.getNamespace(), new ConcurrentHashMap<>());
         }
-        this.functionStateMap.get(functionState.getTenant())
-                .get(functionState.getNamespace()).put(functionState.getName(), functionState);
+        this.functionStateMap.get(functionConfig.getTenant())
+                .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionState);
     }
 
     private boolean isRequestOutdated(ServiceRequest serviceRequest) {
         FunctionState requestFunctionState = serviceRequest.getFunctionState();
-        FunctionState currentFunctionState = this.functionStateMap.get(requestFunctionState.getTenant())
-                .get(requestFunctionState.getNamespace()).get(requestFunctionState.getName());
+        FunctionConfig functionConfig = requestFunctionState.getFunctionConfig();
+        FunctionState currentFunctionState = this.functionStateMap.get(functionConfig.getTenant())
+                .get(functionConfig.getNamespace()).get(functionConfig.getName());
         return currentFunctionState.getVersion() >= requestFunctionState.getVersion();
     }
 

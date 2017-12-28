@@ -105,6 +105,7 @@ public class CmdFunctions extends CmdBase {
             LimitsConfig limitsConfig = new LimitsConfig(
                 -1,   // No timelimit
                 1024,       // 1GB
+                2,          // 2 cpus
                 1024   // 1024 outstanding tuples
             );
 

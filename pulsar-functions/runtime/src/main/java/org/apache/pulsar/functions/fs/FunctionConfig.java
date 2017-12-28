@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -36,15 +37,16 @@ import lombok.ToString;
 @Getter
 @EqualsAndHashCode
 @ToString
-public class FunctionConfig {
+public class FunctionConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     // tenant that the function resides in
     private String tenant;
     // namespace that the function belongs to
     private String namespace;
     // function name
     private String name;
-    // Function version
-    private String version;
     // function class name
     private String className;
     // input serde class name
