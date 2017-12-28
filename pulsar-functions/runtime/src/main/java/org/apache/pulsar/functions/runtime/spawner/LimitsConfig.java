@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.spawner;
 
+import java.io.Serializable;
 import lombok.*;
 
 @Data
@@ -29,8 +30,12 @@ import lombok.*;
 /**
  * This represents the config related to the resource limits of function calls
  */
-public class LimitsConfig {
+public class LimitsConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private int maxTimeMs;
     private int maxMemoryMb;
+    private int maxCpuCores;
     private int maxBufferedTuples;
 }

@@ -19,9 +19,10 @@
 package org.apache.pulsar.functions.runtime.worker.rest.api.v1;
 
 import com.google.gson.Gson;
+import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.FunctionState;
 import org.apache.pulsar.functions.runtime.worker.FunctionStateManager;
-import org.apache.pulsar.functions.runtime.worker.Worker;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.apache.pulsar.functions.runtime.worker.rest.BaseApiResource;
@@ -85,26 +86,39 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
         }
 
-        WorkerConfig workerConfig = getWorkerConfig();
+        // function configuration
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setName(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setSourceTopic(sourceTopic);
+        functionConfig.setSinkTopic(sinkTopic);
+        functionConfig.setInputSerdeClassName(inputSerdeClassName);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setClassName(className);
+
+        // function resource limits
+        LimitsConfig limitsConfig = new LimitsConfig(
+            -1,
+            1024,
+            1,
+            1024);
+
+        // function state
         FunctionState functionState = new FunctionState();
+        functionState.setFunctionConfig(functionConfig);
+        functionState.setLimitsConfig(limitsConfig);
         functionState.setCreateTime(System.currentTimeMillis());
-        functionState.setName(functionName);
-        functionState.setNamespace(namespace);
-        functionState.setTenant(tenant);
+        functionState.setVersion(0);
+
+        WorkerConfig workerConfig = getWorkerConfig();
         functionState.setPackageLocation(
                 Utils.getPackageURI(
                         Utils.getDestPackageNamespaceURI(workerConfig, namespace),
                         fileDetail.getFileName()
                 ).toString()
         );
-
-        functionState.setSourceTopic(sourceTopic);
-        functionState.setSinkTopic(sinkTopic);
-        functionState.setVersion(0);
         functionState.setWorkerId(workerConfig.getWorkerId());
-        functionState.setInputSerdeClassName(inputSerdeClassName);
-        functionState.setOutputSerdeClassName(outputSerdeClassName);
-        functionState.setClassName(className);
 
         return updateRequest(functionState, uploadedInputStream, fileDetail);
     }
@@ -142,26 +156,39 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        WorkerConfig workerConfig = getWorkerConfig();
+        // function configuration
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setName(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setSourceTopic(sourceTopic);
+        functionConfig.setSinkTopic(sinkTopic);
+        functionConfig.setInputSerdeClassName(inputSerdeClassName);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setClassName(className);
+
+        // function resource limits
+        LimitsConfig limitsConfig = new LimitsConfig(
+            -1,
+            1024,
+            1,
+            1024);
+
+        // function state
         FunctionState functionState = new FunctionState();
+        functionState.setFunctionConfig(functionConfig);
+        functionState.setLimitsConfig(limitsConfig);
         functionState.setCreateTime(System.currentTimeMillis());
-        functionState.setName(functionName);
-        functionState.setNamespace(namespace);
-        functionState.setTenant(tenant);
+        functionState.setVersion(0);
+
+        WorkerConfig workerConfig = getWorkerConfig();
         functionState.setPackageLocation(
                 Utils.getPackageURI(
                         Utils.getDestPackageNamespaceURI(workerConfig, namespace),
                         fileDetail.getFileName()
                 ).toString()
         );
-
-        functionState.setSourceTopic(sourceTopic);
-        functionState.setSinkTopic(sinkTopic);
-        functionState.setVersion(0);
         functionState.setWorkerId(workerConfig.getWorkerId());
-        functionState.setInputSerdeClassName(inputSerdeClassName);
-        functionState.setOutputSerdeClassName(outputSerdeClassName);
-        functionState.setClassName(className);
 
         return updateRequest(functionState, uploadedInputStream, fileDetail);
     }
@@ -291,7 +318,7 @@ public class ApiV1Resource extends BaseApiResource {
         URI packageURI = null;
         try {
             packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
-                    functionState.getNamespace(), workerConfig);
+                    functionState.getFunctionConfig().getNamespace(), workerConfig);
         } catch (IOException e) {
             LOG.error("Error uploading file {}", fileDetail.getFileName(), e);
             return Response.serverError()
