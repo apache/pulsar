@@ -9421,6 +9421,10 @@ span.popover-term {
     margin-bottom: 50px; } }
 .rest-api-container, .docs-container {
   margin-top: 50px; }
+  .rest-api-container blockquote, .docs-container blockquote {
+    border: 1px solid #bcc5c5;
+    background-color: #f2f4f4;
+    padding: 0.75rem; }
   .rest-api-container h4 + ul, .docs-container h4 + ul {
     margin-top: 1rem; }
   .rest-api-container ul ul, .docs-container ul ul {
