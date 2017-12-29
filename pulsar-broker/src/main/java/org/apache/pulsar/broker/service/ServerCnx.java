@@ -259,8 +259,8 @@ public class ServerCnx extends PulsarHandler {
                         log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}",
                                 remoteAddress, topicName);
                     }
-                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
-                            "Failed due to too many pending lookup requests", requestId));
+                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
+                            "Failed due to too many pending lookup requests", requestId));   
                 }
             } else {
                 final String msg = "Proxy Client is not authorized to Get Partition Metadata";
