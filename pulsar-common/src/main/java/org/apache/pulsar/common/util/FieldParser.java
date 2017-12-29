@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.util;
 
-import org.apache.pulsar.common.policies.data.AuthAction;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -141,6 +139,7 @@ public final class FieldParser {
      */
     public static Object value(String strValue, Field field) {
         checkNotNull(field);
+        strValue = checkSystemProperty(strValue);
         // if field is not primitive type
         if (field.getGenericType() instanceof ParameterizedType) {
             Class<?> clazz = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
@@ -156,6 +155,21 @@ public final class FieldParser {
         } else {
             return convert(strValue, field.getType());
         }
+    }
+
+    private static String checkSystemProperty(String value) {
+        if (value != null && value.startsWith("$")) {
+            String propertyName;
+            if (value.startsWith("${")) { // eg: ${PROPERTY_KEY}
+                propertyName = value.substring(2, value.length() - 1);
+            } else { // eg: $PROPERTY_KEY
+                propertyName = value.substring(1);
+            }
+            if (System.getenv(propertyName) != null) {
+                return System.getenv(propertyName);
+            }
+        }
+        return value;
     }
 
     private static Class<?> wrap(Class<?> type) {

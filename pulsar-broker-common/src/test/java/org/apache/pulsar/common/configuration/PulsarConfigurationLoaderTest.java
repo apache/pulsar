@@ -30,15 +30,20 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Maps;
+
 public class PulsarConfigurationLoaderTest {
     public class MockConfiguration implements PulsarConfiguration {
         private Properties properties = new Properties();
-
+        
         private String zookeeperServers = "localhost:2181";
         private String globalZookeeperServers = "localhost:2184";
         private int brokerServicePort = 7650;
@@ -111,6 +116,74 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
         assertEquals(serviceConfig.getBrokerServicePort(), 7777);
+    }
+
+    @Test
+    public void testPulsarConfiguraitonLoadingSystemProperty() throws Exception {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
+        final String globalZookeeperServers = "gz1.example.com,gz2.example.com,gz3.example.com/foo";
+        final String clusterName = "usc";
+        final int brokerServicePort = 7777;
+        final boolean brokerDeleteInactiveTopicsEnabled = true;
+        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        printWriter.println("zookeeperServers=$zkServer");
+        printWriter.println("globalZookeeperServers=" + globalZookeeperServers);
+        printWriter.println("brokerDeleteInactiveTopicsEnabled=${brokerDeleteInactiveTopicsEnabled}");
+        printWriter.println("statusFilePath=$statusFilePath");
+        printWriter.println("clusterName=${clusterName}");
+        printWriter.println("brokerServicePort=$brokerServicePort");
+        printWriter.close();
+        testConfigFile.deleteOnExit();
+        InputStream stream = new FileInputStream(testConfigFile);
+
+        // set system-properties
+        Map<String, String> propMap = Maps.newHashMap();
+        propMap.put("zkServer", zkServer);
+        propMap.put("clusterName", clusterName);
+        propMap.put("brokerServicePort", Integer.toString(brokerServicePort));
+        propMap.put("brokerDeleteInactiveTopicsEnabled", Boolean.toString(brokerDeleteInactiveTopicsEnabled));
+        updateEnvironmentPropertyVariables(propMap);
+
+        final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        assertNotNull(serviceConfig);
+        assertEquals(serviceConfig.getZookeeperServers(), zkServer);
+        assertEquals(serviceConfig.getGlobalZookeeperServers(), globalZookeeperServers);
+        assertEquals(serviceConfig.isBrokerDeleteInactiveTopicsEnabled(), brokerDeleteInactiveTopicsEnabled);
+        assertEquals(serviceConfig.getClusterName(), clusterName);
+        assertEquals(serviceConfig.getBrokerServicePort(), brokerServicePort);
+        assertEquals(serviceConfig.getStatusFilePath(), "$statusFilePath");
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    protected static void updateEnvironmentPropertyVariables(Map<String, String> newProperties) throws Exception {
+        try {
+            Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            Field envVarFields = processEnvironmentClass.getDeclaredField("theEnvironment");
+            envVarFields.setAccessible(true);
+            Map<String, String> env = (Map<String, String>) envVarFields.get(null);
+            env.putAll(newProperties);
+            Field caseInsensitiveEnvFields = processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
+            caseInsensitiveEnvFields.setAccessible(true);
+            Map<String, String> caseInsensitiveEnvVars = (Map<String, String>) caseInsensitiveEnvFields.get(null);
+            caseInsensitiveEnvVars.putAll(newProperties);
+        } catch (NoSuchFieldException e) {
+            Class[] classes = Collections.class.getDeclaredClasses();
+            Map<String, String> env = System.getenv();
+            for (Class clazz : classes) {
+                if ("java.util.Collections$UnmodifiableMap".equals(clazz.getName())) {
+                    Field field = clazz.getDeclaredField("m");
+                    field.setAccessible(true);
+                    Object obj = field.get(env);
+                    Map<String, String> map = (Map<String, String>) obj;
+                    map.clear();
+                    map.putAll(newProperties);
+                }
+            }
+        }
     }
 
     @Test
