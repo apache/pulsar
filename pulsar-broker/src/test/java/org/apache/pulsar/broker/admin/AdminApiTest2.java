@@ -71,6 +71,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
@@ -340,12 +341,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newEnsembleSize = 5;
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(newEnsembleSize, 3, 3, newThrottleRate));
 
-        for (int i = 0; i < 5; i++) {
-            if ((managedLedger.getConfig().getEnsembleSize() != newEnsembleSize
-                    && cursor.getThrottleMarkDelete() != newThrottleRate) || i == 4) {
-                Thread.sleep(200);
-            }
-        }
+        retryStrategically((test) -> managedLedger.getConfig().getEnsembleSize() != newEnsembleSize
+                && cursor.getThrottleMarkDelete() != newThrottleRate, 5, 200);
 
         // (1) verify cursor.markDelete has been updated
         assertEquals(cursor.getThrottleMarkDelete(), newThrottleRate);

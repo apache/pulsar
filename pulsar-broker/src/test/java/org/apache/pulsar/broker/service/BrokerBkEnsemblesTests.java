@@ -23,7 +23,6 @@ import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -52,6 +51,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 /**
  */
@@ -204,15 +204,6 @@ public class BrokerBkEnsemblesTests {
         consumer.close();
         client.close();
 
-    }
-
-    void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTime) throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
-            }
-            Thread.sleep(intSleepTime + (intSleepTime * i));
-        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);
