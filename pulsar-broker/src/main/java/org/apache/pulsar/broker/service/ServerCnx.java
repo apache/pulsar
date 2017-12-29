@@ -175,14 +175,15 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", topicName, remoteAddress, requestId);
         }
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName);
-
+        final String proxyClientAuthRole = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.proxyClientAuthRole;
+        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
+        
         isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
             if (isProxyAuthorized) {
                 final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
                 if (lookupSemaphore.tryAcquire()) {
                     lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topicName),
-                            lookup.getAuthoritative(), isRequestViaProxy() ? proxyClientAuthRole : authRole,
+                            lookup.getAuthoritative(), proxyClientAuthRole != null ? proxyClientAuthRole : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
@@ -219,14 +220,15 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup from {} for {}", topicName, remoteAddress, requestId);
         }
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName);
+        final String proxyClientAuthRole =  partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.proxyClientAuthRole;
+        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
 
         isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
             if (isProxyAuthorized) {
                 final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
                 if (lookupSemaphore.tryAcquire()) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            isRequestViaProxy() ? proxyClientAuthRole : authRole, DestinationName.get(topicName))
+                            proxyClientAuthRole != null ? proxyClientAuthRole : authRole, DestinationName.get(topicName))
                                     .handle((metadata, ex) -> {
                                         if (ex == null) {
                                             int partitions = metadata.partitions;
@@ -267,6 +269,17 @@ public class ServerCnx extends PulsarHandler {
             }
             return null;
         });
+    }
+
+    private CompletableFuture<Boolean> isProxyAuthorized(String topicName, String proxyClientAuthRole) {
+        CompletableFuture<Boolean> authorizationFuture;
+        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+            authorizationFuture = service.getAuthorizationManager().canProxyAsync(DestinationName.get(topicName),
+                    authRole);
+        } else {
+            authorizationFuture = CompletableFuture.completedFuture(true);
+        }
+        return authorizationFuture;
     }
 
     @Override

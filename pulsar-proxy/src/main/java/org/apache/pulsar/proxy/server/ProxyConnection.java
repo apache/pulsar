@@ -53,7 +53,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     private ProxyService service;
     String clientAuthRole = null;
-    String clientAuthData = null;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -167,18 +166,15 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
-        } else if (!service.getConfiguration().isDiscoveryServiceEnabled()) {
-            // Client already knows which broker to connect. Let's open a connection
-            // there and just pass bytes in both directions
-            state = State.ProxyConnectionToBroker;
-            ProxyConfiguration pc = service.getConfiguration();
-            directProxyHandler = new DirectProxyHandler(service, this,
-                    pc.isTlsEnabledWithBroker() ? pc.getDiscoveryServiceURLTLS() : pc.getDiscoveryServiceURL());
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = new LookupProxyHandler(service, this);
+            if (service.getConfiguration().isDiscoveryServiceEnabled()) {
+                lookupProxyHandler = new LookupWithDiscoveryServiceHandler(service, this);
+            } else {
+                lookupProxyHandler = new LookupViaServiceUrl(service, this);
+            }
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         }
     }
@@ -217,14 +213,14 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 // Legacy client is passing enum
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
-            clientAuthData = connect.getAuthData().toStringUtf8();
+            String authData = connect.getAuthData().toStringUtf8();
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
             clientAuthRole = service.getAuthenticationService()
-                    .authenticate(new AuthenticationDataCommand(clientAuthData, remoteAddress, sslSession), authMethod);
+                    .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
             return true;
