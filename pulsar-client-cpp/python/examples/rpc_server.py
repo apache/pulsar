@@ -38,6 +38,7 @@ class RPCServer(object):
         self.consumer = \
             self.client.subscribe(server_topic,
                                   'rpc-server',
+                                  pulsar.ConsumerType.Shared,
                                   message_listener=self.on_response)
 
     def on_response(self, consumer, message):

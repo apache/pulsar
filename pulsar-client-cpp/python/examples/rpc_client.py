@@ -20,11 +20,15 @@
 
 
 import pulsar
+import threading
 import uuid
 
 
 DEFAULT_CLIENT_TOPIC = 'persistent://sample/standalone/ns/rpc-client-topic'
 DEFAULT_SERVER_TOPIC = 'persistent://sample/standalone/ns/rpc-server-topic'
+UUID = str(uuid.uuid4())
+NUM_CLIENT = 0
+LOCK = threading.Lock()
 
 
 class RPCClient(object):
@@ -35,13 +39,18 @@ class RPCClient(object):
         self.client_topic = client_topic
         self.server_topic = server_topic
 
+        global NUM_CLIENT
+        with LOCK:
+            self.client_no = NUM_CLIENT
+            NUM_CLIENT += 1
+
         self.response = None
-        self.partition_key = str(uuid.uuid4())
+        self.partition_key = '{0}_{1}'.format(UUID, self.client_no)
         self.client = pulsar.Client('pulsar://localhost:6650')
         self.producer = self.client.create_producer(server_topic)
         self.consumer = \
             self.client.subscribe(client_topic,
-                                  'rpc-client',
+                                  'rpc-client-{}'.format(self.partition_key),
                                   message_listener=self.on_response)
 
         self.consumer.resume_message_listener()
