@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
-import java.net.URI;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
-public class WorkerConfig {
+@Data
+@Setter
+@Getter
+@EqualsAndHashCode
+@ToString
+public class WorkerConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String workerId;
     private int workerPort;
-    private URI zookeeperUri;
+    private String dlogUri;
     private String functionMetadataTopic;
-    private String pulsarBrokerRootUrl;
+    private String pulsarServiceUrl;
     private int numFunctionPackageReplicas;
-
-    public int getNumFunctionPackageReplicas() {
-        return numFunctionPackageReplicas;
-    }
-
-    public void setNumFunctionPackageReplicas(int numFunctionPackageReplicas) {
-        this.numFunctionPackageReplicas = numFunctionPackageReplicas;
-    }
 
     public String getFunctionMetadataTopicSubscription() {
         if (this.workerId == null) {
@@ -44,43 +52,9 @@ public class WorkerConfig {
         return String.format("%s-subscription", this.workerId);
     }
 
-    public String getFunctionMetadataTopic() {
-        return functionMetadataTopic;
+    public static WorkerConfig load(String yamlFile) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return mapper.readValue(new File(yamlFile), WorkerConfig.class);
     }
 
-    public void setFunctionMetadataTopic(String functionMetadataTopic) {
-        this.functionMetadataTopic = functionMetadataTopic;
-    }
-
-    public String getPulsarBrokerRootUrl() {
-        return pulsarBrokerRootUrl;
-    }
-
-    public void setPulsarBrokerRootUrl(String pulsarBrokerRootUrl) {
-        this.pulsarBrokerRootUrl = pulsarBrokerRootUrl;
-    }
-
-    public URI getZookeeperUri() {
-        return zookeeperUri;
-    }
-
-    public void setZookeeperUri(URI zookeeperUri) {
-        this.zookeeperUri = zookeeperUri;
-    }
-
-    public int getWorkerPort() {
-        return workerPort;
-    }
-
-    public void setWorkerPort(int workerPort) {
-        this.workerPort = workerPort;
-    }
-
-    public String getWorkerId() {
-        return workerId;
-    }
-
-    public void setWorkerId(String workerId) {
-        this.workerId = workerId;
-    }
 }

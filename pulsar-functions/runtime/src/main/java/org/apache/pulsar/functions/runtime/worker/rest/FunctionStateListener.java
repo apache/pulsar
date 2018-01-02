@@ -46,7 +46,7 @@ public class FunctionStateListener implements Runnable{
     public FunctionStateListener(WorkerConfig workerConfig, FunctionStateManager functionStateManager) throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.functionStateManager = functionStateManager;
-        this.client = PulsarClient.create(workerConfig.getPulsarBrokerRootUrl());
+        this.client = PulsarClient.create(workerConfig.getPulsarServiceUrl());
         this.consumer = client.subscribe(workerConfig.getFunctionMetadataTopic(), workerConfig.getFunctionMetadataTopicSubscription());
     }
 

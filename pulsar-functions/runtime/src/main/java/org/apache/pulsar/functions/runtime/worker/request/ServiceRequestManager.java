@@ -38,7 +38,7 @@ public class ServiceRequestManager {
     Producer producer;
 
     public ServiceRequestManager(WorkerConfig workerConfig) throws PulsarClientException {
-        String pulsarBrokerRootUrl = workerConfig.getPulsarBrokerRootUrl();
+        String pulsarBrokerRootUrl = workerConfig.getPulsarServiceUrl();
         client = PulsarClient.create(pulsarBrokerRootUrl);
         String topic = workerConfig.getFunctionMetadataTopic();
 
