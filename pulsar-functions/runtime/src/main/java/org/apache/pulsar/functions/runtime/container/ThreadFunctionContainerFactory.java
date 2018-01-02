@@ -19,6 +19,11 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
+import com.google.common.annotations.VisibleForTesting;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
@@ -26,17 +31,29 @@ import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImp
 /**
  * Thread based function container factory implementation.
  */
+@Slf4j
 public class ThreadFunctionContainerFactory implements FunctionContainerFactory {
 
     private final ThreadGroup threadGroup;
-    protected final FunctionCacheManager fnCache;
+    private final FunctionCacheManager fnCache;
+    private final PulsarClient pulsarClient;
     private int maxBufferedTuples;
+    private volatile boolean closed;
 
-    public ThreadFunctionContainerFactory(int maxBufferedTuples) {
+    public ThreadFunctionContainerFactory(int maxBufferedTuples,
+                                          String pulsarServiceUrl,
+                                          ClientConfiguration conf)
+            throws Exception {
+        this(maxBufferedTuples, PulsarClient.create(pulsarServiceUrl, conf));
+    }
+
+    @VisibleForTesting
+    ThreadFunctionContainerFactory(int maxBufferedTuples, PulsarClient pulsarClient) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(
             "Pulsar Function Container Threads");
         this.maxBufferedTuples = maxBufferedTuples;
+        this.pulsarClient = pulsarClient;
     }
 
     @Override
@@ -46,12 +63,23 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
             maxBufferedTuples,
             fnCache,
             threadGroup,
-            jarFile);
+            jarFile,
+            pulsarClient);
     }
 
     @Override
     public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+
         threadGroup.interrupt();
         fnCache.close();
+        try {
+            pulsarClient.close();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to close pulsar client when closing function container factory", e);
+        }
     }
 }

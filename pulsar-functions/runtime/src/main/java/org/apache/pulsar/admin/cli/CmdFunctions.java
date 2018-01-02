@@ -25,11 +25,11 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
-
-import java.util.List;
 
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
@@ -109,13 +109,27 @@ public class CmdFunctions extends CmdBase {
                 1024   // 1024 outstanding tuples
             );
 
-            Spawner spawner = Spawner.createSpawner(
-                functionConfig,
-                limitsConfig,
-                admin.getServiceUrl().toString(), jarFile);
+            ClientConfiguration clientConf;
+            if (admin instanceof PulsarFunctionsAdmin) {
+                clientConf = ((PulsarFunctionsAdmin) admin).getClientConf();
+            } else {
+                clientConf = new ClientConfiguration();
+            }
 
-            spawner.start();
-            spawner.join();
+            try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
+                limitsConfig.getMaxBufferedTuples(),
+                admin.getServiceUrl().toString(),
+                clientConf)) {
+
+                Spawner spawner = Spawner.createSpawner(
+                    functionConfig,
+                    limitsConfig,
+                    jarFile,
+                    containerFactory);
+
+                spawner.start();
+                spawner.join();
+            }
         }
     }
 

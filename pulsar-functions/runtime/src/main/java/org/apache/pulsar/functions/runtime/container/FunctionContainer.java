@@ -38,6 +38,4 @@ public interface FunctionContainer {
 
     FunctionConfig getFunctionConfig();
 
-    CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data);
-
 }

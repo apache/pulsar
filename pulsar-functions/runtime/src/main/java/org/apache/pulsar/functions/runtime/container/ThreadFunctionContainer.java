@@ -24,33 +24,31 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
 import org.apache.pulsar.functions.runtime.instance.JavaInstance;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.utils.Exceptions;
+import org.apache.pulsar.functions.stats.FunctionStatsImpl;
 
 /**
  * A function container implemented using java thread.
  */
 @Slf4j
 class ThreadFunctionContainer implements FunctionContainer {
-
-    class Payload {
-        public String topicName;
-        public String messageId;
-        public byte[] msgData;
-        CompletableFuture<ExecutionResult> result;
-        Payload(String topicName, String messageId, byte[] msgData) {
-            this.topicName = topicName;
-            this.messageId = messageId;
-            this.msgData = msgData;
-            this.result = new CompletableFuture<>();
-        }
-    }
 
     // The thread that invokes the function
     @Getter
@@ -60,41 +58,69 @@ class ThreadFunctionContainer implements FunctionContainer {
     private ClassLoader fnClassLoader;
     private final JavaInstanceConfig javaInstanceConfig;
     private final FunctionCacheManager fnCache;
-    private final LinkedBlockingQueue<Payload> queue;
+    private final LinkedBlockingQueue<Message> queue;
     private final String id;
     private final String jarFile;
     private volatile boolean closed = false;
 
-    ThreadFunctionContainer(JavaInstanceConfig instanceConfig, int maxBufferedTuples,
-                            FunctionCacheManager fnCache, ThreadGroup threadGroup, String jarFile) {
+    // source topic consumer & sink topic produder
+    private final PulsarClientImpl client;
+    private final String sourceTopic;
+    private final String sinkTopic;
+    private Producer sinkProducer;
+    private Consumer sourceConsumer;
+
+    // function stats
+    private final FunctionStatsImpl stats;
+
+    ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
+                            int maxBufferedTuples,
+                            FunctionCacheManager fnCache,
+                            ThreadGroup threadGroup,
+                            String jarFile,
+                            PulsarClient pulsarClient) {
         this.javaInstanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
         this.jarFile = jarFile;
+        this.client = (PulsarClientImpl) pulsarClient;
+        this.sourceTopic = instanceConfig.getFunctionConfig().getSourceTopic();
+        this.sinkTopic = instanceConfig.getFunctionConfig().getSinkTopic();
+        this.stats = new FunctionStatsImpl(
+            id,
+            client.getConfiguration().getStatsIntervalSeconds(),
+            client.timer());
         this.fnThread = new Thread(threadGroup,
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
+            () -> {
+                JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
-                        while (!closed) {
-                            JavaExecutionResult result;
-                            try {
-                                Payload payload = queue.take();
-                                result = javaInstance.handleMessage(payload.messageId,
-                                    payload.topicName, payload.msgData);
-                                ExecutionResult actualResult = ExecutionResult.fromJavaResult(result,
-                                        javaInstance.getOutputSerDe());
-                                payload.result.complete(actualResult);
-                            } catch (InterruptedException ie) {
-                                log.info("Function thread {} is interrupted", ie);
-                            }
-                        }
-
-                        javaInstance.close();
+                while (!closed) {
+                    JavaExecutionResult result;
+                    Message msg;
+                    try {
+                        msg = queue.take();
+                    } catch (InterruptedException ie) {
+                        log.info("Function thread {} is interrupted", id, ie);
+                        break;
                     }
-                }, this.id);
+
+                    // process the message
+
+                    long processAt = System.nanoTime();
+                    stats.incrementProcess();
+                    result = javaInstance.handleMessage(
+                        convertMessageIdToString(msg.getMessageId()),
+                        sourceTopic,
+                        msg.getData());
+                    ExecutionResult actualResult = ExecutionResult.fromJavaResult(result,
+                            javaInstance.getOutputSerDe());
+                    processResult(msg, actualResult, processAt);
+                }
+
+                javaInstance.close();
+            }, this.id);
+
     }
 
     @Override
@@ -107,9 +133,16 @@ class ThreadFunctionContainer implements FunctionContainer {
      */
     @Override
     public void start() throws Exception {
+        // start the function thread
+        startFunctionThread();
+        // start the sink producer
+        startSinkProducer();
+        // start the source consumer
+        startSourceConsumer();
+    }
 
+    private void startFunctionThread() throws Exception {
         log.info("Loading JAR files for function {}", javaInstanceConfig);
-
         // create the function class loader
         fnCache.registerFunctionInstance(
             javaInstanceConfig.getFunctionId(),
@@ -131,6 +164,46 @@ class ThreadFunctionContainer implements FunctionContainer {
         fnThread.start();
     }
 
+    private void startSinkProducer() throws Exception {
+        ProducerConfiguration conf = new ProducerConfiguration();
+        conf.setBlockIfQueueFull(true);
+        conf.setBatchingEnabled(true);
+        conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+        conf.setMaxPendingMessages(1000000);
+
+        this.sinkProducer = client.createProducer(sinkTopic, conf);
+    }
+
+    private void startSourceConsumer() throws Exception {
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setMessageListener((consumer, msg) -> queue.add(msg));
+
+        this.sourceConsumer = client.subscribe(sourceTopic, id, conf);
+    }
+
+    private void processResult(Message msg, ExecutionResult result, long processAt) {
+         if (result.getUserException() != null) {
+            log.info("Encountered user exception when processing message {}", msg, result.getUserException());
+            stats.incrementProcessFailure();
+        } else if (result.getSystemException() != null) {
+            log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
+            stats.incrementProcessFailure();
+        } else if (result.isTimedOut()) {
+            log.info("Timedout when processing message {}", msg);
+            stats.incrementProcessFailure();
+        } else if (result.getResult() != null) {
+            stats.incrementProcessSuccess(System.nanoTime() - processAt);
+            sinkProducer.sendAsync(result.getResult())
+                .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
+                .exceptionally(cause -> {
+                    log.error("Failed to send the process result {} of message {} to sink topic {}",
+                        result, msg, sinkTopic, cause);
+                    return null;
+                });
+        }
+    }
+
     @Override
     public void join() throws InterruptedException {
         fnThread.join();
@@ -138,14 +211,37 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public void stop() {
+        if (closed) {
+            return;
+        }
         closed = true;
-        // interrupt the function thread
+
+        // stop the consumer first, so no more messages are coming in
+        if (null != sourceConsumer) {
+            try {
+                sourceConsumer.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close consumer to source topic {}", sourceTopic, e);
+            }
+        }
+
+        // interrupt the function thread, so no more results are produced.
         fnThread.interrupt();
         try {
             fnThread.join();
         } catch (InterruptedException e) {
             // ignore this
         }
+
+        // kill the result producer
+        if (null != sinkProducer) {
+            try {
+                sinkProducer.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close producer to sink topic {}", sinkTopic, e);
+            }
+        }
+
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
             javaInstanceConfig.getFunctionId(),
@@ -154,20 +250,11 @@ class ThreadFunctionContainer implements FunctionContainer {
     }
 
     @Override
-    public CompletableFuture<ExecutionResult> sendMessage(String topicName, String messageId, byte[] data) {
-        try {
-            Payload payload = new Payload(topicName, messageId, data);
-            queue.put(payload);
-            return payload.result;
-        } catch (InterruptedException ex) {
-            ExecutionResult result = new ExecutionResult(null, Exceptions.toString(ex),
-                    false, null);
-            return CompletableFuture.completedFuture(result);
-        }
-    }
-
-    @Override
     public FunctionConfig getFunctionConfig() {
         return javaInstanceConfig.getFunctionConfig();
+    }
+
+    private static String convertMessageIdToString(MessageId messageId) {
+        return messageId.toByteArray().toString();
     }
 }
