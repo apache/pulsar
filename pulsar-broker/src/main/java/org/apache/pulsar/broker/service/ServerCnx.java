@@ -242,7 +242,7 @@ public class ServerCnx extends PulsarHandler {
                 log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}", remoteAddress,
                         topic);
             }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
     }
@@ -472,6 +472,7 @@ public class ServerCnx extends PulsarHandler {
         final String topicName = cmdProducer.getTopic();
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
+        final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
 
         authorizationFuture.thenApply(isAuthorized -> {
@@ -534,10 +535,18 @@ public class ServerCnx extends PulsarHandler {
                         return;
                     }
 
+                    // Check whether the producer will publish encrypted messages or not
+                    if (topic.isEncryptionRequired() && !isEncrypted) {
+                        String msg = String.format("Encryption is required in %s", topicName);
+                        log.warn("[{}] {}", remoteAddress, msg);
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                        return;
+                    }
+
                     disableTcpNoDelayIfNeeded(topicName, producerName);
 
                     Producer producer =
-                            new Producer(topic, ServerCnx.this, producerId, producerName, authRole, metadata);
+                            new Producer(topic, ServerCnx.this, producerId, producerName, authRole, isEncrypted, metadata);
 
                     try {
                         topic.addProducer(producer);

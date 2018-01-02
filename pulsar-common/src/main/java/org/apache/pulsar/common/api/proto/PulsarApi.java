@@ -8666,7 +8666,11 @@ public final class PulsarApi {
     boolean hasProducerName();
     String getProducerName();
     
-    // repeated .pulsar.proto.KeyValue metadata = 5;
+    // optional bool encrypted = 5 [default = false];
+    boolean hasEncrypted();
+    boolean getEncrypted();
+    
+    // repeated .pulsar.proto.KeyValue metadata = 6;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getMetadataList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index);
@@ -8793,8 +8797,18 @@ public final class PulsarApi {
       }
     }
     
-    // repeated .pulsar.proto.KeyValue metadata = 5;
-    public static final int METADATA_FIELD_NUMBER = 5;
+    // optional bool encrypted = 5 [default = false];
+    public static final int ENCRYPTED_FIELD_NUMBER = 5;
+    private boolean encrypted_;
+    public boolean hasEncrypted() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public boolean getEncrypted() {
+      return encrypted_;
+    }
+    
+    // repeated .pulsar.proto.KeyValue metadata = 6;
+    public static final int METADATA_FIELD_NUMBER = 6;
     private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> metadata_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getMetadataList() {
       return metadata_;
@@ -8819,6 +8833,7 @@ public final class PulsarApi {
       producerId_ = 0L;
       requestId_ = 0L;
       producerName_ = "";
+      encrypted_ = false;
       metadata_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -8868,8 +8883,11 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeBytes(4, getProducerNameBytes());
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeBool(5, encrypted_);
+      }
       for (int i = 0; i < metadata_.size(); i++) {
-        output.writeMessage(5, metadata_.get(i));
+        output.writeMessage(6, metadata_.get(i));
       }
     }
     
@@ -8895,9 +8913,13 @@ public final class PulsarApi {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(4, getProducerNameBytes());
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(5, encrypted_);
+      }
       for (int i = 0; i < metadata_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(5, metadata_.get(i));
+          .computeMessageSize(6, metadata_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -9020,8 +9042,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         producerName_ = "";
         bitField0_ = (bitField0_ & ~0x00000008);
-        metadata_ = java.util.Collections.emptyList();
+        encrypted_ = false;
         bitField0_ = (bitField0_ & ~0x00000010);
+        metadata_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -9071,9 +9095,13 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000008;
         }
         result.producerName_ = producerName_;
-        if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.encrypted_ = encrypted_;
+        if (((bitField0_ & 0x00000020) == 0x00000020)) {
           metadata_ = java.util.Collections.unmodifiableList(metadata_);
-          bitField0_ = (bitField0_ & ~0x00000010);
+          bitField0_ = (bitField0_ & ~0x00000020);
         }
         result.metadata_ = metadata_;
         result.bitField0_ = to_bitField0_;
@@ -9094,10 +9122,13 @@ public final class PulsarApi {
         if (other.hasProducerName()) {
           setProducerName(other.getProducerName());
         }
+        if (other.hasEncrypted()) {
+          setEncrypted(other.getEncrypted());
+        }
         if (!other.metadata_.isEmpty()) {
           if (metadata_.isEmpty()) {
             metadata_ = other.metadata_;
-            bitField0_ = (bitField0_ & ~0x00000010);
+            bitField0_ = (bitField0_ & ~0x00000020);
           } else {
             ensureMetadataIsMutable();
             metadata_.addAll(other.metadata_);
@@ -9171,7 +9202,12 @@ public final class PulsarApi {
               producerName_ = input.readBytes();
               break;
             }
-            case 42: {
+            case 40: {
+              bitField0_ |= 0x00000010;
+              encrypted_ = input.readBool();
+              break;
+            }
+            case 50: {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addMetadata(subBuilder.buildPartial());
@@ -9297,13 +9333,34 @@ public final class PulsarApi {
         
       }
       
-      // repeated .pulsar.proto.KeyValue metadata = 5;
+      // optional bool encrypted = 5 [default = false];
+      private boolean encrypted_ ;
+      public boolean hasEncrypted() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public boolean getEncrypted() {
+        return encrypted_;
+      }
+      public Builder setEncrypted(boolean value) {
+        bitField0_ |= 0x00000010;
+        encrypted_ = value;
+        
+        return this;
+      }
+      public Builder clearEncrypted() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        encrypted_ = false;
+        
+        return this;
+      }
+      
+      // repeated .pulsar.proto.KeyValue metadata = 6;
       private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> metadata_ =
         java.util.Collections.emptyList();
       private void ensureMetadataIsMutable() {
-        if (!((bitField0_ & 0x00000010) == 0x00000010)) {
+        if (!((bitField0_ & 0x00000020) == 0x00000020)) {
           metadata_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue>(metadata_);
-          bitField0_ |= 0x00000010;
+          bitField0_ |= 0x00000020;
          }
       }
       
@@ -9375,7 +9432,7 @@ public final class PulsarApi {
       }
       public Builder clearMetadata() {
         metadata_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000010);
+        bitField0_ = (bitField0_ & ~0x00000020);
         
         return this;
       }

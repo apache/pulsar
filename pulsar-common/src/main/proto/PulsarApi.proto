@@ -231,8 +231,10 @@ message CommandProducer {
 	/// otherwise the broker will generate a unique name
 	optional string producer_name = 4;
 
-	/// Add optional metadata key=value to this producer
-	repeated KeyValue metadata    = 5;
+	optional bool encrypted       = 5 [default = false];
+
+    /// Add optional metadata key=value to this producer
+    repeated KeyValue metadata    = 6;
 }
 
 message CommandSend {

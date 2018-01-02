@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -74,11 +75,12 @@ public class Producer {
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
+    private final boolean isEncrypted;
 
     private final Map<String, String> metadata;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-                    Map<String, String> metadata) {
+        boolean isEncrypted, Map<String, String> metadata) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -102,6 +104,8 @@ public class Producer {
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+
+        this.isEncrypted = isEncrypted;
     }
 
     @Override
@@ -137,6 +141,24 @@ public class Producer {
                 cnx.completedSendOperation(isNonPersistentTopic);
             });
             return;
+        }
+
+        if (topic.isEncryptionRequired()) {
+
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+
+            // Check whether the message is encrypted or not
+            if (msgMetadata.getEncryptionKeysCount() < 1) {
+                log.warn("[{}] Messages must be encrypted", getTopic().getName());
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
+                            "Messages must be encrypted"));
+                    cnx.completedSendOperation(isNonPersistentTopic);
+                });
+                return;
+            }
         }
 
         startPublishOperation();
@@ -449,6 +471,14 @@ public class Producer {
                         e);
             }
             log.info("[{}] is not allowed to produce from destination [{}] anymore", appId, topic.getName());
+            disconnect();
+        }
+    }
+
+    public void checkEncryption() {
+        if (topic.isEncryptionRequired() && !isEncrypted) {
+            log.info("[{}] [{}] Unencrypted producer is not allowed to produce from destination [{}] anymore",
+                    producerId, producerName, topic.getName());
             disconnect();
         }
     }
