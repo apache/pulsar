@@ -41,7 +41,7 @@ import org.junit.rules.TestName;
  * Unit test of {@link FunctionStateConsumer}.
  */
 @Slf4j
-public class FunctionStateConsumerTest {
+public class FunctionMetaDataConsumerTest {
 
     @Rule
     public final TestName runtime = new TestName();
@@ -50,7 +50,7 @@ public class FunctionStateConsumerTest {
     private final FunctionStateManager fsm;
     private final FunctionStateConsumer fsc;
 
-    public FunctionStateConsumerTest() throws Exception {
+    public FunctionMetaDataConsumerTest() throws Exception {
         this.consumer = mock(Consumer.class);
         this.fsm = mock(FunctionStateManager.class);
         this.fsc = new FunctionStateConsumer(fsm, consumer);
@@ -66,7 +66,7 @@ public class FunctionStateConsumerTest {
     public void testUpdate() throws Exception {
         UpdateRequest request = UpdateRequest.of(
             runtime.getMethodName(),
-            mock(FunctionState.class));
+            mock(FunctionMetaData.class));
 
         Message msg = mock(Message.class);
         when(msg.getData()).thenReturn(Utils.toByteArray(request));

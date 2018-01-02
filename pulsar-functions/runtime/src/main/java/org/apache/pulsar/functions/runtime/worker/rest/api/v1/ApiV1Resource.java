@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime.worker.rest.api.v1;
 import com.google.gson.Gson;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
-import org.apache.pulsar.functions.runtime.worker.FunctionState;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.worker.FunctionStateManager;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
@@ -105,22 +105,22 @@ public class ApiV1Resource extends BaseApiResource {
             1024);
 
         // function state
-        FunctionState functionState = new FunctionState();
-        functionState.setFunctionConfig(functionConfig);
-        functionState.setLimitsConfig(limitsConfig);
-        functionState.setCreateTime(System.currentTimeMillis());
-        functionState.setVersion(0);
+        FunctionMetaData functionMetaData = new FunctionMetaData();
+        functionMetaData.setFunctionConfig(functionConfig);
+        functionMetaData.setLimitsConfig(limitsConfig);
+        functionMetaData.setCreateTime(System.currentTimeMillis());
+        functionMetaData.setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        functionState.setPackageLocation(
+        functionMetaData.setPackageLocation(
                 Utils.getPackageURI(
                         Utils.getDestPackageNamespaceURI(workerConfig, namespace),
                         fileDetail.getFileName()
                 ).toString()
         );
-        functionState.setWorkerId(workerConfig.getWorkerId());
+        functionMetaData.setWorkerId(workerConfig.getWorkerId());
 
-        return updateRequest(functionState, uploadedInputStream, fileDetail);
+        return updateRequest(functionMetaData, uploadedInputStream, fileDetail);
     }
 
     @PUT
@@ -175,22 +175,22 @@ public class ApiV1Resource extends BaseApiResource {
             1024);
 
         // function state
-        FunctionState functionState = new FunctionState();
-        functionState.setFunctionConfig(functionConfig);
-        functionState.setLimitsConfig(limitsConfig);
-        functionState.setCreateTime(System.currentTimeMillis());
-        functionState.setVersion(0);
+        FunctionMetaData functionMetaData = new FunctionMetaData();
+        functionMetaData.setFunctionConfig(functionConfig);
+        functionMetaData.setLimitsConfig(limitsConfig);
+        functionMetaData.setCreateTime(System.currentTimeMillis());
+        functionMetaData.setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        functionState.setPackageLocation(
+        functionMetaData.setPackageLocation(
                 Utils.getPackageURI(
                         Utils.getDestPackageNamespaceURI(workerConfig, namespace),
                         fileDetail.getFileName()
                 ).toString()
         );
-        functionState.setWorkerId(workerConfig.getWorkerId());
+        functionMetaData.setWorkerId(workerConfig.getWorkerId());
 
-        return updateRequest(functionState, uploadedInputStream, fileDetail);
+        return updateRequest(functionMetaData, uploadedInputStream, fileDetail);
     }
 
 
@@ -261,8 +261,8 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        FunctionState functionState = functionStateManager.getFunction(tenant, namespace, functionName);
-        return Response.status(Response.Status.OK).entity(functionState.toJson()).build();
+        FunctionMetaData functionMetaData = functionStateManager.getFunction(tenant, namespace, functionName);
+        return Response.status(Response.Status.OK).entity(functionMetaData.toJson()).build();
     }
 
     @GET
@@ -286,7 +286,7 @@ public class ApiV1Resource extends BaseApiResource {
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
-    private Response updateRequest(FunctionState functionState,
+    private Response updateRequest(FunctionMetaData functionMetaData,
                                    InputStream uploadedInputStream,
                                    FormDataContentDisposition fileDetail) {
         WorkerConfig workerConfig = getWorkerConfig();
@@ -295,7 +295,7 @@ public class ApiV1Resource extends BaseApiResource {
         FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
 
         CompletableFuture<RequestResult> completableFuture
-                = functionStateManager.updateFunction(functionState);
+                = functionStateManager.updateFunction(functionMetaData);
 
         RequestResult requestResult = null;
         try {
@@ -318,7 +318,7 @@ public class ApiV1Resource extends BaseApiResource {
         URI packageURI = null;
         try {
             packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
-                    functionState.getFunctionConfig().getNamespace(), workerConfig);
+                    functionMetaData.getFunctionConfig().getNamespace(), workerConfig);
         } catch (IOException e) {
             LOG.error("Error uploading file {}", fileDetail.getFileName(), e);
             return Response.serverError()

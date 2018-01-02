@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.functions.runtime.worker.request;
 
-import org.apache.pulsar.functions.runtime.worker.FunctionState;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 
 public class DeregisterRequest extends ServiceRequest{
 
     private String functionName;
 
-    public DeregisterRequest(String workerId, FunctionState functionState) {
-        super(workerId, functionState, ServiceRequestType.DELETE);
+    public DeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
+        super(workerId, functionMetaData, ServiceRequestType.DELETE);
         this.functionName = functionName;
     }
 
-    public static DeregisterRequest of(String workerId, FunctionState functionState) {
-        return new DeregisterRequest(workerId, functionState);
+    public static DeregisterRequest of(String workerId, FunctionMetaData functionMetaData) {
+        return new DeregisterRequest(workerId, functionMetaData);
     }
 
     @Override
