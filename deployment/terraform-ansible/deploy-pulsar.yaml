@@ -1,0 +1,182 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+- name: Disk setup
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - command: >
+        tuned-adm profile latency-performance
+    - name: Create and mount disks
+      mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        fstype: xfs
+        opts: defaults,noatime,nodiscard
+        state: present
+      with_items:
+        - { path: "/mnt/journal", src: "/dev/nvme0n1" }
+        - { path: "/mnt/storage", src: "/dev/nvme1n1" }
+
+- name: Pulsar setup
+  hosts: all
+  connection: ssh
+  become: true
+  tasks:
+    - name: Create necessary directories
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items: ["/opt/pulsar"]
+    - name: Install RPM packages
+      yum: pkg={{ item }} state=latest
+      with_items:
+        - wget
+        - java
+        - sysstat
+        - vim
+    - set_fact:
+        zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
+        service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
+        http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
+        pulsar_version: "1.20.0-incubating"
+
+    - name: Download Pulsar binary package
+      unarchive:
+        src: http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
+        remote_src: yes
+        dest: /opt/pulsar
+        extra_opts: ["--strip-components=1"]
+    - set_fact:
+        max_heap_memory: "24g"
+        max_direct_memory: "24g"
+    - name: Add pulsar_env.sh configuration file
+      template:
+        src: "../templates/pulsar_env.sh"
+        dest: "/opt/pulsar/conf/pulsar_env.sh"
+
+- name: Set up ZooKeeper
+  hosts: zookeeper
+  connection: ssh
+  become: true
+  tasks:
+    - set_fact:
+        zid: "{{ groups['zookeeper'].index(inventory_hostname) }}"
+        max_heap_memory: "512m"
+        max_direct_memory: "512m"
+        cluster_name: "local"
+    - name: Create ZooKeeper data directory
+      file:
+        path: "/opt/pulsar/{{ item }}"
+        state: directory
+      with_items:
+        - data/zookeeper
+    - name: Add pulsar_env.sh configuration file 
+      template:
+        src: "../templates/pulsar_env.sh"
+        dest: "/opt/pulsar/conf/pulsar_env.sh"
+    - name: Add zookeeper.conf file
+      template:
+        src: "../templates/zoo.cfg"
+        dest: "/opt/pulsar/conf/zookeeper.conf"
+    - name: Add myid file for ZooKeeper
+      template:
+        src: "../templates/myid"
+        dest: "/opt/pulsar/data/zookeeper/myid"
+    - name: Add zookeeper.service systemd file
+      template:
+        src: "../templates/zookeeper.service"
+        dest: "/etc/systemd/system/zookeeper.service"
+    - name: systemd ZooKeeper start
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "zookeeper"
+    - name: Initialize cluster metadata
+      shell: |
+        bin/pulsar initialize-cluster-metadata \
+          --cluster {{ cluster_name }} \
+          --zookeeper localhost:2181 \
+          --global-zookeeper localhost:2181 \
+          --web-service-url {{ http_url }} \
+          --broker-service-url {{ service_url }}
+      args:
+        chdir: /opt/pulsar
+      when: groups['zookeeper'][0] == inventory_hostname
+
+- name: Set up Bookkeeper
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - template:
+        src: "../templates/bookkeeper.conf"
+        dest: "/opt/pulsar/conf/bookkeeper.conf"
+    - name: Install bookkeeper systemd service
+      template:
+        src: "../templates/bookkeeper.service"
+        dest: "/etc/systemd/system/bookkeeper.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "bookkeeper"
+
+- name: Set up Pulsar
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - name: Set up broker
+      template:
+        src: "../templates/broker.conf"
+        dest: "/opt/pulsar/conf/broker.conf"
+    - template:
+        src: "../templates/pulsar.service"
+        dest: "/etc/systemd/system/pulsar.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "pulsar"
+
+- name: Pulsar multi-tenancy setup
+  hosts: pulsar
+  connection: ssh
+  become: true
+  tasks:
+    - name: Create default property and namespace
+      shell: |
+        bin/pulsar-admin properties create public \
+          --allowed-clusters local \
+          --admin-roles all
+        bin/pulsar-admin namespaces create public/local/default
+      args:
+        chdir: /opt/pulsar
+      when: groups['zookeeper'][0] == inventory_hostname
+      
+- name:  Hosts addresses
+  hosts: localhost
+  become: false
+  tasks:
+    - debug:
+        msg: "Zookeeper servers {{ item }}"
+      with_items: "{{ groups['zookeeper'] }}"
+    - debug:
+        msg: "Pulsar/BookKeeper servers {{ item }}"
+      with_items: "{{ groups['pulsar'] }}"

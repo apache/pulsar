@@ -1,0 +1,14 @@
+[Unit]
+Description=ZooKeeper Local
+After=network.target
+
+[Service]
+Environment=OPTS=-Dstats_server_port=2182
+ExecStart=/opt/pulsar/bin/pulsar zookeeper
+WorkingDirectory=/opt/pulsar
+RestartSec=1s
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
