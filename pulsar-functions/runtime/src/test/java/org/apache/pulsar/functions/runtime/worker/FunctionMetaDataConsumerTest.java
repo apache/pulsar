@@ -38,7 +38,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 /**
- * Unit test of {@link FunctionStateConsumer}.
+ * Unit test of {@link FunctionMetaDataTopicTailer}.
  */
 @Slf4j
 public class FunctionMetaDataConsumerTest {
@@ -47,13 +47,13 @@ public class FunctionMetaDataConsumerTest {
     public final TestName runtime = new TestName();
 
     private final Consumer consumer;
-    private final FunctionStateManager fsm;
-    private final FunctionStateConsumer fsc;
+    private final FunctionMetaDataManager fsm;
+    private final FunctionMetaDataTopicTailer fsc;
 
     public FunctionMetaDataConsumerTest() throws Exception {
         this.consumer = mock(Consumer.class);
-        this.fsm = mock(FunctionStateManager.class);
-        this.fsc = new FunctionStateConsumer(fsm, consumer);
+        this.fsm = mock(FunctionMetaDataManager.class);
+        this.fsc = new FunctionMetaDataTopicTailer(fsm, consumer);
     }
 
     @After

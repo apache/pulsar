@@ -36,14 +36,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A manager manages function states.
+ * A manager manages function metadata.
  */
-public class FunctionStateManager implements AutoCloseable {
+public class FunctionMetaDataManager implements AutoCloseable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FunctionStateManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FunctionMetaDataManager.class);
 
     // tenant -> namespace -> (function name, FunctionMetaData)
-    private final Map<String, Map<String, Map<String, FunctionMetaData>>> functionStateMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Map<String, FunctionMetaData>>> functionMap = new ConcurrentHashMap<>();
 
     // A map in which the key is the service request id and value is the service request
     private final Map<String, ServiceRequest> pendingServiceRequests = new ConcurrentHashMap<>();
@@ -52,8 +52,8 @@ public class FunctionStateManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
 
-    public FunctionStateManager(WorkerConfig workerConfig,
-                                ServiceRequestManager serviceRequestManager) {
+    public FunctionMetaDataManager(WorkerConfig workerConfig,
+                                   ServiceRequestManager serviceRequestManager) {
         this.workerConfig = workerConfig;
         this.serviceRequestManager = serviceRequestManager;
     }
@@ -64,20 +64,20 @@ public class FunctionStateManager implements AutoCloseable {
     }
 
     public FunctionMetaData getFunction(String tenant, String namespace, String functionName) {
-        return this.functionStateMap.get(tenant).get(namespace).get(functionName);
+        return this.functionMap.get(tenant).get(namespace).get(functionName);
     }
 
     public Collection<String> listFunction(String tenant, String namespace) {
         List<String> ret = new LinkedList<>();
 
-        if (!this.functionStateMap.containsKey(tenant)) {
+        if (!this.functionMap.containsKey(tenant)) {
             return ret;
         }
 
-        if (!this.functionStateMap.get(tenant).containsKey(namespace)) {
+        if (!this.functionMap.get(tenant).containsKey(namespace)) {
             return ret;
         }
-        for (FunctionMetaData entry : this.functionStateMap.get(tenant).get(namespace).values()) {
+        for (FunctionMetaData entry : this.functionMap.get(tenant).get(namespace).values()) {
            ret.add(entry.getFunctionConfig().getName());
         }
         return ret;
@@ -88,20 +88,20 @@ public class FunctionStateManager implements AutoCloseable {
         long version = 0;
 
         String tenant = functionMetaData.getFunctionConfig().getTenant();
-        if (!this.functionStateMap.containsKey(tenant)) {
-            this.functionStateMap.put(tenant, new ConcurrentHashMap<>());
+        if (!this.functionMap.containsKey(tenant)) {
+            this.functionMap.put(tenant, new ConcurrentHashMap<>());
         }
 
-        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionStateMap.get(tenant);
+        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionMap.get(tenant);
         String namespace = functionMetaData.getFunctionConfig().getNamespace();
         if (!namespaces.containsKey(namespace)) {
             namespaces.put(namespace, new ConcurrentHashMap<>());
         }
 
-        Map<String, FunctionMetaData> functionStates = namespaces.get(namespace);
+        Map<String, FunctionMetaData> functionMetaDatas = namespaces.get(namespace);
         String functionName = functionMetaData.getFunctionConfig().getName();
-        if (functionStates.containsKey(functionName)) {
-            version = functionStates.get(functionName).getVersion() + 1;
+        if (functionMetaDatas.containsKey(functionName)) {
+            version = functionMetaDatas.get(functionName).getVersion() + 1;
         }
         functionMetaData.setVersion(version);
 
@@ -112,7 +112,7 @@ public class FunctionStateManager implements AutoCloseable {
 
     public CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
         FunctionMetaData functionMetaData
-                = (FunctionMetaData) this.functionStateMap.get(tenant).get(namespace).get(functionName).clone();
+                = (FunctionMetaData) this.functionMap.get(tenant).get(namespace).get(functionName).clone();
 
         functionMetaData.incrementVersion();
 
@@ -131,9 +131,9 @@ public class FunctionStateManager implements AutoCloseable {
     }
 
     public boolean containsFunction(String tenant, String namespace, String functionName) {
-        if (this.functionStateMap.containsKey(tenant)) {
-            if (this.functionStateMap.get(tenant).containsKey(namespace)) {
-                if (this.functionStateMap.get(tenant).get(namespace).containsKey(functionName)) {
+        if (this.functionMap.containsKey(tenant)) {
+            if (this.functionMap.get(tenant).containsKey(namespace)) {
+                if (this.functionMap.get(tenant).get(namespace).containsKey(functionName)) {
                     return true;
                 }
             }
@@ -198,8 +198,8 @@ public class FunctionStateManager implements AutoCloseable {
                     // stop running the function
                     stopFunction(functionName);
                 }
-                // remove function from in memory function state store
-                this.functionStateMap.remove(functionName);
+                // remove function from in memory function metadata store
+                this.functionMap.remove(functionName);
                 completeRequest(deregisterRequest, true);
             } else {
                 completeRequest(deregisterRequest, false,
@@ -226,8 +226,8 @@ public class FunctionStateManager implements AutoCloseable {
 
         // Worker doesn't know about the function so far
         if(!this.containsFunction(updateRequestFs)) {
-            // Since this is the first time worker has seen function, just put it into internal function state store
-            addFunctionToFunctionStateMap(updateRequestFs);
+            // Since this is the first time worker has seen function, just put it into internal function metadata store
+            addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
             if (this.workerConfig.getWorkerId().equals(updateRequestFs.getWorkerId())) {
                 // start the function
@@ -236,11 +236,11 @@ public class FunctionStateManager implements AutoCloseable {
             completeRequest(updateRequest, true);
         } else {
             // The request is an update to an existing function since this worker already has a record of this function
-            // in its function state store
+            // in its function metadata store
             // Check if request is outdated
             if (!isRequestOutdated(updateRequest)) {
-                // update the function state
-                addFunctionToFunctionStateMap(updateRequestFs);
+                // update the function metadata
+                addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
                 if (isMyRequest(updateRequest)) {
                     // Update the function
@@ -254,24 +254,24 @@ public class FunctionStateManager implements AutoCloseable {
         }
     }
 
-    private void addFunctionToFunctionStateMap(FunctionMetaData functionMetaData) {
+    private void addFunctionToFunctionMap(FunctionMetaData functionMetaData) {
         FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
-        if (!this.functionStateMap.containsKey(functionConfig.getTenant())) {
-            this.functionStateMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
+        if (!this.functionMap.containsKey(functionConfig.getTenant())) {
+            this.functionMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
         }
 
-        if (!this.functionStateMap.get(functionConfig.getTenant()).containsKey(functionConfig.getNamespace())) {
-            this.functionStateMap.get(functionConfig.getTenant())
+        if (!this.functionMap.get(functionConfig.getTenant()).containsKey(functionConfig.getNamespace())) {
+            this.functionMap.get(functionConfig.getTenant())
                     .put(functionConfig.getNamespace(), new ConcurrentHashMap<>());
         }
-        this.functionStateMap.get(functionConfig.getTenant())
+        this.functionMap.get(functionConfig.getTenant())
                 .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionMetaData);
     }
 
     private boolean isRequestOutdated(ServiceRequest serviceRequest) {
         FunctionMetaData requestFunctionMetaData = serviceRequest.getFunctionMetaData();
         FunctionConfig functionConfig = requestFunctionMetaData.getFunctionConfig();
-        FunctionMetaData currentFunctionMetaData = this.functionStateMap.get(functionConfig.getTenant())
+        FunctionMetaData currentFunctionMetaData = this.functionMap.get(functionConfig.getTenant())
                 .get(functionConfig.getNamespace()).get(functionConfig.getName());
         return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }

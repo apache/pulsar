@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.worker.rest;
 
-import org.apache.pulsar.functions.runtime.worker.FunctionStateManager;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 
@@ -32,7 +32,7 @@ public class BaseApiResource {
     public static final String ATTRIBUTE_WORKER_SERVICE_REQUEST_MANAGER = "worker-service-request-manager";
 
     private WorkerConfig workerConfig;
-    private FunctionStateManager functionStateManager;
+    private FunctionMetaDataManager functionMetaDataManager;
     private ServiceRequestManager serviceRequestManager;
 
     @Context
@@ -45,11 +45,11 @@ public class BaseApiResource {
         return this.workerConfig;
     }
 
-    public FunctionStateManager getWorkerFunctionStateManager() {
-        if (this.functionStateManager == null) {
-            this.functionStateManager = (FunctionStateManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
+    public FunctionMetaDataManager getWorkerFunctionStateManager() {
+        if (this.functionMetaDataManager == null) {
+            this.functionMetaDataManager = (FunctionMetaDataManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
         }
-        return this.functionStateManager;
+        return this.functionMetaDataManager;
     }
 
     public ServiceRequestManager getWorkerServiceRequestManager() {
