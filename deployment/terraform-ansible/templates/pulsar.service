@@ -1,0 +1,13 @@
+[Unit]
+Description=Pulsar Broker
+After=network.target
+
+[Service]
+ExecStart=/opt/pulsar/bin/pulsar broker
+WorkingDirectory=/opt/pulsar
+RestartSec=1s
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
