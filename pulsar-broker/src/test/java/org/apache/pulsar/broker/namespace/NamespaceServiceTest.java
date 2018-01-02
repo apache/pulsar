@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -297,6 +298,44 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
+    /**
+     * It verifies that unloading bundle will timeout and will not hung even if one of the topic-unloading stuck.
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 6000)
+    public void testUnloadNamespaceBundleWithStuckTopic() throws Exception {
+
+        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get());
+        topics.clear();
+        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        // add mock topic
+        topics.put(topicName, topicFuture);
+        // return uncompleted future as close-topic result.
+        doAnswer(new Answer<CompletableFuture<Void>>() {
+            @Override
+            public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                return new CompletableFuture<Void>();
+            }
+        }).when(spyTopic).close();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+
+        // try to unload bundle whose topic will be stuck
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS);
+
+        try {
+            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
+            fail("it should fail as node is not present");
+        } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+            // ok
+        }
+        consumer.close();
+    }
+    
     /**
      * <pre>
      *  It verifies that namespace service deserialize the load-report based on load-manager which active.

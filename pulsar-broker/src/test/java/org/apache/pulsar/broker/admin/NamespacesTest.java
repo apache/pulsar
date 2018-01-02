@@ -821,7 +821,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         }));
 
-        doNothing().when(nsSvc).unloadNamespace(testNs);
         NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
         doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
 
