@@ -1222,7 +1222,7 @@ public class ServerCnxTest {
 
         // test success case: encrypted producer can connect
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
-                "encrypted-producer", true);
+                "encrypted-producer", true, null);
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
@@ -1250,7 +1250,7 @@ public class ServerCnxTest {
 
         // test failure case: unencrypted producer cannot connect
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 2 /* producer id */, 2 /* request id */,
-                "unencrypted-producer", false);
+                "unencrypted-producer", false, null);
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
@@ -1279,7 +1279,7 @@ public class ServerCnxTest {
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name", true);
+                "prod-name", true, null);
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
@@ -1314,7 +1314,7 @@ public class ServerCnxTest {
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
-                "prod-name", true);
+                "prod-name", true, null);
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
