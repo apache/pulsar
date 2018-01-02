@@ -19,20 +19,16 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.String.format;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,9 +43,9 @@ import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.DoubleByteBuf;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -67,7 +63,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import static java.lang.String.format;
+import io.netty.util.concurrent.ScheduledFuture;
 
 public class ProducerImpl extends ProducerBase implements TimerTask {
 
@@ -99,11 +95,11 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     private volatile long lastSequenceIdPublished;
     private MessageCrypto msgCrypto = null;
+    
+    private ScheduledFuture<?> keyGeneratorTask = null;
 
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
-
-    private ScheduledExecutorService keyGenExecutor = null;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf,
             CompletableFuture<Producer> producerCreatedFuture, int partitionIndex) {
@@ -131,8 +127,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             this.msgCrypto = new MessageCrypto(logCtx , true);
 
             // Regenerate data key cipher at fixed interval
-            keyGenExecutor = Executors.newSingleThreadScheduledExecutor();
-            keyGenExecutor.scheduleWithFixedDelay(() -> {
+            keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(() -> {
                 try {
                     msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
                 } catch (CryptoException e) {
@@ -495,8 +490,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             sendTimeout = null;
         }
 
-        if (keyGenExecutor != null && !keyGenExecutor.isTerminated()) {
-            keyGenExecutor.shutdown();
+        if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
+            keyGeneratorTask.cancel(false);
         }
 
         stats.cancelStatsTimeout();
