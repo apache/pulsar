@@ -34,7 +34,8 @@ public class WorkerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setWorkerId(workerId);
         Worker worker = new Worker(workerConfig);
-        worker.start();
+        worker.startAsync();
+        worker.awaitRunning();
     }
 
     @Test

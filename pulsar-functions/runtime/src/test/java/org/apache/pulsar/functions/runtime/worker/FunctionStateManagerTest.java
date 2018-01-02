@@ -18,5 +18,22 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
+import org.junit.Test;
+
 public class FunctionStateManagerTest {
+
+    @Test
+    public void testClose() {
+        WorkerConfig config = new WorkerConfig();
+        ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
+        FunctionStateManager fsm = new FunctionStateManager(config, reqMgr);
+        fsm.close();
+        verify(reqMgr, times(1)).close();
+    }
+
 }

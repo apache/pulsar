@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
@@ -39,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * A manager manages function states.
  */
-public class FunctionStateManager {
+public class FunctionStateManager implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(FunctionStateManager.class);
 
@@ -53,13 +52,15 @@ public class FunctionStateManager {
 
     private final WorkerConfig workerConfig;
 
-    public FunctionStateManager(WorkerConfig workerConfig) throws PulsarClientException {
-        this(workerConfig, new ServiceRequestManager(workerConfig));
-    }
-
-    public FunctionStateManager(WorkerConfig workerConfig, ServiceRequestManager serviceRequestManager) {
+    public FunctionStateManager(WorkerConfig workerConfig,
+                                ServiceRequestManager serviceRequestManager) {
         this.workerConfig = workerConfig;
         this.serviceRequestManager = serviceRequestManager;
+    }
+
+    @Override
+    public void close() {
+        serviceRequestManager.close();
     }
 
     public FunctionState getFunction(String tenant, String namespace, String functionName) {
