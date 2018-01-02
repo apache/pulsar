@@ -112,7 +112,7 @@ public class ConnectionPool implements Closeable {
             }
         });
 
-        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next())
+        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next()).traceEnabled(true)
                 .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup)).build();
     }
 
