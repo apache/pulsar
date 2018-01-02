@@ -129,6 +129,9 @@ public class NonPersistentTopic implements Topic {
         }
     };
 
+    // Whether messages published must be encrypted or not in this topic
+    private volatile boolean isEncryptionRequired = false;
+
     private static class TopicStats {
         public double averageMsgSize;
         public double aggMsgRateIn;
@@ -164,6 +167,16 @@ public class NonPersistentTopic implements Topic {
         USAGE_COUNT_UPDATER.set(this, 0);
 
         this.lastActive = System.nanoTime();
+
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            isEncryptionRequired = policies.encryption_required;
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
+            isEncryptionRequired = false;
+        }
     }
 
     @Override
@@ -845,7 +858,14 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
-        producers.forEach(Producer::checkPermissions);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
+        }
+        isEncryptionRequired = data.encryption_required;
+        producers.forEach(producer -> {
+            producer.checkPermissions();
+            producer.checkEncryption();
+        });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         return checkReplicationAndRetryOnFailure();
     }
@@ -868,6 +888,11 @@ public class NonPersistentTopic implements Topic {
     public boolean isBacklogQuotaExceeded(String producerName) {
         // No-op
         return false;
+    }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        return isEncryptionRequired;
     }
 
     @Override

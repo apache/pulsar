@@ -322,7 +322,7 @@ public class PersistentTopicTest {
 
         String role = "appid1";
         // 1. simple add producer
-        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role);
+        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role, false);
         topic.addProducer(producer);
         assertEquals(topic.getProducers().size(), 1);
 
@@ -337,7 +337,7 @@ public class PersistentTopicTest {
 
         // 3. add producer for a different topic
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
-        Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name", role);
+        Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name", role, false);
         try {
             topic.addProducer(failProducer);
             fail("should have failed");
@@ -480,7 +480,7 @@ public class PersistentTopicTest {
 
         // 2. delete topic with producer
         topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
-        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role);
+        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role, false);
         topic.addProducer(producer);
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -635,7 +635,7 @@ public class PersistentTopicTest {
         try {
             String role = "appid1";
             Thread.sleep(10); /* delay to ensure that the delete gets executed first */
-            Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role);
+            Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name", role, false);
             topic.addProducer(producer);
             fail("Should have failed");
         } catch (BrokerServiceException e) {

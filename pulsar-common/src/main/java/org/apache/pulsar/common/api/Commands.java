@@ -401,6 +401,10 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName) {
+        return newProducer(topic, producerId, requestId, producerName, false);
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName, boolean encrypted) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -408,6 +412,7 @@ public class Commands {
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+        producerBuilder.setEncrypted(encrypted);
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
